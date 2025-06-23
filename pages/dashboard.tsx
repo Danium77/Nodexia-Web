@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 
-import Header from '../components/Layout/Header'; // Asegúrate que esta ruta sea correcta
-import Sidebar from '../components/Layout/Sidebar'; // Asegúrate que esta ruta sea correcta
+import Header from '../components/layout/Header'; // Asegúrate que esta ruta sea correcta
+import Sidebar from '../components/layout/Sidebar'; // Asegúrate que esta ruta sea correcta
 import PlanningGrid from '../components/Planning/PlanningGrid'; // Asegúrate que esta ruta sea correcta
 
 interface Dispatch {
@@ -90,8 +90,15 @@ const Dashboard = () => {
         setErrorDispatches('Error al cargar despachos: ' + error.message);
       } else {
         const filteredData = data ? data.filter(d => d.scheduled_at) : [];
-        setDispatches(filteredData as Dispatch[]);
-        console.log('Despachos cargados:', filteredData);
+        // Map nested arrays to objects as expected by Dispatch type
+        const mappedData: Dispatch[] = filteredData.map((d: any) => ({
+          ...d,
+          transporte_data: d.transporte_data && Array.isArray(d.transporte_data) ? d.transporte_data[0] : d.transporte_data,
+          creador: d.creador && Array.isArray(d.creador) ? d.creador[0] : d.creador,
+          chofer: d.chofer && Array.isArray(d.chofer) ? d.chofer[0] : d.chofer,
+        }));
+        setDispatches(mappedData);
+        console.log('Despachos cargados:', mappedData);
       }
       setLoadingDispatches(false);
     };
