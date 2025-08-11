@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import { AtSymbolIcon, KeyIcon } from '@heroicons/react/24/outline';
-import { PhoneIcon, EnvelopeIcon, ChatBubbleBottomCenterTextIcon } from '@heroicons/react/24/outline'; // Asegúrate de tener estos importados
 import { supabase } from '../lib/supabaseClient';
+
+interface Role {
+  name: string;
+}
 
 export default function Login() {
   const router = useRouter();
@@ -18,34 +21,62 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
-    const { error } = await supabase.auth.signInWithPassword(form);
-    setLoading(false);
 
-    if (error) return setErrorMsg(error.message);
+    // 1. Iniciar sesión con Supabase
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword(form);
 
-    // NUEVO: Después del login exitoso, forzar un refresco de sesión
-    // Esto a menudo resuelve problemas de estado de usuario inconsistente
-    const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError) {
-        console.error("Error al refrescar sesión después del login:", refreshError.message);
-        setErrorMsg("Error de sesión. Intenta de nuevo.");
-        return;
+    if (loginError) {
+      setLoading(false);
+      setErrorMsg(loginError.message);
+      return;
     }
-    
-    router.push('/dashboard'); // Redirigir al dashboard
+
+    if (loginData.user) {
+      // 2. Una vez logueado, consultar su rol desde la tabla 'profile_users'
+      const { data: profileUserData, error: profileError } = await supabase
+        .from('profile_users')
+        .select('roles(name)') // Sintaxis correcta para la relación
+        .eq('user_id', loginData.user.id)
+        .single();
+
+      // --- INICIO DEBUG ---
+      console.log('Datos del perfil obtenidos:', profileUserData);
+      console.log('Error al obtener perfil:', profileError);
+      // --- FIN DEBUG ---
+
+      if (profileError) {
+        console.error("Error al obtener el rol del usuario:", profileError);
+        // Si hay un error (ej. el usuario no está en la tabla), lo mandamos al dashboard por defecto.
+        router.push('/dashboard');
+        setLoading(false);
+        return;
+      }
+
+      // 3. Redirigir según el rol
+      const isAdmin = Array.isArray(profileUserData?.roles)
+        ? (profileUserData.roles as Role[]).some((role) => role.name === 'admin')
+        : (profileUserData?.roles as Role)?.name === 'admin';
+      if (isAdmin) {
+        router.push('/admin/usuarios'); // ¡Si es admin, va a la página de admin!
+      } else {
+        console.log(`Rol detectado: '${isAdmin ? 'admin' : 'otro'}'. Redirigiendo a dashboard.`);
+        router.push('/dashboard'); // Si no, al dashboard normal.
+      }
+    }
+    setLoading(false);
   };
 
   const handleForgotPassword = () => {
-    router.push('/recuperar-contrasena');
+    alert('Función de recuperar contraseña no implementada.');
   };
 
   return (
     <>
-      <title>Nodexia • Iniciar sesión</title>
+      <title>Nodexia • Iniciar Sesión</title>
 
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-[#0e1a2d] px-4">
         <Image
-          src="/logo-nodexia.png" // Asegúrate de que esta sea la ruta correcta a tu logo completo
+          src="/logo-nodexia.png"
           alt="Logo Nodexia"
           width={200}
           height={200}
@@ -56,6 +87,10 @@ export default function Login() {
           onSubmit={handleLogin}
           className="w-full max-w-sm flex flex-col gap-4"
         >
+          <h1 className="text-2xl font-semibold text-slate-50 text-center mb-2">
+            Iniciar Sesión
+          </h1>
+
           <label className="flex items-center gap-2 px-4 py-3 rounded-md bg-[#1b273b] focus-within:ring-2 ring-cyan-500/70">
             <AtSymbolIcon className="h-5 w-5 text-cyan-400" />
             <input
@@ -65,6 +100,7 @@ export default function Login() {
               placeholder="Email"
               className="flex-1 bg-transparent outline-none text-slate-100 placeholder-slate-400"
               onChange={handleChange}
+              value={form.email}
             />
           </label>
 
@@ -77,29 +113,19 @@ export default function Login() {
               placeholder="Contraseña"
               className="flex-1 bg-transparent outline-none text-slate-100 placeholder-slate-400"
               onChange={handleChange}
+              value={form.password}
             />
           </label>
 
-          {errorMsg && (
-            <p className="text-sm text-red-400 -mt-2">{errorMsg}</p>
-          )}
+          {errorMsg && <p className="text-sm text-red-400 -mt-2">{errorMsg}</p>}
 
           <button
             type="submit"
             disabled={loading}
             className="px-6 py-3 rounded-md bg-gradient-to-r from-blue-600 to-cyan-400 text-white font-semibold disabled:opacity-60"
           >
-            {loading ? 'Ingresando…' : 'Iniciar sesión'}
+            {loading ? 'Iniciando…' : 'Iniciar Sesión'}
           </button>
-
-          <p className="text-center text-sm mt-2">
-            <span
-              onClick={handleForgotPassword}
-              className="cursor-pointer text-cyan-400 hover:underline"
-            >
-              ¿Olvidaste tu contraseña?
-            </span>
-          </p>
 
           <p className="text-center text-sm text-slate-300 mt-1">
             ¿No tienes cuenta?{' '}
@@ -111,24 +137,6 @@ export default function Login() {
             </span>
           </p>
         </form>
-
-        <div className="w-full max-w-sm flex flex-col gap-2 mt-8 text-center text-slate-400 text-sm">
-          <p>Contactate con soporte:</p>
-          <div className="flex justify-center gap-6">
-            <a href="tel:+54911xxxxxxxx" className="flex items-center gap-1 text-slate-300 hover:text-cyan-400 transition-colors">
-              <PhoneIcon className="h-5 w-5" />
-              <span>+54 9 11 xxxx-xxxx</span>
-            </a>
-            <a href="mailto:soporte@nodexia.com" className="flex items-center gap-1 text-slate-300 hover:text-cyan-400 transition-colors">
-              <EnvelopeIcon className="h-5 w-5" />
-              <span>soporte@nodexia.com</span>
-            </a>
-            <a href="https://wa.me/54911xxxxxxxx?text=Hola%20Nodexia,%20necesito%20soporte" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-slate-300 hover:text-cyan-400 transition-colors">
-              <ChatBubbleBottomCenterTextIcon className="h-5 w-5" />
-              <span>WhatsApp</span>
-            </a>
-          </div>
-        </div>
       </div>
     </>
   );
