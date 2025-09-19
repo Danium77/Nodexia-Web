@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient'; // Ruta relativa
 import Header from '../components/layout/Header'; // Ruta relativa
 import Sidebar from '../components/layout/Sidebar'; // Ruta relativa
 import OfferDispatchModal from '../components/Modals/OfferDispatchModal'; // Ruta relativa
+import ConfirmModal from '../components/Modals/ConfirmModal';
 
 interface FormDispatchRow {
   tempId: number;
@@ -68,6 +69,8 @@ const CrearDespacho = () => {
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [selectedDispatchIdToOffer, setSelectedDispatchIdToOffer] = useState<string | null>(null);
   const [availableTransports, setAvailableTransports] = useState<Transport[]>([]);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<{ type: 'delete'; id: string } | null>(null);
 
 
   const fetchGeneratedDispatches = useCallback(async (userId: string) => { 
@@ -104,20 +107,26 @@ const CrearDespacho = () => {
             console.error('DEBUG [CrearDespacho]: Error al cargar despachos generados:', error.message);
         } else {
             console.log('DEBUG [CrearDespacho]: Despachos generados cargados:', data);
-            const mappedData: GeneratedDispatch[] = data.map(d => ({
-                id: d.id,
-                pedido_id: d.pedido_id,
-                origen: d.origen,
-                destino: d.destino,
-                carga_type: d.type || 'N/A',
-                fecha: d.scheduled_at ? d.scheduled_at.split('T')[0] : 'N/A',
-                hora: d.scheduled_at ? d.scheduled_at.split('T')[1].substring(0, 5) : 'N/A',
-                prioridad: d.prioridad,
-                unidad_type: (d as any).unidad_type || 'N/A', 
-                comentarios: d.comentarios,
-                transporte_data: Array.isArray(d.transporte_data) ? d.transporte_data[0] : d.transporte_data,
-                estado: d.estado,
-            }));
+  const mappedData: GeneratedDispatch[] = data.map(d => {
+        // Prefer explicitly stored local values if available (backfilled by migration)
+        const dd: any = d;
+        const fechaLocal = dd.scheduled_local_date || (dd.scheduled_at ? (() => { const s=new Date(dd.scheduled_at); return `${s.getFullYear()}-${String(s.getMonth()+1).padStart(2,'0')}-${String(s.getDate()).padStart(2,'0')}` })() : 'N/A');
+        const horaLocal = dd.scheduled_local_time || (dd.scheduled_at ? (() => { const s=new Date(dd.scheduled_at); return s.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}); })() : 'N/A');
+        return {
+          id: d.id,
+          pedido_id: d.pedido_id,
+          origen: d.origen,
+          destino: d.destino,
+          carga_type: d.type || 'N/A',
+          fecha: fechaLocal,
+          hora: horaLocal,
+          prioridad: d.prioridad,
+          unidad_type: (dd).unidad_type || 'N/A', 
+          comentarios: dd.comentarios,
+          transporte_data: Array.isArray(dd.transporte_data) ? dd.transporte_data[0] : dd.transporte_data,
+          estado: dd.estado,
+        };
+      });
             setGeneratedDispatches(mappedData);
         }
         setLoadingGenerated(false);
@@ -134,6 +143,17 @@ const CrearDespacho = () => {
     } else {
       setAvailableTransports(data as Transport[]);
       console.log('Transportes disponibles cargados:', data);
+    }
+  }, []);
+
+  // Helper: verify ownership of a dispatch row
+  const checkOwnership = useCallback(async (dispatchId: string) => {
+    try {
+      const { data, error } = await supabase.from('despachos').select('created_by').eq('id', dispatchId).single();
+      if (error) return { ok: false, error };
+      return { ok: true, ownerId: data?.created_by };
+    } catch (err: any) {
+      return { ok: false, error: err };
     }
   }, []);
 
@@ -244,12 +264,20 @@ const CrearDespacho = () => {
     }
 
     try {
+      // Construir la fecha/hora local y guardarla como ISO UTC (toISOString)
+      // Para evitar desfases por zona horaria al leer desde la base.
+      const localScheduled = new Date(`${rowToSave.fecha}T${rowToSave.hora}:00`);
+      const scheduledAtISO = localScheduled.toISOString();
+
       const dispatchDataToInsert = {
         pedido_id: rowToSave.pedido_id || `PED-${Date.now()}`,
         origen: rowToSave.origen,
         destino: rowToSave.destino,
         estado: 'Generado',
-        scheduled_at: `${rowToSave.fecha}T${rowToSave.hora}:00`,
+        scheduled_at: scheduledAtISO,
+        // store local date/time for easy querying and display
+        scheduled_local_date: localScheduled ? `${localScheduled.getFullYear()}-${String(localScheduled.getMonth()+1).padStart(2,'0')}-${String(localScheduled.getDate()).padStart(2,'0')}` : null,
+        scheduled_local_time: localScheduled ? `${String(localScheduled.getHours()).padStart(2,'0')}:${String(localScheduled.getMinutes()).padStart(2,'0')}:00` : null,
         created_by: user.id,
         transport_id: null,
         driver_id: null,
@@ -319,16 +347,43 @@ const CrearDespacho = () => {
   const handleConfirmOffer = async (dispatchId: string, selectedTransportId: string, offerType: 'priority' | 'direct') => {
     console.log(`DEBUG: Confirmando oferta para despacho ${dispatchId} a transporte ${selectedTransportId} (${offerType})`); // DEBUG
     
-    await supabase
-      .from('despachos')
-      .update({
-        transport_id: selectedTransportId,
-        estado: 'Ofrecido' 
-      })
-      .eq('id', dispatchId);
+    // Verify ownership first
+    if (!user || !user.id) return { success: false, error: 'Usuario no autenticado' };
+    const ownerCheck = await checkOwnership(dispatchId);
+    if (!ownerCheck.ok) {
+      const errMsg = 'No se pudo verificar propietario: ' + (ownerCheck.error?.message || String(ownerCheck.error));
+      console.error(errMsg);
+      setErrorMsg(errMsg);
+      return { success: false, error: errMsg };
+    }
+    if (ownerCheck.ownerId !== user.id) {
+      const errMsg = 'No tienes permisos para ofrecer este despacho (no eres el creador)';
+      console.warn(errMsg, { owner: ownerCheck.ownerId, me: user.id });
+      setErrorMsg(errMsg);
+      return { success: false, error: errMsg };
+    }
 
-    await fetchGeneratedDispatches(user.id); 
-    alert('Oferta confirmada (simulado).');
+    try {
+      const { error } = await supabase
+        .from('despachos')
+        .update({ transport_id: selectedTransportId, estado: 'Ofrecido' })
+        .eq('id', dispatchId);
+
+      if (error) {
+        console.error('Error al confirmar oferta:', error.message);
+        setErrorMsg(error.message);
+        return { success: false, error: error.message };
+      }
+
+      await fetchGeneratedDispatches(user.id);
+      setSuccessMsg('Oferta confirmada.');
+      return { success: true };
+    } catch (err: any) {
+      console.error('Excepción al confirmar oferta:', err);
+      const m = err?.message || 'Error desconocido';
+      setErrorMsg(m);
+      return { success: false, error: m };
+    }
   };
 
 
@@ -409,7 +464,6 @@ const CrearDespacho = () => {
                         >
                           <option value="">Sel.</option>
                           <option value="despacho">Despacho</option>
-                          <option value="recepcion">Recepción</option>
                           <option value="paletizada">Paletizada</option>
                           <option value="granel">Granel</option>
                         </select>
@@ -523,8 +577,8 @@ const CrearDespacho = () => {
                         </td>
                     </tr>
                 ) : (
-                    generatedDispatches.map(dispatch => (
-                        <tr key={dispatch.id}>
+          generatedDispatches.map(dispatch => (
+            <tr key={dispatch.id}>
                             <td className="px-4 py-3 whitespace-nowrap text-sm">{dispatch.fecha}</td> {/* CAMBIO: Fecha aquí */}
                             <td className="px-4 py-3 whitespace-nowrap text-sm">{dispatch.hora}</td> {/* CAMBIO: Hora aquí */}
                             <td className="px-4 py-3 whitespace-nowrap text-sm">{dispatch.origen}</td>
@@ -535,7 +589,7 @@ const CrearDespacho = () => {
                             <td className="px-4 py-3 whitespace-nowrap text-sm">{dispatch.comentarios}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm">{dispatch.transporte_data?.nombre || 'Pendiente'}</td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm">{dispatch.estado}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-center flex items-center justify-center gap-2">
                                 {dispatch.estado === 'Generado' ? (
                                     <button
                                       type="button"
@@ -545,8 +599,28 @@ const CrearDespacho = () => {
                                       Ofrecer
                                     </button>
                                 ) : (
-                                    <span className="text-slate-400">Ver</span> // O un botón de ver detalle
+                                    <>
+                                      <span className="px-2 py-1 rounded-full text-xs bg-green-700 text-white">Ofrecido</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => router.push(`/despachos/${dispatch.id}`)}
+                                        className="px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-white text-xs"
+                                      >
+                                        Ver detalle
+                                      </button>
+                                    </>
                                 )}
+
+                                {/* Botón eliminar por fila (abre modal de confirmación) */}
+                                  <button
+                                  type="button"
+                                  onClick={() => {
+                                    setConfirmPayload({ type: 'delete', id: dispatch.id });
+                                    setIsConfirmModalOpen(true);
+                                  }}
+                                  className="px-2 py-1 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs"
+                                >Eliminar
+                                </button>
                             </td>
                         </tr>
                     ))
@@ -554,6 +628,85 @@ const CrearDespacho = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Offer modal (rendered once) */}
+          <OfferDispatchModal
+            isOpen={isOfferModalOpen}
+            onClose={handleCloseOfferModal}
+            dispatchId={selectedDispatchIdToOffer}
+            onConfirmOffer={handleConfirmOffer}
+            availableTransports={availableTransports}
+          />
+
+          {/* Confirm modal for deletions */}
+          <ConfirmModal
+            isOpen={isConfirmModalOpen}
+            title="Eliminar despacho"
+            message="¿Eliminar este despacho? Esta acción no se puede deshacer."
+            confirmLabel="Eliminar"
+            cancelLabel="Cancelar"
+            onCancel={() => { setIsConfirmModalOpen(false); setConfirmPayload(null); }}
+            onConfirm={async () => {
+              if (!confirmPayload) return;
+              if (confirmPayload.type === 'delete') {
+                // Verify ownership before attempting delete
+                if (!user || !user.id) {
+                  setErrorMsg('Usuario no autenticado.');
+                  setIsConfirmModalOpen(false);
+                  setConfirmPayload(null);
+                  return;
+                }
+                const ownerCheck = await checkOwnership(confirmPayload.id);
+                if (!ownerCheck.ok) {
+                  const errMsg = 'No se pudo verificar propietario: ' + (ownerCheck.error?.message || String(ownerCheck.error));
+                  setErrorMsg(errMsg);
+                  setIsConfirmModalOpen(false);
+                  setConfirmPayload(null);
+                  return;
+                }
+                if (ownerCheck.ownerId !== user.id) {
+                  const errMsg = 'No tienes permisos para eliminar este despacho (no eres el creador). Propietario actual: ' + ownerCheck.ownerId;
+                  setErrorMsg(errMsg);
+                  setIsConfirmModalOpen(false);
+                  setConfirmPayload(null);
+                  return;
+                }
+
+                const { error, data: deleteData } = await supabase.from('despachos').delete().eq('id', confirmPayload.id).select('id');
+                if (error) {
+                  setErrorMsg('Error al eliminar despacho: ' + error.message);
+                  console.error('Delete error', error);
+                } else {
+                  console.log('Delete result', deleteData);
+                  // Verify that the row no longer exists
+                  const { data: verifyData, error: verifyError } = await supabase.from('despachos').select('id, created_by').eq('id', confirmPayload.id).single();
+                  if (verifyError && verifyError.code === 'PGRST116') {
+                    // PostgREST codes: PGRST116 = No rows found? fallback to success
+                    // If PostgREST returns no rows, interpret as deleted
+                    await fetchGeneratedDispatches(user.id);
+                    setSuccessMsg('Despacho eliminado.');
+                  } else if (verifyError && !verifyData) {
+                    // no data means deleted
+                    await fetchGeneratedDispatches(user.id);
+                    setSuccessMsg('Despacho eliminado.');
+                  } else if (verifyData && verifyData.id) {
+                    // Row still present
+                    const msg = 'El despacho parece seguir presente después del DELETE (id=' + confirmPayload.id + '). created_by=' + (verifyData.created_by || 'NULL');
+                    console.warn(msg, { verifyData });
+                    setErrorMsg(msg + ' Revisa RLS/políticas o la columna created_by.');
+                    // still refresh to ensure server data reflected
+                    await fetchGeneratedDispatches(user.id);
+                  } else {
+                    // Fallback success
+                    await fetchGeneratedDispatches(user.id);
+                    setSuccessMsg('Despacho eliminado.');
+                  }
+                }
+              }
+              setIsConfirmModalOpen(false);
+              setConfirmPayload(null);
+            }}
+          />
 
         </main>
       </div>

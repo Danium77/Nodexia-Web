@@ -5,22 +5,49 @@ import Image from 'next/image';
 import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { useUserContext } from '../context/UserContext';
 
-interface SidebarProps {
-    userEmail: string;
-    userName: string;
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
+const Sidebar: React.FC = () => {
   const router = useRouter();
+  const { email: userEmail, name: userName, role: userRole, loading } = useUserContext();
+  // Log para depuración
+  console.log('Sidebar userRole:', userRole);
 
-  const navItems = [
+  if (loading) {
+    // Loader o sidebar vacío mientras se carga el rol
+    return (
+      <aside className="w-64 bg-[#1b273b] pt-0 pb-6 flex flex-col shadow-lg text-slate-100 min-h-screen" />
+    );
+  }
+
+  // Definir los ítems según el rol
+  let navItems = [
     { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
-    { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
-    { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
-    { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
-    { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
   ];
+  if (userRole === 'coordinador') {
+    navItems = [
+      ...navItems,
+      { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
+      { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
+      { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
+      { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
+    ];
+  } else if (userRole === 'transporte') {
+    navItems = [
+      ...navItems,
+      { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
+      { name: 'Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
+    ];
+  } else {
+    // Si el rol es vacío o desconocido, mostrar todas las solapas (modo depuración)
+    navItems = [
+      { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
+      { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
+      { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
+      { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
+      { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
+    ];
+  }
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();

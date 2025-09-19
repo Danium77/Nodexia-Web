@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 
 import Header from '../components/layout/Header'; // Asegúrate que esta ruta sea correcta
 import Sidebar from '../components/layout/Sidebar'; // Asegúrate que esta ruta sea correcta
-import PlanningGrid from '../components/Planning/PlanningGrid'; // Asegúrate que esta ruta sea correcta
+import InicioDashboard from '../components/Dashboard/InicioDashboard';
 
 interface Dispatch {
   id: string;
@@ -142,17 +142,10 @@ const Dashboard = () => {
             <p className="text-red-400">Error al cargar datos: {errorDispatches}</p>
           ) : (
             <>
+              {/* New InicioDashboard: visión global con KPIs, mapa y widgets */}
               <section className="flex flex-col gap-6">
-                <PlanningGrid
-                  title="Planificación Semanal de Despachos"
-                  dispatches={dispatches.filter(d => d.type === 'despacho' || !d.type)}
-                  type="despachos"
-                />
-                <PlanningGrid
-                  title="Planificación Semanal de Recepciones"
-                  dispatches={dispatches.filter(d => d.type === 'recepcion')}
-                  type="recepciones"
-                />
+                {/* Lazy import the dashboard component */}
+                <InicioDashboard dispatches={dispatches} />
               </section>
             </>
           )}

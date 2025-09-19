@@ -5,7 +5,7 @@ interface OfferDispatchModalProps {
   isOpen: boolean; // Controla si el modal está abierto o cerrado
   onClose: () => void; // Función para cerrar el modal
   dispatchId: string | null; // ID del despacho que se está ofreciendo
-  onConfirmOffer: (dispatchId: string, selectedTransportId: string, offerType: 'priority' | 'direct') => void; // Función para confirmar la oferta
+  onConfirmOffer: (dispatchId: string, selectedTransportId: string, offerType: 'priority' | 'direct') => Promise<{ success: boolean; error?: string }>; // Función para confirmar la oferta
 
   // NUEVO: Props para la lista de transportes (para el selector)
   availableTransports: Array<{ id: string; nombre: string }>;
@@ -33,10 +33,12 @@ const OfferDispatchModal: React.FC<OfferDispatchModalProps> = ({
     }
     setOfferLoading(true);
     setOfferError(null);
-    // Aquí se llamaría a la lógica de negocio para guardar la oferta/asignación.
-    // Por ahora, simplemente llamamos a onConfirmOffer (que estará en el componente padre)
-    await onConfirmOffer(dispatchId, selectedTransport, 'direct'); // Asumimos oferta directa por ahora
+    const result = await onConfirmOffer(dispatchId, selectedTransport, 'direct');
     setOfferLoading(false);
+    if (!result || !result.success) {
+      setOfferError(result?.error || 'Error al confirmar la oferta.');
+      return;
+    }
     onClose(); // Cerrar el modal después de la confirmación
   };
 

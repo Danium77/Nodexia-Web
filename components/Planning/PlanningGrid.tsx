@@ -69,18 +69,41 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type }) 
   const groupedDispatches: Record<string, Record<string, Dispatch[]>> = {};
   const actualScheduledTimeSlots = new Set<string>();
 
-  dispatches.forEach(dispatch => {
-    const scheduledDate = new Date(dispatch.scheduled_at);
+  // Helper para formatear fecha local como YYYY-MM-DD
+  const formatLocalDate = (d: Date) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
 
-    // Filtrar despachos que no tienen una fecha válida o no están en la semana actual
-    if (isNaN(scheduledDate.getTime()) || scheduledDate < mondayOfWeek || scheduledDate >= new Date(mondayOfWeek.getTime() + (7 * 24 * 60 * 60 * 1000))) {
-      return; // Saltar si la fecha es inválida o no está en la semana actual
+  const sundayOfWeek = new Date(mondayOfWeek.getTime() + (6 * 24 * 60 * 60 * 1000));
+
+  dispatches.forEach(dispatch => {
+    // Preferir valores locales si existen
+    let scheduledDate: Date | null = null;
+    if ((dispatch as any).scheduled_local_date) {
+      // si existe fecha local y hora local
+      const localDate = (dispatch as any).scheduled_local_date;
+      const localTime = (dispatch as any).scheduled_local_time || '00:00:00';
+      // construir string yyyy-mm-ddTHH:MM:SS para parseo
+      scheduledDate = new Date(`${localDate}T${localTime}`);
+    } else if (dispatch.scheduled_at) {
+      scheduledDate = new Date(dispatch.scheduled_at);
     }
 
-    // Encontrar el nombre del día de la semana
+    if (!scheduledDate || isNaN(scheduledDate.getTime())) return;
+
+    // Comparar por fecha local (YYYY-MM-DD) para evitar problemas de zona horaria
+    const scheduledLocal = formatLocalDate(scheduledDate);
+    const mondayLocal = formatLocalDate(mondayOfWeek);
+    const sundayLocal = formatLocalDate(sundayOfWeek);
+
+    if (scheduledLocal < mondayLocal || scheduledLocal > sundayLocal) {
+      return; // No está en la semana actual
+    }
+
+    // Encontrar el nombre del día de la semana comparando por fecha local
     let dispatchDayName = '';
     for (const dayName in weekDates) {
-      if (weekDates[dayName].toISOString().substring(0, 10) === scheduledDate.toISOString().substring(0, 10)) {
+      if (formatLocalDate(weekDates[dayName]) === scheduledLocal) {
         dispatchDayName = dayName;
         break;
       }
@@ -160,6 +183,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type }) 
                                                 <p className="font-medium text-slate-50 mb-0.5">{dispatch.pedido_id || 'N/A'} - {dispatch.destino || 'N/A'}</p>
                                                 <p className="text-slate-200 mb-0.5">Trans: {dispatch.transporte_data?.nombre || 'N/A'}</p>
                                                 <p className="text-slate-200">Chof: {dispatch.chofer?.nombre_completo || 'N/A'}</p>
+                                                <div className="absolute top-2 left-2 text-xs px-2 py-0.5 rounded-full bg-black/30 text-slate-200">{(dispatch.type || 'despacho').toString().toLowerCase()}</div>
                                             </div>
                                         ))
                                     ) : (
