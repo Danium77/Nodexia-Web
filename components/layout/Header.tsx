@@ -1,6 +1,5 @@
 // components/Layout/Header.tsx
 import React from 'react';
-import Image from 'next/image';
 import { BellIcon, UserCircleIcon } from '@heroicons/react/24/outline'; // XMarkIcon ya no se necesita
 
 interface HeaderProps {

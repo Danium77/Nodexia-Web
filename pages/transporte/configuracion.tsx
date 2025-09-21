@@ -1,6 +1,7 @@
 
 import React from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { useRouter } from 'next/router';
 
 
 
@@ -33,6 +34,7 @@ const transporteCards = [
 
 
 export default function TransporteConfiguracion() {
+  const router = useRouter();
 
   return (
     <AdminLayout pageTitle="Configuración de Transporte">
@@ -42,40 +44,15 @@ export default function TransporteConfiguracion() {
             <h2 className={`text-xl font-bold mb-2 ${card.color}`}>{card.title}</h2>
             <p className="text-gray-300 mb-4 text-center">{card.desc}</p>
             {card.title === 'Documentación' ? (
-              <button
-                className={`${card.button} text-white px-4 py-2 rounded`}
-                onClick={() => window.location.href = '/transporte/documentacion'}
-              >
-                Gestionar
-              </button>
+              <button className={`${card.button} text-white px-4 py-2 rounded`} onClick={() => router.push('/transporte/documentacion')}>Gestionar</button>
             ) : card.title === 'Flota' ? (
-              <button
-                className={`${card.button} text-white px-4 py-2 rounded`}
-                onClick={() => window.location.href = '/transporte/flota'}
-              >
-                Gestionar
-              </button>
+              <button className={`${card.button} text-white px-4 py-2 rounded`} onClick={() => router.push('/transporte/flota')}>Gestionar</button>
             ) : card.title === 'Choferes' ? (
-              <button
-                className={`${card.button} text-white px-4 py-2 rounded`}
-                onClick={() => window.location.href = '/transporte/choferes'}
-              >
-                Gestionar
-              </button>
-            ) : card.title === 'Choferes' ? (
-              <button
-                className={`${card.button} text-white px-4 py-2 rounded`}
-                onClick={() => window.location.href = '/transporte/flota?tab=chofer'}
-              >
-                Gestionar
-              </button>
+              <button className={`${card.button} text-white px-4 py-2 rounded`} onClick={() => router.push('/transporte/choferes')}>Gestionar</button>
+            ) : card.title === 'Clientes' ? (
+              <button className={`${card.button} text-white px-4 py-2 rounded`} onClick={() => router.push('/configuracion/clientes')}>Gestionar</button>
             ) : (
-              <button
-                className={`${card.button} text-white px-4 py-2 rounded`}
-                disabled
-              >
-                Gestionar
-              </button>
+              <button className={`${card.button} text-white px-4 py-2 rounded`} disabled>Gestionar</button>
             )}
           </div>
         ))}

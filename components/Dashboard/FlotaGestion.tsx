@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import FormCard from '../ui/FormCard';
 // import { useChoferes } from '../../lib/hooks/useChoferes';
 
 export default function FlotaGestion() {
@@ -25,7 +26,7 @@ export default function FlotaGestion() {
   const [foto, setFoto] = useState<File|null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
-  const [camiones, setCamiones] = useState<any[]>([]);
+  const [camiones, setCamiones] = useState<Array<{ id?: string; patente?: string; marca?: string; modelo?: string; anio?: number }>>([]);
   const fotoInputRef = useRef<HTMLInputElement>(null);
   // Estados para formulario acoplado
   const [patenteA, setPatenteA] = useState('');
@@ -35,7 +36,7 @@ export default function FlotaGestion() {
   const [fotoA, setFotoA] = useState<File|null>(null);
   const [loadingA, setLoadingA] = useState(false);
   const [errorA, setErrorA] = useState<string|null>(null);
-  const [acoplados, setAcoplados] = useState<any[]>([]);
+  const [acoplados, setAcoplados] = useState<Array<{ id?: string; patente?: string; marca?: string; modelo?: string; anio?: number }>>([]);
   const fotoInputRefA = useRef<HTMLInputElement>(null);
   // ...existing code...
 
@@ -64,12 +65,12 @@ export default function FlotaGestion() {
       if (foto) {
         const fileExt = foto.name.split('.').pop();
         const fileName = `${patente.replace(/\s/g, '_')}_${Date.now()}.${fileExt}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage.from('flota').upload(fileName, foto);
+        const { error: uploadError } = await supabase.storage.from('flota').upload(fileName, foto);
         if (uploadError) throw uploadError;
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
       }
       // TODO: obtener id_transporte y usuario_alta según contexto
-      const { data, error: insertError } = await supabase.from('camiones').insert([
+  const { error: insertError } = await supabase.from('camiones').insert([
         {
           patente,
           marca,
@@ -84,8 +85,9 @@ export default function FlotaGestion() {
       setPatente(''); setMarca(''); setModelo(''); setAnio(''); setFoto(null);
       if (fotoInputRef.current) fotoInputRef.current.value = '';
       fetchCamiones();
-    } catch (err: any) {
-      setError(err.message || 'Error al guardar');
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
+      else setError(String(err) || 'Error al guardar');
     } finally {
       setLoading(false);
     }
@@ -100,12 +102,12 @@ export default function FlotaGestion() {
       if (fotoA) {
         const fileExt = fotoA.name.split('.').pop();
         const fileName = `${patenteA.replace(/\s/g, '_')}_${Date.now()}.${fileExt}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage.from('flota').upload(fileName, fotoA);
+        const { error: uploadError } = await supabase.storage.from('flota').upload(fileName, fotoA);
         if (uploadError) throw uploadError;
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
       }
       // TODO: obtener id_transporte y usuario_alta según contexto
-      const { data, error: insertError } = await supabase.from('acoplados').insert([
+  const { error: insertError } = await supabase.from('acoplados').insert([
         {
           patente: patenteA,
           marca: marcaA,
@@ -120,8 +122,9 @@ export default function FlotaGestion() {
       setPatenteA(''); setMarcaA(''); setModeloA(''); setAnioA(''); setFotoA(null);
       if (fotoInputRefA.current) fotoInputRefA.current.value = '';
       fetchAcoplados();
-    } catch (err: any) {
-      setErrorA(err.message || 'Error al guardar');
+    } catch (err: unknown) {
+      if (err instanceof Error) setErrorA(err.message);
+      else setErrorA(String(err) || 'Error al guardar');
     } finally {
       setLoadingA(false);
     }
@@ -150,7 +153,8 @@ export default function FlotaGestion() {
         <>
           {/* Formulario camión */}
           <div className="mb-6">
-            <form onSubmit={handleSubmitCamion} className="w-full bg-gray-700 p-6 rounded-lg flex flex-col md:flex-row md:items-end md:gap-6 gap-4 shadow-md">
+            <FormCard>
+              <form onSubmit={handleSubmitCamion} className="w-full flex flex-col md:flex-row md:items-end md:gap-6 gap-4">
               <div className="flex-1 flex flex-col">
                 <label className="block text-gray-200 mb-1 font-semibold">Patente</label>
                 <input type="text" className="rounded p-2 border border-gray-600 bg-gray-800 text-white" placeholder="Ej: ABC123" value={patente} onChange={e => setPatente(e.target.value)} required />
@@ -175,19 +179,15 @@ export default function FlotaGestion() {
                 <label className="block invisible mb-1">Agregar</label>
                 <button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-bold shadow">{loading ? 'Guardando...' : 'Agregar'}</button>
               </div>
-            </form>
+              </form>
+            </FormCard>
             {error && <div className="text-red-400 mt-2">{error}</div>}
           </div>
           {/* Listado camiones */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-lg font-bold text-green-300">Listado de camiones</h4>
-              <button
-                className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-1 rounded shadow font-semibold transition text-sm"
-                onClick={() => window.location.href = '/transporte/configuracion'}
-              >
-                ← Volver a tarjetas
-              </button>
+              <button className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-1 rounded shadow font-semibold transition text-sm" onClick={() => router.push('/transporte/configuracion')}>← Volver a tarjetas</button>
             </div>
             <div className="bg-gray-800 rounded-xl shadow p-0 md:p-2 border border-gray-700">
               <table className="w-full text-gray-200">
@@ -213,12 +213,7 @@ export default function FlotaGestion() {
                         <td className="p-3">{v.modelo}</td>
                         <td className="p-3">{v.anio}</td>
                         <td className="p-3 flex gap-2">
-                          <button
-                            className="text-green-400 underline hover:text-green-300"
-                            onClick={() => window.location.href = `/camiones/${v.id}`}
-                          >
-                            Ver detalle
-                          </button>
+                          <button className="text-green-400 underline hover:text-green-300" onClick={() => router.push(`/camiones/${v.id}`)}>Ver detalle</button>
                           <button className="text-red-400 hover:text-red-300">Eliminar</button>
                         </td>
                       </tr>
@@ -233,7 +228,8 @@ export default function FlotaGestion() {
         <>
           {/* Formulario acoplado */}
           <div className="mb-6">
-            <form onSubmit={handleSubmitAcoplado} className="w-full bg-gray-700 p-6 rounded-lg flex flex-col md:flex-row md:items-end md:gap-6 gap-4 shadow-md">
+            <FormCard>
+              <form onSubmit={handleSubmitAcoplado} className="w-full flex flex-col md:flex-row md:items-end md:gap-6 gap-4">
               <div className="flex-1 flex flex-col">
                 <label className="block text-gray-200 mb-1 font-semibold">Patente</label>
                 <input type="text" className="rounded p-2 border border-gray-600 bg-gray-800 text-white" placeholder="Ej: ABC123" value={patenteA} onChange={e => setPatenteA(e.target.value)} required />
@@ -258,18 +254,14 @@ export default function FlotaGestion() {
                 <label className="block invisible mb-1">Agregar</label>
                 <button type="submit" disabled={loadingA} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-bold shadow">{loadingA ? 'Guardando...' : 'Agregar'}</button>
               </div>
-            </form>
+              </form>
+            </FormCard>
             {errorA && <div className="text-red-400 mt-2">{errorA}</div>}
           </div>
           {/* Listado acoplados */}
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-lg font-bold text-green-300">Listado de acoplados</h4>
-            <button
-              className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-1 rounded shadow font-semibold transition text-sm"
-              onClick={() => window.location.href = '/transporte/configuracion'}
-            >
-              ← Volver a tarjetas
-            </button>
+            <button className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-1 rounded shadow font-semibold transition text-sm" onClick={() => router.push('/transporte/configuracion')}>← Volver a tarjetas</button>
           </div>
           <div className="bg-gray-800 rounded-xl shadow p-0 md:p-2 border border-gray-700">
             <table className="w-full text-gray-200">
@@ -295,12 +287,7 @@ export default function FlotaGestion() {
                       <td className="p-3">{v.modelo}</td>
                       <td className="p-3">{v.anio}</td>
                       <td className="p-3 flex gap-2">
-                        <button
-                          className="text-green-400 underline hover:text-green-300"
-                          onClick={() => window.location.href = `/acoplados/${v.id}`}
-                        >
-                          Ver detalle
-                        </button>
+                        <button className="text-green-400 underline hover:text-green-300" onClick={() => router.push(`/acoplados/${v.id}`)}>Ver detalle</button>
                         <button className="text-red-400 hover:text-red-300">Eliminar</button>
                       </td>
                     </tr>

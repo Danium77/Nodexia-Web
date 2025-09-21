@@ -6,9 +6,9 @@ import { supabase } from '../../lib/supabaseClient';
 import {
     UsersIcon,
     ClipboardDocumentListIcon,
-    TagIcon,
     ArrowLeftOnRectangleIcon,
-    HomeIcon
+    HomeIcon,
+    CogIcon
 } from '@heroicons/react/24/outline';
 
 const AdminSidebar = () => {
@@ -18,6 +18,7 @@ const AdminSidebar = () => {
         { name: 'Dashboard', href: '/admin', icon: HomeIcon },
         { name: 'Perfiles', href: '/admin/perfiles', icon: ClipboardDocumentListIcon },
         { name: 'Usuarios', href: '/admin/usuarios', icon: UsersIcon },
+        { name: 'Configuración', href: '/configuracion', icon: CogIcon },
         // Podríamos agregar 'Roles' aquí en el futuro si es necesario gestionarlos
     ];
 

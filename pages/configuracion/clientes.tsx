@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../../components/layout/AdminLayout';
+import FormCard from '../../components/ui/FormCard';
 import { supabase } from '../../lib/supabaseClient';
 
 interface Cliente {
@@ -74,7 +75,7 @@ const ClientesPage = () => {
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         Volver
       </button>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <FormCard className="mb-6">
         <h2 className="text-2xl font-bold text-yellow-400 mb-4">Clientes</h2>
         <div className="mb-4 flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1">
@@ -120,14 +121,16 @@ const ClientesPage = () => {
               <div><strong>Teléfono:</strong> {nuevoCliente.telefono}</div>
               <div className="col-span-2"><strong>Documentación:</strong> {nuevoCliente.documentacion.join(', ')}</div>
             </div>
-            <button
-              className="mt-4 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded"
-              onClick={asociarCliente}
-            >Asociar a mi lista</button>
+            <div className="mt-4 flex justify-end">
+              <button
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded"
+                onClick={asociarCliente}
+              >Asociar a mi lista</button>
+            </div>
           </div>
         )}
-      </div>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6">
+      </FormCard>
+      <FormCard>
         <h3 className="text-xl font-bold text-yellow-300 mb-4">Mis clientes asociados</h3>
         {clientes.length === 0 ? (
           <div className="text-gray-400">No tienes clientes asociados aún.</div>
@@ -142,6 +145,7 @@ const ClientesPage = () => {
                 <th className="p-2">Provincia</th>
                 <th className="p-2">Teléfono</th>
                 <th className="p-2">Documentación</th>
+                <th className="p-2">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -157,12 +161,23 @@ const ClientesPage = () => {
                   <td className="p-2">{c.provincia}</td>
                   <td className="p-2">{c.telefono}</td>
                   <td className="p-2">{c.documentacion.join(', ')}</td>
+                  <td className="p-2">
+                    <button
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded"
+                      onClick={() => router.push(`/configuracion/clientes/${c.id}`)}
+                    >
+                      Gestionar
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </div>
+        {clientes.length === 0 && (
+          <div className="mt-3 text-gray-400">Prueba a buscar un CUIT que termine en '3' en la sección "Agregar cliente por CUIT" y luego pulsa "Asociar a mi lista" para que aparezca el botón "Gestionar".</div>
+        )}
+  </FormCard>
     </AdminLayout>
   );
 };

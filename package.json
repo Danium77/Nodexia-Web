@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "next dev --turbopack",
-  "seed-demo-users": "node scripts/seed_demo_users.js",
+    "dev": "next dev --turbopack",
+    "seed-demo-users": "node scripts/seed_demo_users.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

@@ -1,11 +1,20 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
+interface DispatchRow {
+  id?: string | number;
+  transport_id?: string | number | null;
+  driver_id?: string | number | null;
+  transporte_data?: any;
+  chofer?: any;
+  [key: string]: any;
+}
+
 export default function useDispatches() {
-  const [dispatches, setDispatches] = useState<any[]>([]);
+  const [dispatches, setDispatches] = useState<DispatchRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const subRef = useRef<any>(null);
+  const subRef = useRef<{ unsubscribe?: () => void } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -32,36 +41,42 @@ export default function useDispatches() {
           setError(fallback.error.message);
         } else {
           // Try to fetch transport/driver names in bulk if those tables exist
-          const transportIds = Array.from(new Set((fallback.data || []).map((d: any) => d.transport_id).filter(Boolean)));
-          const driverIds = Array.from(new Set((fallback.data || []).map((d: any) => d.driver_id).filter(Boolean)));
+          const transportIds = Array.from(new Set((fallback.data || []).map((d) => (d as Record<string, any>).transport_id).filter(Boolean)));
+          const driverIds = Array.from(new Set((fallback.data || []).map((d) => (d as Record<string, any>).driver_id).filter(Boolean)));
 
           let transportsMap: Record<string, any> = {};
           let driversMap: Record<string, any> = {};
           try {
             if (transportIds.length > 0) {
               const { data: tdata, error: terr } = await supabase.from('transportes').select('id,nombre').in('id', transportIds);
-              if (!terr && tdata) transportsMap = Object.fromEntries(tdata.map((t: any) => [t.id, t]));
+              if (!terr && tdata) transportsMap = Object.fromEntries((tdata as Array<Record<string, any>>).map((t) => [t.id, t]));
             }
             if (driverIds.length > 0) {
               const { data: ddata, error: derr } = await supabase.from('usuarios').select('id,nombre_completo').in('id', driverIds);
-              if (!derr && ddata) driversMap = Object.fromEntries(ddata.map((d: any) => [d.id, d]));
+              if (!derr && ddata) driversMap = Object.fromEntries((ddata as Array<Record<string, any>>).map((d) => [d.id, d]));
             }
           } catch (e) {
             console.error('Error fetching transport/driver names:', e);
           }
 
-          setDispatches((fallback.data || []).map((d: any) => ({
-            ...d,
-            transporte_data: d.transport_id ? transportsMap[d.transport_id] : null,
-            chofer: d.driver_id ? driversMap[d.driver_id] : null,
-          })));
+          setDispatches((fallback.data || []).map((d) => {
+            const item = d as Record<string, any>;
+            return ({
+              ...item,
+              transporte_data: item.transport_id ? transportsMap[String(item.transport_id)] : null,
+              chofer: item.driver_id ? driversMap[String(item.driver_id)] : null,
+            } as DispatchRow);
+          }));
           setError(null);
         }
       } else {
-        setDispatches((res.data || []).map((d: any) => ({
-          ...d,
-          transporte_data: Array.isArray(d.transporte_data) ? d.transporte_data[0] : d.transporte_data,
-        })));
+        setDispatches((res.data || []).map((d) => {
+          const item = d as Record<string, any>;
+          return ({
+            ...item,
+            transporte_data: Array.isArray(item.transporte_data) ? item.transporte_data[0] : item.transporte_data,
+          } as DispatchRow);
+        }));
         setError(null);
       }
       setLoading(false);
@@ -73,14 +88,18 @@ export default function useDispatches() {
     try {
       subRef.current = supabase
         .channel('public:despachos')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'despachos' }, payload => {
-          const rec = payload.new || payload.old;
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'despachos' }, (payload: unknown) => {
+          const p = payload as { new?: unknown; old?: unknown; event?: string } | null;
+          const rec = p?.new || p?.old;
+          if (!rec || typeof rec !== 'object') return;
+          const recObj = rec as Record<string, any>;
           setDispatches(prev => {
             // naive reconciler: replace or add
-            const idx = prev.findIndex(p => p.id === rec.id);
-            if (payload.event === 'DELETE') return prev.filter(p => p.id !== rec.id);
-            if (idx === -1) return [...prev, rec];
-            const copy = [...prev]; copy[idx] = { ...copy[idx], ...rec }; return copy;
+            const idx = prev.findIndex((pItem) => pItem.id === recObj.id);
+            const ev = p?.event;
+            if (ev === 'DELETE') return prev.filter((pItem) => pItem.id !== recObj.id);
+            if (idx === -1) return [...prev, recObj as DispatchRow];
+            const copy = [...prev]; copy[idx] = { ...copy[idx], ...recObj }; return copy;
           });
         })
         .subscribe();

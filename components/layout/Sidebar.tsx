@@ -7,9 +7,17 @@ import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { useUserContext } from '../context/UserContext';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  userEmail?: string;
+  userName?: string;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   const router = useRouter();
-  const { email: userEmail, name: userName, role: userRole, loading } = useUserContext();
+  const { email, name, role: userRole, loading } = useUserContext();
+  // allow override via props (some pages pass them)
+  userEmail = userEmail || email;
+  userName = userName || name;
   // Log para depuración
   console.log('Sidebar userRole:', userRole);
 
