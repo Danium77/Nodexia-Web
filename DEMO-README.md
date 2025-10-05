@@ -71,16 +71,25 @@
 - **Gestión Camiones:** http://localhost:3000/camiones  
 - **Gestión Choferes:** http://localhost:3000/choferes
 - **Gestión Acoplados:** http://localhost:3000/acoplados
-- **Planificación:** http://localhost:3000/planificacion
+- **🆕 Control de Acceso:** http://localhost:3000/control-acceso
+- **🆕 Supervisor de Carga:** http://localhost:3000/supervisor-carga  
+- **🆕 Planificación QR:** http://localhost:3000/planificacion
+- **🆕 Gestión de Viajes:** http://localhost:3000/viajes
+- **🆕 Sistema de Incidencias:** http://localhost:3000/incidencias
 
 ### 🔧 **Funcionalidades Demo**
 - ✅ **Sistema de Login** con múltiples roles
 - ✅ **Gestión de Usuarios** completa con invitaciones
 - ✅ **CRUD de Flota** (Camiones, Acoplados, Choferes)
+- ✅ **Sistema QR de Viajes** con validación completa
 - ✅ **Dashboard Administrativo** con estadísticas
-- ✅ **Sistema de Roles y Permisos** granular
-- ✅ **Supervisión de Carga** y operaciones
-- ✅ **Control de Acceso** y seguridad
+- ✅ **Planificación Diaria** para Control de Acceso y Supervisor
+- ✅ **Gestión de Estados** en tiempo real
+- ✅ **Sistema de Incidencias** integrado
+- ✅ **Notificaciones Push** para app móvil
+- ✅ **Validación de Documentación** automática
+- ✅ **Supervisión de Carga** con fotos de remitos
+- ✅ **Control de Acceso** con escaneo QR
 - ✅ **Interfaz Responsive** moderna
 - ✅ **Filtros y Búsquedas** avanzadas
 
@@ -107,7 +116,27 @@
 2. **Choferes:** Gestión completa con documentos
 3. **Acoplados:** CRUD completo
 
-### 4️⃣ **Funcionalidades Avanzadas**
+### 4️⃣ **Sistema QR de Viajes (NUEVO)**
+1. **Control de Acceso:** Login como `control.acceso@nodexia.com`
+   - Ver planificación del día
+   - Escanear QR de choferes
+   - Validar documentación
+   - Confirmar ingresos/egresos
+   - Reportar incidencias
+
+2. **Supervisor de Carga:** Login como `supervisor.carga@nodexia.com`
+   - Ver todos los estados de camiones
+   - Llamar a carga (envía notificación push)
+   - Escanear QR para iniciar carga
+   - Subir foto de remito
+   - Finalizar carga
+
+### 5️⃣ **Funcionalidades Avanzadas**
+- **Sistema QR único** por viaje
+- **Estados en tiempo real** 
+- **Notificaciones push** automáticas
+- **Gestión de incidencias** integrada
+- **Validación documental** con fotos
 - **Búsquedas y filtros** en tiempo real
 - **Estadísticas visuales** en dashboard
 - **Sistema de permisos** por rol
@@ -131,14 +160,29 @@ pnpm start
 
 ### 🗄️ **Regenerar Datos Demo**
 ```bash
-# Recrear usuarios demo
+# 1. Recrear usuarios y roles
 node scripts/seed_demo_users_updated.js
 
-# Recrear flota demo  
+# 2. Recrear flota (camiones, choferes, acoplados)
 node scripts/seed_choferes_flota_demo.js
 
-# Crear admin (si es necesario)
+# 3. Crear tablas del sistema QR (ejecutar en Supabase SQL Editor)
+# Copiar contenido de: sql/create_sistema_qr_viajes.sql
+
+# 4. Crear viajes demo con QR
+node scripts/seed_viajes_qr_demo.js
+
+# 5. Crear admin (si es necesario)
 node scripts/create_admin.js
+```
+
+### 🔧 **Setup Inicial Sistema QR**
+```bash
+# Ejecutar en orden para setup completo:
+node scripts/seed_demo_users_updated.js && \
+node scripts/seed_choferes_flota_demo.js && \
+echo "Ahora ejecuta sql/create_sistema_qr_viajes.sql en Supabase" && \
+node scripts/seed_viajes_qr_demo.js
 ```
 
 ### 🧹 **Limpiar Datos**
@@ -202,23 +246,65 @@ node scripts/setup_roles.js
 
 #### 👷 **Supervisor de Carga**
 **Usuario:** Luis Supervisor (`supervisor.carga@nodexia.com`)
-**Responsabilidades:**
-- ✅ Supervisión de operaciones de carga y descarga
-- ✅ Control de calidad de mercadería 
-- ✅ Gestión de tiempos de carga
-- ✅ Coordinación con choferes y operarios
-- ✅ Reportes de incidencias
-- ✅ Verificación de documentación de carga
+**Funcionalidades Específicas:**
+- ✅ **Pantalla de Planificación Completa**: Ve programación del día + todos los estados
+- ✅ **Gestión de Estados**: Maneja "Llamado a Carga", "Iniciando Carga", "Carga Finalizada"
+- ✅ **Escaneo QR**: Valida datos del chofer/camión antes de iniciar carga
+- ✅ **Notificaciones Push**: Envía "Llamado a carga" a app móvil del chofer
+- ✅ **Subida de Remitos**: Fotografía y sube remito al finalizar carga
+- ✅ **Visibilidad Total**: Ve camiones en playa, cargando y cargados
+- ✅ **Gestión de Incidencias**: Ve y gestiona incidencias reportadas
 
-#### 🛡️ **Control de Acceso**
+#### 🛡️ **Control de Acceso a Planta**
 **Usuario:** Elena Seguridad (`control.acceso@nodexia.com`)
-**Responsabilidades:**
-- ✅ Control de acceso a instalaciones
-- ✅ Verificación de credenciales
-- ✅ Registro de ingresos y egresos
-- ✅ Monitoreo de seguridad
-- ✅ Gestión de visitantes
-- ✅ Reportes de seguridad
+**Funcionalidades Específicas:**
+- ✅ **Planificación del Día**: Ve solo arribos programados para HOY
+- ✅ **Escaneo QR**: Lee código QR del chofer para validar datos completos
+- ✅ **Gestión de Ingresos**: Confirma "Ingreso a Planta" tras validar todo
+- ✅ **Gestión de Egresos**: Confirma "Egreso de Planta" al finalizar operación
+- ✅ **Validación Documental**: Verifica vigencia de documentación
+- ✅ **Actualización de Docs**: Puede validar documentación nueva si chofer la presenta
+- ✅ **Rechazo de Ingreso**: Puede rechazar acceso y crear incidencia visible para toda la cadena
+- ✅ **Registro Temporal**: Sistema registra automáticamente fecha/hora de ingreso y egreso
+
+## 🔄 **FLUJO DE ESTADOS Y SISTEMA QR**
+
+### 📱 **Sistema de Código QR**
+1. **Chofer confirma viaje** → Sistema genera **QR único** con:
+   - Datos del chofer
+   - Datos del camión 
+   - Estado de documentación
+   - Destino y tipo de operación (carga/descarga)
+
+### 🚦 **Estados del Sistema**
+
+#### **Flujo Completo:**
+```
+1. 📋 "Viaje Confirmado" (Chofer confirma → QR generado)
+   ↓
+2. 🛡️ "Ingreso a Planta" (Control Acceso escanea QR → valida → confirma)
+   ↓  
+3. 🅿️ "En Playa Esperando" (Automático tras ingreso)
+   ↓
+4. 📢 "Llamado a Carga" (Supervisor llama → Push al chofer)
+   ↓
+5. ⚡ "Iniciando Carga" (Supervisor escanea QR → confirma inicio)
+   ↓
+6. 📋 "Carga Finalizada" (Supervisor sube remito → finaliza)
+   ↓
+7. 🚪 "Egreso de Planta" (Control Acceso escanea QR → confirma salida)
+```
+
+### 📱 **Notificaciones Push al Chofer**
+- ✅ Confirmación de viaje generado
+- ⚠️ Avisos de documentación próxima a vencer
+- 📢 Llamado a carga (desde Supervisor)
+- 📍 Cambios de estado en tiempo real
+
+### 🚨 **Sistema de Incidencias**
+- **Control de Acceso** puede rechazar ingreso → Crea incidencia
+- **Incidencia visible para:** Transporte, Coordinador, Supervisor de Carga
+- **Causas comunes:** Documentación vencida, datos incorrectos, problemas del vehículo
 
 ### 🔄 **Regenerar Demo**
 Si algo sale mal, simplemente ejecutar:
