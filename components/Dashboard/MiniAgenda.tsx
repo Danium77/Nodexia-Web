@@ -1,9 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-
-const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`bg-slate-800/60 border border-slate-700 p-4 rounded-lg ${className}`}>{children}</div>
-);
+import Card from '../ui/Card';
 
 const MiniAgenda: React.FC<{ dispatches?: any[] }> = ({ dispatches = [] }) => {
   // Use next 5 upcoming dispatches as demo. If dispatches provide scheduled_local_time, prefer that.
@@ -19,13 +16,16 @@ const MiniAgenda: React.FC<{ dispatches?: any[] }> = ({ dispatches = [] }) => {
   }));
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-white font-semibold">Mini Agenda</h3>
-        <Link href="/planificacion" className="text-sm text-blue-300">Ver más</Link>
+    <Card title="Mini Agenda">
+      <div className="flex items-center justify-between mb-4">
+        <Link href="/planificacion" className="text-sm text-blue-300 hover:text-blue-200">
+          Ver más
+        </Link>
       </div>
       <ul className="space-y-2">
-        {formatted.length === 0 && <li className="text-slate-400">No hay despachos próximos</li>}
+        {formatted.length === 0 && (
+          <li className="text-slate-400">No hay despachos próximos</li>
+        )}
         {formatted.map((f) => (
           <li key={f.id} className="flex items-center justify-between">
             <div className="text-slate-200 font-medium">{f.time}</div>

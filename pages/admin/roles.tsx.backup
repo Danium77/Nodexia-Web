@@ -1,0 +1,660 @@
+import React, { useState, useEffect } from 'react';
+import { GetServerSideProps } from 'next';
+import { supabase } from '../../lib/supabaseClient';
+import AdminLayout from '../../components/layout/AdminLayout';
+import FormularioRol from '../../components/Admin/FormularioRol';
+import {
+  ShieldCheckIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
+  PencilIcon,
+  TrashIcon,
+  FunnelIcon,
+  EyeIcon,
+  UserGroupIcon,
+  CogIcon,
+  BuildingOfficeIcon,
+  ChevronDownIcon
+} from '@heroicons/react/24/outline';
+
+interface Rol {
+  id: string;
+  nombre_rol: string;
+  tipo_empresa: 'coordinador' | 'transporte' | 'ambos' | 'general' | 'admin' | 'custom' | null;
+  descripcion?: string;
+  permisos?: any;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+const RolesPagina: React.FC = () => {
+  const [roles, setRoles] = useState<Rol[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [modalCrear, setModalCrear] = useState(false);
+  const [rolSeleccionado, setRolSeleccionado] = useState<Rol | null>(null);
+  const [modalEditar, setModalEditar] = useState(false);
+  const [modalEliminar, setModalEliminar] = useState(false);
+
+  // Estadísticas
+  const [stats, setStats] = useState({
+    total: 0,
+    activos: 0,
+    coordinador: 0,
+    transporte: 0,
+    ambos: 0
+  });
+
+  // Función temporal para verificar la estructura de la base de datos
+  const verificarEstructuraDB = async () => {
+    try {
+      console.log('🔍 Verificando estructura de la base de datos...');
+      
+      // Intentar obtener información de la tabla
+      const { data, error } = await supabase
+        .from('roles_empresa')
+        .select('*')
+        .limit(1);
+
+      if (error) {
+        console.error('❌ Error con tabla roles_empresa:', error);
+        alert(`Error con la base de datos: ${error.message}\n\nDebes ejecutar el script SQL para crear la tabla roles_empresa.`);
+        return;
+      }
+
+      console.log('✅ Tabla roles_empresa existe y es accesible');
+      alert('✅ La tabla roles_empresa está configurada correctamente');
+      
+    } catch (error: any) {
+      console.error('❌ Error verificando BD:', error);
+      alert(`Error verificando base de datos: ${error.message}`);
+    }
+  };
+
+  // Función para verificar permisos de eliminación
+  const verificarPermisos = async () => {
+    try {
+      console.log('🔍 Verificando permisos de eliminación...');
+      
+      // Intentar crear un rol de prueba
+      const { data: testRol, error: insertError } = await supabase
+        .from('roles_empresa')
+        .insert({
+          nombre_rol: 'TEST_ROL_TEMPORAL',
+          descripcion: 'Rol de prueba para verificar permisos',
+          activo: false
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ No se puede insertar:', insertError);
+        alert('No tienes permisos de inserción en roles_empresa');
+        return;
+      }
+
+      console.log('✅ Rol de prueba creado:', testRol);
+
+      // Intentar eliminar el rol de prueba
+      const { error: deleteError } = await supabase
+        .from('roles_empresa')
+        .delete()
+        .eq('id', testRol.id);
+
+      if (deleteError) {
+        console.error('❌ No se puede eliminar:', deleteError);
+        alert(`Error: No tienes permisos de eliminación - ${deleteError.message}`);
+        
+        // Limpiar el rol de prueba manualmente si no se pudo eliminar
+        console.log('🧹 Intentando limpiar rol de prueba...');
+      } else {
+        console.log('✅ Permisos de eliminación confirmados');
+        alert('✅ Tienes permisos correctos para eliminar roles');
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error verificando permisos:', error);
+      alert(`Error verificando permisos: ${error.message}`);
+    }
+  };
+
+
+
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('roles_empresa')
+          .select('*')
+          .order('nombre_rol');
+
+        if (error) throw error;
+
+        setRoles(data || []);
+      } catch (error: any) {
+        console.error('Error cargando roles:', error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarDatos();
+  }, []);
+
+  useEffect(() => {
+    const stats = {
+      total: roles.length,
+      activos: roles.filter(r => r.activo).length,
+      coordinador: roles.filter(r => r.tipo_empresa === 'coordinador').length,
+      transporte: roles.filter(r => r.tipo_empresa === 'transporte').length,
+      ambos: roles.filter(r => r.tipo_empresa === 'ambos').length
+    };
+    setStats(stats);
+  }, [roles]);
+
+  const rolesFiltrados = roles.filter(rol => {
+    const matchSearch = rol.nombre_rol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       (rol.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+    const matchTipo = !filtroTipo || rol.tipo_empresa === filtroTipo;
+    const matchEstado = !filtroEstado || 
+                       (filtroEstado === 'activo' && rol.activo) ||
+                       (filtroEstado === 'inactivo' && !rol.activo);
+
+    return matchSearch && matchTipo && matchEstado;
+  });
+
+  const handleEliminar = async (rol: Rol) => {
+    try {
+      console.log('🗑️ Intentando eliminar rol:', { id: rol.id, nombre: rol.nombre_rol });
+      
+      const { data, error } = await supabase
+        .from('roles_empresa')
+        .delete()
+        .eq('id', rol.id)
+        .select(); // Agregar select para ver qué se eliminó
+
+      if (error) {
+        console.error('❌ Error de Supabase:', error);
+        alert(`Error al eliminar: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ Rol eliminado en DB:', data);
+
+      // Verificar que realmente se eliminó
+      const { data: checkData, error: checkError } = await supabase
+        .from('roles_empresa')
+        .select('id')
+        .eq('id', rol.id);
+
+      if (checkError) {
+        console.error('❌ Error verificando eliminación:', checkError);
+      } else {
+        console.log('🔍 Verificación post-eliminación:', checkData?.length === 0 ? 'Eliminado correctamente' : 'Aún existe en DB');
+      }
+
+      // Actualizar la lista localmente
+      setRoles(prevRoles => prevRoles.filter(r => r.id !== rol.id));
+      setModalEliminar(false);
+      setRolSeleccionado(null);
+      
+      alert('Rol eliminado correctamente');
+    } catch (error: any) {
+      console.error('❌ Error eliminando rol:', error);
+      alert(`Error al eliminar el rol: ${error.message}`);
+    }
+  };
+
+  const toggleActivo = async (rol: Rol) => {
+    try {
+      const nuevoEstado = !rol.activo;
+      const { error } = await supabase
+        .from('roles_empresa')
+        .update({ activo: nuevoEstado })
+        .eq('id', rol.id);
+
+      if (error) throw error;
+
+      // Actualizar localmente en lugar de recargar desde DB
+      setRoles(prevRoles => 
+        prevRoles.map(r => 
+          r.id === rol.id ? { ...r, activo: nuevoEstado } : r
+        )
+      );
+    } catch (error: any) {
+      console.error('Error actualizando estado del rol:', error.message);
+      alert('Error al actualizar el estado del rol');
+    }
+  };
+
+  const getIconoTipo = (tipo: string | null) => {
+    switch (tipo) {
+      case 'coordinador':
+        return <CogIcon className="h-4 w-4" />;
+      case 'transporte':
+        return <UserGroupIcon className="h-4 w-4" />;
+      case 'ambos':
+        return <BuildingOfficeIcon className="h-4 w-4" />;
+      case 'admin':
+        return <ShieldCheckIcon className="h-4 w-4" />;
+      case 'general':
+      case null:
+      case undefined:
+        return <ShieldCheckIcon className="h-4 w-4" />;
+      default:
+        return <ShieldCheckIcon className="h-4 w-4" />;
+    }
+  };
+
+  const getBadgeTipo = (tipo: string | null) => {
+    // Manejar el caso cuando tipo es null o undefined
+    if (!tipo) {
+      return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 bg-gray-900 text-gray-300 border border-gray-700">
+          <ShieldCheckIcon className="h-4 w-4" />
+          General
+        </span>
+      );
+    }
+
+    const styles = {
+      coordinador: 'bg-blue-900 text-blue-300 border border-blue-700',
+      transporte: 'bg-green-900 text-green-300 border border-green-700',
+      ambos: 'bg-purple-900 text-purple-300 border border-purple-700',
+      general: 'bg-gray-900 text-gray-300 border border-gray-700',
+      admin: 'bg-red-900 text-red-300 border border-red-700',
+      custom: 'bg-indigo-900 text-indigo-300 border border-indigo-700'
+    };
+    
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full flex items-center gap-1 ${styles[tipo as keyof typeof styles] || styles.general}`}>
+        {getIconoTipo(tipo)}
+        {tipo === 'ambos' ? 'Universal' : tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+      </span>
+    );
+  };
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <ShieldCheckIcon className="h-8 w-8 text-cyan-600" />
+              Gestión de Roles
+            </h1>
+            <p className="text-gray-400 mt-1">
+              Administra los roles y permisos del sistema
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={verificarEstructuraDB}
+              className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              🔍 Verificar BD
+            </button>
+            <button
+              onClick={verificarPermisos}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              � Verificar Permisos
+            </button>
+            <button
+              onClick={() => setModalCrear(true)}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Crear Nuevo Rol
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Total Roles</p>
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
+              </div>
+              <ShieldCheckIcon className="h-8 w-8 text-gray-500" />
+            </div>
+          </div>
+
+          <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Activos</p>
+                <p className="text-2xl font-bold text-green-400">{stats.activos}</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-green-900 flex items-center justify-center">
+                <div className="h-3 w-3 rounded-full bg-green-400"></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Coordinador</p>
+                <p className="text-2xl font-bold text-blue-400">{stats.coordinador}</p>
+              </div>
+              <CogIcon className="h-8 w-8 text-blue-500" />
+            </div>
+          </div>
+
+          <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Transporte</p>
+                <p className="text-2xl font-bold text-green-400">{stats.transporte}</p>
+              </div>
+              <UserGroupIcon className="h-8 w-8 text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Universal</p>
+                <p className="text-2xl font-bold text-purple-400">{stats.ambos}</p>
+              </div>
+              <BuildingOfficeIcon className="h-8 w-8 text-purple-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Filtros y búsqueda */}
+        <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Búsqueda */}
+            <div className="flex-1">
+              <div className="relative">
+                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar roles por nombre o descripción..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent placeholder-gray-400"
+                />
+              </div>
+            </div>
+
+            {/* Botón filtros */}
+            <button
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-600 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <FunnelIcon className="h-5 w-5" />
+              Filtros
+              <ChevronDownIcon className={`h-4 w-4 transition-transform ${mostrarFiltros ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {/* Panel de filtros */}
+          {mostrarFiltros && (
+            <div className="mt-4 pt-4 border-t border-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Tipo de Empresa
+                </label>
+                <select
+                  value={filtroTipo}
+                  onChange={(e) => setFiltroTipo(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                >
+                  <option value="">Todos los tipos</option>
+                  <option value="coordinador">Coordinador</option>
+                  <option value="transporte">Transporte</option>
+                  <option value="ambos">Universal</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Estado
+                </label>
+                <select
+                  value={filtroEstado}
+                  onChange={(e) => setFiltroEstado(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                >
+                  <option value="">Todos los estados</option>
+                  <option value="activo">Activos</option>
+                  <option value="inactivo">Inactivos</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setFiltroTipo('');
+                    setFiltroEstado('');
+                    setSearchTerm('');
+                  }}
+                  className="w-full px-4 py-2 text-gray-300 bg-gray-700 border border-gray-600 rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Limpiar Filtros
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tabla de roles */}
+        <div className="bg-gray-800 rounded-lg shadow border border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-700">
+              <thead className="bg-gray-900">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Rol
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Tipo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Descripción
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Creado
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-gray-800 divide-y divide-gray-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
+                        <span className="ml-2">Cargando roles...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : rolesFiltrados.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                      {searchTerm || filtroTipo || filtroEstado
+                        ? 'No se encontraron roles con los filtros aplicados'
+                        : 'No hay roles registrados'}
+                    </td>
+                  </tr>
+                ) : (
+                  rolesFiltrados.map((rol) => (
+                    <tr key={rol.id} className="hover:bg-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <ShieldCheckIcon className="h-5 w-5 text-gray-500 mr-3" />
+                          <div>
+                            <div className="text-sm font-medium text-white">
+                              {rol.nombre_rol}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getBadgeTipo(rol.tipo_empresa)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-300 max-w-xs truncate">
+                          {rol.descripcion || 'Sin descripción'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => toggleActivo(rol)}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                            rol.activo
+                              ? 'bg-green-900 text-green-300 hover:bg-green-800'
+                              : 'bg-red-900 text-red-300 hover:bg-red-800'
+                          }`}
+                        >
+                          <div className={`h-2 w-2 rounded-full mr-1 ${rol.activo ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                          {rol.activo ? 'Activo' : 'Inactivo'}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                        {new Date(rol.created_at).toLocaleDateString('es-ES')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setRolSeleccionado(rol);
+                              setModalEditar(true);
+                            }}
+                            className="text-cyan-400 hover:text-cyan-300 p-1 rounded hover:bg-gray-700 transition-colors"
+                            title="Editar rol"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRolSeleccionado(rol);
+                              setModalEliminar(true);
+                            }}
+                            className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-gray-700 transition-colors"
+                            title="Eliminar rol"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Información adicional */}
+        <div className="bg-blue-900 bg-opacity-50 border border-blue-700 rounded-lg p-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <ShieldCheckIcon className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-300">
+                Información sobre Roles
+              </h3>
+              <div className="mt-2 text-sm text-blue-200">
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>Coordinador:</strong> Roles específicos para empresas que coordinan operaciones</li>
+                  <li><strong>Transporte:</strong> Roles específicos para empresas de transporte</li>
+                  <li><strong>Universal:</strong> Roles que pueden ser utilizados por cualquier tipo de empresa</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Crear/Editar Rol */}
+      <FormularioRol
+        isOpen={modalCrear || modalEditar}
+        onClose={() => {
+          setModalCrear(false);
+          setModalEditar(false);
+          setRolSeleccionado(null);
+        }}
+        onSuccess={async () => {
+          // Recargar datos después de crear/editar
+          try {
+            const { data, error } = await supabase
+              .from('roles_empresa')
+              .select('*')
+              .order('nombre_rol');
+
+            if (error) throw error;
+            setRoles(data || []);
+          } catch (error: any) {
+            console.error('Error recargando roles:', error.message);
+          }
+          
+          setModalCrear(false);
+          setModalEditar(false);
+          setRolSeleccionado(null);
+        }}
+        rol={modalEditar ? rolSeleccionado : null}
+      />
+
+      {/* Modal Eliminar */}
+      {modalEliminar && rolSeleccionado && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <TrashIcon className="h-6 w-6 text-red-400 mr-2" />
+              <h3 className="text-lg font-medium text-white">
+                Eliminar Rol
+              </h3>
+            </div>
+            <p className="text-gray-300 mb-6">
+              ¿Estás seguro de que quieres eliminar el rol "{rolSeleccionado.nombre_rol}"? 
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setModalEliminar(false);
+                  setRolSeleccionado(null);
+                }}
+                className="px-4 py-2 text-gray-300 bg-gray-700 border border-gray-600 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleEliminar(rolSeleccionado)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
+  );
+};
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  return {
+    props: {},
+  };
+};
+
+export default RolesPagina;

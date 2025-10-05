@@ -18,18 +18,48 @@ const inviteUserHandler: NextApiHandlerWithAdmin2 = async (req, res, adminUser) 
       return res.status(400).json({ error: 'Faltan campos requeridos: email, profileId, roleId' });
     }
 
-    // 2. Invitar al usuario. Ya no se pasan metadatos; la asociación se hará manualmente.
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
+    // 2. Invitar al usuario con URL de redirección personalizada
+    const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/complete-invite`;
+    
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email,
+      { redirectTo: redirectUrl }
+    );
 
     if (inviteError) {
+      console.error('🚨 Error detallado de Supabase:', {
+        message: inviteError.message,
+        status: inviteError.status,
+        code: inviteError.code || 'N/A',
+        timestamp: new Date().toISOString()
+      });
+
       if (inviteError.message.includes('User already registered')) {
-        return res.status(409).json({ error: 'Un usuario con este email ya existe.' });
+        return res.status(409).json({ 
+          error: 'Un usuario con este email ya existe.',
+          details: 'Este email ya tiene una cuenta en el sistema. Puede intentar hacer login o solicitar un restablecimiento de contraseña.'
+        });
       }
+      
       // Error específico para problemas de envío de correo
       if (inviteError.message.includes('Error sending invite email')) {
-          console.error('Error de Supabase al enviar email de invitación. Revisa la configuración SMTP en el dashboard de Supabase (posiblemente SendGrid).');
-          return res.status(503).json({ error: 'El servidor no pudo enviar el correo de invitación. Por favor, revisa la configuración del proveedor SMTP (SendGrid) en Supabase.' });
+        console.error('❌ Error SMTP - No se pudo enviar email de invitación');
+        return res.status(503).json({ 
+          error: 'No se pudo enviar el correo de invitación',
+          details: 'El proveedor de email (SMTP) reportó un error. Verifica la configuración en el dashboard de Supabase.',
+          solucion: 'Ve a Authentication → Email Templates en Supabase y revisa la configuración de tu proveedor SMTP.'
+        });
       }
+
+      // Error de rate limit
+      if (inviteError.message.includes('rate limit') || inviteError.message.includes('too many')) {
+        return res.status(429).json({
+          error: 'Demasiadas invitaciones enviadas',
+          details: 'Has alcanzado el límite de invitaciones por minuto. Espera un momento antes de enviar otra.',
+          reintento: 'Intenta nuevamente en 1-2 minutos'
+        });
+      }
+
       throw inviteError;
     }
 
@@ -52,9 +82,30 @@ const inviteUserHandler: NextApiHandlerWithAdmin2 = async (req, res, adminUser) 
       throw new Error(`Error de base de datos al asociar el perfil: ${linkError.message}`);
     }
 
+    console.log('✅ Invitación enviada exitosamente:', {
+      email: newUser.email,
+      userId: newUser.id,
+      profileId,
+      roleId,
+      timestamp: new Date().toISOString()
+    });
+
     res.status(200).json({
       message: 'Invitación enviada y usuario asociado exitosamente.',
-      user: newUser
+      user: newUser,
+      detalles: {
+        email_enviado_a: email,
+        perfil_asignado: profileId,
+        rol_asignado: roleId,
+        fecha_invitacion: newUser.invited_at,
+        instrucciones: 'El usuario recibirá un email con instrucciones para completar su registro'
+      },
+      proximos_pasos: [
+        'El usuario debe revisar su email (incluyendo carpeta de spam)',
+        'Hacer clic en el enlace de invitación recibido',
+        'Completar el registro con su información personal',
+        'Establecer una contraseña segura'
+      ]
     });
 
   } catch (error: any) {

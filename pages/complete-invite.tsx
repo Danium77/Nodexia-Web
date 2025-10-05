@@ -17,10 +17,38 @@ export default function CompleteInvite() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (type !== 'invite' || !token) {
+    console.log('🔍 Parámetros recibidos:', { token, type });
+    
+    // Verificar si es una invitación válida de Supabase
+    if (token && (type === 'invite' || type === 'signup')) {
+      console.log('✅ Enlace de invitación válido de Supabase');
+      setSuccess('Enlace de invitación válido. Por favor establece tu contraseña y completa tu perfil.');
+    } else if (token && typeof token === 'string' && token.length > 50 && !type) {
+      // Es probablemente nuestro token manual
+      validateManualToken(token);
+    } else {
       setError('Enlace de invitación inválido o expirado.');
     }
   }, [token, type]);
+
+  const validateManualToken = async (tokenStr: string) => {
+    try {
+      const decoded = JSON.parse(Buffer.from(tokenStr, 'base64url').toString());
+      
+      // Verificar si el token no ha expirado (24 horas)
+      const tokenAge = Date.now() - decoded.timestamp;
+      const maxAge = 24 * 60 * 60 * 1000;
+      
+      if (tokenAge > maxAge) {
+        setError('Este enlace de invitación ha expirado. Solicita una nueva invitación.');
+        return;
+      }
+
+      setSuccess('Enlace de invitación válido. Por favor establece tu contraseña y completa tu perfil.');
+    } catch (err) {
+      setError('Enlace de invitación inválido.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

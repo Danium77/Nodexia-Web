@@ -1,6 +1,7 @@
 // lib/data/base.ts
 import { supabase } from '../supabaseClient';
-import type { Database } from '../database.types'; // Assuming database types exist or can be generated
+import { handleSupabaseError, ApplicationError, logError } from '../errors';
+import type { ApiResponse } from '@/types';
 
 export type DatabaseError = {
   message: string;
@@ -35,24 +36,30 @@ export class BaseQuery {
       const { data, error } = await queryFn();
       
       if (error) {
+        const appError = handleSupabaseError(error);
+        logError(appError, 'BaseQuery.execute');
+        
         return {
           data: null,
           error: {
-            message: error.message || 'Database operation failed',
-            details: error.details,
-            hint: error.hint,
-            code: error.code
+            message: appError.message,
+            details: appError.details,
+            code: appError.code
           }
         };
       }
 
       return { data, error: null };
     } catch (err) {
+      const appError = handleSupabaseError(err);
+      logError(appError, 'BaseQuery.execute');
+      
       return {
         data: null,
         error: {
-          message: err instanceof Error ? err.message : 'Unknown error occurred',
-          details: 'Unexpected error during database operation'
+          message: appError.message,
+          details: appError.details,
+          code: appError.code
         }
       };
     }
@@ -69,13 +76,15 @@ export class BaseQuery {
       const { data, error, count } = await queryFn();
       
       if (error) {
+        const appError = handleSupabaseError(error);
+        logError(appError, 'BaseQuery.executePaginated');
+        
         return {
           data: [],
           error: {
-            message: error.message || 'Database operation failed',
-            details: error.details,
-            hint: error.hint,
-            code: error.code
+            message: appError.message,
+            details: appError.details,
+            code: appError.code
           },
           count: null,
           hasMore: false
@@ -91,16 +100,40 @@ export class BaseQuery {
         hasMore 
       };
     } catch (err) {
+      const appError = handleSupabaseError(err);
+      logError(appError, 'BaseQuery.executePaginated');
+      
       return {
         data: [],
         error: {
-          message: err instanceof Error ? err.message : 'Unknown error occurred',
-          details: 'Unexpected error during database operation'
+          message: appError.message,
+          details: appError.details,
+          code: appError.code
         },
         count: null,
         hasMore: false
       };
     }
+  }
+
+  /**
+   * Build paginated query with ordering
+   */
+  static buildPaginatedQuery<T>(
+    table: string,
+    page: number = 1,
+    limit: number = 10,
+    sortBy: string = 'created_at',
+    sortOrder: 'asc' | 'desc' = 'desc'
+  ) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    return supabase
+      .from(table)
+      .select('*', { count: 'exact' })
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .range(from, to);
   }
 
   /**

@@ -6,13 +6,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
-import { UserRole, User, ProfileUser } from '../types';
+import { UserRole, ProfileUser } from '../types';
 import { shouldRedirectUser, getPrimaryRole } from '../navigation';
+import type { User } from '@supabase/supabase-js';
 
 interface UserRoleContextType {
   user: User | null;
   roles: UserRole[];
   primaryRole: UserRole | null;
+  email: string;
+  name: string;
+  role: string;
   loading: boolean;
   error: string | null;
   hasRole: (role: UserRole) => boolean;
@@ -35,6 +39,11 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
   const [error, setError] = useState<string | null>(null);
 
   const primaryRole = roles.length > 0 ? getPrimaryRole(roles) : null;
+  
+  // Derived values for backward compatibility
+  const email = user?.email || '';
+  const name = (user as any)?.user_metadata?.nombre_completo || user?.email?.split('@')[0] || 'Usuario';
+  const role = primaryRole || '';
 
   // Helper functions
   const hasRole = (role: UserRole): boolean => roles.includes(role);
@@ -46,6 +55,15 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     try {
       setLoading(true);
       setError(null);
+
+      // First check if we have a session before calling getUser
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setUser(null);
+        setRoles([]);
+        return;
+      }
 
       // Get current user
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
@@ -89,6 +107,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     } catch (err) {
       console.error('Error fetching user roles:', err);
       setError(err instanceof Error ? err.message : 'Error loading user data');
+      setUser(null);
       setRoles([]);
     } finally {
       setLoading(false);
@@ -111,14 +130,15 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
   };
 
   // Auto-redirect based on user roles and current path
-  useEffect(() => {
-    if (!loading && user) {
-      const redirect = shouldRedirectUser(router.pathname, roles, loading);
-      if (redirect.shouldRedirect && redirect.redirectTo) {
-        router.push(redirect.redirectTo);
-      }
-    }
-  }, [router.pathname, roles, loading, user]);
+  // TEMPORARILY DISABLED to fix infinite reload loop
+  // useEffect(() => {
+  //   if (!loading && user) {
+  //     const redirect = shouldRedirectUser(router.pathname, roles, loading);
+  //     if (redirect.shouldRedirect && redirect.redirectTo) {
+  //       router.push(redirect.redirectTo);
+  //     }
+  //   }
+  // }, [router.pathname, roles, loading, user]);
 
   // Initial load
   useEffect(() => {
@@ -144,6 +164,9 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     user,
     roles,
     primaryRole,
+    email,
+    name,
+    role,
     loading,
     error,
     hasRole,

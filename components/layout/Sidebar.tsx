@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
-import { useUserContext } from '../context/UserContext';
+import { useUserRole } from '../../lib/contexts/UserRoleContext';
 
 interface SidebarProps {
   userEmail?: string;
@@ -14,7 +14,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   const router = useRouter();
-  const { email, name, role: userRole, loading } = useUserContext();
+  const { email, name, role: userRole, loading } = useUserRole();
   // allow override via props (some pages pass them)
   userEmail = userEmail || email;
   userName = userName || name;
