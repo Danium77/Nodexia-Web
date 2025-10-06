@@ -78,31 +78,93 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
 
       setUser(authUser);
 
-      // Get user roles
-      const { data: profileData, error: profileError } = await supabase
-        .from('profile_users')
-        .select('roles(name)')
-        .eq('user_id', authUser.id)
+      // Get user roles from usuarios_empresa table
+      console.log('🔍 [UserRoleContext] Buscando usuario:', authUser.email);
+      
+      const { data: usuarioData, error: usuarioError } = await supabase
+        .from('usuarios')
+        .select('id, nombre_completo')
+        .eq('email', authUser.email)
         .single();
 
-      if (profileError) {
-        console.warn('No profile found for user, using default role');
-        setRoles(['transporte']); // Default role
+      if (usuarioError) {
+        console.warn('❌ [UserRoleContext] No user found in usuarios table:', usuarioError.message);
+        
+        // Fallback to old profile_users structure
+        const { data: profileData, error: profileError } = await supabase
+          .from('profile_users')
+          .select('roles(name)')
+          .eq('user_id', authUser.id)
+          .single();
+
+        if (profileError) {
+          console.warn('No profile found for user, using default role');
+          setRoles(['transporte']); // Default role
+          return;
+        }
+
+        if (profileData?.roles) {
+          const rolesRaw: any = profileData.roles;
+          const userRoles = Array.isArray(rolesRaw)
+            ? rolesRaw.map((r: any) => r.name)
+            : [rolesRaw.name];
+          
+          setRoles(userRoles.filter((role: string): role is UserRole => 
+            ['admin', 'coordinador', 'transporte'].includes(role)
+          ));
+        } else {
+          setRoles(['transporte']); // Default fallback
+        }
         return;
       }
 
-      if (profileData?.roles) {
-        const rolesRaw: any = profileData.roles;
-        const userRoles = Array.isArray(rolesRaw)
-          ? rolesRaw.map((r: any) => r.name)
-          : [rolesRaw.name];
+      // Get role relation separately
+      if (usuarioData) {
+        console.log('✅ [UserRoleContext] Usuario encontrado:', usuarioData);
         
-        setRoles(userRoles.filter((role: string): role is UserRole => 
-          ['admin', 'coordinador', 'transporte'].includes(role)
-        ));
-      } else {
-        setRoles(['transporte']); // Default fallback
+        const { data: relacionData, error: relacionError } = await supabase
+          .from('usuarios_empresa')
+          .select('rol_interno')
+          .eq('user_id', usuarioData.id)
+          .single();
+
+        if (relacionError) {
+          console.warn('❌ [UserRoleContext] Sin relación usuario-empresa:', relacionError.message);
+        } else if (relacionData) {
+          const rolInterno = relacionData.rol_interno;
+          console.log('🔍 [UserRoleContext] Rol encontrado:', rolInterno);
+          
+          let mappedRole: UserRole;
+          switch (rolInterno) {
+            case 'Super Admin':
+              mappedRole = 'admin';
+              break;
+            case 'Control de Acceso':
+              mappedRole = 'control_acceso' as UserRole;
+              break;
+            case 'Supervisor de Carga':
+              mappedRole = 'supervisor_carga' as UserRole;
+              break;
+            case 'Coordinador':
+              mappedRole = 'coordinador';
+              break;
+            case 'Chofer':
+              mappedRole = 'chofer' as UserRole;
+              break;
+            case 'Operador':
+              mappedRole = 'transporte';
+              break;
+            default:
+              mappedRole = 'transporte';
+          }
+          
+          console.log('🔄 [UserRoleContext] Mapeo final:', rolInterno, '→', mappedRole);
+          setRoles([mappedRole]);
+          return; // Exit early on success
+        }
       }
+      
+      console.log('⚠️ [UserRoleContext] Fallback: usando profile_users o default');
 
     } catch (err) {
       console.error('Error fetching user roles:', err);

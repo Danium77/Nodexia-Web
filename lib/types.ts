@@ -9,7 +9,7 @@
 
 export type UUID = string;
 export type Timestamp = string; // ISO string
-export type UserRole = 'admin' | 'coordinador' | 'transporte';
+export type UserRole = 'admin' | 'coordinador' | 'transporte' | 'control_acceso' | 'supervisor_carga' | 'chofer';
 
 // =====================
 // User & Auth types

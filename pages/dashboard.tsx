@@ -38,6 +38,36 @@ const Dashboard = () => {
       if (error || !user) {
         router.push('/login');
       } else {
+        // Verificar rol del usuario para redirección automática
+        const { data: usuarioData } = await supabase
+          .from('usuarios')
+          .select(`
+            nombre_completo,
+            usuarios_empresa (
+              rol_interno
+            )
+          `)
+          .eq('email', user.email)
+          .single();
+
+        // Redirección basada en rol
+        if (usuarioData?.usuarios_empresa?.[0]?.rol_interno) {
+          const rolInterno = usuarioData.usuarios_empresa[0].rol_interno;
+          
+          console.log('🔍 [Dashboard] Rol detectado:', rolInterno);
+          
+          if (rolInterno === 'Control de Acceso') {
+            console.log('🚪 [Dashboard] Redirigiendo a Control de Acceso...');
+            router.push('/control-acceso');
+            return;
+          } else if (rolInterno === 'Supervisor de Carga') {
+            console.log('👷 [Dashboard] Redirigiendo a Supervisor de Carga...');
+            router.push('/supervisor-carga');
+            return;
+          }
+        } else {
+          console.log('⚠️ [Dashboard] Sin rol detectado, continuando en dashboard normal');
+        }
         const { data: userData, error: userError } = await supabase
           .from('usuarios')
           .select('nombre_completo')
@@ -46,7 +76,7 @@ const Dashboard = () => {
 
         if (userError || !userData || !userData.nombre_completo) {
           console.error("Error o nombre completo no encontrado para el usuario:", userError?.message || "Nombre no definido en DB.");
-          setUserName(user.email.split('@')[0] || 'Usuario');
+          setUserName(user.email?.split('@')[0] || 'Usuario');
         } else {
           setUserName(userData.nombre_completo);
         }

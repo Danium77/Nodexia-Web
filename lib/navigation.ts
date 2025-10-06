@@ -3,7 +3,7 @@
  * This ensures consistent navigation behavior across the entire app
  */
 
-export type UserRole = 'admin' | 'coordinador' | 'transporte';
+export type UserRole = 'admin' | 'coordinador' | 'transporte' | 'control_acceso' | 'supervisor_carga' | 'chofer';
 export type NavigationContext = 'clientes' | 'choferes' | 'flota' | 'configuracion';
 
 interface NavigationConfig {
@@ -115,7 +115,10 @@ export function shouldRedirectUser(
  */
 export function getPrimaryRole(roles: string[]): UserRole {
   if (roles.includes('admin')) return 'admin';
+  if (roles.includes('control_acceso')) return 'control_acceso';
+  if (roles.includes('supervisor_carga')) return 'supervisor_carga';
   if (roles.includes('coordinador')) return 'coordinador';
+  if (roles.includes('chofer')) return 'chofer';
   if (roles.includes('transporte')) return 'transporte';
   
   // Default fallback

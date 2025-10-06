@@ -19,7 +19,12 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   userEmail = userEmail || email;
   userName = userName || name;
   // Log para depuración
-  console.log('Sidebar userRole:', userRole);
+  console.log('🔍 [Sidebar] Debug:', {
+    userRole,
+    email,
+    name,
+    loading
+  });
 
   if (loading) {
     // Loader o sidebar vacío mientras se carga el rol
@@ -32,7 +37,21 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   let navItems = [
     { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
   ];
-  if (userRole === 'coordinador') {
+  
+  if (userRole === 'control_acceso') {
+    navItems = [
+      { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
+      { name: '🚪 Control de Acceso', icon: TruckIcon, href: '/control-acceso' },
+      { name: 'Planificación Hoy', icon: CalendarDaysIcon, href: '/planificacion' },
+    ];
+  } else if (userRole === 'supervisor_carga') {
+    navItems = [
+      { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
+      { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
+      { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
+      { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
+    ];
+  } else if (userRole === 'coordinador') {
     navItems = [
       ...navItems,
       { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
@@ -46,6 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
       { name: 'Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
     ];
+  } else if (userRole === 'chofer') {
+    navItems = [
+      { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
+      { name: 'Mis Viajes', icon: TruckIcon, href: '/chofer/viajes' },
+      { name: 'Perfil', icon: UserCircleIcon, href: '/chofer/perfil' },
+    ];
   } else {
     // Si el rol es vacío o desconocido, mostrar todas las solapas (modo depuración)
     navItems = [
@@ -54,6 +79,9 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
       { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
       { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
+      // Nuevas interfaces del sistema QR
+      { name: '🚪 Control de Acceso', icon: HomeIcon, href: '/control-acceso' },
+      { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
     ];
   }
 

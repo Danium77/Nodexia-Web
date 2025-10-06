@@ -1,0 +1,348 @@
+// pages/supervisor-carga.tsx
+// Interfaz para Supervisor de Carga
+
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import Sidebar from '../components/layout/Sidebar';
+import { QrCodeIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TruckIcon, DocumentTextIcon, ScaleIcon } from '@heroicons/react/24/outline';
+
+interface ViajeQR {
+  id: string;
+  numero_viaje: string;
+  qr_code: string;
+  estado_viaje: string;
+  tipo_operacion: string;
+  producto: string;
+  peso_estimado: number;
+  peso_real?: number;
+  chofer: any;
+  camion: any;
+}
+
+export default function SupervisorCarga() {
+  const [user, setUser] = useState<any>(null);
+  
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (user && !error) {
+        setUser(user);
+      }
+    };
+    getUser();
+  }, []);
+  const [qrCode, setQrCode] = useState('');
+  const [viaje, setViaje] = useState<ViajeQR | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [pesoReal, setPesoReal] = useState('');
+
+  // Viajes demo simulados
+  const viajesDemo = [
+    {
+      id: '1',
+      numero_viaje: 'VJ-2025-001',
+      qr_code: 'QR-VJ2025001',
+      estado_viaje: 'ingresado_planta',
+      tipo_operacion: 'carga',
+      producto: 'Soja - 35 toneladas',
+      peso_estimado: 35000,
+      chofer: { nombre: 'Juan Pérez', dni: '12345678' },
+      camion: { patente: 'ABC123', marca: 'Mercedes-Benz' }
+    },
+    {
+      id: '2',
+      numero_viaje: 'VJ-2025-002',
+      qr_code: 'QR-VJ2025002',
+      estado_viaje: 'llamado_carga',
+      tipo_operacion: 'carga',
+      producto: 'Trigo - 42 toneladas',
+      peso_estimado: 42000,
+      chofer: { nombre: 'María López', dni: '87654321' },
+      camion: { patente: 'DEF456', marca: 'Volvo' }
+    },
+    {
+      id: '3',
+      numero_viaje: 'VJ-2025-003',
+      qr_code: 'QR-VJ2025003',
+      estado_viaje: 'cargando',
+      tipo_operacion: 'carga',
+      producto: 'Girasol - 38 toneladas',
+      peso_estimado: 38000,
+      chofer: { nombre: 'Roberto García', dni: '11223344' },
+      camion: { patente: 'GHI789', marca: 'Scania' }
+    }
+  ];
+
+  const [viajes, setViajes] = useState(viajesDemo);
+
+  const escanearQR = async () => {
+    if (!qrCode.trim()) {
+      setMessage('Por favor ingrese un código QR');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const viajeEncontrado = viajes.find(v => v.qr_code === qrCode);
+      
+      if (viajeEncontrado) {
+        setViaje(viajeEncontrado);
+        setMessage(`✅ Viaje encontrado: ${viajeEncontrado.numero_viaje}`);
+      } else {
+        setMessage('❌ Código QR no válido');
+        setViaje(null);
+      }
+    } catch (error) {
+      setMessage('Error al escanear QR');
+    }
+
+    setLoading(false);
+  };
+
+  const llamarACarga = (viajeId: string) => {
+    setViajes(prev => prev.map(v => 
+      v.id === viajeId ? { ...v, estado_viaje: 'llamado_carga' } : v
+    ));
+    setMessage(`📞 Camión llamado a carga - ${viajes.find(v => v.id === viajeId)?.numero_viaje}`);
+  };
+
+  const iniciarCarga = () => {
+    if (!viaje || viaje.estado_viaje !== 'llamado_carga') {
+      setMessage('❌ El camión debe estar en estado "llamado_carga" para iniciar');
+      return;
+    }
+
+    setViajes(prev => prev.map(v => 
+      v.id === viaje.id ? { ...v, estado_viaje: 'cargando' } : v
+    ));
+    setViaje({ ...viaje, estado_viaje: 'cargando' });
+    setMessage(`⚡ Carga iniciada para ${viaje.numero_viaje}`);
+  };
+
+  const finalizarCarga = () => {
+    if (!viaje || viaje.estado_viaje !== 'cargando') {
+      setMessage('❌ El camión debe estar en estado "cargando" para finalizar');
+      return;
+    }
+
+    const pesoFinal = pesoReal ? parseInt(pesoReal) : viaje.peso_estimado;
+
+    setViajes(prev => prev.map(v => 
+      v.id === viaje.id ? { ...v, estado_viaje: 'carga_finalizada', peso_real: pesoFinal } : v
+    ));
+    setViaje({ ...viaje, estado_viaje: 'carga_finalizada', peso_real: pesoFinal });
+    setMessage(`✅ Carga finalizada - Peso: ${pesoFinal} kg`);
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <p>Acceso restringido. <a href="/login" className="text-blue-600">Iniciar sesión</a></p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar userEmail={user.email} />
+      
+      <div className="flex-1 p-6">
+        {/* Header con diseño Nodexia */}
+        <div className="mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <ScaleIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Supervisor de Carga</h1>
+                <p className="text-gray-600">
+                  Usuario: {user.email} | Gestión de procesos de carga
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel de Viajes */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Lista de Viajes */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">🚛 Viajes en Planta</h2>
+            
+            <div className="space-y-3">
+              {viajes.map((v) => (
+                <div key={v.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="font-semibold">{v.numero_viaje}</p>
+                      <p className="text-sm text-gray-600">{v.producto}</p>
+                      <p className="text-sm text-gray-600">Camión: {v.camion.patente}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      v.estado_viaje === 'ingresado_planta' ? 'bg-blue-100 text-blue-800' :
+                      v.estado_viaje === 'llamado_carga' ? 'bg-yellow-100 text-yellow-800' :
+                      v.estado_viaje === 'cargando' ? 'bg-green-100 text-green-800' :
+                      v.estado_viaje === 'carga_finalizada' ? 'bg-purple-100 text-purple-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {v.estado_viaje.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
+                  
+                  {v.estado_viaje === 'ingresado_planta' && (
+                    <button
+                      onClick={() => llamarACarga(v.id)}
+                      className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
+                    >
+                      📞 Llamar a Carga
+                    </button>
+                  )}
+                  
+                  {v.estado_viaje === 'llamado_carga' && (
+                    <p className="text-sm text-yellow-700">⏳ Esperando al camión en posición</p>
+                  )}
+                  
+                  {v.estado_viaje === 'cargando' && (
+                    <p className="text-sm text-green-700">⚡ Carga en proceso...</p>
+                  )}
+                  
+                  {v.estado_viaje === 'carga_finalizada' && (
+                    <p className="text-sm text-purple-700">✅ Listo para egresar</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* QR Scanner y Control */}
+          <div className="space-y-6">
+            {/* QR Scanner */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">📱 Escanear QR para Carga</h2>
+              
+              <div className="flex gap-4 mb-4">
+                <input
+                  type="text"
+                  placeholder="Código QR (ej: QR-VJ2025002)"
+                  value={qrCode}
+                  onChange={(e) => setQrCode(e.target.value)}
+                  className="flex-1 p-3 border rounded-lg"
+                />
+                <button
+                  onClick={escanearQR}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Escaneando...' : 'Escanear'}
+                </button>
+              </div>
+
+              {message && (
+                <div className={`p-3 rounded-lg ${
+                  message.includes('✅') ? 'bg-green-100 text-green-800' : 
+                  message.includes('❌') ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {message}
+                </div>
+              )}
+            </div>
+
+            {/* Control de Carga */}
+            {viaje && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">⚡ Control de Carga</h2>
+                
+                <div className="mb-4">
+                  <p><strong>Viaje:</strong> {viaje.numero_viaje}</p>
+                  <p><strong>Producto:</strong> {viaje.producto}</p>
+                  <p><strong>Peso Estimado:</strong> {viaje.peso_estimado.toLocaleString()} kg</p>
+                  <p><strong>Estado:</strong> 
+                    <span className={`ml-2 px-2 py-1 rounded text-sm ${
+                      viaje.estado_viaje === 'llamado_carga' ? 'bg-yellow-100 text-yellow-800' :
+                      viaje.estado_viaje === 'cargando' ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {viaje.estado_viaje.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {viaje.estado_viaje === 'llamado_carga' && (
+                    <button
+                      onClick={iniciarCarga}
+                      className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700"
+                    >
+                      ⚡ Iniciar Carga
+                    </button>
+                  )}
+
+                  {viaje.estado_viaje === 'cargando' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Peso Real (kg):</label>
+                        <input
+                          type="number"
+                          placeholder={viaje.peso_estimado.toString()}
+                          value={pesoReal}
+                          onChange={(e) => setPesoReal(e.target.value)}
+                          className="w-full p-3 border rounded-lg"
+                        />
+                      </div>
+                      
+                      <button
+                        onClick={finalizarCarga}
+                        className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700"
+                      >
+                        📸 Finalizar Carga (Subir Remito)
+                      </button>
+                    </div>
+                  )}
+
+                  {viaje.estado_viaje === 'carga_finalizada' && (
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <p className="text-green-800 font-medium">✅ Carga Completada</p>
+                      <p className="text-sm text-green-700">
+                        Peso final: {viaje.peso_real?.toLocaleString()} kg
+                      </p>
+                      <p className="text-sm text-green-700">
+                        El camión puede dirigirse a Control de Acceso
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+        {/* Códigos Demo */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+          <h3 className="font-semibold text-green-800 mb-3 flex items-center space-x-2">
+            <DocumentTextIcon className="h-5 w-5" />
+            <span>Códigos Demo para Probar</span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="bg-white rounded-lg p-4 border border-green-200">
+              <code className="text-green-700 font-mono font-semibold">QR-VJ2025001</code>
+              <p className="text-green-600 mt-1">En planta (se puede llamar a carga)</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-green-200">
+              <code className="text-green-700 font-mono font-semibold">QR-VJ2025002</code>
+              <p className="text-green-600 mt-1">Llamado a carga (se puede iniciar)</p>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-green-200">
+              <code className="text-green-700 font-mono font-semibold">QR-VJ2025003</code>
+              <p className="text-green-600 mt-1">Cargando (se puede finalizar)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
