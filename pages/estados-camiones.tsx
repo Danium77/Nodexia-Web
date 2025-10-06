@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Sidebar from '../components/layout/Sidebar';
+import Header from '../components/layout/Header';
 import { TruckIcon, ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface ViajeEstado {
@@ -171,23 +172,28 @@ export default function EstadosCamiones() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar userEmail={user.email} />
       
-      <div className="flex-1 p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="flex-1 flex flex-col">
+        <Header 
+          pageTitle="Estados de Camiones" 
+          userName={user.email.split('@')[0]} 
+          userEmail={user.email}
+        />
+        
+        <div className="flex-1 p-6 bg-[#f8f9fa]">
+          {/* Header específico de la página */}
+          <div className="mb-6">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-indigo-100 rounded-lg">
-                <TruckIcon className="h-6 w-6 text-indigo-600" />
+              <div className="p-3 bg-indigo-100 rounded-xl">
+                <TruckIcon className="h-8 w-8 text-indigo-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Estados de Camiones</h1>
-                <p className="text-gray-600">
-                  Monitor general de todos los vehículos en planta
+                <h1 className="text-2xl font-bold text-gray-900">Monitor General de Vehículos</h1>
+                <p className="text-gray-600 mt-1">
+                  Estados en tiempo real de todos los camiones en planta
                 </p>
               </div>
             </div>
           </div>
-        </div>
 
         {/* Resumen de Estados */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
@@ -319,8 +325,9 @@ export default function EstadosCamiones() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
