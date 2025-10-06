@@ -42,12 +42,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     navItems = [
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
       { name: '🚪 Control de Acceso', icon: TruckIcon, href: '/control-acceso' },
+      { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
       { name: 'Planificación Hoy', icon: CalendarDaysIcon, href: '/planificacion' },
     ];
   } else if (userRole === 'supervisor_carga') {
     navItems = [
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
       { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
+      { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
       { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
       { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
     ];

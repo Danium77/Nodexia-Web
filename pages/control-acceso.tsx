@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Sidebar from '../components/layout/Sidebar';
+import DocumentacionDetalle from '../components/DocumentacionDetalle';
 import { QrCodeIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TruckIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 
 interface ViajeQR {
@@ -35,6 +36,7 @@ export default function ControlAcceso() {
   const [viaje, setViaje] = useState<ViajeQR | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [showDocumentacion, setShowDocumentacion] = useState(false);
 
   // Viajes demo simulados
   const viajesDemo = [
@@ -88,7 +90,8 @@ export default function ControlAcceso() {
     setLoading(true);
     try {
       console.log('Confirmando ingreso para viaje:', viaje.id);
-      setMessage(`✅ Ingreso confirmado para ${viaje.numero_viaje}`);
+      const ahora = new Date().toLocaleString('es-ES');
+      setMessage(`✅ Ingreso confirmado para ${viaje.numero_viaje} a las ${ahora}`);
       
       setViaje({
         ...viaje,
@@ -113,7 +116,8 @@ export default function ControlAcceso() {
     setLoading(true);
     try {
       console.log('Confirmando egreso para viaje:', viaje.id);
-      setMessage(`✅ Egreso confirmado para ${viaje.numero_viaje}`);
+      const ahora = new Date().toLocaleString('es-ES');
+      setMessage(`✅ Egreso confirmado para ${viaje.numero_viaje} a las ${ahora}`);
       
       setViaje({
         ...viaje,
@@ -298,6 +302,12 @@ export default function ControlAcceso() {
                       }`}>
                         {viaje.documentacion_validada ? '✅ Válida' : '❌ Faltante'}
                       </span>
+                      <button
+                        onClick={() => setShowDocumentacion(true)}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        Ver Detalle
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -358,6 +368,14 @@ export default function ControlAcceso() {
             </div>
           </div>
         </div>
+
+        {/* Modal de Documentación Detallada */}
+        {showDocumentacion && viaje && (
+          <DocumentacionDetalle
+            numeroViaje={viaje.numero_viaje}
+            onClose={() => setShowDocumentacion(false)}
+          />
+        )}
       </div>
     </div>
   );
