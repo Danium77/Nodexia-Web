@@ -18,13 +18,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   // allow override via props (some pages pass them)
   userEmail = userEmail || email;
   userName = userName || name;
-  // Log para depuración
-  console.log('🔍 [Sidebar] Debug:', {
-    userRole,
-    email,
-    name,
-    loading
-  });
+  // Verificación alternativa para coordinador basada en email (backup)
+  const isCoordinadorByEmail = email === 'coord_demo@example.com' || email === 'coordinador.demo@nodexia.com';
 
   if (loading) {
     // Loader o sidebar vacío mientras se carga el rol
@@ -53,9 +48,9 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
       { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
     ];
-  } else if (userRole === 'coordinador') {
+  } else if (userRole === 'coordinador' || String(userRole).trim().toLowerCase() === 'coordinador' || String(userRole).includes('coordinador') || isCoordinadorByEmail) {
     navItems = [
-      ...navItems,
+      { name: '⚡ Dashboard', icon: HomeIcon, href: '/coordinator-dashboard' },
       { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
       { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
       { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
@@ -74,16 +69,10 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: 'Perfil', icon: UserCircleIcon, href: '/chofer/perfil' },
     ];
   } else {
-    // Si el rol es vacío o desconocido, mostrar todas las solapas (modo depuración)
+    // Si el rol es vacío o desconocido, mostrar navegación básica
     navItems = [
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
-      { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
-      { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
-      { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
       { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
-      // Nuevas interfaces del sistema QR
-      { name: '🚪 Control de Acceso', icon: HomeIcon, href: '/control-acceso' },
-      { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
     ];
   }
 

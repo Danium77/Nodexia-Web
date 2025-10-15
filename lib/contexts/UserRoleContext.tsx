@@ -132,7 +132,6 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           console.warn('❌ [UserRoleContext] Sin relación usuario-empresa:', relacionError.message);
         } else if (relacionData) {
           const rolInterno = relacionData.rol_interno;
-          console.log('🔍 [UserRoleContext] Rol encontrado:', rolInterno);
           
           let mappedRole: UserRole;
           switch (rolInterno) {
@@ -158,7 +157,6 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
               mappedRole = 'transporte';
           }
           
-          console.log('🔄 [UserRoleContext] Mapeo final:', rolInterno, '→', mappedRole);
           setRoles([mappedRole]);
           return; // Exit early on success
         }

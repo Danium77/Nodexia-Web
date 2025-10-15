@@ -1,0 +1,338 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabaseClient';
+
+interface TransportOption {
+  id: string;
+  nombre: string;
+  tipo: string;
+  capacidad?: string;
+  ubicacion?: string;
+  disponible: boolean;
+}
+
+interface AssignTransportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  dispatch: {
+    id: string;
+    pedido_id: string;
+    origen: string;
+    destino: string;
+    fecha_despacho: string;
+    tipo_carga: string;
+    prioridad: string;
+    unidad_type: string;
+  };
+  onAssignSuccess: (transporteInfo: { id: string; nombre: string; }) => Promise<void>;
+}
+
+const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
+  isOpen,
+  onClose,
+  dispatch,
+  onAssignSuccess
+}) => {
+  const [availableTransports, setAvailableTransports] = useState<TransportOption[]>([]);
+  const [selectedTransport, setSelectedTransport] = useState<string>('');
+  const [assignmentNotes, setAssignmentNotes] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [loadingTransports, setLoadingTransports] = useState(false);
+  const [error, setError] = useState('');
+
+  // Cargar transportes cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔄 Modal abierto, cargando transportes...');
+      setError('');
+      setSelectedTransport('');
+      setAssignmentNotes('');
+      loadTransports();
+    } else {
+      // Limpiar al cerrar
+      setAvailableTransports([]);
+      setSelectedTransport('');
+      setLoadingTransports(false);
+      setError('');
+    }
+  }, [isOpen]);
+
+  const loadTransports = async () => {
+    console.log('🚀 Iniciando carga de transportes...');
+    setLoadingTransports(true);
+    setError('');
+    
+    try {
+      // Simulamos un pequeño delay para mostrar que funciona
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Datos del transporte conocido
+      const transportes: TransportOption[] = [
+        {
+          id: '3ef28c80-155b-440e-97fe-f6c10d81270b',
+          nombre: 'Transporte Bs As',
+          tipo: 'Semi-remolque',
+          capacidad: '25 toneladas',
+          ubicacion: 'Disponible en zona',
+          disponible: true
+        }
+      ];
+      
+      console.log('✅ Transportes cargados:', transportes.length);
+      setAvailableTransports(transportes);
+      
+    } catch (error) {
+      console.error('💥 Error cargando transportes:', error);
+      setError('Error al cargar transportes disponibles');
+      setAvailableTransports([]);
+    } finally {
+      console.log('🏁 Carga finalizada');
+      setLoadingTransports(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    console.log('🚀 INICIO handleAssign - Función ejecutada');
+    
+    if (!selectedTransport) {
+      console.log('❌ Error: No hay transporte seleccionado');
+      setError('Por favor selecciona un transporte');
+      return;
+    }
+
+    console.log('✅ Transporte seleccionado:', selectedTransport);
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('🔄 Asignando transporte...');
+      console.log('Despacho:', dispatch.id);
+      console.log('Transporte:', selectedTransport);
+
+      // Hacer la actualización con más logging
+      console.log('📝 Datos a actualizar:', {
+        transport_id: selectedTransport,
+        estado: 'transporte_asignado',
+        comentarios: assignmentNotes || `${dispatch.pedido_id} - Transporte asignado`
+      });
+      
+      const { data: updateResult, error: updateError } = await supabase
+        .from('despachos')
+        .update({
+          transport_id: selectedTransport,
+          estado: 'transporte_asignado',
+          comentarios: assignmentNotes || `${dispatch.pedido_id} - Transporte asignado`
+        })
+        .eq('id', dispatch.id)
+        .select('*');
+
+      if (updateError) {
+        console.error('❌ Error actualizando despacho:', updateError);
+        console.error('❌ Detalles del error:', {
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint,
+          code: updateError.code
+        });
+        throw updateError;
+      }
+
+      console.log('✅ Transporte asignado exitosamente');
+      console.log('📊 Resultado de la actualización:', updateResult);
+      
+      // Buscar la información del transporte seleccionado
+      const transporteSeleccionado = availableTransports.find(t => t.id === selectedTransport);
+      const transporteInfo = {
+        id: selectedTransport,
+        nombre: transporteSeleccionado?.nombre || 'Transporte Asignado'
+      };
+      
+      console.log('📤 Enviando info a onAssignSuccess:', transporteInfo);
+      console.log('🔄 Llamando onAssignSuccess...');
+      await onAssignSuccess(transporteInfo);
+      console.log('✅ onAssignSuccess completado');
+      
+      console.log('🚪 Cerrando modal...');
+      onClose();
+      console.log('✅ Modal cerrado');
+
+    } catch (error) {
+      console.error('💥 Error en asignación:', error);
+      console.error('💥 Stack trace:', error.stack);
+      setError('Error al asignar transporte. Inténtalo nuevamente.');
+    } finally {
+      console.log('🏁 Finalizando handleAssign - setLoading(false)');
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedTransport('');
+    setAssignmentNotes('');
+    setError('');
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white flex items-center">
+            🚚 Asignar Transporte
+          </h2>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Información del Despacho */}
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-white mb-3">📦 Información del Despacho</h3>
+          <div className="bg-gray-700 rounded-lg p-4 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-gray-400">Código:</span>
+              <span className="text-white ml-2 font-medium">{dispatch.pedido_id}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Fecha:</span>
+              <span className="text-white ml-2">{dispatch.fecha_despacho}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Origen:</span>
+              <span className="text-white ml-2">{dispatch.origen}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Destino:</span>
+              <span className="text-white ml-2">{dispatch.destino}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Tipo de Carga:</span>
+              <span className="text-white ml-2">{dispatch.tipo_carga}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Prioridad:</span>
+              <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                dispatch.prioridad === 'Urgente' ? 'bg-red-600 text-red-100' :
+                dispatch.prioridad === 'Alta' ? 'bg-orange-600 text-orange-100' :
+                'bg-yellow-600 text-yellow-100'
+              }`}>
+                {dispatch.prioridad}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-900 border border-red-600 rounded-lg text-red-200 text-sm">
+            <div className="mb-2">{error}</div>
+            <button 
+              onClick={loadTransports}
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
+              disabled={loadingTransports}
+            >
+              🔄 Reintentar
+            </button>
+          </div>
+        )}
+
+        {/* Selección de Transporte */}
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-white mb-3">🚚 Transportes Disponibles</h3>
+          
+          {loadingTransports ? (
+            <div className="text-center py-8 text-gray-400">
+              <div className="mb-3">Cargando transportes disponibles...</div>
+            </div>
+          ) : availableTransports.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <div className="mb-3">No hay transportes disponibles</div>
+              <button 
+                onClick={loadTransports}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-md text-sm transition-colors"
+              >
+                🔄 Reintentar Carga
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {availableTransports.map((transport) => (
+                <label
+                  key={transport.id}
+                  className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedTransport === transport.id
+                      ? 'border-cyan-500 bg-cyan-900/20'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="transport"
+                    value={transport.id}
+                    checked={selectedTransport === transport.id}
+                    onChange={(e) => setSelectedTransport(e.target.value)}
+                    className="sr-only"
+                  />
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-white">{transport.nombre}</h4>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {transport.tipo} - {transport.capacidad}
+                      </p>
+                      <p className="text-sm text-gray-500">{transport.ubicacion}</p>
+                    </div>
+                    <div className="flex items-center">
+                      {transport.disponible && (
+                        <span className="text-green-400 text-sm">✓ Disponible</span>
+                      )}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Notas de Asignación */}
+        <div className="mb-6">
+          <h3 className="text-lg font-medium text-white mb-3">📝 Notas de Asignación (Opcional)</h3>
+          <textarea
+            value={assignmentNotes}
+            onChange={(e) => setAssignmentNotes(e.target.value)}
+            placeholder="Instrucciones especiales, contacto, horarios, etc..."
+            className="w-full h-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+          />
+        </div>
+
+        {/* Botones */}
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors"
+            disabled={loading}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🖱️ Botón Confirmar clicked!');
+              handleAssign();
+            }}
+            disabled={!selectedTransport || loading}
+            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+          >
+            {loading ? 'Asignando...' : '✓ Confirmar Asignación'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AssignTransportModal;

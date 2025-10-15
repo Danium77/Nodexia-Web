@@ -50,7 +50,20 @@ const Dashboard = () => {
           .eq('email', user.email)
           .single();
 
+        // Verificar también en user_profiles para coordinadores
+        const { data: profileData } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
         // Redirección basada en rol
+        if (profileData?.role === 'coordinador') {
+          console.log('🎯 [Dashboard] Coordinador detectado, redirigiendo...');
+          router.push('/coordinator-dashboard');
+          return;
+        }
+
         if (usuarioData?.usuarios_empresa?.[0]?.rol_interno) {
           const rolInterno = usuarioData.usuarios_empresa[0].rol_interno;
           

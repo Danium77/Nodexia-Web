@@ -29,16 +29,39 @@ const ClienteDetail: React.FC = () => {
   const fetchCliente = async (clientId: string) => {
     setLoading(true);
     try {
+      // Buscar en tabla empresas con tipo coordinador que sea cliente
       const { data, error } = await supabase
-        .from<ClienteRow>('clientes')
+        .from('empresas')
         .select('*')
         .eq('id', clientId)
+        .eq('tipo_empresa', 'coordinador')
         .single();
+      
       if (error) throw error;
-      setCliente(data || null);
+      
+      // Verificar que sea efectivamente un cliente
+      if (!data?.configuracion_empresa || data.configuracion_empresa.tipo_instalacion !== 'cliente') {
+        setMensaje('La empresa encontrada no es un cliente válido.');
+        return;
+      }
+      
+      // Mapear los datos al formato esperado
+      const clienteData: ClienteRow = {
+        id: data.id,
+        nombre: data.nombre,
+        cuit: data.cuit,
+        direccion: data.direccion,
+        localidad: data.localidad,
+        provincia: data.provincia,
+        ubicacion: `${data.localidad || ''}, ${data.provincia || ''}`.replace(/^, |, $/, ''),
+        telefono: data.telefono,
+        documentacion: []
+      };
+      
+      setCliente(clienteData);
     } catch (err: unknown) {
       console.error('Error fetch cliente', err);
-      setMensaje('Error cargando cliente.');
+      setMensaje('Cliente no encontrado.');
     } finally {
       setLoading(false);
     }

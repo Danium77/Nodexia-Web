@@ -27,6 +27,8 @@ export default async function handler(
 
     console.log('🔍 Empresas encontradas:', empresas);
 
+    let empresa: { id: string; nombre: string };
+    
     if (!empresas || empresas.length === 0) {
       // Si no encuentra con criterio específico, buscar solo "tecnoembalajes"
       const { data: empresas2, error: empresaError2 } = await supabaseAdmin
@@ -38,9 +40,17 @@ export default async function handler(
         return res.status(404).json({ error: 'Empresa Tecnoembalajes no encontrada' });
       }
       
-      var empresa = empresas2[0]; // Tomar la primera
+      const firstEmpresa = empresas2[0];
+      if (!firstEmpresa) {
+        return res.status(404).json({ error: 'Empresa no encontrada' });
+      }
+      empresa = firstEmpresa;
     } else {
-      var empresa = empresas[0]; // Tomar la primera que coincida
+      const firstEmpresa = empresas[0];
+      if (!firstEmpresa) {
+        return res.status(404).json({ error: 'Empresa no encontrada' });
+      }
+      empresa = firstEmpresa;
     }
 
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+ import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import FormCard from '../../components/ui/FormCard';
 import { useChoferes } from '../../lib/hooks/useChoferes';
@@ -60,8 +60,6 @@ export default function ChoferesGestion() {
       return;
     }
 
-    let foto_url = null;
-    try {
     let foto_url = null;
     try {
       // Subir foto si fue proporcionada

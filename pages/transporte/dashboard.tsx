@@ -31,12 +31,19 @@ const TransporteDashboard = () => {
   }, []);
 
   return (
-    <AdminLayout pageTitle="Panel de Transporte">
+    <MainLayout>
+      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-cyan-400 mb-2">Bienvenido, Transporte</h1>
-        <p className="text-slate-300">Aquí puedes ver y gestionar tus despachos asignados.</p>
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="p-2 bg-cyan-600 rounded-lg">
+            <ChartBarIcon className="h-6 w-6 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-100">Panel de Transporte</h1>
+        </div>
+        <p className="text-slate-400">Bienvenido, aquí puedes ver y gestionar tus despachos asignados</p>
       </div>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+      
+      <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 mb-8">
         <h2 className="text-xl font-bold text-cyan-300 mb-4">Despachos Asignados</h2>
         {loading ? (
           <div className="text-slate-400">Cargando despachos...</div>
@@ -74,17 +81,17 @@ const TransporteDashboard = () => {
           </table>
         )}
       </div>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 mb-8">
         <h2 className="text-xl font-bold text-cyan-300 mb-4">Historial de Despachos</h2>
         {/* TODO: Tabla de despachos finalizados o rechazados */}
         <div className="text-slate-400">Próximamente...</div>
       </div>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6">
         <h2 className="text-xl font-bold text-cyan-300 mb-4">Perfil y Documentación</h2>
         {/* TODO: Mostrar datos del transporte y carga de documentación */}
         <div className="text-slate-400">Próximamente...</div>
       </div>
-    </AdminLayout>
+    </MainLayout>
   );
 };
 

@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle }) => {
-  const displayUserName = userName.split(' ')[0] || userEmail.split('@')[0] || 'Usuario';
+  const displayUserName = userName ? userName.split(' ')[0] : (userEmail ? userEmail.split('@')[0] : 'Usuario');
   
   return (
     <header className="bg-[#1b273b] p-4 flex items-center justify-between shadow-md text-slate-100">

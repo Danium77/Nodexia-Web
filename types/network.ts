@@ -44,13 +44,15 @@ export interface UsuarioEmpresa {
 
 export interface RelacionEmpresa {
   id: string;
-  empresa_cliente_id: string;
+  empresa_coordinadora_id: string;
   empresa_transporte_id: string;
-  estado: 'activa' | 'inactiva' | 'pendiente';
+  estado: 'activa' | 'suspendida' | 'finalizada';
   fecha_inicio: string;
   fecha_fin?: string;
-  condiciones?: Record<string, any>;
-  empresa_cliente?: Empresa;
+  activo: boolean;
+  created_at?: string;
+  updated_at?: string;
+  empresa_coordinadora?: Empresa;
   empresa_transporte?: Empresa;
 }
 

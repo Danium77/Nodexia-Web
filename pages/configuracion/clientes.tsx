@@ -27,43 +27,224 @@ const ClientesPage = () => {
 
   // Cargar clientes asociados al coordinador
   useEffect(() => {
-    // TODO: Reemplazar por consulta real a la base de datos de clientes asociados
-    setClientes([]);
+    cargarClientesAsociados();
   }, []);
+
+  const cargarClientesAsociados = async () => {
+    try {
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Obtener la empresa del usuario coordinador
+      const { data: usuarioEmpresa, error: userError } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (userError || !usuarioEmpresa) {
+        console.error('Error al obtener empresa del usuario:', userError);
+        return;
+      }
+
+      // Obtener clientes asociados (empresas tipo coordinador que son clientes)
+      const { data: relaciones, error: relacionesError } = await supabase
+        .from('relaciones_empresa')
+        .select(`
+          empresa_relacionada:empresas!empresa_transporte_id(
+            id,
+            nombre,
+            cuit,
+            direccion,
+            localidad,
+            provincia,
+            telefono,
+            configuracion_empresa
+          )
+        `)
+        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
+        .eq('estado', 'activa')
+        .eq('activo', true);
+
+      if (relacionesError) {
+        console.error('Error al cargar clientes asociados:', relacionesError);
+        return;
+      }
+
+      // Filtrar solo las empresas que son clientes (por configuración)
+      const clientesAsociados = (relaciones || [])
+        .map(relacion => relacion.empresa_relacionada)
+        .filter(Boolean)
+        .filter(empresa => {
+          // Filtrar solo clientes por configuración específica
+          return empresa.configuracion_empresa?.tipo_instalacion === 'cliente';
+        })
+        .map(empresa => ({
+          id: empresa.id,
+          nombre: empresa.nombre,
+          cuit: empresa.cuit || '',
+          direccion: empresa.direccion || '',
+          localidad: empresa.localidad || '',
+          provincia: empresa.provincia || '',
+          ubicacion: `${empresa.localidad || ''}, ${empresa.provincia || ''}`.replace(/^, |, $/, ''),
+          telefono: empresa.telefono || '',
+          documentacion: [] // Por ahora array vacío, se puede expandir luego
+        }));
+
+      console.log('Clientes asociados cargados:', clientesAsociados);
+      setClientes(clientesAsociados);
+
+    } catch (error) {
+      console.error('Error al cargar clientes asociados:', error);
+    }
+  };
 
   // Buscar cliente por CUIT en la red Nodexia
   const buscarClientePorCuit = async () => {
     setMensaje('');
     setNuevoCliente(null);
     setLoading(true);
-    // TODO: Reemplazar por consulta real a la red Nodexia
-    // Simulación: si el CUIT termina en 3, existe; si no, no existe
-    if (cuitInput.trim().endsWith('3')) {
+    
+    try {
+      if (!cuitInput.trim()) {
+        setMensaje('Ingrese un CUIT válido');
+        return;
+      }
+
+      // Buscar empresa tipo coordinador con configuración de cliente (búsqueda flexible)
+      const cuitLimpio = cuitInput.trim();
+      
+      const { data: clienteEncontrado, error } = await supabase
+        .from('empresas')
+        .select('*')
+        .or(`cuit.eq.${cuitLimpio},cuit.like.${cuitLimpio}%`)
+        .eq('tipo_empresa', 'coordinador')
+        .single();
+
+      if (error || !clienteEncontrado) {
+        setMensaje('El cliente no existe en la red Nodexia. Debe registrarse antes de poder asociarlo.');
+        return;
+      }
+
+      // Verificar que sea efectivamente un cliente
+      const esCliente = clienteEncontrado.configuracion_empresa?.tipo_instalacion === 'cliente';
+      
+      if (!esCliente) {
+        setMensaje('La empresa encontrada no es un cliente.');
+        return;
+      }
+
+      // Verificar si ya está asociado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: usuarioEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (!usuarioEmpresa) {
+        setMensaje('Error: No se pudo obtener la empresa del usuario');
+        return;
+      }
+
+      const { data: relacionExiste } = await supabase
+        .from('relaciones_empresa')
+        .select('id')
+        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
+        .eq('empresa_transporte_id', clienteEncontrado.id)
+        .eq('estado', 'activa')
+        .single();
+
+      if (relacionExiste) {
+        setMensaje('Este cliente ya está asociado a tu empresa.');
+        return;
+      }
+
+      // Configurar cliente encontrado
       setNuevoCliente({
-        id: 'demo-id',
-        nombre: 'Cliente Demo S.A.',
-        cuit: cuitInput.trim(),
-        direccion: 'Av. Cliente 789',
-        localidad: 'Ciudad Cliente',
-        provincia: 'Provincia Cliente',
-        ubicacion: 'Lat: -34.8, Lng: -58.6',
-        telefono: '011-5555-5555',
-        documentacion: ['Contrato.pdf', 'ConstanciaInscripcion.pdf'],
+        id: clienteEncontrado.id,
+        nombre: clienteEncontrado.nombre,
+        cuit: clienteEncontrado.cuit || '',
+        direccion: clienteEncontrado.direccion || '',
+        localidad: clienteEncontrado.localidad || '',
+        provincia: clienteEncontrado.provincia || '',
+        ubicacion: `${clienteEncontrado.localidad || ''}, ${clienteEncontrado.provincia || ''}`.replace(/^, |, $/, ''),
+        telefono: clienteEncontrado.telefono || '',
+        documentacion: []
       });
-    } else {
-      setMensaje('El cliente no existe en la red Nodexia. Debe registrarse antes de poder asociarlo.');
+
+      setMensaje('Cliente encontrado. Puede proceder a asociarlo.');
+
+    } catch (error) {
+      console.error('Error buscando cliente:', error);
+      setMensaje('Error al buscar el cliente. Intente nuevamente.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Asociar cliente existente
-  const asociarCliente = () => {
+  const asociarCliente = async () => {
     if (!nuevoCliente) return;
-    // TODO: Lógica para asociar el cliente al coordinador
-    setMensaje('Cliente asociado correctamente.');
-    setClientes([...clientes, nuevoCliente]);
-    setNuevoCliente(null);
-    setCuitInput('');
+    
+    try {
+      setLoading(true);
+      
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setMensaje('Error: Usuario no autenticado');
+        return;
+      }
+
+      // Obtener la empresa del usuario coordinador
+      const { data: usuarioEmpresa, error: userError } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (userError || !usuarioEmpresa) {
+        setMensaje('Error: No se pudo obtener la empresa del usuario');
+        return;
+      }
+
+      // Crear la relación
+      const { data: relacionCreada, error: relacionError } = await supabase
+        .from('relaciones_empresa')
+        .insert({
+          empresa_coordinadora_id: usuarioEmpresa.empresa_id,
+          empresa_transporte_id: nuevoCliente.id,
+          estado: 'activa',
+          fecha_inicio: new Date().toISOString().split('T')[0],
+          activo: true
+        })
+        .select()
+        .single();
+
+      if (relacionError) {
+        setMensaje('Error al crear la relación: ' + relacionError.message);
+        return;
+      }
+
+      setMensaje('Cliente asociado correctamente.');
+      // Recargar la lista de clientes asociados
+      await cargarClientesAsociados();
+      setNuevoCliente(null);
+      setCuitInput('');
+
+    } catch (error) {
+      console.error('Error al asociar cliente:', error);
+      setMensaje('Error inesperado al asociar el cliente');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -119,7 +300,7 @@ const ClientesPage = () => {
               <div><strong>Provincia:</strong> {nuevoCliente.provincia}</div>
               <div><strong>Ubicación:</strong> {nuevoCliente.ubicacion}</div>
               <div><strong>Teléfono:</strong> {nuevoCliente.telefono}</div>
-              <div className="col-span-2"><strong>Documentación:</strong> {nuevoCliente.documentacion.join(', ')}</div>
+              <div className="col-span-2"><strong>Documentación:</strong> {nuevoCliente.documentacion?.length > 0 ? nuevoCliente.documentacion.join(', ') : 'Sin documentación'}</div>
             </div>
             <div className="mt-4 flex justify-end">
               <button
@@ -160,7 +341,7 @@ const ClientesPage = () => {
                   <td className="p-2">{c.localidad}</td>
                   <td className="p-2">{c.provincia}</td>
                   <td className="p-2">{c.telefono}</td>
-                  <td className="p-2">{c.documentacion.join(', ')}</td>
+                  <td className="p-2">{c.documentacion?.length > 0 ? c.documentacion.join(', ') : 'Sin documentación'}</td>
                   <td className="p-2">
                     <button
                       className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded"

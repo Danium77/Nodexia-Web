@@ -17,7 +17,7 @@ export default function NetworkManager({ onClose }: NetworkManagerProps) {
   const { context, loading: contextLoading } = useNetworkContext();
   const { transportistas, loading: transportistasLoading, refresh: refreshTransportistas } = useTransportistasDisponibles();
   const { clientes, loading: clientesLoading, refresh: refreshClientes } = useClientesEmpresa();
-  const { relaciones, crearRelacion, finalizarRelacion, loading: relacionesLoading } = useRelacionesEmpresa();
+  const { relaciones, crearRelacion, finalizarRelacion, loading: relacionesLoading, refresh: refreshRelaciones } = useRelacionesEmpresa();
   const { stats, loading: statsLoading } = useNetworkStats();
   
   const [activeTab, setActiveTab] = useState<'overview' | 'usuarios' | 'transportistas' | 'clientes' | 'relaciones'>('overview');
@@ -51,7 +51,8 @@ export default function NetworkManager({ onClose }: NetworkManagerProps) {
 
     try {
       await finalizarRelacion(relacionId);
-      refreshClientes();
+      await refreshRelaciones(); // Usar la función correcta
+      await refreshTransportistas(); // También actualizar transportistas disponibles
       alert('Relación finalizada exitosamente');
     } catch (error) {
       console.error('Error finalizing relation:', error);

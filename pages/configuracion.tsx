@@ -27,18 +27,51 @@ const ConfiguracionPage = () => {
         return;
       }
       
-      const { data: profileUser } = await supabase
-        .from('profile_users')
-        .select('roles(name)')
+      // SISTEMA ACTUALIZADO: Usar usuarios_empresa → roles_empresa
+      const { data: userEmpresas } = await supabase
+        .from('usuarios_empresa')
+        .select(`
+          roles_empresa(nombre),
+          empresas(tipo_empresa)
+        `)
         .eq('user_id', user.id)
-        .single();
+        .eq('activo', true);
+      
       let userRoles: string[] = [];
-      if (profileUser && profileUser.roles) {
-        const rolesRaw: any = profileUser.roles;
-        userRoles = Array.isArray(rolesRaw)
-          ? rolesRaw.map((r: any) => r.name)
-          : [rolesRaw.name];
+      
+      if (userEmpresas && userEmpresas.length > 0) {
+        // Extraer roles de empresas
+        const rolesEmpresa = userEmpresas
+          .map(rel => rel.roles_empresa?.nombre)
+          .filter(Boolean)
+          .map(nombre => nombre.toLowerCase());
+        
+        // Extraer tipos de empresa como roles adicionales  
+        const tiposEmpresa = userEmpresas
+          .map(rel => rel.empresas?.tipo_empresa)
+          .filter(Boolean);
+        
+        userRoles = [...new Set([...rolesEmpresa, ...tiposEmpresa])];
+        
+        console.log('Roles detectados:', userRoles);
       }
+      
+      // Fallback al sistema antiguo si no hay roles en el nuevo sistema
+      if (userRoles.length === 0) {
+        const { data: profileUser } = await supabase
+          .from('profile_users')
+          .select('roles(name)')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (profileUser && profileUser.roles) {
+          const rolesRaw: any = profileUser.roles;
+          userRoles = Array.isArray(rolesRaw)
+            ? rolesRaw.map((r: any) => r.name)
+            : [rolesRaw.name];
+        }
+      }
+      
       setRoles(userRoles);
       
       // Redirigir usuarios con rol "transporte" a su página específica

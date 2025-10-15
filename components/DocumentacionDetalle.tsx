@@ -83,13 +83,13 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'vigente':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-900 text-green-300 border-green-700';
       case 'por_vencer':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-900 text-yellow-300 border-yellow-700';
       case 'vencido':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-900 text-red-300 border-red-700';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-700 text-gray-300 border-gray-600';
     }
   };
 
@@ -124,25 +124,25 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
   const documentosVencidos = documentos.filter(d => d.estado === 'vencido').length;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+      <div className="bg-slate-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-slate-700">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <DocumentTextIcon className="h-6 w-6 text-blue-600" />
+              <div className="p-2 bg-blue-600 rounded-lg">
+                <DocumentTextIcon className="h-6 w-6 text-blue-100" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-slate-100">
                   Documentación Detallada
                 </h2>
-                <p className="text-gray-600">Viaje: {numeroViaje}</p>
+                <p className="text-slate-400">Viaje: {numeroViaje}</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-slate-400 hover:text-slate-200 transition-colors"
             >
               <XCircleIcon className="h-6 w-6" />
             </button>
@@ -150,33 +150,33 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
         </div>
 
         {/* Resumen */}
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-6 border-b border-slate-700">
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-green-900 border border-green-700 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-600">Vigentes</p>
-                  <p className="text-2xl font-bold text-green-800">{documentosVigentes}</p>
+                  <p className="text-sm font-medium text-green-300">Vigentes</p>
+                  <p className="text-2xl font-bold text-green-200">{documentosVigentes}</p>
                 </div>
                 <CheckCircleIcon className="h-8 w-8 text-green-500" />
               </div>
             </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="bg-yellow-900 border border-yellow-700 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-yellow-600">Por Vencer</p>
-                  <p className="text-2xl font-bold text-yellow-800">{documentosPorVencer}</p>
+                  <p className="text-sm font-medium text-yellow-300">Por Vencer</p>
+                  <p className="text-2xl font-bold text-yellow-200">{documentosPorVencer}</p>
                 </div>
                 <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500" />
               </div>
             </div>
 
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-red-900 border border-red-700 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-red-600">Vencidos</p>
-                  <p className="text-2xl font-bold text-red-800">{documentosVencidos}</p>
+                  <p className="text-sm font-medium text-red-300">Vencidos</p>
+                  <p className="text-2xl font-bold text-red-200">{documentosVencidos}</p>
                 </div>
                 <XCircleIcon className="h-8 w-8 text-red-500" />
               </div>
@@ -186,7 +186,7 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
 
         {/* Lista de Documentos */}
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-slate-100 mb-4">
             Detalle de Documentos Requeridos
           </h3>
           
@@ -194,17 +194,17 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
             {documentos.map((documento, index) => (
               <div
                 key={index}
-                className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+                className="border border-slate-600 rounded-lg p-4 hover:border-slate-500 transition-colors bg-slate-700"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
                       {getEstadoIcon(documento.estado)}
                       <div>
-                        <h4 className="font-medium text-gray-900">
+                        <h4 className="font-medium text-slate-100">
                           {documento.nombre}
                         </h4>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-slate-400">
                           Vencimiento: {new Date(documento.fecha_vencimiento).toLocaleDateString('es-ES')}
                         </p>
                       </div>
@@ -222,7 +222,7 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
                 {/* Barra de progreso para documentos por vencer */}
                 {documento.estado === 'por_vencer' && documento.dias_restantes! <= 30 && (
                   <div className="mt-3">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-slate-600 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full ${
                           documento.dias_restantes! <= 7 ? 'bg-red-500' :
@@ -232,7 +232,7 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
                         style={{ width: `${Math.max(10, (documento.dias_restantes! / 30) * 100)}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-slate-400 mt-1">
                       Tiempo restante: {documento.dias_restantes} días
                     </p>
                   </div>
@@ -243,15 +243,15 @@ export default function DocumentacionDetalle({ numeroViaje, onClose }: Documenta
         </div>
 
         {/* Footer con acciones */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="p-6 border-t border-slate-700 bg-slate-900">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-slate-300">
               <strong>Total:</strong> {documentos.length} documentos requeridos
             </div>
             <div className="flex space-x-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+                className="px-4 py-2 border border-slate-600 rounded-lg text-slate-200 hover:bg-slate-700"
               >
                 Cerrar
               </button>

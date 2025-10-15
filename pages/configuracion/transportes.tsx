@@ -27,9 +27,80 @@ const TransportesPage = () => {
 
   // Cargar transportes asociados al coordinador
   useEffect(() => {
-    // TODO: Reemplazar por consulta real a la base de datos de transportes asociados
-    setTransportes([]);
+    cargarTransportesAsociados();
   }, []);
+
+  const cargarTransportesAsociados = async () => {
+    try {
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Obtener la empresa del usuario coordinador
+      const { data: usuarioEmpresa, error: userError } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (userError || !usuarioEmpresa) {
+        console.error('Error al obtener empresa del usuario:', userError);
+        return;
+      }
+
+      // Obtener transportes asociados a través de relaciones activas
+      const { data: relaciones, error: relacionesError } = await supabase
+        .from('relaciones_empresa')
+        .select(`
+          empresa_transporte:empresas!empresa_transporte_id(
+            id,
+            nombre,
+            cuit,
+            direccion,
+            localidad,
+            provincia,
+            telefono,
+            tipo_empresa,
+            configuracion_empresa
+          )
+        `)
+        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
+        .eq('estado', 'activa')
+        .eq('activo', true);
+
+      if (relacionesError) {
+        console.error('Error al cargar transportes asociados:', relacionesError);
+        return;
+      }
+
+      // Mapear los datos de las empresas de transporte SOLO
+      const transportesAsociados = (relaciones || [])
+        .map(relacion => relacion.empresa_transporte)
+        .filter(Boolean)
+        .filter(empresa => {
+          // Solo incluir empresas que sean realmente transportes
+          return empresa.tipo_empresa === 'transporte';
+        })
+        .map(empresa => ({
+          id: empresa.id,
+          nombre: empresa.nombre,
+          cuit: empresa.cuit || '',
+          direccion: empresa.direccion || '',
+          localidad: empresa.localidad || '',
+          provincia: empresa.provincia || '',
+          ubicacion: `${empresa.localidad || ''}, ${empresa.provincia || ''}`.replace(/^, |, $/, ''),
+          telefono: empresa.telefono || '',
+          documentacion: [] // Por ahora array vacío, se puede expandir luego
+        }));
+
+      console.log('Transportes asociados cargados:', transportesAsociados);
+      setTransportes(transportesAsociados);
+
+    } catch (error) {
+      console.error('Error al cargar transportes asociados:', error);
+    }
+  };
 
   // Buscar transporte por CUIT en la red Nodexia
   const buscarTransportePorCuit = async () => {
@@ -57,13 +128,75 @@ const TransportesPage = () => {
   };
 
   // Asociar transporte existente
-  const asociarTransporte = () => {
+  const asociarTransporte = async () => {
     if (!nuevoTransporte) return;
-    // TODO: Lógica para asociar el transporte al coordinador
-    setMensaje('Transporte asociado correctamente.');
-    setTransportes([...transportes, nuevoTransporte]);
-    setNuevoTransporte(null);
-    setCuitInput('');
+    
+    try {
+      setLoading(true);
+      
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setMensaje('Error: Usuario no autenticado');
+        return;
+      }
+
+      // Obtener la empresa del usuario coordinador
+      const { data: usuarioEmpresa, error: userError } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (userError || !usuarioEmpresa) {
+        setMensaje('Error: No se pudo obtener la empresa del usuario');
+        return;
+      }
+
+      // Buscar la empresa de transporte por CUIT
+      const { data: empresaTransporte, error: transporteError } = await supabase
+        .from('empresas')
+        .select('id')
+        .eq('cuit', nuevoTransporte.cuit)
+        .eq('tipo_empresa', 'transporte')
+        .single();
+
+      if (transporteError || !empresaTransporte) {
+        setMensaje('Error: No se encontró la empresa de transporte en la base de datos');
+        return;
+      }
+
+      // Crear la relación (reutilizar la lógica del hook useNetwork)
+      const { data: relacionCreada, error: relacionError } = await supabase
+        .from('relaciones_empresa')
+        .insert({
+          empresa_coordinadora_id: usuarioEmpresa.empresa_id,
+          empresa_transporte_id: empresaTransporte.id,
+          estado: 'activa',
+          fecha_inicio: new Date().toISOString().split('T')[0],
+          activo: true
+        })
+        .select()
+        .single();
+
+      if (relacionError) {
+        setMensaje('Error al crear la relación: ' + relacionError.message);
+        return;
+      }
+
+      setMensaje('Transporte asociado correctamente.');
+      // Recargar la lista de transportes asociados
+      await cargarTransportesAsociados();
+      setNuevoTransporte(null);
+      setCuitInput('');
+
+    } catch (error) {
+      console.error('Error al asociar transporte:', error);
+      setMensaje('Error inesperado al asociar el transporte');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -143,6 +276,7 @@ const TransportesPage = () => {
                 <th className="p-2">Provincia</th>
                 <th className="p-2">Teléfono</th>
                 <th className="p-2">Documentación</th>
+                <th className="p-2">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -157,7 +291,15 @@ const TransportesPage = () => {
                   <td className="p-2">{t.localidad}</td>
                   <td className="p-2">{t.provincia}</td>
                   <td className="p-2">{t.telefono}</td>
-                  <td className="p-2">{t.documentacion.join(', ')}</td>
+                  <td className="p-2">{t.documentacion?.length > 0 ? t.documentacion.join(', ') : 'Sin documentación'}</td>
+                  <td className="p-2">
+                    <button
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                      onClick={() => router.push(`/configuracion/transportes/${t.id}`)}
+                    >
+                      Gestionar
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

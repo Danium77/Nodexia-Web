@@ -27,44 +27,227 @@ const PlantasPage = () => {
 
   // Cargar plantas asociadas al coordinador
   useEffect(() => {
-    // TODO: Reemplazar por consulta real a la base de datos de plantas asociadas
-    setPlantas([]);
+    cargarPlantasAsociadas();
   }, []);
+
+  const cargarPlantasAsociadas = async () => {
+    try {
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Obtener la empresa del usuario coordinador
+      const { data: usuarioEmpresa, error: userError } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (userError || !usuarioEmpresa) {
+        console.error('Error al obtener empresa del usuario:', userError);
+        return;
+      }
+
+      // Obtener plantas asociadas (empresas tipo coordinador que son plantas)
+      // Usaremos el campo configuracion_empresa para distinguir plantas
+      const { data: relaciones, error: relacionesError } = await supabase
+        .from('relaciones_empresa')
+        .select(`
+          empresa_relacionada:empresas!empresa_transporte_id(
+            id,
+            nombre,
+            cuit,
+            direccion,
+            localidad,
+            provincia,
+            telefono,
+            configuracion_empresa
+          )
+        `)
+        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
+        .eq('estado', 'activa')
+        .eq('activo', true);
+
+      if (relacionesError) {
+        console.error('Error al cargar plantas asociadas:', relacionesError);
+        return;
+      }
+
+      // Filtrar solo las empresas que son plantas (por configuración)
+      const plantasAsociadas = (relaciones || [])
+        .map(relacion => relacion.empresa_relacionada)
+        .filter(Boolean)
+        .filter(empresa => {
+          // Filtrar solo plantas por configuración específica
+          return empresa.configuracion_empresa?.tipo_instalacion === 'planta';
+        })
+        .map(empresa => ({
+          id: empresa.id,
+          nombre: empresa.nombre,
+          cuit: empresa.cuit || '',
+          direccion: empresa.direccion || '',
+          localidad: empresa.localidad || '',
+          provincia: empresa.provincia || '',
+          ubicacion: `${empresa.localidad || ''}, ${empresa.provincia || ''}`.replace(/^, |, $/, ''),
+          telefono: empresa.telefono || '',
+          tipo: empresa.configuracion_empresa?.tipo_instalacion || 'planta',
+          documentacion: [] // Por ahora array vacío, se puede expandir luego
+        }));
+
+      console.log('Plantas asociadas cargadas:', plantasAsociadas);
+      setPlantas(plantasAsociadas);
+
+    } catch (error) {
+      console.error('Error al cargar plantas asociadas:', error);
+    }
+  };
 
   // Buscar planta por CUIT en la red Nodexia
   const buscarPlantaPorCuit = async () => {
     setMensaje('');
     setNuevaPlanta(null);
     setLoading(true);
-    // TODO: Reemplazar por consulta real a la red Nodexia
-    // Simulación: si el CUIT termina en 2, existe; si no, no existe
-    if (cuitInput.trim().endsWith('2')) {
+    
+    try {
+      if (!cuitInput.trim()) {
+        setMensaje('Ingrese un CUIT válido');
+        return;
+      }
+
+      // Buscar empresa tipo coordinador con configuración de planta (búsqueda flexible)
+      const cuitLimpio = cuitInput.trim();
+      
+      const { data: plantaEncontrada, error } = await supabase
+        .from('empresas')
+        .select('*')
+        .or(`cuit.eq.${cuitLimpio},cuit.like.${cuitLimpio}%`)
+        .eq('tipo_empresa', 'coordinador')
+        .single();
+
+      if (error || !plantaEncontrada) {
+        setMensaje('La planta/depósito no existe en la red Nodexia. Debe registrarse antes de poder asociarla.');
+        return;
+      }
+
+      // Verificar que sea efectivamente una planta
+      const esPlanta = plantaEncontrada.configuracion_empresa?.tipo_instalacion === 'planta';
+      
+      if (!esPlanta) {
+        setMensaje('La empresa encontrada no es una planta o depósito.');
+        return;
+      }
+
+      // Verificar si ya está asociada
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: usuarioEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (!usuarioEmpresa) {
+        setMensaje('Error: No se pudo obtener la empresa del usuario');
+        return;
+      }
+
+      const { data: relacionExiste } = await supabase
+        .from('relaciones_empresa')
+        .select('id')
+        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
+        .eq('empresa_transporte_id', plantaEncontrada.id)
+        .eq('estado', 'activa')
+        .single();
+
+      if (relacionExiste) {
+        setMensaje('Esta planta ya está asociada a tu empresa.');
+        return;
+      }
+
+      // Configurar planta encontrada
       setNuevaPlanta({
-        id: 'demo-id',
-        nombre: 'Planta Demo S.A.',
-        cuit: cuitInput.trim(),
-        direccion: 'Av. Planta 456',
-        localidad: 'Ciudad Planta',
-        provincia: 'Provincia Planta',
-        ubicacion: 'Lat: -34.7, Lng: -58.5',
-        telefono: '011-9876-5432',
-        tipo: 'planta',
-        documentacion: ['Habilitacion.pdf', 'PlanoUbicacion.pdf'],
+        id: plantaEncontrada.id,
+        nombre: plantaEncontrada.nombre,
+        cuit: plantaEncontrada.cuit || '',
+        direccion: plantaEncontrada.direccion || '',
+        localidad: plantaEncontrada.localidad || '',
+        provincia: plantaEncontrada.provincia || '',
+        ubicacion: `${plantaEncontrada.localidad || ''}, ${plantaEncontrada.provincia || ''}`.replace(/^, |, $/, ''),
+        telefono: plantaEncontrada.telefono || '',
+        tipo: plantaEncontrada.configuracion_empresa?.categoria || 'planta',
+        documentacion: []
       });
-    } else {
-      setMensaje('La planta/deposito no existe en la red Nodexia. Debe registrarse antes de poder asociarla.');
+
+      setMensaje('Planta encontrada. Puede proceder a asociarla.');
+
+    } catch (error) {
+      console.error('Error buscando planta:', error);
+      setMensaje('Error al buscar la planta. Intente nuevamente.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Asociar planta existente
-  const asociarPlanta = () => {
+  const asociarPlanta = async () => {
     if (!nuevaPlanta) return;
-    // TODO: Lógica para asociar la planta al coordinador
-    setMensaje('Planta asociada correctamente.');
-    setPlantas([...plantas, nuevaPlanta]);
-    setNuevaPlanta(null);
-    setCuitInput('');
+    
+    try {
+      setLoading(true);
+      
+      // Obtener el usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setMensaje('Error: Usuario no autenticado');
+        return;
+      }
+
+      // Obtener la empresa del usuario coordinador
+      const { data: usuarioEmpresa, error: userError } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (userError || !usuarioEmpresa) {
+        setMensaje('Error: No se pudo obtener la empresa del usuario');
+        return;
+      }
+
+      // Crear la relación
+      const { data: relacionCreada, error: relacionError } = await supabase
+        .from('relaciones_empresa')
+        .insert({
+          empresa_coordinadora_id: usuarioEmpresa.empresa_id,
+          empresa_transporte_id: nuevaPlanta.id,
+          estado: 'activa',
+          fecha_inicio: new Date().toISOString().split('T')[0],
+          activo: true
+        })
+        .select()
+        .single();
+
+      if (relacionError) {
+        setMensaje('Error al crear la relación: ' + relacionError.message);
+        return;
+      }
+
+      setMensaje('Planta asociada correctamente.');
+      // Recargar la lista de plantas asociadas
+      await cargarPlantasAsociadas();
+      setNuevaPlanta(null);
+      setCuitInput('');
+
+    } catch (error) {
+      console.error('Error al asociar planta:', error);
+      setMensaje('Error inesperado al asociar la planta');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -121,7 +304,7 @@ const PlantasPage = () => {
               <div><strong>Ubicación:</strong> {nuevaPlanta.ubicacion}</div>
               <div><strong>Teléfono:</strong> {nuevaPlanta.telefono}</div>
               <div><strong>Tipo:</strong> {nuevaPlanta.tipo}</div>
-              <div className="col-span-2"><strong>Documentación:</strong> {nuevaPlanta.documentacion.join(', ')}</div>
+              <div className="col-span-2"><strong>Documentación:</strong> {nuevaPlanta.documentacion?.length > 0 ? nuevaPlanta.documentacion.join(', ') : 'Sin documentación'}</div>
             </div>
             <button
               className="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
@@ -146,6 +329,7 @@ const PlantasPage = () => {
                 <th className="p-2">Teléfono</th>
                 <th className="p-2">Tipo</th>
                 <th className="p-2">Documentación</th>
+                <th className="p-2">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -161,7 +345,15 @@ const PlantasPage = () => {
                   <td className="p-2">{p.provincia}</td>
                   <td className="p-2">{p.telefono}</td>
                   <td className="p-2">{p.tipo}</td>
-                  <td className="p-2">{p.documentacion.join(', ')}</td>
+                  <td className="p-2">{p.documentacion?.length > 0 ? p.documentacion.join(', ') : 'Sin documentación'}</td>
+                  <td className="p-2">
+                    <button
+                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                      onClick={() => router.push(`/configuracion/plantas/${p.id}`)}
+                    >
+                      Gestionar
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
