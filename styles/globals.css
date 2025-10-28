@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 :root {
   --background: #ffffff;
@@ -23,4 +24,57 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Leaflet map custom styles */
+.leaflet-container {
+  background: #2d3748 !important;
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #1b273b;
+  color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-popup-tip {
+  background: #1b273b;
+}
+
+.leaflet-popup-content {
+  margin: 12px;
+  font-size: 13px;
+}
+
+/* Animación para marcador de camión */
+@keyframes truck-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.3);
+  }
+}
+
+.truck-marker {
+  animation: truck-pulse 3s ease-in-out infinite;
+  z-index: 1000 !important;
+}
+
+/* Mejora de contraste para rutas */
+.leaflet-interactive {
+  filter: drop-shadow(0 0 2px rgba(6, 182, 212, 0.8));
 }
