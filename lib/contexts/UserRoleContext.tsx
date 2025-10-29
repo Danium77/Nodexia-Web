@@ -285,34 +285,41 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       if (usuarioData) {
         // Buscar primero con user_id de auth.users (caso de super_admin)
         // 🔥 ACTUALIZADO: incluir JOIN con empresas para obtener tipo_empresa
+        console.log('🔍 [UserRoleContext] Buscando datos de usuario...');
         const { data: relacionData, error: relacionError } = await supabase
           .from('usuarios_empresa')
           .select(`
             rol_interno, 
             empresa_id,
-            empresas!inner(
+            empresas (
               id,
               nombre,
               tipo_empresa
             )
           `)
-          .eq('user_id', authUser.id) // Usar authUser.id en lugar de usuarioData.id
-          .maybeSingle(); // 🔥 Cambio a maybeSingle para soportar usuarios sin empresa
+          .eq('user_id', authUser.id)
+          .single();
+
+        console.log('📊 [UserRoleContext] Query result:', { relacionData, relacionError });
 
         if (relacionError || !relacionData) {
+          console.warn('⚠️ [UserRoleContext] No se encontró relación única, buscando múltiples...');
+          console.warn('   Error:', relacionError?.message);
           // Buscar múltiples empresas (usuario puede tener varios vínculos)
           const { data: multiRelacionData, error: multiError } = await supabase
             .from('usuarios_empresa')
             .select(`
               rol_interno, 
               empresa_id,
-              empresas!inner(
+              empresas (
                 id,
                 nombre,
                 tipo_empresa
               )
             `)
             .eq('user_id', authUser.id);
+
+          console.log('📊 [UserRoleContext] Multi-empresa result:', { multiRelacionData, multiError });
 
           if (multiError || !multiRelacionData || multiRelacionData.length === 0) {
             // Usuario sin empresas asignadas - usar rol por defecto
@@ -426,7 +433,13 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
               mappedRole = 'coordinador';
           }
           
-          console.log(`✅ [dashboard] Role detected: ${mappedRole}, Tipo Empresa: ${tipoEmpresaValue}`);
+          console.log(`✅ [UserRoleContext] Datos cargados:`);
+          console.log(`   - Rol interno DB: ${rolInterno}`);
+          console.log(`   - Rol mapeado: ${mappedRole}`);
+          console.log(`   - Tipo Empresa: ${tipoEmpresaValue}`);
+          console.log(`   - Empresa ID: ${empresaIdValue}`);
+          console.log(`   - Empresa: ${(relacionData.empresas as any)?.nombre}`);
+          
           setRoles([mappedRole]);
           finishFetch();
           return;
