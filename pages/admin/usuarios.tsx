@@ -93,6 +93,29 @@ const UsuariosPage = () => {
   
   // Eliminado formData/setFormData legacy modal usuario
 
+  // Recuperar estado del modal al montar (si se recargó la página)
+  useEffect(() => {
+    const wasModalOpen = sessionStorage.getItem('wizardUsuarioOpen');
+    if (wasModalOpen === 'true') {
+      console.log('[UsuariosPage] Reabriendo modal después de reload');
+      setShowModal(true);
+    }
+  }, []);
+
+  // Prevenir pérdida de datos si el usuario intenta salir/recargar
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (showModal) {
+        e.preventDefault();
+        e.returnValue = ''; // Chrome requiere esto
+        return '¿Estás seguro? Los datos del formulario se guardarán temporalmente.';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [showModal]);
+
   // Cargar datos al montar
   useEffect(() => {
     loadEmpresas();

@@ -80,6 +80,9 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
   // Persistir estado del wizard en sessionStorage
   useEffect(() => {
     if (isOpen) {
+      // Marcar que el modal está abierto
+      sessionStorage.setItem('wizardUsuarioOpen', 'true');
+      
       // Intentar recuperar estado guardado
       const savedState = sessionStorage.getItem('wizardUsuarioState');
       if (savedState) {
@@ -98,8 +101,9 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       loadEmpresas();
       loadRoles();
     } else {
-      // Limpiar sessionStorage cuando se cierra el modal
+      // Limpiar sessionStorage cuando se cierra el modal intencionalmente
       sessionStorage.removeItem('wizardUsuarioState');
+      sessionStorage.removeItem('wizardUsuarioOpen');
     }
   }, [isOpen]);
 
