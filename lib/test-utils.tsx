@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react'
-import { UserProvider } from '../components/context/UserContext'
+import { UserRoleProvider } from './contexts/UserRoleContext'
 
-// Utilidad para renderizar componentes con UserContext
+// Utilidad para renderizar componentes con UserRoleContext
 export function renderWithUserContext(ui: React.ReactElement, options = {}) {
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <UserProvider>{children}</UserProvider>
+    <UserRoleProvider>{children}</UserRoleProvider>
   )
   
   return render(ui, { wrapper: Wrapper, ...options })

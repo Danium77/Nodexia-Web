@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { 
   BuildingOfficeIcon, 
   UsersIcon, 
-  CreditCardIcon, 
   ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
   CheckCircleIcon
@@ -94,74 +93,93 @@ export default function DashboardNodexia() {
       title: 'Clientes Total',
       value: stats.totalClientes,
       icon: BuildingOfficeIcon,
-      color: 'bg-blue-500',
-      change: '+2 este mes'
+      gradient: 'from-cyan-500/10 to-cyan-600/10',
+      border: 'border-cyan-500/30',
+      iconColor: 'text-cyan-400',
+      valueColor: 'text-slate-50',
+      change: '+2 este mes',
+      changeColor: 'text-cyan-400'
     },
     {
       title: 'Clientes Activos',
       value: stats.clientesActivos,
       icon: CheckCircleIcon,
-      color: 'bg-green-500',
-      change: `${Math.round((stats.clientesActivos / stats.totalClientes) * 100)}% del total`
+      gradient: 'from-green-500/10 to-green-600/10',
+      border: 'border-green-500/30',
+      iconColor: 'text-green-400',
+      valueColor: 'text-slate-50',
+      change: `${Math.round((stats.clientesActivos / stats.totalClientes) * 100)}% del total`,
+      changeColor: 'text-green-400'
     },
     {
       title: 'Usuarios Totales',
       value: stats.totalUsuarios,
       icon: UsersIcon,
-      color: 'bg-purple-500',
-      change: '+5 esta semana'
+      gradient: 'from-purple-500/10 to-purple-600/10',
+      border: 'border-purple-500/30',
+      iconColor: 'text-purple-400',
+      valueColor: 'text-slate-50',
+      change: '+5 esta semana',
+      changeColor: 'text-purple-400'
     },
     {
       title: 'Revenue Mensual',
       value: `$${stats.revenue.toLocaleString()}`,
       icon: ArrowTrendingUpIcon,
-      color: 'bg-emerald-500',
-      change: '+12% vs mes anterior'
+      gradient: 'from-emerald-500/10 to-emerald-600/10',
+      border: 'border-emerald-500/30',
+      iconColor: 'text-emerald-400',
+      valueColor: 'text-slate-50',
+      change: '+12% vs mes anterior',
+      changeColor: 'text-emerald-400'
     },
     {
       title: 'Solicitudes Pendientes',
       value: stats.solicitudesPendientes,
       icon: ExclamationTriangleIcon,
-      color: 'bg-orange-500',
-      change: 'Requieren atención'
+      gradient: 'from-amber-500/10 to-amber-600/10',
+      border: 'border-amber-500/30',
+      iconColor: 'text-amber-400',
+      valueColor: 'text-slate-50',
+      change: 'Requieren atención',
+      changeColor: 'text-amber-400'
     },
     {
       title: 'Alertas de Límites',
       value: stats.alertasLimites,
       icon: ExclamationTriangleIcon,
-      color: 'bg-red-500',
-      change: 'Revisar suscripciones'
+      gradient: 'from-red-500/10 to-red-600/10',
+      border: 'border-red-500/30',
+      iconColor: 'text-red-400',
+      valueColor: 'text-slate-50',
+      change: 'Revisar suscripciones',
+      changeColor: 'text-red-400'
     }
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard Nodexia</h1>
-          <p className="text-gray-400 mt-2">Resumen general del ecosistema de clientes</p>
-        </div>
-        <button 
-          onClick={cargarDatos}
-          className="bg-cyan-500 text-white px-4 py-2 rounded-lg hover:bg-cyan-600 transition-colors"
-        >
-          Actualizar
-        </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-50 mb-2">Dashboard Nodexia</h1>
+        <p className="text-slate-400">Resumen general del ecosistema de clientes</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {statCards.map((card, index) => (
-          <div key={index} className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <div 
+            key={index} 
+            className={`bg-gradient-to-br ${card.gradient} rounded-lg p-6 border ${card.border} hover:border-opacity-50 transition-all duration-300`}
+          >
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">{card.title}</p>
-                <p className="text-2xl font-bold text-white mt-1">{card.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{card.change}</p>
+              <div className="flex-1">
+                <p className={`${card.iconColor} text-sm font-medium mb-1`}>{card.title}</p>
+                <p className={`text-3xl font-bold ${card.valueColor}`}>{card.value}</p>
+                <p className={`text-xs ${card.changeColor} mt-2`}>{card.change}</p>
               </div>
-              <div className={`${card.color} p-3 rounded-lg`}>
-                <card.icon className="h-6 w-6 text-white" />
+              <div className={`${card.iconColor} opacity-80`}>
+                <card.icon className="h-10 w-10" />
               </div>
             </div>
           </div>
@@ -170,31 +188,31 @@ export default function DashboardNodexia() {
 
       {/* Alertas de Límites */}
       {alertas.length > 0 && (
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+        <div className="bg-[#1b273b] rounded-lg p-6 border border-red-700/50">
+          <h2 className="text-xl font-bold text-slate-50 mb-4 flex items-center">
             <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mr-2" />
             Alertas de Límites de Suscripción
           </h2>
           <div className="space-y-3">
             {alertas.map((alerta, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+              <div key={index} className="flex items-center justify-between p-4 bg-[#0a0e1a] rounded-lg border border-slate-700">
                 <div className="flex-1">
-                  <p className="text-white font-medium">{alerta.empresa}</p>
-                  <p className="text-gray-400 text-sm">{alerta.tipo}: {alerta.usado}/{alerta.limite}</p>
+                  <p className="text-slate-50 font-medium">{alerta.empresa}</p>
+                  <p className="text-slate-400 text-sm">{alerta.tipo}: {alerta.usado}/{alerta.limite}</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className="w-24 bg-gray-600 rounded-full h-2">
+                  <div className="w-24 bg-slate-700 rounded-full h-2">
                     <div 
-                      className={`h-2 rounded-full ${
+                      className={`h-2 rounded-full transition-all duration-300 ${
                         alerta.porcentaje >= 80 ? 'bg-red-500' : 
-                        alerta.porcentaje >= 60 ? 'bg-yellow-500' : 'bg-green-500'
+                        alerta.porcentaje >= 60 ? 'bg-amber-500' : 'bg-green-500'
                       }`}
                       style={{ width: `${alerta.porcentaje}%` }}
                     />
                   </div>
                   <span className={`text-sm font-medium ${
                     alerta.porcentaje >= 80 ? 'text-red-400' : 
-                    alerta.porcentaje >= 60 ? 'text-yellow-400' : 'text-green-400'
+                    alerta.porcentaje >= 60 ? 'text-amber-400' : 'text-green-400'
                   }`}>
                     {alerta.porcentaje}%
                   </span>
@@ -205,62 +223,65 @@ export default function DashboardNodexia() {
         </div>
       )}
 
-      {/* Accesos Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-bold text-white mb-3">Acciones Rápidas</h3>
-          <div className="space-y-2">
-            <button className="w-full text-left p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              + Nuevo Cliente
-            </button>
-            <button className="w-full text-left p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-              + Crear Usuario
-            </button>
-            <button className="w-full text-left p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-              📋 Ver Solicitudes
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-bold text-white mb-3">Actividad Reciente</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Usuario creado</span>
-              <span className="text-gray-500">Hace 2h</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Plan actualizado</span>
-              <span className="text-gray-500">Hace 4h</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Nuevo cliente</span>
-              <span className="text-gray-500">Ayer</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-bold text-white mb-3">Estado del Sistema</h3>
+      {/* Accesos Rápidos y Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Acciones Rápidas */}
+        <div className="bg-[#1b273b] rounded-lg p-6 border border-slate-700">
+          <h3 className="text-lg font-bold text-slate-50 mb-4">Acciones Rápidas</h3>
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Base de Datos</span>
-              <span className="text-green-400 flex items-center">
-                <CheckCircleIcon className="h-4 w-4 mr-1" />
+            <button className="w-full text-left p-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-lg hover:from-cyan-700 hover:to-cyan-800 transition-all duration-300 font-medium flex items-center gap-2">
+              <span>+</span> Nuevo Cliente
+            </button>
+            <button className="w-full text-left p-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 font-medium flex items-center gap-2">
+              <span>+</span> Crear Usuario
+            </button>
+            <button className="w-full text-left p-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all duration-300 font-medium flex items-center gap-2">
+              <span>📋</span> Ver Solicitudes
+            </button>
+          </div>
+        </div>
+
+        {/* Actividad Reciente */}
+        <div className="bg-[#1b273b] rounded-lg p-6 border border-slate-700">
+          <h3 className="text-lg font-bold text-slate-50 mb-4">Actividad Reciente</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-start p-3 bg-[#0a0e1a] rounded-lg">
+              <span className="text-slate-300">Usuario creado</span>
+              <span className="text-slate-500 text-xs">Hace 2h</span>
+            </div>
+            <div className="flex justify-between items-start p-3 bg-[#0a0e1a] rounded-lg">
+              <span className="text-slate-300">Plan actualizado</span>
+              <span className="text-slate-500 text-xs">Hace 4h</span>
+            </div>
+            <div className="flex justify-between items-start p-3 bg-[#0a0e1a] rounded-lg">
+              <span className="text-slate-300">Nuevo cliente</span>
+              <span className="text-slate-500 text-xs">Ayer</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Estado del Sistema */}
+        <div className="bg-[#1b273b] rounded-lg p-6 border border-slate-700">
+          <h3 className="text-lg font-bold text-slate-50 mb-4">Estado del Sistema</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-[#0a0e1a] rounded-lg">
+              <span className="text-slate-300">Base de Datos</span>
+              <span className="text-green-400 flex items-center gap-1 text-sm font-medium">
+                <CheckCircleIcon className="h-4 w-4" />
                 Online
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">API</span>
-              <span className="text-green-400 flex items-center">
-                <CheckCircleIcon className="h-4 w-4 mr-1" />
+            <div className="flex items-center justify-between p-3 bg-[#0a0e1a] rounded-lg">
+              <span className="text-slate-300">API</span>
+              <span className="text-green-400 flex items-center gap-1 text-sm font-medium">
+                <CheckCircleIcon className="h-4 w-4" />
                 Operativo
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Notificaciones</span>
-              <span className="text-green-400 flex items-center">
-                <CheckCircleIcon className="h-4 w-4 mr-1" />
+            <div className="flex items-center justify-between p-3 bg-[#0a0e1a] rounded-lg">
+              <span className="text-slate-300">Notificaciones</span>
+              <span className="text-green-400 flex items-center gap-1 text-sm font-medium">
+                <CheckCircleIcon className="h-4 w-4" />
                 Activas
               </span>
             </div>

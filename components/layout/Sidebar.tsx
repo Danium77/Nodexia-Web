@@ -1,5 +1,5 @@
 // components/Layout/Sidebar.tsx
-import React from 'react'; // Quitamos useEffect y useState
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
@@ -14,17 +14,64 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   const router = useRouter();
-  const { email, name, role: userRole, loading } = useUserRole();
-  // allow override via props (some pages pass them)
-  userEmail = userEmail || email;
-  userName = userName || name;
-  // Verificación alternativa para coordinador basada en email (backup)
-  const isCoordinadorByEmail = email === 'coord_demo@example.com' || email === 'coordinador.demo@nodexia.com';
+  const { email, name, primaryRole, loading } = useUserRole();
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  if (loading) {
-    // Loader o sidebar vacío mientras se carga el rol
+  // Manejar hidratación del lado cliente
+  useEffect(() => {
+    setIsHydrated(true);
+    // Por defecto siempre contraído (no cargar de localStorage)
+    setIsCollapsed(true);
+  }, []);
+
+  // Guardar estado de collapse
+  const toggleCollapse = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+  };
+
+  // allow override via props (some pages pass them)
+  const finalEmail = userEmail || email;
+  const finalUserName = userName || name;
+  
+  // Verificación alternativa para coordinador basada en email (backup)
+  const isCoordinadorByEmail = finalEmail === 'coord_demo@example.com' || finalEmail === 'coordinador.demo@nodexia.com';
+
+  // Usar primaryRole consistentemente
+  const userRole = primaryRole;
+
+  // Mostrar sidebar de carga si no está hidratado o si está cargando
+  if (!isHydrated || loading) {
     return (
-      <aside className="w-64 bg-[#1b273b] pt-0 pb-6 flex flex-col shadow-lg text-slate-100 min-h-screen" />
+      <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-[#1b273b] pt-0 pb-6 flex flex-col shadow-lg text-slate-100 min-h-screen transition-all duration-300`}>
+        <div className="text-center mb-4 transform -translate-y-6 mx-auto" style={{ width: 'fit-content' }}>
+          {!isCollapsed && (
+            <>
+              <Image 
+                src="/logo X gruesa.png" 
+                alt="Nodexia Logo" 
+                width={100} 
+                height={100} 
+                className="mx-auto block -mb-8" 
+              />
+              <span className="text-xl font-bold text-white block">NODEXIA</span>
+            </>
+          )}
+          {isCollapsed && (
+            <Image 
+              src="/logo X gruesa.png" 
+              alt="Nodexia Logo" 
+              width={50} 
+              height={50} 
+              className="mx-auto block" 
+            />
+          )}
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-slate-400">{isCollapsed ? '...' : 'Cargando...'}</div>
+        </div>
+      </aside>
     );
   }
 
@@ -33,7 +80,19 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
   ];
   
-  if (userRole === 'control_acceso') {
+  if (userRole === 'super_admin') {
+    // Super Admin de Nodexia - Panel exclusivo
+    navItems = [
+      { name: '👑 Administrador del panel', icon: HomeIcon, href: '/admin/super-admin-dashboard' },
+      { name: '🏢 Empresas', icon: Cog6ToothIcon, href: '/admin/empresas' },
+      { name: '💎 Ubicaciones', icon: Cog6ToothIcon, href: '/admin/ubicaciones' },
+      { name: '👥 Usuarios', icon: UserCircleIcon, href: '/admin/usuarios' },
+      { name: '📋 Solicitudes', icon: ChartBarIcon, href: '/admin/solicitudes' },
+      { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
+      { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
+      { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
+    ];
+  } else if (userRole === 'control_acceso') {
     navItems = [
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
       { name: '🚪 Control de Acceso', icon: TruckIcon, href: '/control-acceso' },
@@ -50,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     ];
   } else if (userRole === 'coordinador' || String(userRole).trim().toLowerCase() === 'coordinador' || String(userRole).includes('coordinador') || isCoordinadorByEmail) {
     navItems = [
-      { name: '⚡ Dashboard', icon: HomeIcon, href: '/coordinator-dashboard' },
+      { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
       { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
       { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
       { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
@@ -86,42 +145,67 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   };
 
   return (
-    <aside className="w-64 bg-[#1b273b] pt-0 pb-6 flex flex-col shadow-lg text-slate-100 min-h-screen"> {/* Mantenemos pt-0 */}
-      <div className="text-center mb-4 transform -translate-y-6 mx-auto" style={{ width: 'fit-content' }}> {/* Mantenemos -translate-y-6 */}
-        <Image 
-          src="/logo X gruesa.png" 
-          alt="Nodexia Logo" 
-          width={100} 
-          height={100} 
-          className="mx-auto block -mb-8" 
-        />
-        <span className="text-xl font-bold text-white block">NODEXIA</span> 
+    <aside 
+      className={`${isCollapsed ? 'w-20' : 'w-64'} bg-[#1b273b] pt-0 pb-6 flex flex-col shadow-lg text-slate-100 min-h-screen transition-all duration-300 relative group`}
+      onMouseEnter={() => setIsCollapsed(false)}
+      onMouseLeave={() => setIsCollapsed(true)}
+    >
+      {/* Logo */}
+      <div className="text-center mb-4 transform -translate-y-6 mx-auto" style={{ width: 'fit-content' }}>
+        {!isCollapsed ? (
+          <>
+            <Image 
+              src="/logo X gruesa.png" 
+              alt="Nodexia Logo" 
+              width={100} 
+              height={100} 
+              className="mx-auto block -mb-8" 
+            />
+            <span className="text-xl font-bold text-white block">NODEXIA</span>
+          </>
+        ) : (
+          <Image 
+            src="/logo X gruesa.png" 
+            alt="Nodexia Logo" 
+            width={50} 
+            height={50} 
+            className="mx-auto block mt-4" 
+          />
+        )}
       </div>
       
-      <nav className="flex-1 mt-8"> {/* Mantenemos mt-8 */}
+      {/* Navegación */}
+      <nav className="flex-1 mt-8">
         <ul>
           {navItems.map((item) => (
             <li key={item.name} className="mb-3">
-              <Link href={item.href} className={`flex items-center p-3 rounded-lg hover:bg-[#0e1a2d] transition-colors duration-200 ${router.pathname === item.href ? 'bg-[#0e1a2d] text-cyan-400' : 'text-slate-300'}`}>
-                <item.icon className="h-6 w-6 mr-3" />
-                <span className="font-medium">{item.name}</span>
+              <Link 
+                href={item.href} 
+                className={`flex items-center ${isCollapsed ? 'justify-center' : ''} p-3 rounded-lg hover:bg-[#0e1a2d] transition-colors duration-200 ${router.pathname === item.href ? 'bg-[#0e1a2d] text-cyan-400' : 'text-slate-300'}`}
+                title={isCollapsed ? item.name : ''}
+              >
+                <item.icon className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'}`} />
+                {!isCollapsed && <span className="font-medium">{item.name}</span>}
               </Link>
             </li>
           ))}
         </ul>
       </nav>
 
+      {/* Footer con usuario y logout */}
       <div className="mt-auto pt-6 border-t border-gray-700">
-        <div className="flex items-center p-3">
-            <UserCircleIcon className="h-8 w-8 text-cyan-400 mr-3" />
-            <span className="text-sm font-medium">{userName || userEmail.split('@')[0] || 'Usuario'}</span>
+        <div className={`flex items-center p-3 ${isCollapsed ? 'justify-center' : ''}`}>
+          <UserCircleIcon className={`h-8 w-8 text-cyan-400 ${isCollapsed ? '' : 'mr-3'}`} />
+          {!isCollapsed && <span className="text-sm font-medium truncate">{finalUserName || finalEmail?.split('@')[0] || 'Usuario'}</span>}
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center p-3 mt-2 w-full rounded-lg text-red-400 hover:bg-red-900/30 transition-colors duration-200"
+          className={`flex items-center ${isCollapsed ? 'justify-center' : ''} p-3 mt-2 w-full rounded-lg text-red-400 hover:bg-red-900/30 transition-colors duration-200`}
+          title={isCollapsed ? 'Cerrar sesión' : ''}
+          title={isCollapsed ? 'Cerrar sesión' : ''}
         >
-          <ArrowLeftOnRectangleIcon className="h-6 w-6 mr-3" />
-          <span className="font-medium">Cerrar Sesión</span>
+          <ArrowLeftOnRectangleIcon className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'}`} />
+          {!isCollapsed && <span className="font-medium">Cerrar Sesión</span>}
         </button>
       </div>
     </aside>

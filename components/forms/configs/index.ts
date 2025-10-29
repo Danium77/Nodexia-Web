@@ -336,7 +336,7 @@ export const AcopladoFormFields: FormFieldConfig[] = [
     name: 'modelo',
     label: 'Modelo',
     type: 'text',
-    placeholder: 'Cisterna, Silo, etc.',
+    placeholder: 'Tanque, Contenedor, etc.',
     required: true,
     validation: {
       minLength: 2,
@@ -370,11 +370,11 @@ export const AcopladoFormFields: FormFieldConfig[] = [
     type: 'select',
     required: true,
     options: [
-      { value: 'cisterna', label: 'Cisterna' },
-      { value: 'silo', label: 'Silo' },
+      { value: 'tanque', label: 'Tanque' },
+      { value: 'contenedor', label: 'Contenedor' },
       { value: 'plataforma', label: 'Plataforma' },
       { value: 'furgon', label: 'Furgón' },
-      { value: 'jaula', label: 'Jaula' }
+      { value: 'tolva', label: 'Tolva' }
     ]
   },
   {

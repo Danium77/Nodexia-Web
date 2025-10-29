@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { useUserRole } from '../lib/contexts/UserRoleContext';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import NetworkMetrics from '../components/Dashboard/NetworkMetrics';
@@ -36,7 +37,7 @@ interface TransporteActivo {
 
 const CoordinatorDashboard = () => {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const { user: authUser, primaryRole, loading: roleLoading } = useUserRole(); // Usar Context
   const [userName, setUserName] = useState<string>('Coordinador');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
@@ -50,35 +51,47 @@ const CoordinatorDashboard = () => {
   const [recentDispatches, setRecentDispatches] = useState<DespachoReciente[]>([]);
   const [activeTransports, setActiveTransports] = useState<TransporteActivo[]>([]);
 
+  // Verificar autenticación y permisos
   useEffect(() => {
-    checkUserAndLoadData();
-  }, []);
+    if (roleLoading) return;
 
-  const checkUserAndLoadData = async () => {
+    if (!authUser) {
+      router.replace('/login');
+      return;
+    }
+
+    // Solo coordinadores pueden acceder
+    if (primaryRole !== 'coordinador') {
+      console.log(`⚠️ [coordinator-dashboard] Invalid role: ${primaryRole}`);
+      router.replace('/dashboard');
+      return;
+    }
+
+    // Cargar datos
+    loadAllData();
+  }, [authUser, primaryRole, roleLoading, router]);
+
+  const loadAllData = async () => {
+    if (!authUser) return;
+
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error || !user) {
-        router.push('/login');
-        return;
-      }
+      setLoading(true);
 
-      setUser(user);
-      
       // Obtener nombre del usuario
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('full_name, role')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile) {
-        setUserName(profile.full_name || 'Coordinador');
+      const { data: usuarioData } = await supabase
+        .from('usuarios')
+        .select('nombre_completo')
+        .eq('email', authUser.email)
+        .maybeSingle();
+
+      if (usuarioData?.nombre_completo) {
+        setUserName(usuarioData.nombre_completo);
       }
 
+      // Cargar datos en paralelo
       await Promise.all([
-        loadDashboardStats(user.id),
-        loadRecentDispatches(user.id),
+        loadDashboardStats(authUser.id),
+        loadRecentDispatches(authUser.id),
         loadActiveTransports()
       ]);
 
@@ -103,13 +116,14 @@ const CoordinatorDashboard = () => {
       const despachosAsignados = despachos?.filter(d => d.transport_id).length || 0;
       const despachosPendientes = totalDespachos - despachosAsignados;
 
-      // Obtener transportes activos
-      const { data: transportes } = await supabase
-        .from('transportes')
+      // Obtener empresas de transporte activas (en lugar de tabla transportes)
+      const { data: empresasTransporte } = await supabase
+        .from('empresas')
         .select('id')
-        .eq('disponible', true);
+        .eq('tipo_empresa', 'transporte')
+        .eq('activo', true);
 
-      const transportesActivos = transportes?.length || 0;
+      const transportesActivos = empresasTransporte?.length || 0;
 
       // Calcular métricas de eficiencia
       const eficienciaRed = totalDespachos > 0 ? Math.round((despachosAsignados / totalDespachos) * 100) : 0;
@@ -174,16 +188,12 @@ const CoordinatorDashboard = () => {
 
   const loadActiveTransports = async () => {
     try {
+      // Usar empresas de transporte en lugar de tabla transportes
       const { data, error } = await supabase
-        .from('transportes')
-        .select(`
-          id,
-          nombre,
-          tipo,
-          disponible,
-          ubicacion_actual
-        `)
-        .eq('disponible', true)
+        .from('empresas')
+        .select('id, nombre')
+        .eq('tipo_empresa', 'transporte')
+        .eq('activo', true)
         .limit(5);
 
       if (error) throw error;
@@ -199,9 +209,9 @@ const CoordinatorDashboard = () => {
           return {
             id: transport.id,
             nombre: transport.nombre,
-            tipo: transport.tipo,
-            estado: transport.disponible ? 'Disponible' : 'Ocupado',
-            ubicacion_actual: transport.ubicacion_actual || 'En ruta',
+            tipo: 'Transporte', // Todas son empresas tipo transporte
+            estado: 'Disponible',
+            ubicacion_actual: 'En ruta',
             despachos_asignados: despachos?.length || 0
           };
         })
@@ -257,7 +267,7 @@ const CoordinatorDashboard = () => {
               <div>
                 <h1 className="text-3xl font-bold text-white flex items-center">
                   <span className="text-cyan-400 mr-3">⚡</span>
-                  Dashboard Coordinador
+                  Panel de control
                 </h1>
                 <p className="text-gray-400 mt-2">
                   Bienvenido, {userName} - Centro de comando NODEXIA

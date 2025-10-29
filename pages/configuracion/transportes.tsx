@@ -107,24 +107,66 @@ const TransportesPage = () => {
     setMensaje('');
     setNuevoTransporte(null);
     setLoading(true);
-    // TODO: Reemplazar por consulta real a la red Nodexia
-    // Simulación: si el CUIT termina en 1, existe; si no, no existe
-    if (cuitInput.trim().endsWith('1')) {
+    
+    try {
+      // Normalizar CUIT: quitar guiones y espacios
+      const cuitNormalizado = cuitInput.trim().replace(/[-\s]/g, '');
+      
+      if (cuitNormalizado.length !== 11) {
+        setMensaje('El CUIT debe tener 11 dígitos');
+        setLoading(false);
+        return;
+      }
+
+      console.log('🔍 Buscando transporte con CUIT:', cuitNormalizado);
+
+      // Buscar en la tabla empresas
+      const { data: empresaEncontrada, error: busquedaError } = await supabase
+        .from('empresas')
+        .select('*')
+        .eq('tipo_empresa', 'transporte')
+        .or(`cuit.eq.${cuitNormalizado},cuit.eq.${cuitInput.trim()}`)
+        .eq('activo', true)
+        .single();
+
+      if (busquedaError) {
+        if (busquedaError.code === 'PGRST116') {
+          setMensaje('Error: No se encontró la empresa de transporte en la base de datos. Debe registrarse primero desde el panel de Super Admin.');
+        } else {
+          console.error('Error en búsqueda:', busquedaError);
+          setMensaje('Error al buscar el transporte: ' + busquedaError.message);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!empresaEncontrada) {
+        setMensaje('El transporte no existe en la red Nodexia. Debe registrarse antes de poder asociarlo.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Transporte encontrado:', empresaEncontrada);
+
+      // Mapear los datos de la empresa encontrada
       setNuevoTransporte({
-        id: 'demo-id',
-        nombre: 'Transporte Demo S.A.',
-        cuit: cuitInput.trim(),
-        direccion: 'Calle Falsa 123',
-        localidad: 'Ciudad Demo',
-        provincia: 'Provincia Demo',
-        ubicacion: 'Lat: -34.6, Lng: -58.4',
-        telefono: '011-1234-5678',
-        documentacion: ['ARCA.pdf', 'InscripcionFiscal.pdf'],
+        id: empresaEncontrada.id,
+        nombre: empresaEncontrada.nombre,
+        cuit: empresaEncontrada.cuit || cuitNormalizado,
+        direccion: empresaEncontrada.direccion || '',
+        localidad: empresaEncontrada.localidad || '',
+        provincia: empresaEncontrada.provincia || '',
+        ubicacion: `Lat: ${empresaEncontrada.latitud || 'N/A'}, Lng: ${empresaEncontrada.longitud || 'N/A'}`,
+        telefono: empresaEncontrada.telefono || '',
+        documentacion: [], // Se puede expandir con documentos reales
       });
-    } else {
-      setMensaje('El transporte no existe en la red Nodexia. Debe registrarse antes de poder asociarlo.');
+
+    } catch (error) {
+      console.error('❌ Error inesperado al buscar transporte:', error);
+      setMensaje('Error inesperado al buscar el transporte');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Asociar transporte existente
@@ -133,11 +175,13 @@ const TransportesPage = () => {
     
     try {
       setLoading(true);
+      console.log('🔗 Iniciando asociación de transporte:', nuevoTransporte.nombre);
       
       // Obtener el usuario actual
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setMensaje('Error: Usuario no autenticado');
+        setLoading(false);
         return;
       }
 
@@ -150,49 +194,83 @@ const TransportesPage = () => {
         .single();
 
       if (userError || !usuarioEmpresa) {
+        console.error('Error obteniendo empresa del usuario:', userError);
         setMensaje('Error: No se pudo obtener la empresa del usuario');
+        setLoading(false);
         return;
       }
 
-      // Buscar la empresa de transporte por CUIT
-      const { data: empresaTransporte, error: transporteError } = await supabase
-        .from('empresas')
-        .select('id')
-        .eq('cuit', nuevoTransporte.cuit)
-        .eq('tipo_empresa', 'transporte')
-        .single();
+      console.log('✅ Empresa coordinadora:', usuarioEmpresa.empresa_id);
+      console.log('✅ Empresa transporte:', nuevoTransporte.id);
 
-      if (transporteError || !empresaTransporte) {
-        setMensaje('Error: No se encontró la empresa de transporte en la base de datos');
-        return;
-      }
-
-      // Crear la relación (reutilizar la lógica del hook useNetwork)
-      const { data: relacionCreada, error: relacionError } = await supabase
+      // Verificar si ya existe la relación
+      const { data: relacionExistente } = await supabase
         .from('relaciones_empresa')
-        .insert({
-          empresa_coordinadora_id: usuarioEmpresa.empresa_id,
-          empresa_transporte_id: empresaTransporte.id,
-          estado: 'activa',
-          fecha_inicio: new Date().toISOString().split('T')[0],
-          activo: true
-        })
-        .select()
-        .single();
+        .select('id, estado')
+        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
+        .eq('empresa_transporte_id', nuevoTransporte.id)
+        .maybeSingle();
 
-      if (relacionError) {
-        setMensaje('Error al crear la relación: ' + relacionError.message);
-        return;
+      if (relacionExistente) {
+        if (relacionExistente.estado === 'activa') {
+          setMensaje('Este transporte ya está asociado a tu empresa');
+          setLoading(false);
+          return;
+        }
+        
+        // Reactivar relación existente
+        const { error: updateError } = await supabase
+          .from('relaciones_empresa')
+          .update({ 
+            estado: 'activa', 
+            activo: true,
+            fecha_inicio: new Date().toISOString().split('T')[0]
+          })
+          .eq('id', relacionExistente.id);
+
+        if (updateError) {
+          console.error('Error reactivando relación:', updateError);
+          setMensaje('Error al reactivar la relación: ' + updateError.message);
+          setLoading(false);
+          return;
+        }
+
+        console.log('✅ Relación reactivada');
+      } else {
+        // Crear nueva relación
+        const { data: relacionCreada, error: relacionError } = await supabase
+          .from('relaciones_empresa')
+          .insert({
+            empresa_coordinadora_id: usuarioEmpresa.empresa_id,
+            empresa_transporte_id: nuevoTransporte.id,
+            estado: 'activa',
+            fecha_inicio: new Date().toISOString().split('T')[0],
+            activo: true
+          })
+          .select()
+          .single();
+
+        if (relacionError) {
+          console.error('Error creando relación:', relacionError);
+          setMensaje('Error al crear la relación: ' + relacionError.message);
+          setLoading(false);
+          return;
+        }
+
+        console.log('✅ Relación creada:', relacionCreada);
       }
 
-      setMensaje('Transporte asociado correctamente.');
+      setMensaje('✅ Transporte asociado correctamente a tu empresa');
+      
       // Recargar la lista de transportes asociados
       await cargarTransportesAsociados();
+      
+      // Limpiar formulario
       setNuevoTransporte(null);
       setCuitInput('');
 
     } catch (error) {
-      console.error('Error al asociar transporte:', error);
+      console.error('❌ Error inesperado al asociar transporte:', error);
       setMensaje('Error inesperado al asociar el transporte');
     } finally {
       setLoading(false);
@@ -228,9 +306,13 @@ const TransportesPage = () => {
                 type="text"
                 className="rounded px-3 py-2 bg-gray-900 text-white flex-1"
                 value={cuitInput}
-                onChange={e => setCuitInput(e.target.value)}
-                placeholder="CUIT"
-                maxLength={11}
+                onChange={e => {
+                  // Permitir solo números y guiones
+                  const value = e.target.value.replace(/[^\d-]/g, '');
+                  setCuitInput(value);
+                }}
+                placeholder="CUIT (con o sin guiones)"
+                maxLength={13}
               />
               <button
                 className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded"

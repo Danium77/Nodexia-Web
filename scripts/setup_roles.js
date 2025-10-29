@@ -6,6 +6,8 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Script principal para configurar roles base en la base de datos.
+// Ejecutar después de migraciones y antes de crear usuarios demo.
 async function setupRoles() {
   console.log('🚀 Configurando roles de empresa...');
 

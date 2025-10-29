@@ -1,0 +1,41 @@
+﻿import { useRouter } from 'next/router';
+import { useEffect } from 'react';
+import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import Sidebar from '../../components/layout/Sidebar';
+
+export default function GestionSolicitudes() {
+  const router = useRouter();
+  const { user, primaryRole, loading } = useUserRole();
+
+  useEffect(() => {
+    if (!loading && !user) router.push('/login');
+    if (!loading && primaryRole !== 'super_admin') router.push('/dashboard');
+  }, [user, primaryRole, loading, router]);
+
+  if (loading || primaryRole !== 'super_admin') return null;
+
+  return (
+    <div className='flex h-screen bg-[#0a0e1a]'>
+      <Sidebar />
+      <div className='flex-1 overflow-auto'>
+        <div className='max-w-7xl mx-auto px-6 py-8'>
+          <h1 className='text-3xl font-bold text-slate-50 mb-2'>
+             Gestión de Solicitudes de Registro
+          </h1>
+          <p className='text-slate-400 mb-8'>
+            Revisa y gestiona las solicitudes de nuevas empresas
+          </p>
+          <div className='bg-[#1b273b] rounded-lg p-12 text-center border border-slate-700'>
+            <div className='text-6xl mb-4'></div>
+            <h2 className='text-2xl font-bold text-slate-50 mb-2'>
+              Página en Construcción
+            </h2>
+            <p className='text-slate-400 mb-6'>
+              Esta funcionalidad estará disponible próximamente
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

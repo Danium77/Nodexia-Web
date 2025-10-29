@@ -86,6 +86,7 @@ export interface LogAdmin {
   fecha_creacion: string;
 }
 
+// Extiende el modelo centralizado Empresa de types/common.ts
 export interface EmpresaAdmin extends Empresa {
   plan_actual?: string;
   estado_suscripcion: string;

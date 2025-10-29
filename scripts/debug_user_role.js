@@ -1,4 +1,5 @@
 // scripts/debug_user_role.js
+// ⚠️ Script de depuración. No usar en producción. Solo para diagnóstico puntual de roles de usuario.
 // Debug del rol del usuario
 
 require('dotenv').config({ path: '.env.local' });

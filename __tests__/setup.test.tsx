@@ -25,8 +25,8 @@ describe('Testing Setup', () => {
 })
 
 // Test ejemplo para un componente con contexto
-describe('User Context Integration', () => {
-  it('should work with UserContext wrapper', () => {
+describe('User Role Context Integration', () => {
+  it('should work with UserRoleContext wrapper', () => {
     const TestComponent = () => <div>Context Test</div>
     renderWithUserContext(<TestComponent />)
     expect(screen.getByText('Context Test')).toBeInTheDocument()

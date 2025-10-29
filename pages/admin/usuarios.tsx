@@ -1,53 +1,53 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { GetServerSideProps } from 'next';
 import AdminLayout from '../../components/layout/AdminLayout';
-import WizardUsuario from '../../components/Admin/WizardUsuario';
 import { supabase } from '../../lib/supabaseClient';
 import { 
   UserIcon, 
   BuildingOfficeIcon, 
-  UserGroupIcon, 
   CheckCircleIcon,
   XCircleIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   PlusIcon,
   PencilIcon,
-  TrashIcon,
-  EyeIcon
+  ShieldCheckIcon,
+  XMarkIcon,
+  PlusCircleIcon
 } from '@heroicons/react/24/outline';
+import WizardUsuario from '../../components/Admin/WizardUsuario';
 import { useRouter } from 'next/router';
+import { TipoEmpresa, RolInterno, ROLES_BY_TIPO, ROL_INTERNO_LABELS } from '../../lib/types';
 
-interface Usuario {
-  id: string;
-  user_id?: string;
-  empresa_id: string;
-  rol_interno: string;
+// Usuario agrupado con múltiples roles
+interface UsuarioAgrupado {
+  user_id: string;
+  email: string;
   nombre_completo?: string;
-  email_interno?: string;
   telefono_interno?: string;
-  departamento?: string;
-  fecha_ingreso?: string;
-  activo: boolean;
-  fecha_vinculacion: string;
-  // Campos calculados/mapeados
-  full_name?: string;
-  email?: string;
-  telefono?: string;
-  dni?: string;
-  created_at?: string;
-  status: 'active' | 'invited' | 'inactive';
-  empresa: {
-    id: string;
-    nombre: string;
-    cuit: string;
-  };
-  rol: {
-    id: string;
-    nombre: string;
-    tipo: string;
-  };
+  created_at: string;
   last_sign_in_at?: string;
+  // Roles agrupados por empresa
+  empresas: {
+    empresa_id: string;
+    empresa_nombre: string;
+    empresa_cuit: string;
+    empresa_tipo: TipoEmpresa;
+    roles: Array<{
+      id: string; // ID del registro usuarios_empresa
+      rol_interno: RolInterno;
+      activo: boolean;
+      fecha_vinculacion: string;
+    }>;
+  }[];
+}
+
+interface Empresa {
+  id: string;
+  nombre: string;
+  cuit: string;
+  tipo_empresa: TipoEmpresa;
+  activa: boolean;
 }
 
 interface FilterState {
@@ -57,9 +57,12 @@ interface FilterState {
   busqueda: string;
 }
 
+
+
 const UsuariosPage = () => {
-  const router = useRouter();
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+
+  const [usuarios, setUsuarios] = useState<UsuarioAgrupado[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -74,901 +77,500 @@ const UsuariosPage = () => {
   // Estados para estadísticas
   const [stats, setStats] = useState({
     total: 0,
+    totalRegistros: 0,
     activos: 0,
     inactivos: 0,
-    coordinadores: 0,
-    transportes: 0
+    multiRol: 0
   });
 
   // Estados para modales
-  const [showWizard, setShowWizard] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Opciones para filtros (se cargarán dinámicamente)
-  const [empresasOptions, setEmpresasOptions] = useState<Array<{id: string, nombre: string}>>([]);
-  const [rolesOptions, setRolesOptions] = useState<Array<{id: number, nombre: string}>>([]);
+  const [showAddRolModal, setShowAddRolModal] = useState(false);
+  const [selectedUserForRol, setSelectedUserForRol] = useState<{user_id: string, empresa_id: string} | null>(null);
+  const [newRol, setNewRol] = useState<RolInterno | ''>('');
+  
+  // Eliminado formData/setFormData legacy modal usuario
 
-  // Cargar usuarios y opciones
+  // Cargar datos al montar
   useEffect(() => {
+    loadEmpresas();
     loadUsuarios();
-    loadFilterOptions();
   }, []);
 
-  // Recalcular estadísticas cuando cambian los usuarios
+  // Recalcular stats cuando cambian los usuarios
   useEffect(() => {
     calculateStats();
   }, [usuarios]);
 
+  // Cargar empresas
+  const loadEmpresas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('empresas')
+        .select('id, nombre, cuit, tipo_empresa, activa')
+        .eq('activa', true)
+        .order('nombre');
+
+      if (error) throw error;
+      setEmpresas(data || []);
+    } catch (err: any) {
+      console.error('Error cargando empresas:', err);
+    }
+  };
+
+  // Cargar usuarios y agrupar por user_id
   const loadUsuarios = async () => {
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase
+      setError(null);
+
+      // Obtener todos los registros de usuarios_empresa con datos de empresa
+      const { data: registros, error: errorRegistros } = await supabase
         .from('usuarios_empresa')
         .select(`
-          *,
+          id,
+          user_id,
+          empresa_id,
+          rol_interno,
+          activo,
+          fecha_vinculacion,
+          nombre_completo,
+          telefono_interno,
           empresas (
             id,
             nombre,
-            cuit
+            cuit,
+            tipo_empresa
           )
         `)
         .order('fecha_vinculacion', { ascending: false });
 
-      if (error) throw error;
+      if (errorRegistros) throw errorRegistros;
 
-      // Obtener lista de usuarios válidos en auth.users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      const validUserIds = new Set(authUsers?.users?.map(u => u.id) || []);
-      
-      console.log('👥 Usuarios válidos en auth:', validUserIds.size);
-      console.log('📋 Registros en usuarios_empresa:', data?.length || 0);
+      // Agrupar por user_id
+      const usuariosMap = new Map<string, UsuarioAgrupado>();
 
-      // Filtrar solo usuarios que existen en auth.users
-      const usuariosValidos = data?.filter(usuario => {
-        const isValid = validUserIds.has(usuario.user_id);
-        if (!isValid) {
-          console.log('⚠️ Usuario inválido encontrado en usuarios_empresa:', usuario.email_interno || usuario.user_id);
-        }
-        return isValid;
-      }) || [];
-
-      console.log('✅ Usuarios válidos después del filtro:', usuariosValidos.length);
-
-      // Enriquecer los datos con información de roles desde roles_empresa
-      const usuariosEnriquecidos = [];
-      
-      for (const usuario of usuariosValidos) {
-        try {
-          // Buscar información del rol en roles_empresa
-          const { data: rolData } = await supabase
-            .from('roles_empresa')
-            .select('nombre_rol, tipo_empresa, descripcion')
-            .eq('nombre_rol', usuario.rol_interno)
-            .single();
-
-          usuariosEnriquecidos.push({
-            ...usuario,
-            rol: {
-              id: usuario.rol_interno,
-              nombre: rolData?.nombre_rol || usuario.rol_interno,
-              tipo: rolData?.tipo_empresa || 'desconocido'
-            },
-            // Mapear campos para compatibilidad
-            full_name: usuario.nombre_completo,
-            created_at: usuario.fecha_vinculacion,
-            status: usuario.activo ? 'active' : 'inactive'
-          });
-        } catch (rolError) {
-          // Si no encuentra el rol, usar datos básicos
-          usuariosEnriquecidos.push({
-            ...usuario,
-            rol: {
-              id: usuario.rol_interno,
-              nombre: usuario.rol_interno,
-              tipo: 'desconocido'
-            },
-            // Mapear campos para compatibilidad
-            full_name: usuario.nombre_completo,
-            created_at: usuario.fecha_vinculacion,
-            status: usuario.activo ? 'active' : 'inactive'
+      registros?.forEach(registro => {
+        if (!usuariosMap.has(registro.user_id)) {
+          // Crear nuevo usuario agrupado
+          usuariosMap.set(registro.user_id, {
+            user_id: registro.user_id,
+            email: '', // No disponible desde el frontend
+            nombre_completo: registro.nombre_completo,
+            telefono_interno: registro.telefono_interno,
+            created_at: '', // No disponible desde el frontend
+            last_sign_in_at: '', // No disponible desde el frontend
+            empresas: []
           });
         }
-      }
 
-      setUsuarios(usuariosEnriquecidos);
+        const usuario = usuariosMap.get(registro.user_id)!;
+
+        // Buscar si ya tiene esta empresa
+        let empresaEntry = usuario.empresas.find(e => e.empresa_id === registro.empresa_id);
+        
+        // registro.empresas puede ser un objeto o un array, normalizar a objeto
+        const empresaObj = Array.isArray(registro.empresas) ? registro.empresas[0] : registro.empresas;
+
+        if (!empresaEntry && empresaObj) {
+          // Agregar nueva empresa
+          empresaEntry = {
+            empresa_id: registro.empresa_id,
+            empresa_nombre: empresaObj.nombre,
+            empresa_cuit: empresaObj.cuit,
+            empresa_tipo: empresaObj.tipo_empresa,
+            roles: []
+          };
+          usuario.empresas.push(empresaEntry);
+        }
+
+        // Agregar rol a esta empresa
+        empresaEntry.roles.push({
+          id: registro.id,
+          rol_interno: registro.rol_interno,
+          activo: registro.activo,
+          fecha_vinculacion: registro.fecha_vinculacion
+        });
+      });
+
+      // Convertir Map a Array
+      const usuariosArray = Array.from(usuariosMap.values());
+      setUsuarios(usuariosArray);
+
     } catch (err: any) {
+      console.error('Error cargando usuarios:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadFilterOptions = async () => {
-    try {
-      const [empresasResult, rolesResult] = await Promise.all([
-        supabase.from('empresas').select('id, nombre').order('nombre'),
-        supabase.from('roles_empresa').select('nombre_rol, tipo_empresa').order('nombre_rol')
-      ]);
+  // Calcular estadísticas
+  const calculateStats = () => {
+    const totalUsuarios = usuarios.length;
+    
+    let totalRegistros = 0;
+    let activos = 0;
+    let inactivos = 0;
+    let usuariosConMultiRol = 0;
 
-      if (empresasResult.data) {
-        setEmpresasOptions(empresasResult.data);
-      }
-      
-      if (rolesResult.data && Array.isArray(rolesResult.data)) {
-        // Crear opciones únicas de roles
-        const rolesUnicos: Array<{id: number, nombre: string}> = [];
-        rolesResult.data.forEach((rol, index) => {
-          if (rol.nombre_rol && !rolesUnicos.find(r => r.nombre === rol.nombre_rol)) {
-            rolesUnicos.push({
-              id: index + 1,
-              nombre: rol.nombre_rol
-            });
+    usuarios.forEach(usuario => {
+      let tieneAlMenosUnRolActivo = false;
+      let tieneMultiplesRoles = false;
+
+      usuario.empresas.forEach(empresa => {
+        totalRegistros += empresa.roles.length;
+        
+        if (empresa.roles.length > 1) {
+          tieneMultiplesRoles = true;
+        }
+
+        empresa.roles.forEach(rol => {
+          if (rol.activo) {
+            tieneAlMenosUnRolActivo = true;
           }
         });
-        setRolesOptions(rolesUnicos);
-      } else {
-        setRolesOptions([]);
-      }
-    } catch (err) {
-      console.error('Error cargando opciones de filtro:', err);
-      setEmpresasOptions([]);
-      setRolesOptions([]);
-    }
-  };
+      });
 
-  const calculateStats = () => {
-    const total = usuarios.length;
-    const activos = usuarios.filter(u => u.status === 'active').length;
-    const inactivos = usuarios.filter(u => u.status === 'inactive').length;
-    const coordinadores = usuarios.filter(u => u.rol?.tipo === 'coordinador' || u.rol_interno === 'coordinador').length;
-    const transportes = usuarios.filter(u => u.rol?.tipo === 'transporte' || u.rol_interno === 'chofer' || u.rol_interno === 'admin').length;
+      if (tieneAlMenosUnRolActivo) activos++;
+      else inactivos++;
+
+      if (tieneMultiplesRoles) usuariosConMultiRol++;
+    });
 
     setStats({
-      total,
+      total: totalUsuarios,
+      totalRegistros,
       activos,
       inactivos,
-      coordinadores,
-      transportes
+      multiRol: usuariosConMultiRol
     });
   };
 
-  // Función para probar el envío de emails
-  const testEmail = async () => {
-    const emailPrueba = prompt('Ingresa un email para probar el envío de invitaciones:');
-    
-    if (!emailPrueba || !emailPrueba.includes('@')) {
-      alert('Por favor ingresa un email válido.');
+  // Abrir modal para nuevo usuario (solo setShowModal)
+  const handleNewUsuario = () => {
+    setShowModal(true);
+  };
+
+  // Eliminadas funciones legacy de modal usuario (handleEmpresaChange, toggleRol, handleSubmit)
+
+  // Abrir modal para agregar rol adicional
+  const handleAddRol = (user_id: string, empresa_id: string) => {
+    setSelectedUserForRol({ user_id, empresa_id });
+    setNewRol('');
+    setShowAddRolModal(true);
+  };
+
+  // Agregar rol adicional a usuario existente
+  const handleSubmitNewRol = async () => {
+    if (!selectedUserForRol || !newRol) {
+      alert('Por favor selecciona un rol.');
       return;
     }
 
     try {
-      const response = await fetch('/api/admin/test-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: emailPrueba }),
-      });
+      setLoading(true);
 
-      const result = await response.json();
+      // Verificar que el rol no exista ya
+      const { data: existing } = await supabase
+        .from('usuarios_empresa')
+        .select('id')
+        .eq('user_id', selectedUserForRol.user_id)
+        .eq('empresa_id', selectedUserForRol.empresa_id)
+        .eq('rol_interno', newRol)
+        .single();
 
-      if (response.ok) {
-        alert(`✅ Email enviado exitosamente!\n\n${result.message}\n\n💡 ${result.details}`);
-      } else {
-        console.error('Error de diagnóstico:', result);
-        
-        if (result.error === 'Configuración SMTP faltante en Supabase') {
-          alert(`❌ Problema encontrado: ${result.error}\n\n📧 Solución:\n${result.details}\n\n🔧 ${result.solution}`);
-        } else {
-          alert(`❌ Error: ${result.error}\n\n📋 Detalles: ${result.details || 'Ver consola para más información'}`);
-        }
+      if (existing) {
+        alert('Este usuario ya tiene ese rol en esta empresa.');
+        return;
       }
-    } catch (error: any) {
-      console.error('Error en test de email:', error);
-      alert(`💥 Error de conexión: ${error.message}\n\nVerifica que el servidor esté ejecutándose.`);
+
+      // Insertar nuevo rol
+      const { error } = await supabase
+        .from('usuarios_empresa')
+        .insert({
+          user_id: selectedUserForRol.user_id,
+          empresa_id: selectedUserForRol.empresa_id,
+          rol_interno: newRol,
+          activo: true
+        });
+
+      if (error) throw error;
+
+      alert(' Rol agregado exitosamente!');
+      setShowAddRolModal(false);
+      setSelectedUserForRol(null);
+      setNewRol('');
+      loadUsuarios();
+
+    } catch (err: any) {
+      console.error('Error agregando rol:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Función para crear enlace manual
-  const crearEnlaceManual = async () => {
-    const email = prompt('Ingresa el email del usuario a invitar:');
-    if (!email || !email.includes('@')) {
-      alert('Por favor ingresa un email válido.');
-      return;
-    }
-
-    const profileId = prompt('Ingresa el ID del perfil (empresa):');
-    if (!profileId) {
-      alert('Profile ID es requerido.');
-      return;
-    }
-
-    const roleId = prompt('Ingresa el ID del rol:');
-    if (!roleId) {
-      alert('Role ID es requerido.');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/crear-enlace-manual', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email, 
-          profileId, 
-          roleId 
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // Mostrar mensajes para copiar
-        const mensaje = `✅ Usuario creado exitosamente!\n\n` +
-                       `📧 Email: ${email}\n` +
-                       `🔑 Contraseña temporal: ${result.tempPassword}\n` +
-                       `🔗 Enlace: ${result.enlaceInvitacion}\n\n` +
-                       `📋 MENSAJE PARA WHATSAPP:\n${result.mensajeWhatsApp}\n\n` +
-                       `📧 MENSAJE PARA EMAIL:\n${result.mensajeEmail}`;
-        
-        // Crear un textarea para facilitar la copia
-        const textarea = document.createElement('textarea');
-        textarea.value = result.mensajeWhatsApp;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        
-        alert(`${mensaje}\n\n📋 El mensaje de WhatsApp ya se copió al portapapeles!`);
-        
-        // Recargar usuarios
-        loadUsuarios();
-      } else {
-        console.error('Error:', result);
-        alert(`❌ Error: ${result.error}\n\n${result.details || 'Ver consola para más información'}`);
-      }
-    } catch (error: any) {
-      console.error('Error creando enlace manual:', error);
-      alert(`💥 Error: ${error.message}`);
-    }
-  };
-
-  // Función para verificar estado de invitaciones
-  const verificarInvitaciones = async () => {
-    try {
-      const response = await fetch('/api/admin/verificar-invitaciones');
-      const result = await response.json();
-
-      if (response.ok) {
-        const { estadisticas, invitaciones_pendientes, recomendaciones } = result;
-        
-        let mensaje = `📊 ESTADO DE INVITACIONES\n\n` +
-                     `👥 Total usuarios: ${estadisticas.total_usuarios}\n` +
-                     `✅ Confirmados: ${estadisticas.usuarios_confirmados}\n` +
-                     `⏳ Pendientes: ${estadisticas.invitaciones_pendientes}\n` +
-                     `🟢 Activos: ${estadisticas.usuarios_activos}\n\n`;
-
-        if (invitaciones_pendientes.length > 0) {
-          mensaje += `📋 INVITACIONES PENDIENTES:\n`;
-          invitaciones_pendientes.forEach(inv => {
-            mensaje += `• ${inv.email} (${inv.dias_desde_invitacion} días)\n`;
-          });
-          mensaje += `\n💡 RECOMENDACIONES:\n`;
-          recomendaciones.forEach(rec => {
-            mensaje += `• ${rec}\n`;
-          });
-        } else {
-          mensaje += `🎉 ¡No hay invitaciones pendientes!`;
-        }
-
-        alert(mensaje);
-      } else {
-        alert(`❌ Error: ${result.error}\n${result.details || ''}`);
-      }
-    } catch (error: any) {
-      console.error('Error verificando invitaciones:', error);
-      alert(`💥 Error: ${error.message}`);
-    }
-  };
-
-  // Función para reenviar invitación
-  const reenviarInvitacion = async () => {
-    const email = prompt('Ingresa el email del usuario para reenviar la invitación:');
-    
-    if (!email || !email.includes('@')) {
-      alert('Por favor ingresa un email válido.');
+  // Eliminar un rol específico
+  const handleDeleteRol = async (registroId: string, email: string, rol: string) => {
+    if (!confirm(`¿Eliminar rol "${ROL_INTERNO_LABELS[rol as RolInterno] || rol}" de ${email}?`)) {
       return;
     }
 
     try {
-      const response = await fetch('/api/admin/reenviar-invitacion', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      setLoading(true);
 
-      const result = await response.json();
+      const { error } = await supabase
+        .from('usuarios_empresa')
+        .delete()
+        .eq('id', registroId);
 
-      if (response.ok) {
-        alert(`✅ ${result.message}\n\n📧 Email: ${result.email}\n⏰ Enviado: ${new Date(result.timestamp).toLocaleString('es-ES')}\n\n💡 ${result.recomendacion}`);
-        
-        // Recargar usuarios para actualizar el estado
-        loadUsuarios();
-      } else {
-        if (result.error === 'Usuario ya registrado') {
-          alert(`ℹ️ ${result.error}\n\n${result.details}\n\nEste usuario ya puede iniciar sesión normalmente.`);
-        } else if (result.error === 'Error de SMTP') {
-          alert(`❌ ${result.error}\n\n${result.details}\n\nRevisa la configuración en el dashboard de Supabase.`);
-        } else {
-          alert(`❌ Error: ${result.error}\n\n${result.details || 'Ver consola para más información'}`);
-        }
-      }
-    } catch (error: any) {
-      console.error('Error reenviando invitación:', error);
-      alert(`💥 Error: ${error.message}`);
+      if (error) throw error;
+
+      alert(' Rol eliminado exitosamente!');
+      loadUsuarios();
+
+    } catch (err: any) {
+      console.error('Error eliminando rol:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Función para eliminar usuario completo de Supabase
-  const eliminarUsuario = async () => {
-    const email = prompt(
-      '⚠️ ELIMINAR USUARIO COMPLETO DE SUPABASE\n\n' +
-      'Esta acción eliminará PERMANENTEMENTE:\n' +
-      '• Usuario de auth.users\n' +
-      '• Todas las referencias en profile_users\n' +
-      '• Todas las referencias en usuarios\n' +
-      '• Todas las referencias en usuarios_empresa\n' +
-      '• Opcionalmente referencias en documentos, despachos, etc.\n\n' +
-      'Ingresa el EMAIL del usuario a eliminar:'
-    );
-    
-    if (!email || !email.includes('@')) {
-      if (email !== null) { // Si no canceló
-        alert('❌ Por favor ingresa un email válido.');
-      }
-      return;
-    }
-
-    const confirmar = confirm(
-      `🚨 CONFIRMACIÓN FINAL\n\n` +
-      `¿Estás SEGURO de que quieres eliminar COMPLETAMENTE al usuario:\n` +
-      `${email}\n\n` +
-      `⚠️ ESTA ACCIÓN ES IRREVERSIBLE\n\n` +
-      `El usuario podrá registrarse nuevamente con el mismo email después de la eliminación.`
-    );
-
-    if (!confirmar) {
-      return;
-    }
-
-    const eliminarTodo = confirm(
-      '🔧 NIVEL DE ELIMINACIÓN\n\n' +
-      'Haz clic en "Aceptar" para eliminar TODAS las referencias del usuario en TODAS las tablas\n' +
-      'Haz clic en "Cancelar" para eliminación básica (solo auth, profile_users, usuarios)'
-    );
-
+  // Toggle activo/inactivo de un rol
+  const handleToggleRolActivo = async (registroId: string, currentValue: boolean) => {
     try {
-      const response = await fetch('/api/admin/eliminar-usuario', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email, 
-          deleteAll: eliminarTodo 
-        }),
-      });
+      setLoading(true);
 
-      const result = await response.json();
+      const { error } = await supabase
+        .from('usuarios_empresa')
+        .update({ activo: !currentValue })
+        .eq('id', registroId);
 
-      if (response.ok) {
-        let mensaje = `✅ ${result.message}\n\n`;
-        mensaje += `📊 RESUMEN DE ELIMINACIÓN:\n`;
-        mensaje += `• Auth User: ${result.details.authUserDeleted ? '✅' : '❌'}\n`;
-        mensaje += `• Profile Users: ${result.details.profileUserDeleted ? '✅' : '❌'}\n`;
-        mensaje += `• Tabla Usuarios: ${result.details.usuariosDeleted ? '✅' : '❌'}\n`;
-        mensaje += `• Usuarios Empresa: ${result.details.usuariosEmpresaDeleted ? '✅' : '❌'}\n`;
-        
-        if (result.details.otherReferencesDeleted.length > 0) {
-          mensaje += `• Otras Referencias: ${result.details.otherReferencesDeleted.join(', ')}\n`;
-        }
-        
-        mensaje += `\n💡 El email ${email} está ahora disponible para nuevo registro.`;
+      if (error) throw error;
 
-        alert(mensaje + '\n\n🔄 Actualizando lista de usuarios...');
-        
-        // Recargar usuarios para actualizar la lista
-        console.log('🔄 Recargando lista de usuarios...');
-        setLoading(true);
-        
-        // Pequeño delay para asegurar que la eliminación se propagó
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        await loadUsuarios();
-        console.log('✅ Lista de usuarios actualizada');
-        
-        setLoading(false);
-      } else {
-        alert(`❌ Error: ${result.message}\n\n${result.error || 'Ver consola para más información'}`);
-      }
-    } catch (error: any) {
-      console.error('Error eliminando usuario:', error);
-      alert(`💥 Error: ${error.message}`);
+      loadUsuarios();
+
+    } catch (err: any) {
+      console.error('Error actualizando estado:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Función para verificar conexión SMTP sin envío
-  const verificarConexionSMTP = async () => {
-    try {
-      const response = await fetch('/api/admin/verificar-smtp-conexion', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const result = await response.json();
-
-      let mensaje = `🔧 VERIFICACIÓN DE CONEXIÓN SMTP\n\n`;
-      
-      if (result.success) {
-        mensaje += `✅ ${result.mensaje}\n\n`;
-        mensaje += `⚙️ ESTADO:\n`;
-        mensaje += `• Supabase: ${result.configuracion_detectada.supabase_conectado ? '✅ Conectado' : '❌ Desconectado'}\n`;
-        mensaje += `• Auth disponible: ${result.configuracion_detectada.auth_disponible ? '✅ SÍ' : '❌ NO'}\n`;
-        mensaje += `• Estado SMTP: ${result.configuracion_detectada.smtp_status}\n\n`;
-        mensaje += `💡 ${result.recomendacion}`;
-      } else {
-        mensaje += `❌ ${result.problema}\n`;
-        mensaje += `📋 ${result.detalles}\n\n`;
-        mensaje += `🔧 Tipo de Error: ${result.configuracion_detectada.error_tipo}`;
-      }
-
-      alert(mensaje);
-    } catch (error: any) {
-      console.error('Error verificando conexión SMTP:', error);
-      alert(`💥 Error verificando conexión: ${error.message}`);
-    }
-  };
-
-  // Función para test específico de Gmail
-  const testGmailSMTP = async () => {
-    const email = prompt('Email para probar envío (opcional, se usará waltedanielzaas@gmail.com por defecto):') || 'waltedanielzaas@gmail.com';
-    
-    try {
-      const response = await fetch('/api/admin/test-gmail-smtp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const result = await response.json();
-
-      let mensaje = `📧 TEST ESPECÍFICO GMAIL SMTP\n\n`;
-      
-      if (result.success) {
-        mensaje += `✅ ${result.mensaje}\n`;
-        mensaje += `📧 Email enviado a: ${result.email_enviado_a}\n\n`;
-        mensaje += `🎉 ¡Gmail SMTP funciona correctamente!`;
-      } else if (result.test_completed) {
-        mensaje += `❌ ${result.problema}\n\n`;
-        mensaje += `🔧 SOLUCIÓN: ${result.solucion}\n\n`;
-        
-        if (result.error_details) {
-          mensaje += `📋 ERROR TÉCNICO:\n`;
-          mensaje += `• Código: ${result.error_details.code}\n`;
-          mensaje += `• Estado: ${result.error_details.status}\n`;
-          mensaje += `• Mensaje: ${result.error_details.message}\n\n`;
-        }
-        
-        if (result.configuracion_recomendada) {
-          mensaje += `⚙️ CONFIGURACIÓN RECOMENDADA:\n`;
-          mensaje += `• Host: ${result.configuracion_recomendada.host}\n`;
-          mensaje += `• Puerto: ${result.configuracion_recomendada.port}\n`;
-          mensaje += `• Usuario: ${result.configuracion_recomendada.username}\n`;
-          mensaje += `• Contraseña: ${result.configuracion_recomendada.password}\n\n`;
-        }
-        
-        if (result.pasos_verificacion) {
-          mensaje += `✔️ PASOS A VERIFICAR:\n`;
-          result.pasos_verificacion.forEach((paso: string) => {
-            mensaje += `${paso}\n`;
-          });
-        }
-      } else {
-        mensaje += `❌ ${result.problema}\n`;
-        mensaje += `📋 ${result.detalles}`;
-      }
-
-      alert(mensaje);
-    } catch (error: any) {
-      console.error('Error en test Gmail:', error);
-      alert(`💥 Error ejecutando test Gmail: ${error.message}`);
-    }
-  };
-
-
-
-  // Función para reenviar invitación a usuario existente
-  const reenviarInvitacionUsuario = async (email: string) => {
-    if (!email) {
-      alert('⚠️ Se requiere un email para reenviar la invitación');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/reenviar-invitacion', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert(`✅ ${result.message}\n\n📧 Nueva invitación enviada a: ${email}\n\n${result.instrucciones?.join('\n') || ''}`);
-      } else {
-        alert(`❌ Error: ${result.error}\n\n${result.details || ''}`);
-      }
-    } catch (error: any) {
-      console.error('Error reenviando invitación:', error);
-      alert(`💥 Error: ${error.message}`);
-    }
-  };
-
-  // Función para diagnóstico completo de SMTP
-  const diagnosticarConfiguracionEmail = async () => {
-    const email = prompt('Ingresa un email para diagnóstico (opcional, se usará test@example.com por defecto):') || 'test@example.com';
-    
-    try {
-      const response = await fetch('/api/admin/diagnosticar-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const result = await response.json();
-
-      let mensaje = `🔬 DIAGNÓSTICO COMPLETO DE EMAIL\n\n`;
-      mensaje += `📧 Email probado: ${email}\n`;
-      mensaje += `🎯 Problema: ${result.problema}\n`;
-      mensaje += `📋 Detalles: ${result.detalles}\n\n`;
-      mensaje += `🔧 Solución: ${result.solucion}\n\n`;
-      mensaje += `⚙️ CONFIGURACIÓN DETECTADA:\n`;
-      mensaje += `• SMTP Configurado: ${result.configuracion_detectada.smtp_configurado ? '✅ SÍ' : '❌ NO'}\n`;
-      mensaje += `• Tipo de Error: ${result.configuracion_detectada.error_tipo}\n`;
-      mensaje += `• Recomendación: ${result.configuracion_detectada.recomendacion}\n\n`;
-      
-      if (!result.success) {
-        mensaje += `💡 ACCIONES DISPONIBLES:\n`;
-        mensaje += `• Usar el botón "🔗 Enlace Manual" para crear usuarios sin SMTP\n`;
-        mensaje += `• Configurar SMTP en Supabase Dashboard → Settings → Auth\n`;
-        mensaje += `• Contactar administrador del sistema`;
-      } else {
-        mensaje += `🎉 ¡Todo funciona correctamente!`;
-      }
-
-      alert(mensaje);
-    } catch (error: any) {
-      console.error('Error en diagnóstico:', error);
-      alert(`💥 Error ejecutando diagnóstico: ${error.message}`);
-    }
-  };
-
-  // Filtrar usuarios según los filtros aplicados
+  // Filtrar usuarios
   const usuariosFiltrados = usuarios.filter(usuario => {
-    if (filters.empresa && usuario.empresa?.id !== filters.empresa) return false;
-    if (filters.rol && !rolesOptions.find(r => r.id === parseInt(filters.rol) && r.nombre === usuario.rol_interno)) return false;
-    if (filters.status && usuario.status !== filters.status) return false;
-    
+    // Filtro por búsqueda
     if (filters.busqueda) {
-      const busqueda = filters.busqueda.toLowerCase();
-      const coincidencia = 
-        usuario.full_name?.toLowerCase().includes(busqueda) ||
-        usuario.nombre_completo?.toLowerCase().includes(busqueda) ||
-        usuario.email_interno?.toLowerCase().includes(busqueda) ||
-        usuario.empresa?.nombre?.toLowerCase().includes(busqueda) ||
-        usuario.rol_interno?.toLowerCase().includes(busqueda);
-      
-      if (!coincidencia) return false;
+      const busquedaLower = filters.busqueda.toLowerCase();
+      const matchEmail = usuario.email.toLowerCase().includes(busquedaLower);
+      const matchNombre = usuario.nombre_completo?.toLowerCase().includes(busquedaLower);
+      if (!matchEmail && !matchNombre) return false;
     }
-    
+
+    // Filtro por empresa
+    if (filters.empresa) {
+      const tieneEmpresa = usuario.empresas.some(e => e.empresa_id === filters.empresa);
+      if (!tieneEmpresa) return false;
+    }
+
+    // Filtro por rol
+    if (filters.rol) {
+      const tieneRol = usuario.empresas.some(e => 
+        e.roles.some(r => r.rol_interno === filters.rol)
+      );
+      if (!tieneRol) return false;
+    }
+
+    // Filtro por status
+    if (filters.status === 'activo') {
+      const tieneAlgunActivo = usuario.empresas.some(e => 
+        e.roles.some(r => r.activo)
+      );
+      if (!tieneAlgunActivo) return false;
+    } else if (filters.status === 'inactivo') {
+      const todosInactivos = usuario.empresas.every(e => 
+        e.roles.every(r => !r.activo)
+      );
+      if (!todosInactivos) return false;
+    }
+
     return true;
   });
 
-  const handleFilterChange = (key: keyof FilterState, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  // Obtener roles disponibles para una empresa
+  const getRolesDisponibles = (tipoEmpresa: TipoEmpresa): RolInterno[] => {
+    return ROLES_BY_TIPO[tipoEmpresa] || [];
   };
 
-  const clearFilters = () => {
-    setFilters({
-      empresa: '',
-      rol: '',
-      status: '',
-      busqueda: ''
-    });
+  // Obtener roles disponibles para agregar (que no tenga ya)
+  const getRolesDisponiblesParaAgregar = (user_id: string, empresa_id: string): RolInterno[] => {
+    const usuario = usuarios.find(u => u.user_id === user_id);
+    if (!usuario) return [];
+
+    const empresaData = usuario.empresas.find(e => e.empresa_id === empresa_id);
+    if (!empresaData) return [];
+
+    const rolesActuales = empresaData.roles.map(r => r.rol_interno);
+    const rolesDisponibles = getRolesDisponibles(empresaData.empresa_tipo);
+
+    return rolesDisponibles.filter(rol => !rolesActuales.includes(rol));
   };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      active: { bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircleIcon, label: 'Activo' },
-      invited: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: UserIcon, label: 'Invitado' },
-      inactive: { bg: 'bg-red-100', text: 'text-red-800', icon: XCircleIcon, label: 'Inactivo' }
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.inactive;
-    const IconComponent = config.icon;
-
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-        <IconComponent className="h-3 w-3" />
-        {config.label}
-      </span>
-    );
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  if (loading) {
-    return (
-      <AdminLayout pageTitle="Usuarios">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-        </div>
-      </AdminLayout>
-    );
-  }
 
   return (
-    <AdminLayout pageTitle="Gestión de Usuarios">
-      <div className="space-y-6">
-        {/* Header con estadísticas */}
-        <div className="bg-gray-800 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-white">Gestión de Usuarios</h1>
-              <p className="text-gray-400 mt-1">
-                Administra los usuarios del sistema y sus permisos
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={verificarInvitaciones}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Ver estado de invitaciones pendientes"
-              >
-                📊 Estado Invitaciones
-              </button>
-              <button
-                onClick={testEmail}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Diagnosticar problemas de email"
-              >
-                📧 Probar Email
-              </button>
-              <button
-                onClick={verificarConexionSMTP}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Verificar conexión SMTP sin envío (evita rate limits)"
-              >
-                🔧 Conexión SMTP
-              </button>
-              <button
-                onClick={testGmailSMTP}
-                className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Prueba específica de configuración Gmail SMTP"
-              >
-                📧 Test Gmail
-              </button>
-              <button
-                onClick={diagnosticarConfiguracionEmail}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Diagnóstico completo de configuración SMTP"
-              >
-                🔬 Diagnóstico SMTP
-              </button>
-              <button
-                onClick={reenviarInvitacion}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Reenviar invitación a un usuario"
-              >
-                🔄 Reenviar
-              </button>
-              <button
-                onClick={crearEnlaceManual}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Crear usuario con enlace manual (alternativa sin email)"
-              >
-                🔗 Enlace Manual
-              </button>
+  <AdminLayout pageTitle="Gestión de Usuarios">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
+            <p className="text-gray-600 mt-1">Administra usuarios y roles multi-empresa</p>
+          </div>
+          <button
+            onClick={handleNewUsuario}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+          >
+            <PlusIcon className="h-5 w-5" />
+            Nuevo Usuario
+          </button>
+        </div>
 
-              <button
-                onClick={eliminarUsuario}
-                className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Eliminar usuario completo de Supabase (libera el email para reutilizar)"
-              >
-                🗑️ Eliminar Usuario
-              </button>
-              <button
-                onClick={() => {
-                  console.log('🔄 Forzando recarga manual...');
-                  loadUsuarios();
-                }}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
-                title="Forzar actualización de la lista de usuarios"
-              >
-                🔄 Actualizar Lista
-              </button>
-              <button
-                onClick={() => setShowWizard(true)}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <PlusIcon className="h-5 w-5" />
-                Invitar Usuario
-              </button>
-              <button
-                onClick={() => {
-                  const email = prompt('Ingresa el email del usuario para reenviar la invitación:');
-                  if (email) reenviarInvitacionUsuario(email);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-              >
-                🔄 Reenviar Invitación
-              </button>
+        {/* Estadísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Usuarios</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              </div>
+              <UserIcon className="h-8 w-8 text-blue-500" />
             </div>
           </div>
 
-          {/* Cards de estadísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center">
-                <UserGroupIcon className="h-8 w-8 text-cyan-400" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-400">Total Usuarios</p>
-                  <p className="text-2xl font-bold text-white">{stats.total}</p>
-                </div>
+          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Registros</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalRegistros}</p>
               </div>
+              <BuildingOfficeIcon className="h-8 w-8 text-purple-500" />
             </div>
+          </div>
 
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center">
-                <CheckCircleIcon className="h-8 w-8 text-green-400" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-400">Activos</p>
-                  <p className="text-2xl font-bold text-white">{stats.activos}</p>
-                </div>
+          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Activos</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.activos}</p>
               </div>
+              <CheckCircleIcon className="h-8 w-8 text-green-500" />
             </div>
+          </div>
 
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center">
-                <XCircleIcon className="h-8 w-8 text-red-400" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-400">Inactivos</p>
-                  <p className="text-2xl font-bold text-white">{stats.inactivos}</p>
-                </div>
+          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Inactivos</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.inactivos}</p>
               </div>
+              <XCircleIcon className="h-8 w-8 text-red-500" />
             </div>
+          </div>
 
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center">
-                <BuildingOfficeIcon className="h-8 w-8 text-blue-400" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-400">Coordinadores</p>
-                  <p className="text-2xl font-bold text-white">{stats.coordinadores}</p>
-                </div>
+          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Multi-Rol</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.multiRol}</p>
               </div>
-            </div>
-
-            <div className="bg-gray-700 p-4 rounded-lg">
-              <div className="flex items-center">
-                <UserIcon className="h-8 w-8 text-purple-400" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-400">Transportes</p>
-                  <p className="text-2xl font-bold text-white">{stats.transportes}</p>
-                </div>
-              </div>
+              <ShieldCheckIcon className="h-8 w-8 text-orange-500" />
             </div>
           </div>
         </div>
 
-        {/* Filtros y búsqueda */}
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Búsqueda */}
-            <div className="flex-1 relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, email, DNI o empresa..."
-                value={filters.busqueda}
-                onChange={(e) => handleFilterChange('busqueda', e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Botón de filtros */}
+        {/* Filtros */}
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <FunnelIcon className="h-5 w-5 text-gray-600" />
+            <span className="font-semibold text-gray-700">Filtros</span>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              className="text-blue-600 hover:text-blue-700 text-sm"
             >
-              <FunnelIcon className="h-5 w-5" />
-              Filtros
+              {showFilters ? 'Ocultar' : 'Mostrar'}
             </button>
-
-            {/* Limpiar filtros */}
-            {(filters.empresa || filters.rol || filters.status) && (
-              <button
-                onClick={clearFilters}
-                className="text-cyan-400 hover:text-cyan-300 px-4 py-2 rounded-lg transition-colors"
-              >
-                Limpiar filtros
-              </button>
-            )}
           </div>
 
-          {/* Panel de filtros expandible */}
           {showFilters && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-700 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Empresa</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Buscar
+                </label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Email o nombre..."
+                    value={filters.busqueda}
+                    onChange={(e) => setFilters({ ...filters, busqueda: e.target.value })}
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Empresa
+                </label>
                 <select
                   value={filters.empresa}
-                  onChange={(e) => handleFilterChange('empresa', e.target.value)}
-                  className="w-full bg-gray-600 border border-gray-500 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-cyan-500"
+                  onChange={(e) => setFilters({ ...filters, empresa: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todas las empresas</option>
-                  {empresasOptions.map(empresa => (
-                    <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>
+                  <option value="">Todas</option>
+                  {empresas.map(empresa => (
+                    <option key={empresa.id} value={empresa.id}>
+                      {empresa.nombre}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Rol</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rol
+                </label>
                 <select
                   value={filters.rol}
-                  onChange={(e) => handleFilterChange('rol', e.target.value)}
-                  className="w-full bg-gray-600 border border-gray-500 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-cyan-500"
+                  onChange={(e) => setFilters({ ...filters, rol: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos los roles</option>
-                  {rolesOptions.map(rol => (
-                    <option key={rol.id} value={rol.id.toString()}>{rol.nombre}</option>
+                  <option value="">Todos</option>
+                  {Object.entries(ROL_INTERNO_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Estado</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Estado
+                </label>
                 <select
                   value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                  className="w-full bg-gray-600 border border-gray-500 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-cyan-500"
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos los estados</option>
-                  <option value="active">Activo</option>
-                  <option value="invited">Invitado</option>
-                  <option value="inactive">Inactivo</option>
+                  <option value="">Todos</option>
+                  <option value="activo">Activos</option>
+                  <option value="inactivo">Inactivos</option>
                 </select>
               </div>
             </div>
@@ -976,107 +578,119 @@ const UsuariosPage = () => {
         </div>
 
         {/* Tabla de usuarios */}
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-700">
-            <h2 className="text-lg font-medium text-white">
-              Lista de Usuarios ({usuariosFiltrados.length})
-            </h2>
+        {loading && <p className="text-center py-8">Cargando usuarios...</p>}
+        
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            Error: {error}
           </div>
+        )}
 
-          {error && (
-            <div className="p-4 bg-red-900 border-b border-red-700">
-              <p className="text-red-300">Error: {error}</p>
-            </div>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-700">
-              <thead className="bg-gray-700">
+        {!loading && !error && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Usuario
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Empresa
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Empresas y Roles
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Rol
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Último Acceso
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                    Registro
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-gray-800 divide-y divide-gray-700">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {usuariosFiltrados.map((usuario) => (
-                  <tr key={usuario.id} className="hover:bg-gray-700 transition-colors">
+                  <tr key={usuario.user_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-cyan-600 flex items-center justify-center">
-                          <span className="text-sm font-medium text-white">
-                            {usuario.nombre_completo?.charAt(0).toUpperCase() || usuario.full_name?.charAt(0).toUpperCase() || 'U'}
-                          </span>
+                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <UserIcon className="h-6 w-6 text-blue-600" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-white">
-                            {usuario.nombre_completo || usuario.full_name || 'Sin nombre'}
+                          <div className="text-sm font-medium text-gray-900">
+                            {usuario.nombre_completo || 'Sin nombre'}
                           </div>
-                          <div className="text-sm text-gray-400">{usuario.email_interno || usuario.email || 'Sin email'}</div>
-                          {usuario.departamento && (
-                            <div className="text-xs text-gray-500">Depto: {usuario.departamento}</div>
+                          <div className="text-sm text-gray-500">{usuario.email}</div>
+                          {usuario.telefono_interno && (
+                            <div className="text-xs text-gray-400">{usuario.telefono_interno}</div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-white">{usuario.empresa?.nombre}</div>
-                      <div className="text-xs text-gray-400">CUIT: {usuario.empresa?.cuit}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-white">{usuario.rol?.nombre || usuario.rol_interno}</div>
-                      <div className="text-xs text-gray-400 capitalize">{usuario.rol?.tipo || 'N/A'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(usuario.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                      {formatDate(usuario.fecha_vinculacion || usuario.created_at)}
-                      {usuario.fecha_ingreso && (
-                        <div className="text-xs text-gray-500">
-                          Ingreso: {formatDate(usuario.fecha_ingreso)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => router.push(`/admin/usuarios/${usuario.id}`)}
-                          className="text-cyan-400 hover:text-cyan-300 p-1"
-                          title="Ver detalles"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {/* TODO: Abrir modal de edición */}}
-                          className="text-yellow-400 hover:text-yellow-300 p-1"
-                          title="Editar usuario"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {/* TODO: Confirmar eliminación */}}
-                          className="text-red-400 hover:text-red-300 p-1"
-                          title="Eliminar usuario"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
+                    <td className="px-6 py-4">
+                      <div className="space-y-3">
+                        {usuario.empresas.map((empresa) => (
+                          <div key={empresa.empresa_id} className="border-l-2 border-blue-200 pl-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-sm font-medium text-gray-900">
+                                {empresa.empresa_nombre}
+                              </div>
+                              <button
+                                onClick={() => handleAddRol(usuario.user_id, empresa.empresa_id)}
+                                className="text-blue-600 hover:text-blue-700"
+                                title="Agregar rol"
+                              >
+                                <PlusCircleIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="text-xs text-gray-500 mb-2">
+                              {empresa.empresa_cuit}  {empresa.empresa_tipo}
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {empresa.roles.map((rol) => (
+                                <div
+                                  key={rol.id}
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                                    rol.activo
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  <span>{ROL_INTERNO_LABELS[rol.rol_interno] || rol.rol_interno}</span>
+                                  <button
+                                    onClick={() => handleToggleRolActivo(rol.id, rol.activo)}
+                                    className="hover:opacity-70"
+                                    title={rol.activo ? 'Desactivar' : 'Activar'}
+                                  >
+                                    {rol.activo ? (
+                                      <CheckCircleIcon className="h-3 w-3" />
+                                    ) : (
+                                      <XCircleIcon className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteRol(rol.id, usuario.email, rol.rol_interno)}
+                                    className="hover:text-red-600"
+                                    title="Eliminar rol"
+                                  >
+                                    <XMarkIcon className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {usuario.last_sign_in_at 
+                        ? new Date(usuario.last_sign_in_at).toLocaleDateString('es-AR')
+                        : 'Nunca'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => {/* TODO: Ver detalles */}}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                      >
+                        <PencilIcon className="h-5 w-5" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1084,40 +698,94 @@ const UsuariosPage = () => {
             </table>
 
             {usuariosFiltrados.length === 0 && (
-              <div className="text-center py-12">
-                <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-300">No hay usuarios</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {usuarios.length === 0 
-                    ? 'Comienza creando tu primer usuario.' 
-                    : 'No se encontraron usuarios con los filtros aplicados.'
-                  }
-                </p>
+              <div className="text-center py-8 text-gray-500">
+                No se encontraron usuarios con los filtros aplicados.
               </div>
             )}
           </div>
-        </div>
+        )}
 
-        {/* Wizard para crear usuario */}
-        <WizardUsuario
-          isOpen={showWizard}
-          onClose={() => setShowWizard(false)}
-          onSuccess={() => {
-            loadUsuarios(); // Recargar la lista de usuarios
-            setShowWizard(false);
-          }}
-        />
+        {/* Modal: Nuevo Usuario (Wizard Moderno) */}
+        {showModal && (
+          <WizardUsuario
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            onSuccess={() => {
+              setShowModal(false);
+              loadUsuarios(); // Recargar usuarios tras crear uno nuevo
+            }}
+          />
+        )}
 
+        {/* Modal: Agregar Rol */}
+        {showAddRolModal && selectedUserForRol && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Agregar Rol Adicional
+                  </h2>
+                  <button
+                    onClick={() => setShowAddRolModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
 
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Selecciona un rol adicional para este usuario en esta empresa
+                  </p>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Rol
+                    </label>
+                    <select
+                      value={newRol}
+                      onChange={(e) => setNewRol(e.target.value as RolInterno)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Seleccionar rol...</option>
+                      {getRolesDisponiblesParaAgregar(selectedUserForRol.user_id, selectedUserForRol.empresa_id).map(rol => (
+                        <option key={rol} value={rol}>
+                          {ROL_INTERNO_LABELS[rol]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => setShowAddRolModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSubmitNewRol}
+                      disabled={loading || !newRol}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Agregando...' : 'Agregar Rol'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
 };
 
-export default UsuariosPage;
-
-export const getServerSideProps: GetServerSideProps = async (context) => {
+export const getServerSideProps: GetServerSideProps = async () => {
   return {
     props: {},
   };
 };
+
+export default UsuariosPage;

@@ -2,6 +2,7 @@
 
 /**
  * Script para corregir automáticamente errores comunes de ESLint en el proyecto
+ * ⚠️ Uso restringido: solo ejecutar si lo indica la documentación oficial.
  * Uso: node scripts/fix-common-errors.js
  */
 

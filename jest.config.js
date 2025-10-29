@@ -19,7 +19,7 @@ const customJestConfig = {
     '!pages/api/**/*',
     '!**/*.d.ts',
   ],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
   transform: {

@@ -51,6 +51,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [autoSaved, setAutoSaved] = useState(false); // Indicador de guardado automático
   
   // Estados para el modal de email existente
   const [showEmailExistsModal, setShowEmailExistsModal] = useState(false);
@@ -76,13 +77,47 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
   // Validaciones por paso
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
+  // Persistir estado del wizard en sessionStorage
   useEffect(() => {
     if (isOpen) {
-      resetForm();
+      // Intentar recuperar estado guardado
+      const savedState = sessionStorage.getItem('wizardUsuarioState');
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          setFormData(parsed.formData || formData);
+          setCurrentStep(parsed.currentStep || 1);
+          console.log('[WizardUsuario] Estado recuperado de sessionStorage');
+        } catch (e) {
+          console.error('[WizardUsuario] Error al parsear estado guardado:', e);
+          resetForm();
+        }
+      } else {
+        resetForm();
+      }
       loadEmpresas();
       loadRoles();
+    } else {
+      // Limpiar sessionStorage cuando se cierra el modal
+      sessionStorage.removeItem('wizardUsuarioState');
     }
   }, [isOpen]);
+
+  // Guardar estado cada vez que cambia
+  useEffect(() => {
+    if (isOpen) {
+      const stateToSave = {
+        formData,
+        currentStep
+      };
+      sessionStorage.setItem('wizardUsuarioState', JSON.stringify(stateToSave));
+      
+      // Mostrar indicador de guardado automático
+      setAutoSaved(true);
+      const timer = setTimeout(() => setAutoSaved(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [formData, currentStep, isOpen]);
 
   useEffect(() => {
     if (formData.empresa) {
@@ -278,6 +313,21 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     setCurrentStep(1);
     setError(null);
     setValidationErrors({});
+    sessionStorage.removeItem('wizardUsuarioState');
+  };
+
+  const handleClose = () => {
+    // Si hay datos en el formulario, preguntar antes de cerrar
+    const hasData = formData.empresa || formData.rol || formData.email || formData.nombre_completo;
+    
+    if (hasData && currentStep > 1) {
+      const confirmClose = window.confirm(
+        '¿Estás seguro de que deseas cerrar? Los datos ingresados se guardarán temporalmente.'
+      );
+      if (!confirmClose) return;
+    }
+    
+    onClose();
   };
 
   const validateStep = (step: number): boolean => {
@@ -497,6 +547,33 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     return (currentStep / 4) * 100;
   };
 
+
+  // --- NUEVO ESTADO Y FUNCIONES PARA BUSQUEDA PREDICTIVA DE EMPRESA POR CUIT ---
+  const [searchCuit, setSearchCuit] = useState('');
+  const [filteredEmpresas, setFilteredEmpresas] = useState<Empresa[]>([]);
+  const [showEmpresaSuggestions, setShowEmpresaSuggestions] = useState(false);
+
+  const handleCuitSearch = (value: string) => {
+    setSearchCuit(value);
+    if (value.length === 0) {
+      setFilteredEmpresas([]);
+      setShowEmpresaSuggestions(false);
+      handleInputChange('empresa', '');
+      return;
+    }
+    const filtered = empresas.filter(e => e.cuit.includes(value));
+    setFilteredEmpresas(filtered);
+    setShowEmpresaSuggestions(filtered.length > 0);
+    handleInputChange('empresa', '');
+  };
+
+  const handleEmpresaSelect = (empresa: Empresa) => {
+    handleInputChange('empresa', empresa.id);
+    setSearchCuit(empresa.cuit);
+    setFilteredEmpresas([]);
+    setShowEmpresaSuggestions(false);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -504,12 +581,20 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <div>
+          <div className="flex-1">
             <h2 className="text-xl font-bold text-white">Crear Nuevo Usuario</h2>
-            <p className="text-gray-400 mt-1">Paso {currentStep} de 4: {getStepTitle(currentStep)}</p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-gray-400">Paso {currentStep} de 4: {getStepTitle(currentStep)}</p>
+              {autoSaved && (
+                <span className="text-xs text-green-400 flex items-center gap-1">
+                  <CheckCircleIcon className="h-3 w-3" />
+                  Guardado
+                </span>
+              )}
+            </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-white transition-colors"
           >
             <XMarkIcon className="h-6 w-6" />
@@ -557,30 +642,36 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
                   Elige la empresa y el rol que tendrá el nuevo usuario
                 </p>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Empresa *
+                  Empresa (buscar por CUIT) *
                 </label>
-                <select
-                  value={formData.empresa}
-                  onChange={(e) => handleInputChange('empresa', e.target.value)}
-                  className={`w-full bg-gray-700 border text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-cyan-500 ${
-                    validationErrors.empresa ? 'border-red-500' : 'border-gray-600'
-                  }`}
-                >
-                  <option value="">Seleccionar empresa...</option>
-                  {empresas.map(empresa => (
-                    <option key={empresa.id} value={empresa.id}>
-                      {empresa.nombre} ({empresa.cuit}) - {empresa.tipo_empresa}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={empresas.find(e => e.id === formData.empresa)?.cuit || searchCuit || ''}
+                    onChange={e => handleCuitSearch(e.target.value)}
+                    placeholder="Ingresá el número de CUIT..."
+                    className={`w-full bg-gray-700 border text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-cyan-500 ${validationErrors.empresa ? 'border-red-500' : 'border-gray-600'}`}
+                  />
+                  {showEmpresaSuggestions && filteredEmpresas.length > 0 && (
+                    <ul className="absolute z-10 w-full bg-gray-800 border border-gray-600 rounded-lg mt-1 max-h-48 overflow-y-auto">
+                      {filteredEmpresas.map(empresa => (
+                        <li
+                          key={empresa.id}
+                          className="px-4 py-2 cursor-pointer hover:bg-cyan-700 text-white"
+                          onClick={() => handleEmpresaSelect(empresa)}
+                        >
+                          {empresa.cuit} - {empresa.nombre} ({empresa.tipo_empresa})
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 {validationErrors.empresa && (
                   <p className="text-red-400 text-sm mt-1">{validationErrors.empresa}</p>
                 )}
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Rol *

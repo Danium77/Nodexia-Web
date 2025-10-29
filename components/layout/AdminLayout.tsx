@@ -3,6 +3,7 @@ import React from 'react';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import AdminSidebar from './AdminSidebar';
 import Sidebar from './Sidebar';
+import NotificationBell from './NotificationBell';
 import { useAutoReload, useHMRStatus } from '../../lib/hooks/useAutoReload';
 
 interface AdminLayoutProps {
@@ -63,8 +64,18 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle }) => {
                     </div>
                 )}
                 
+                {/* Header con notificaciones */}
+                <div className="bg-[#0a0e1a] border-b border-gray-800 px-8 py-4 flex justify-between items-center sticky top-0 z-40">
+                    <h1 className="text-2xl font-bold text-white">{pageTitle}</h1>
+                    <div className="flex items-center gap-4">
+                        <NotificationBell />
+                        <div className="text-gray-400 text-sm">
+                            {user.user_metadata?.name || user.email}
+                        </div>
+                    </div>
+                </div>
+                
                 <div className="p-8">
-                    <h1 className="text-3xl font-bold text-white mb-8">{pageTitle}</h1>
                     {children}
                 </div>
             </main>

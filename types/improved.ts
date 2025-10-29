@@ -37,16 +37,7 @@ export interface PerfilUsuario {
 }
 
 // === TIPOS DE EMPRESA ===
-export interface EmpresaData {
-  id: string;
-  nombre: string;
-  tipo_empresa: 'transporte' | 'cliente' | 'coordinador';
-  contacto_email?: string;
-  telefono?: string;
-  direccion?: string;
-  activa: boolean;
-  created_at: string;
-}
+// Usa el modelo Empresa de types/common.ts
 
 // === TIPOS DE SUPABASE ===
 export interface SupabaseResponse<T> {

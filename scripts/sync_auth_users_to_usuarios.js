@@ -1,5 +1,6 @@
 // scripts/sync_auth_users_to_usuarios.js
-// Sincronizar usuarios existentes de auth a tabla usuarios
+// Script para sincronizar usuarios existentes de Supabase Auth a la tabla usuarios.
+// Ejecutar después de migraciones y setup_roles.js.
 
 require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');

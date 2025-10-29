@@ -1,19 +1,5 @@
 // Tipos TypeScript para la estructura de red de empresas
-
-export interface Empresa {
-  id: string;
-  nombre: string;
-  cuit: string;
-  tipo_empresa: 'transporte' | 'coordinador';
-  email?: string;
-  telefono?: string;
-  direccion?: string;
-  localidad?: string;
-  provincia?: string;
-  activa: boolean;
-  fecha_creacion: string;
-  usuario_admin: string;
-}
+import type { Empresa } from './common';
 
 export interface RolEmpresa {
   id: string;

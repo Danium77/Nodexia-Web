@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { useTransports, useSearch } from '../../lib/hooks';
+import { SearchInput, Button, Input } from '../ui';
 
 interface TransportOption {
   id: string;
@@ -22,8 +25,9 @@ interface AssignTransportModalProps {
     tipo_carga: string;
     prioridad: string;
     unidad_type: string;
+    cantidad_viajes_solicitados?: number;
   };
-  onAssignSuccess: (transporteInfo?: { id: string; nombre: string; }) => Promise<void>;
+  onAssignSuccess: () => void;
 }
 
 const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
@@ -32,135 +36,157 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
   dispatch,
   onAssignSuccess
 }) => {
-  const [availableTransports, setAvailableTransports] = useState<TransportOption[]>([]);
+  // 🔥 REFACTORIZADO: Usar contexto y hooks
+  const { empresaId } = useUserRole();
+  const { transports, loading: loadingTransports, error: transportsError, reload } = useTransports(empresaId);
+  const { searchTerm, setSearchTerm, filteredItems: filteredTransports, clearSearch, resultsCount } = useSearch({
+    items: transports,
+    searchFields: ['nombre', 'tipo'] as (keyof TransportOption)[]
+  });
+
   const [selectedTransport, setSelectedTransport] = useState<string>('');
-  const [assignmentNotes, setAssignmentNotes] = useState<string>('');
+  const [assignmentNotes, setAssignmentNotes] = useState('');
+  const [cantidadViajesAsignar, setCantidadViajesAsignar] = useState<number>(dispatch.cantidad_viajes_solicitados || 1);
   const [loading, setLoading] = useState(false);
-  const [loadingTransports, setLoadingTransports] = useState(false);
   const [error, setError] = useState('');
 
-  // Cargar transportes cuando se abre el modal
+  // Actualizar cantidad cuando cambia el dispatch (pero sin resetear todo)
+  useEffect(() => {
+    setCantidadViajesAsignar(dispatch.cantidad_viajes_solicitados || 1);
+  }, [dispatch.id, dispatch.cantidad_viajes_solicitados]);
+
+  // Resetear SOLO cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
-      console.log('🔄 Modal abierto, cargando transportes...');
-      setError('');
+      console.log('🎬 Modal abierto - reseteando estado');
       setSelectedTransport('');
       setAssignmentNotes('');
-      loadTransports();
-    } else {
-      // Limpiar al cerrar
-      setAvailableTransports([]);
-      setSelectedTransport('');
-      setLoadingTransports(false);
       setError('');
     }
   }, [isOpen]);
 
-  const loadTransports = async () => {
-    console.log('🚀 Iniciando carga de transportes...');
-    setLoadingTransports(true);
-    setError('');
-    
-    try {
-      // Simulamos un pequeño delay para mostrar que funciona
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Datos del transporte conocido
-      const transportes: TransportOption[] = [
-        {
-          id: '3ef28c80-155b-440e-97fe-f6c10d81270b',
-          nombre: 'Transporte Bs As',
-          tipo: 'Semi-remolque',
-          capacidad: '25 toneladas',
-          ubicacion: 'Disponible en zona',
-          disponible: true
-        }
-      ];
-      
-      console.log('✅ Transportes cargados:', transportes.length);
-      setAvailableTransports(transportes);
-      
-    } catch (error) {
-      console.error('💥 Error cargando transportes:', error);
-      setError('Error al cargar transportes disponibles');
-      setAvailableTransports([]);
-    } finally {
-      console.log('🏁 Carga finalizada');
-      setLoadingTransports(false);
-    }
-  };
-
   const handleAssign = async () => {
-    console.log('🚀 INICIO handleAssign - Función ejecutada');
-    
     if (!selectedTransport) {
-      console.log('❌ Error: No hay transporte seleccionado');
       setError('Por favor selecciona un transporte');
       return;
     }
 
-    console.log('✅ Transporte seleccionado:', selectedTransport);
     setLoading(true);
     setError('');
 
     try {
       console.log('🔄 Asignando transporte...');
       console.log('Despacho:', dispatch.id);
-      console.log('Transporte:', selectedTransport);
+      console.log('Transporte seleccionado:', selectedTransport);
+      console.log('Cantidad de viajes a asignar:', cantidadViajesAsignar);
 
-      // Hacer la actualización con más logging
-      console.log('📝 Datos a actualizar:', {
-        transport_id: selectedTransport,
-        estado: 'transporte_asignado',
-        comentarios: assignmentNotes || `${dispatch.pedido_id} - Transporte asignado`
-      });
-      
-      const { data: updateResult, error: updateError } = await supabase
-        .from('despachos')
-        .update({
+      // Si el despacho tiene múltiples viajes, crear registros en viajes_despacho
+      if (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 1) {
+        console.log('📋 Creando registros de viajes individuales...');
+        
+        // Primero, obtener cuántos viajes ya existen para este despacho
+        const { data: viajesExistentes, error: countError } = await supabase
+          .from('viajes_despacho')
+          .select('numero_viaje')
+          .eq('despacho_id', dispatch.id)
+          .order('numero_viaje', { ascending: false })
+          .limit(1);
+
+        if (countError) {
+          console.error('Error contando viajes existentes:', countError);
+          throw countError;
+        }
+
+        // Calcular el próximo número de viaje
+        const ultimoNumeroViaje = viajesExistentes && viajesExistentes.length > 0 && viajesExistentes[0]
+          ? viajesExistentes[0].numero_viaje 
+          : 0;
+        
+        console.log(`📊 Último viaje existente: ${ultimoNumeroViaje}, creando desde el ${ultimoNumeroViaje + 1}`);
+        
+        // Crear los viajes asignados a este transporte
+        const viajesData = [];
+        for (let i = 0; i < cantidadViajesAsignar; i++) {
+          viajesData.push({
+            despacho_id: dispatch.id,
+            numero_viaje: ultimoNumeroViaje + i + 1,
+            id_transporte: selectedTransport,
+            estado: 'transporte_asignado',
+            observaciones: assignmentNotes || `Viaje ${ultimoNumeroViaje + i + 1} - Asignado a transporte`
+          });
+        }
+
+        const { error: viajesError } = await supabase
+          .from('viajes_despacho')
+          .insert(viajesData);
+
+        if (viajesError) {
+          console.error('❌ Error creando viajes:', viajesError);
+          throw viajesError;
+        }
+
+        console.log(`✅ ${cantidadViajesAsignar} viajes creados exitosamente (números ${ultimoNumeroViaje + 1} a ${ultimoNumeroViaje + cantidadViajesAsignar})`);
+        
+        // Si hay viajes pendientes, actualizar la cantidad en el despacho principal
+        const viajesPendientes = dispatch.cantidad_viajes_solicitados - cantidadViajesAsignar;
+        
+        if (viajesPendientes > 0) {
+          // Actualizar el despacho con la cantidad de viajes restantes
+          const { error: updateError } = await supabase
+            .from('despachos')
+            .update({
+              cantidad_viajes_solicitados: viajesPendientes,
+              comentarios: `${dispatch.pedido_id} - ${cantidadViajesAsignar} viaje(s) asignado(s), ${viajesPendientes} pendiente(s)`
+            })
+            .eq('id', dispatch.id);
+
+          if (updateError) throw updateError;
+          
+          console.log(`✅ Despacho actualizado: quedan ${viajesPendientes} viajes pendientes`);
+        } else {
+          // Todos los viajes fueron asignados, marcar despacho como completamente asignado
+          const { error: updateError } = await supabase
+            .from('despachos')
+            .update({
+              transport_id: selectedTransport,
+              estado: 'transporte_asignado',
+              cantidad_viajes_solicitados: 0, // Ya no quedan viajes pendientes
+              comentarios: assignmentNotes || `${dispatch.pedido_id} - Todos los viajes asignados`
+            })
+            .eq('id', dispatch.id);
+
+          if (updateError) throw updateError;
+          
+          console.log('✅ Todos los viajes asignados, despacho completado');
+        }
+      } else {
+        // Despacho simple (1 solo viaje o sin especificar)
+        const updateData = {
           transport_id: selectedTransport,
           estado: 'transporte_asignado',
           comentarios: assignmentNotes || `${dispatch.pedido_id} - Transporte asignado`
-        })
-        .eq('id', dispatch.id)
-        .select('*');
+        };
 
-      if (updateError) {
-        console.error('❌ Error actualizando despacho:', updateError);
-        console.error('❌ Detalles del error:', {
-          message: updateError.message,
-          details: updateError.details,
-          hint: updateError.hint,
-          code: updateError.code
-        });
-        throw updateError;
+        const { error: updateError } = await supabase
+          .from('despachos')
+          .update(updateData)
+          .eq('id', dispatch.id);
+
+        if (updateError) throw updateError;
+        
+        console.log('✅ Despacho simple asignado exitosamente');
       }
 
-      console.log('✅ Transporte asignado exitosamente');
-      console.log('📊 Resultado de la actualización:', updateResult);
+      console.log('✅ Asignación completada');
       
-      // Buscar la información del transporte seleccionado
-      const transporteSeleccionado = availableTransports.find(t => t.id === selectedTransport);
-      const transporteInfo = {
-        id: selectedTransport,
-        nombre: transporteSeleccionado?.nombre || 'Transporte Asignado'
-      };
-      
-      console.log('📤 Enviando info a onAssignSuccess:', transporteInfo);
-      console.log('🔄 Llamando onAssignSuccess...');
-      await onAssignSuccess(transporteInfo);
-      console.log('✅ onAssignSuccess completado');
-      
-      console.log('🚪 Cerrando modal...');
+      // Cerrar modal y refrescar lista
       onClose();
-      console.log('✅ Modal cerrado');
+      onAssignSuccess();
 
     } catch (error) {
       console.error('💥 Error en asignación:', error);
-      console.error('💥 Stack trace:', error.stack);
       setError('Error al asignar transporte. Inténtalo nuevamente.');
     } finally {
-      console.log('🏁 Finalizando handleAssign - setLoading(false)');
       setLoading(false);
     }
   };
@@ -168,7 +194,10 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
   const handleClose = () => {
     setSelectedTransport('');
     setAssignmentNotes('');
+    setCantidadViajesAsignar(1);
     setError('');
+    setLoading(false);
+    clearSearch();
     onClose();
   };
 
@@ -223,20 +252,59 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
                 {dispatch.prioridad}
               </span>
             </div>
+            {dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 1 && (
+              <div className="col-span-2 border-t border-gray-600 pt-3 mt-2">
+                <div className="mb-3">
+                  <span className="text-gray-400">🚛 Cantidad de viajes solicitados:</span>
+                  <span className="text-blue-400 ml-2 font-bold text-lg">
+                    {dispatch.cantidad_viajes_solicitados}
+                  </span>
+                </div>
+                <div className="bg-gray-900 p-3 rounded">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    ¿Cuántos viajes asignar?
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      value={cantidadViajesAsignar}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        console.log('📝 Input changed to:', val, 'type:', typeof val);
+                        setCantidadViajesAsignar(val);
+                      }}
+                      min={1}
+                      max={dispatch.cantidad_viajes_solicitados || 1}
+                      step={1}
+                      className="w-24 px-4 py-2 bg-[#1b273b] border border-slate-600 rounded-lg text-slate-50 text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    />
+                    <span className="text-gray-400 text-sm">
+                      de {dispatch.cantidad_viajes_solicitados} viajes
+                    </span>
+                  </div>
+                  {cantidadViajesAsignar < dispatch.cantidad_viajes_solicitados && (
+                    <div className="mt-2 text-yellow-400 text-xs">
+                      ℹ️ Quedarán {dispatch.cantidad_viajes_solicitados - cantidadViajesAsignar} viajes pendientes para asignar a otro transporte
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Error Message */}
-        {error && (
+        {(error || transportsError) && (
           <div className="mb-4 p-3 bg-red-900 border border-red-600 rounded-lg text-red-200 text-sm">
-            <div className="mb-2">{error}</div>
-            <button 
-              onClick={loadTransports}
-              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
+            <div className="mb-2">{error || transportsError}</div>
+            <Button 
+              onClick={reload}
+              variant="danger"
+              size="sm"
               disabled={loadingTransports}
             >
               🔄 Reintentar
-            </button>
+            </Button>
           </div>
         )}
 
@@ -244,55 +312,78 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
         <div className="mb-6">
           <h3 className="text-lg font-medium text-white mb-3">🚚 Transportes Disponibles</h3>
           
+          {/* Buscador */}
+          {transports.length > 0 && !loadingTransports && (
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="🔍 Buscar por nombre o tipo..."
+              onClear={clearSearch}
+              resultsCount={resultsCount}
+              className="mb-4"
+            />
+          )}
+          
           {loadingTransports ? (
             <div className="text-center py-8 text-gray-400">
               <div className="mb-3">Cargando transportes disponibles...</div>
             </div>
-          ) : availableTransports.length === 0 ? (
+          ) : transports.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <div className="mb-3">No hay transportes disponibles</div>
-              <button 
-                onClick={loadTransports}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-md text-sm transition-colors"
-              >
+              <Button onClick={reload} variant="primary" size="sm">
                 🔄 Reintentar Carga
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
-              {availableTransports.map((transport) => (
-                <label
-                  key={transport.id}
-                  className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedTransport === transport.id
-                      ? 'border-cyan-500 bg-cyan-900/20'
-                      : 'border-gray-600 hover:border-gray-500'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="transport"
-                    value={transport.id}
-                    checked={selectedTransport === transport.id}
-                    onChange={(e) => setSelectedTransport(e.target.value)}
-                    className="sr-only"
-                  />
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium text-white">{transport.nombre}</h4>
-                      <p className="text-sm text-gray-400 mt-1">
-                        {transport.tipo} - {transport.capacidad}
-                      </p>
-                      <p className="text-sm text-gray-500">{transport.ubicacion}</p>
+              {filteredTransports.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <div className="mb-3">No se encontraron transportes con "{searchTerm}"</div>
+                  <Button onClick={clearSearch} variant="primary" size="sm">
+                    Limpiar búsqueda
+                  </Button>
+                </div>
+              ) : (
+                filteredTransports.map((transport) => (
+                  <label
+                    key={transport.id}
+                    className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
+                      selectedTransport === transport.id
+                        ? 'border-cyan-500 bg-cyan-900/20'
+                        : 'border-gray-600 hover:border-gray-500'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="transport"
+                      value={transport.id}
+                      checked={selectedTransport === transport.id}
+                      onChange={(e) => {
+                        console.log('🚛 Radio changed, value:', e.target.value);
+                        console.log('🚛 Current selectedTransport:', selectedTransport);
+                        setSelectedTransport(e.target.value);
+                        console.log('🚛 New selectedTransport should be:', e.target.value);
+                      }}
+                      className="sr-only"
+                    />
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-white">{transport.nombre}</h4>
+                        <p className="text-sm text-gray-400 mt-1">
+                          {transport.tipo} - {transport.capacidad}
+                        </p>
+                        <p className="text-sm text-gray-500">{transport.ubicacion}</p>
+                      </div>
+                      <div className="flex items-center">
+                        {transport.disponible && (
+                          <span className="text-green-400 text-sm">✓ Disponible</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center">
-                      {transport.disponible && (
-                        <span className="text-green-400 text-sm">✓ Disponible</span>
-                      )}
-                    </div>
-                  </div>
-                </label>
-              ))}
+                  </label>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -310,25 +401,22 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
 
         {/* Botones */}
         <div className="flex justify-end space-x-3">
-          <button
+          <Button
             onClick={handleClose}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-colors"
+            variant="secondary"
             disabled={loading}
           >
             Cancelar
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('🖱️ Botón Confirmar clicked!');
-              handleAssign();
-            }}
+          </Button>
+          <Button
+            onClick={handleAssign}
+            variant="primary"
             disabled={!selectedTransport || loading}
-            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+            loading={loading}
           >
-            {loading ? 'Asignando...' : '✓ Confirmar Asignación'}
-          </button>
+            {console.log('🔘 Button render - selectedTransport:', selectedTransport, 'disabled:', !selectedTransport || loading)}
+            ✓ Confirmar Asignación
+          </Button>
         </div>
       </div>
     </div>

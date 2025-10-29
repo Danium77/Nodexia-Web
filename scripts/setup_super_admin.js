@@ -12,6 +12,8 @@ if (!supabaseUrl || !supabaseServiceKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Script principal para vincular y configurar el usuario super admin y sistema de suscripciones.
+// Ejecutar después de migraciones y roles.
 async function setupSuperAdminSystem() {
     console.log('🚀 Iniciando configuración del sistema de Super Administración...\n');
 

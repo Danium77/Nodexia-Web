@@ -48,27 +48,23 @@ export interface User extends BaseEntity {
   phone?: string;
 }
 
-export interface Profile extends BaseEntity {
-  name: string;
-  type: 'planta' | 'transporte' | 'admin';
+// Modelo centralizado de Empresa para toda la app
+export interface Empresa extends BaseEntity {
+  nombre: string;
   cuit: string;
+  tipo_empresa: 'planta' | 'transporte' | 'cliente' | 'sistema';
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  localidad?: string;
+  provincia?: string;
+  activa: boolean;
+  usuario_admin?: string;
+  fecha_creacion?: string;
+  notas?: string;
 }
 
 export interface Role {
   id: number;
   name: string;
-}
-
-export interface ProfileUser extends BaseEntity {
-  user_id: string;
-  profile_id: string;
-  role_id: number;
-  nombre?: string;
-  apellido?: string;
-  dni?: string;
-  localidad?: string;
-  telefono?: string;
-  // Relations
-  profile?: Profile;
-  role?: Role;
 }

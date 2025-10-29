@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../components/layout/AdminLayout';
@@ -6,92 +5,23 @@ import NetworkManager from '../components/Network/NetworkManager';
 import SuperAdminPanel from '../components/SuperAdmin/SuperAdminPanel';
 import SimpleSuperAdminPanel from '../components/SuperAdmin/SimpleSuperAdminPanel';
 import { useSuperAdminAccess } from '../lib/hooks/useSuperAdminAccess';
-import { supabase } from '../lib/supabaseClient';
+import { useUserRole } from '../lib/contexts/UserRoleContext';
 
 const ConfiguracionPage = () => {
   const router = useRouter();
-  const [roles, setRoles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { primaryRole, loading } = useUserRole();
   const [showNetworkManager, setShowNetworkManager] = useState(false);
   const [showSuperAdmin, setShowSuperAdmin] = useState(false);
   const { isSuperAdmin, loading: superAdminLoading } = useSuperAdminAccess();
-
-  useEffect(() => {
-    const fetchRoles = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        // Para setup inicial, permitir acceso sin autenticación
-        console.warn('No hay usuario autenticado - modo setup');
-        setRoles(['admin']); // Dar acceso admin temporal para configuración inicial
-        setLoading(false);
-        return;
-      }
-      
-      // SISTEMA ACTUALIZADO: Usar usuarios_empresa → roles_empresa
-      const { data: userEmpresas } = await supabase
-        .from('usuarios_empresa')
-        .select(`
-          roles_empresa(nombre),
-          empresas(tipo_empresa)
-        `)
-        .eq('user_id', user.id)
-        .eq('activo', true);
-      
-      let userRoles: string[] = [];
-      
-      if (userEmpresas && userEmpresas.length > 0) {
-        // Extraer roles de empresas
-        const rolesEmpresa = userEmpresas
-          .map(rel => rel.roles_empresa?.nombre)
-          .filter(Boolean)
-          .map(nombre => nombre.toLowerCase());
-        
-        // Extraer tipos de empresa como roles adicionales  
-        const tiposEmpresa = userEmpresas
-          .map(rel => rel.empresas?.tipo_empresa)
-          .filter(Boolean);
-        
-        userRoles = [...new Set([...rolesEmpresa, ...tiposEmpresa])];
-        
-        console.log('Roles detectados:', userRoles);
-      }
-      
-      // Fallback al sistema antiguo si no hay roles en el nuevo sistema
-      if (userRoles.length === 0) {
-        const { data: profileUser } = await supabase
-          .from('profile_users')
-          .select('roles(name)')
-          .eq('user_id', user.id)
-          .single();
-          
-        if (profileUser && profileUser.roles) {
-          const rolesRaw: any = profileUser.roles;
-          userRoles = Array.isArray(rolesRaw)
-            ? rolesRaw.map((r: any) => r.name)
-            : [rolesRaw.name];
-        }
-      }
-      
-      setRoles(userRoles);
-      
-      // Redirigir usuarios con rol "transporte" a su página específica
-      if (userRoles.includes('transporte') && !userRoles.includes('admin') && !userRoles.includes('coordinador')) {
-        router.push('/transporte/configuracion');
-        return;
-      }
-      
-      setLoading(false);
-    };
-    fetchRoles();
-  }, [router]);
 
   if (loading) {
     return <AdminLayout pageTitle="Configuración"><div className="text-white">Cargando configuración...</div></AdminLayout>;
   }
 
   // Definir tarjetas por rol
-  const isAdmin = roles.includes('admin');
-  const isCoordinador = roles.includes('coordinador');
+  const isAdmin = primaryRole === 'admin';
+  const isCoordinador = primaryRole === 'coordinador';
+  const isSuperAdminRole = primaryRole === 'super_admin';
 
   // Tarjetas para admin
   const adminCards = [
@@ -101,6 +31,13 @@ const ConfiguracionPage = () => {
       button: 'bg-purple-600 hover:bg-purple-700',
       desc: 'Gestiona la red de empresas transportistas y coordinadoras.',
       action: 'network'
+    },
+    {
+      title: '📍 Ubicaciones',
+      color: 'text-pink-400',
+      button: 'bg-pink-600 hover:bg-pink-700',
+      desc: 'Vincula y gestiona plantas, depósitos y clientes para tus despachos.',
+      action: 'ubicaciones'
     },
     {
       title: 'Transportes',
@@ -136,24 +73,17 @@ const ConfiguracionPage = () => {
   // Tarjetas para coordinador (puedes personalizar)
   const coordinadorCards = [
     {
-      title: 'Red de Empresas',
-      color: 'text-purple-400',
-      button: 'bg-purple-600 hover:bg-purple-700',
-      desc: 'Gestiona tu red de transportistas y relaciones comerciales.',
-      action: 'network'
+      title: '📍 Ubicaciones',
+      color: 'text-pink-400',
+      button: 'bg-pink-600 hover:bg-pink-700',
+      desc: 'Vincula y gestiona plantas, depósitos y clientes para tus despachos.',
+      action: 'ubicaciones'
     },
     {
       title: 'Transportes',
       color: 'text-cyan-400',
       button: 'bg-cyan-600 hover:bg-cyan-700',
       desc: 'Consulta y gestiona tus transportistas',
-      action: 'navigate'
-    },
-    {
-      title: 'Plantas',
-      color: 'text-green-400',
-      button: 'bg-green-600 hover:bg-green-700',
-      desc: 'Consulta y gestiona tus origenes y destinos',
       action: 'navigate'
     },
     {
@@ -168,9 +98,12 @@ const ConfiguracionPage = () => {
 
   // Mostrar solo la visual correspondiente al rol principal
   let cardsToShow = [];
-  if (isAdmin) {
+  if (isSuperAdminRole || isAdmin) {
     cardsToShow = adminCards;
   } else if (isCoordinador) {
+    cardsToShow = coordinadorCards;
+  } else {
+    // Fallback: mostrar tarjetas básicas para cualquier usuario autenticado
     cardsToShow = coordinadorCards;
   }
 
@@ -180,12 +113,14 @@ const ConfiguracionPage = () => {
       setShowNetworkManager(true);
     } else if (card.action === 'super-admin') {
       setShowSuperAdmin(true);
+    } else if (card.action === 'ubicaciones') {
+      router.push('/configuracion/ubicaciones');
     } else if (card.title === 'Transportes') {
-      window.location.href = '/configuracion/transportes';
+      router.push('/configuracion/transportes');
     } else if (card.title === 'Plantas') {
-      window.location.href = '/configuracion/plantas';
+      router.push('/configuracion/plantas');
     } else if (card.title === 'Clientes') {
-      window.location.href = '/configuracion/clientes';
+      router.push('/configuracion/clientes');
     }
   };
 
@@ -204,7 +139,7 @@ const ConfiguracionPage = () => {
           {/* Log visual temporal para depuración de roles */}
           <div className="mb-4 p-4 bg-gray-900 text-white rounded flex justify-between items-center">
             <div>
-              <strong>Roles detectados para este usuario:</strong> {roles.join(', ') || 'Ninguno'}
+              <strong>Rol detectado para este usuario:</strong> {primaryRole || 'Ninguno'}
             </div>
             {isSuperAdmin && (
               <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium">
