@@ -136,17 +136,17 @@ export function getPrimaryRole(roles: string[]): UserRole {
 
 /**
  * Get the default dashboard route for a user role
- * ACTUALIZADO: nuevos roles y rutas
+ * ACTUALIZADO: dashboards diferenciados por tipo de empresa
  */
 export function getDefaultDashboard(roles: string[]): string {
   if (roles.includes('super_admin')) return '/admin/super-admin-dashboard';
-  if (roles.includes('coordinador')) return '/dashboard'; // Coordinador de planta
+  if (roles.includes('coordinador')) return '/coordinator-dashboard'; // Coordinador de PLANTA
   if (roles.includes('control_acceso')) return '/control-acceso'; 
   if (roles.includes('supervisor_carga')) return '/supervisor-carga';
-  if (roles.includes('coordinador_transporte')) return '/dashboard'; // Coordinador de transporte
-  if (roles.includes('chofer')) return '/dashboard';
-  if (roles.includes('administrativo')) return '/dashboard';
-  if (roles.includes('visor')) return '/dashboard'; // Cliente solo visualiza
+  if (roles.includes('coordinador_transporte')) return '/transporte/dashboard'; // Coordinador de TRANSPORTE
+  if (roles.includes('chofer')) return '/chofer/viajes';
+  if (roles.includes('administrativo')) return '/transporte/dashboard';
+  if (roles.includes('visor')) return '/cliente/dashboard'; // Cliente solo visualiza
   
   return '/dashboard';
 }

@@ -14,7 +14,9 @@ interface UserRoleContextType {
   user: User | null;
   roles: UserRole[];
   primaryRole: UserRole | null;
-  empresaId: string | null; // 🔥 AGREGADO: ID de la empresa del usuario
+  empresaId: string | null; // 🔥 ID de la empresa del usuario
+  tipoEmpresa: string | null; // 🔥 NUEVO: tipo_empresa (planta/transporte/cliente)
+  userEmpresas: any[]; // 🔥 NUEVO: array de relaciones usuarios_empresa con datos de empresa
   email: string;
   name: string;
   role: string;
@@ -60,6 +62,22 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     return null;
   });
   
+  const [tipoEmpresa, setTipoEmpresa] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('nodexia_tipoEmpresa');
+      return cached || null;
+    }
+    return null;
+  });
+  
+  const [userEmpresas, setUserEmpresas] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('nodexia_userEmpresas');
+      return cached ? JSON.parse(cached) : [];
+    }
+    return [];
+  });
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<number>(() => {
@@ -97,11 +115,17 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       if (empresaId) {
         localStorage.setItem('nodexia_empresaId', empresaId);
       }
+      if (tipoEmpresa) {
+        localStorage.setItem('nodexia_tipoEmpresa', tipoEmpresa);
+      }
+      if (userEmpresas.length > 0) {
+        localStorage.setItem('nodexia_userEmpresas', JSON.stringify(userEmpresas));
+      }
       if (lastFetch > 0) {
         localStorage.setItem('nodexia_lastFetch', lastFetch.toString());
       }
     }
-  }, [user, roles, empresaId, lastFetch]);
+  }, [user, roles, empresaId, tipoEmpresa, userEmpresas, lastFetch]);
 
   // Debug logging para diagnosticar problemas de roles (SOLO SI HAY CAMBIOS)
   useEffect(() => {
@@ -260,46 +284,90 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       // Get role relation separately
       if (usuarioData) {
         // Buscar primero con user_id de auth.users (caso de super_admin)
+        // 🔥 ACTUALIZADO: incluir JOIN con empresas para obtener tipo_empresa
         const { data: relacionData, error: relacionError } = await supabase
           .from('usuarios_empresa')
-          .select('rol_interno, empresa_id')
+          .select(`
+            rol_interno, 
+            empresa_id,
+            empresas!inner(
+              id,
+              nombre,
+              tipo_empresa
+            )
+          `)
           .eq('user_id', authUser.id) // Usar authUser.id en lugar de usuarioData.id
-          .single();
+          .maybeSingle(); // 🔥 Cambio a maybeSingle para soportar usuarios sin empresa
 
-        if (relacionError) {
-          // Usar rol por defecto
-          setRoles(['coordinador']);
-          setEmpresaId(null);
-          finishFetch();
-          return;
-        } else if (relacionData) {
-          const rolInterno = relacionData.rol_interno;
-          const empresaIdValue = relacionData.empresa_id;
-          
-          // Guardar empresa_id
+        if (relacionError || !relacionData) {
+          // Buscar múltiples empresas (usuario puede tener varios vínculos)
+          const { data: multiRelacionData, error: multiError } = await supabase
+            .from('usuarios_empresa')
+            .select(`
+              rol_interno, 
+              empresa_id,
+              empresas!inner(
+                id,
+                nombre,
+                tipo_empresa
+              )
+            `)
+            .eq('user_id', authUser.id);
+
+          if (multiError || !multiRelacionData || multiRelacionData.length === 0) {
+            // Usuario sin empresas asignadas - usar rol por defecto
+            console.warn('⚠️ Usuario sin empresas asignadas');
+            setRoles(['coordinador']);
+            setEmpresaId(null);
+            setTipoEmpresa(null);
+            setUserEmpresas([]);
+            finishFetch();
+            return;
+          }
+
+          // Usuario con múltiples empresas - usar la primera como principal
+          setUserEmpresas(multiRelacionData);
+          const primeraRelacion = multiRelacionData[0];
+          const rolInterno = primeraRelacion.rol_interno;
+          const empresaIdValue = primeraRelacion.empresa_id;
+          const tipoEmpresaValue = (primeraRelacion.empresas as any)?.tipo_empresa;
+
           setEmpresaId(empresaIdValue || null);
+          setTipoEmpresa(tipoEmpresaValue || null);
           
+          // Continuar con mapeo de rol...
           let mappedRole: UserRole;
           switch (rolInterno) {
             case 'super_admin':
             case 'Super Admin':
               mappedRole = 'super_admin' as UserRole;
               break;
+            case 'control_acceso':
             case 'Control de Acceso':
               mappedRole = 'control_acceso' as UserRole;
               break;
+            case 'supervisor_carga':
             case 'Supervisor de Carga':
               mappedRole = 'supervisor_carga' as UserRole;
               break;
+            case 'coordinador':
             case 'Coordinador':
               mappedRole = 'coordinador';
               break;
+            case 'coordinador_transporte':
+              mappedRole = 'coordinador_transporte';
+              break;
+            case 'chofer':
             case 'Chofer':
               mappedRole = 'chofer';
               break;
+            case 'administrativo':
             case 'Operador':
             case 'Administrativo':
               mappedRole = 'administrativo';
+              break;
+            case 'visor':
+              mappedRole = 'visor';
               break;
             default:
               console.warn('⚠️ Rol desconocido:', rolInterno, '- usando coordinador');
@@ -309,6 +377,59 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           setRoles([mappedRole]);
           finishFetch();
           return; // Exit early on success
+        } else {
+          // relacionData existe - usuario con una única empresa
+          setUserEmpresas([relacionData]);
+          const rolInterno = relacionData.rol_interno;
+          const empresaIdValue = relacionData.empresa_id;
+          const tipoEmpresaValue = (relacionData.empresas as any)?.tipo_empresa;
+
+          setEmpresaId(empresaIdValue || null);
+          setTipoEmpresa(tipoEmpresaValue || null);
+          
+          // Mapeo de rol
+          let mappedRole: UserRole;
+          switch (rolInterno) {
+            case 'super_admin':
+            case 'Super Admin':
+              mappedRole = 'super_admin' as UserRole;
+              break;
+            case 'control_acceso':
+            case 'Control de Acceso':
+              mappedRole = 'control_acceso' as UserRole;
+              break;
+            case 'supervisor_carga':
+            case 'Supervisor de Carga':
+              mappedRole = 'supervisor_carga' as UserRole;
+              break;
+            case 'coordinador':
+            case 'Coordinador':
+              mappedRole = 'coordinador';
+              break;
+            case 'coordinador_transporte':
+              mappedRole = 'coordinador_transporte';
+              break;
+            case 'chofer':
+            case 'Chofer':
+              mappedRole = 'chofer';
+              break;
+            case 'administrativo':
+            case 'Operador':
+            case 'Administrativo':
+              mappedRole = 'administrativo';
+              break;
+            case 'visor':
+              mappedRole = 'visor';
+              break;
+            default:
+              console.warn('⚠️ Rol desconocido:', rolInterno, '- usando coordinador');
+              mappedRole = 'coordinador';
+          }
+          
+          console.log(`✅ [dashboard] Role detected: ${mappedRole}, Tipo Empresa: ${tipoEmpresaValue}`);
+          setRoles([mappedRole]);
+          finishFetch();
+          return;
         }
       }
       
@@ -334,6 +455,8 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       setUser(null);
       setRoles([]);
       setEmpresaId(null);
+      setTipoEmpresa(null);
+      setUserEmpresas([]);
       setLastFetch(0);
       
       // 🔥 Limpiar localStorage
@@ -341,6 +464,8 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         localStorage.removeItem('nodexia_user');
         localStorage.removeItem('nodexia_roles');
         localStorage.removeItem('nodexia_empresaId');
+        localStorage.removeItem('nodexia_tipoEmpresa');
+        localStorage.removeItem('nodexia_userEmpresas');
         localStorage.removeItem('nodexia_lastFetch');
       }
       
@@ -443,6 +568,8 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     roles,
     primaryRole,
     empresaId,
+    tipoEmpresa,
+    userEmpresas,
     email,
     name,
     role,
@@ -452,7 +579,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     hasAnyRole,
     refreshRoles,
     signOut,
-  }), [user, roles, primaryRole, empresaId, email, name, role, loading, error, hasRole, hasAnyRole, refreshRoles, signOut]);
+  }), [user, roles, primaryRole, empresaId, tipoEmpresa, userEmpresas, email, name, role, loading, error, hasRole, hasAnyRole, refreshRoles, signOut]);
 
   return (
     <UserRoleContext.Provider value={value}>

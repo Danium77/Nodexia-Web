@@ -107,7 +107,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
       { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
     ];
-  } else if (userRole === 'coordinador' || String(userRole).trim().toLowerCase() === 'coordinador' || String(userRole).includes('coordinador') || isCoordinadorByEmail) {
+  } else if (userRole === 'coordinador' || String(userRole).trim().toLowerCase() === 'coordinador' || isCoordinadorByEmail) {
+    // Coordinador de PLANTA
     navItems = [
       { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
       { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
@@ -115,11 +116,22 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
       { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
     ];
-  } else if (userRole === 'transporte') {
+  } else if (userRole === 'coordinador_transporte') {
+    // Coordinador de TRANSPORTE
     navItems = [
-      ...navItems,
-      { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
-      { name: 'Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
+      { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
+      { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
+      { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes' },
+      { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota' },
+      { name: '👥 Choferes', icon: UserCircleIcon, href: '/transporte/choferes' },
+      { name: '⚙️ Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
+    ];
+  } else if (userRole === 'administrativo') {
+    // Administrativo de transporte
+    navItems = [
+      { name: 'Dashboard', icon: HomeIcon, href: '/transporte/dashboard' },
+      { name: 'Viajes', icon: CalendarDaysIcon, href: '/transporte/viajes' },
+      { name: 'Documentación', icon: ChartBarIcon, href: '/transporte/documentos' },
     ];
   } else if (userRole === 'chofer') {
     navItems = [

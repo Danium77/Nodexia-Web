@@ -555,7 +555,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
         sessionStorage.removeItem('wizardUsuarioState');
         sessionStorage.removeItem('wizardUsuarioOpen');
         
-        // Cerrar el wizard después de 5 segundos (más tiempo para copiar credenciales)
+        // Cerrar el wizard después de 30 segundos (más tiempo para copiar credenciales)
         setTimeout(() => {
           // Primero cerrar el modal para evitar errores de DOM
           onClose();
@@ -563,7 +563,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
           setTimeout(() => {
             onSuccess();
           }, 100);
-        }, 5000);
+        }, 30000);
       } else {
         console.error('❌ Error enviando invitación:', result);
         if (isMountedRef.current) {
@@ -691,21 +691,26 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
                 <div className="flex-1">
                   <pre className="whitespace-pre-wrap text-sm font-mono">{success}</pre>
                   {success.includes('🔗 Link') && (
-                    <button
-                      onClick={() => {
-                        const linkMatch = success.match(/🔗 Link de activación:\n(.+)\n/);
-                        const passwordMatch = success.match(/Password: (.+)\n/);
-                        if (linkMatch && passwordMatch) {
-                          navigator.clipboard.writeText(
-                            `Link de activación: ${linkMatch[1]}\n\nCredenciales temporales:\n${passwordMatch[0]}`
-                          );
-                          alert('✅ Credenciales copiadas al portapapeles');
-                        }
-                      }}
-                      className="mt-3 px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      📋 Copiar credenciales
-                    </button>
+                    <div className="mt-4 space-y-2">
+                      <div className="text-yellow-300 text-sm font-semibold flex items-center gap-2">
+                        ⏰ Este modal se cerrará automáticamente en 30 segundos
+                      </div>
+                      <button
+                        onClick={() => {
+                          const linkMatch = success.match(/🔗 Link de activación:\n(.+)\n/);
+                          const passwordMatch = success.match(/Password: (.+)\n/);
+                          if (linkMatch && passwordMatch) {
+                            navigator.clipboard.writeText(
+                              `Link de activación: ${linkMatch[1]}\n\nCredenciales temporales:\n${passwordMatch[0]}`
+                            );
+                            alert('✅ Credenciales copiadas al portapapeles');
+                          }
+                        }}
+                        className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors w-full"
+                      >
+                        📋 Copiar credenciales al portapapeles
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

@@ -70,7 +70,7 @@ export default async function handler(
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: tempPassword,
-        email_confirm: false, // Usuario debe confirmar (o lo hacemos manual)
+        email_confirm: true, // ✅ Confirmar email automáticamente en modo testing
         user_metadata: {
           nombre,
           apellido,

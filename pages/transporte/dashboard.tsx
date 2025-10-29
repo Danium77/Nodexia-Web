@@ -43,7 +43,7 @@ interface Stats {
 }
 
 const TransporteDashboard = () => {
-  const { user, userEmpresas } = useUserRole();
+  const { user, userEmpresas, empresaId: empresaIdContext } = useUserRole();
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [stats, setStats] = useState<Stats>({ pendientes: 0, enCurso: 0, completadosHoy: 0, alertas: 0 });
   const [loading, setLoading] = useState(true);
@@ -53,108 +53,128 @@ const TransporteDashboard = () => {
   const [selectedViajeId, setSelectedViajeId] = useState<string | null>(null);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!user) return;
+  // Función para cargar datos del dashboard (extraída para reutilización)
+  const fetchDashboardData = async () => {
+    if (!user) return;
 
-      setLoading(true);
+    setLoading(true);
 
-      try {
-        // Obtener empresa de transporte del usuario
-        const empresaTransporte = userEmpresas?.find(
+    try {
+      // Obtener empresa de transporte del usuario
+      let empresaTransporte;
+      
+      // Opción 1: Si userEmpresas está disponible, buscar ahí
+      if (userEmpresas && userEmpresas.length > 0) {
+        empresaTransporte = userEmpresas.find(
           (rel: any) => rel.empresas?.tipo_empresa === 'transporte'
         );
-
-        if (!empresaTransporte) {
-          console.error('Usuario no tiene empresa de transporte asignada');
-          setLoading(false);
-          return;
-        }
-
-        const empresaId = empresaTransporte.empresa_id;
-        setEmpresaId(empresaId);
-
-        // Cargar viajes asignados a esta empresa de transporte
-        const { data: viajesData, error: viajesError } = await supabase
-          .from('viajes_despacho')
-          .select(`
-            id,
-            despacho_id,
-            numero_viaje,
-            estado,
-            despachos!inner(
-              pedido_id,
-              origen,
-              destino,
-              scheduled_local_date,
-              scheduled_local_time
-            ),
-            choferes:id_chofer(nombre),
-            camiones:id_camion(patente)
-          `)
-          .eq('id_transporte', empresaId)
-          .in('estado', ['pendiente', 'transporte_asignado', 'cargando', 'en_camino', 'descargando'])
-          .order('despachos(scheduled_local_date)', { ascending: true });
-
-        if (viajesError) throw viajesError;
-
-        // Transformar datos
-        const viajesTransformados: Viaje[] = (viajesData || []).map((v: any) => ({
-          id: v.id,
-          despacho_id: v.despacho_id,
-          pedido_id: v.despachos.pedido_id,
-          numero_viaje: v.numero_viaje,
-          origen: v.despachos.origen,
-          destino: v.despachos.destino,
-          estado: v.estado,
-          scheduled_date: v.despachos.scheduled_local_date,
-          scheduled_time: v.despachos.scheduled_local_time,
-          chofer: Array.isArray(v.choferes) ? v.choferes[0] : v.choferes,
-          camion: Array.isArray(v.camiones) ? v.camiones[0] : v.camiones
-        }));
-
-        setViajes(viajesTransformados);
-
-        // Calcular estadísticas
-        const pendientes = viajesTransformados.filter(v => 
-          ['pendiente', 'transporte_asignado'].includes(v.estado)
-        ).length;
-
-        const enCurso = viajesTransformados.filter(v => 
-          ['cargando', 'en_camino', 'descargando'].includes(v.estado)
-        ).length;
-
-        // Viajes completados hoy
-        const hoy = new Date().toISOString().split('T')[0];
-        const { count: completadosHoy } = await supabase
-          .from('viajes_despacho')
-          .select('id', { count: 'exact', head: true })
-          .eq('id_transporte', empresaId)
-          .eq('estado', 'completado')
-          .gte('updated_at', `${hoy}T00:00:00`)
-          .lte('updated_at', `${hoy}T23:59:59`);
-
-        // Alertas: viajes sin chofer o camión asignado
-        const alertas = viajesTransformados.filter(v => 
-          v.estado === 'transporte_asignado' && (!v.chofer || !v.camion)
-        ).length;
-
-        setStats({
-          pendientes,
-          enCurso,
-          completadosHoy: completadosHoy || 0,
-          alertas
-        });
-
-      } catch (error) {
-        console.error('Error cargando dashboard:', error);
-      } finally {
-        setLoading(false);
       }
-    };
+      
+      // Opción 2: Si no hay userEmpresas pero sí empresaIdContext, usar ese
+      if (!empresaTransporte && empresaIdContext) {
+        // Verificar que sea una empresa de transporte
+        const { data: empresaData } = await supabase
+          .from('empresas')
+          .select('id, nombre, tipo_empresa')
+          .eq('id', empresaIdContext)
+          .single();
+        
+        if (empresaData && empresaData.tipo_empresa === 'transporte') {
+          empresaTransporte = { empresa_id: empresaData.id, empresas: empresaData };
+        }
+      }
 
+      if (!empresaTransporte) {
+        console.error('Usuario no tiene empresa de transporte asignada');
+        setLoading(false);
+        return;
+      }
+
+      const empresaId = empresaTransporte.empresa_id;
+      setEmpresaId(empresaId);
+
+      // Cargar viajes asignados a esta empresa de transporte
+      const { data: viajesData, error: viajesError } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          despacho_id,
+          numero_viaje,
+          estado,
+          despachos!inner(
+            pedido_id,
+            origen,
+            destino,
+            scheduled_local_date,
+            scheduled_local_time
+          ),
+          choferes:id_chofer(nombre),
+          camiones:id_camion(patente)
+        `)
+        .eq('id_transporte', empresaId)
+        .in('estado', ['pendiente', 'transporte_asignado', 'cargando', 'en_camino', 'descargando'])
+        .order('despachos(scheduled_local_date)', { ascending: true });
+
+      if (viajesError) throw viajesError;
+
+      // Transformar datos
+      const viajesTransformados: Viaje[] = (viajesData || []).map((v: any) => ({
+        id: v.id,
+        despacho_id: v.despacho_id,
+        pedido_id: v.despachos.pedido_id,
+        numero_viaje: v.numero_viaje,
+        origen: v.despachos.origen,
+        destino: v.despachos.destino,
+        estado: v.estado,
+        scheduled_date: v.despachos.scheduled_local_date,
+        scheduled_time: v.despachos.scheduled_local_time,
+        chofer: Array.isArray(v.choferes) ? v.choferes[0] : v.choferes,
+        camion: Array.isArray(v.camiones) ? v.camiones[0] : v.camiones
+      }));
+
+      setViajes(viajesTransformados);
+
+      // Calcular estadísticas
+      const pendientes = viajesTransformados.filter(v => 
+        ['pendiente', 'transporte_asignado'].includes(v.estado)
+      ).length;
+
+      const enCurso = viajesTransformados.filter(v => 
+        ['cargando', 'en_camino', 'descargando'].includes(v.estado)
+      ).length;
+
+      // Viajes completados hoy
+      const hoy = new Date().toISOString().split('T')[0];
+      const { count: completadosHoy } = await supabase
+        .from('viajes_despacho')
+        .select('id', { count: 'exact', head: true })
+        .eq('id_transporte', empresaId)
+        .eq('estado', 'completado')
+        .gte('updated_at', `${hoy}T00:00:00`)
+        .lte('updated_at', `${hoy}T23:59:59`);
+
+      // Alertas: viajes sin chofer o camión asignado
+      const alertas = viajesTransformados.filter(v => 
+        v.estado === 'transporte_asignado' && (!v.chofer || !v.camion)
+      ).length;
+
+      setStats({
+        pendientes,
+        enCurso,
+        completadosHoy: completadosHoy || 0,
+        alertas
+      });
+
+    } catch (error) {
+      console.error('Error cargando dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
-  }, [user, userEmpresas]);
+  }, [user, userEmpresas, empresaIdContext]);
 
   const handleSelectViaje = (viaje: Viaje) => {
     setSelectedViajeId(viaje.id);
