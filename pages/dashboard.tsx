@@ -45,9 +45,45 @@ const Dashboard = () => {
         break;
       
       case 'coordinador':
-        console.log('📊 [dashboard] Redirecting to coordinator-dashboard');
+        console.log('📊 [dashboard] Redirecting to coordinator-dashboard (planta)');
         setHasRedirected(true);
         router.replace('/coordinator-dashboard');
+        break;
+      
+      case 'coordinador_transporte':
+        console.log('🚚 [dashboard] Redirecting to transporte dashboard');
+        setHasRedirected(true);
+        router.replace('/transporte/dashboard');
+        break;
+      
+      case 'chofer':
+        console.log('🚗 [dashboard] Redirecting to chofer dashboard');
+        setHasRedirected(true);
+        router.replace('/chofer/viajes');
+        break;
+      
+      case 'administrativo':
+        console.log('📋 [dashboard] Redirecting to transporte dashboard (administrativo)');
+        setHasRedirected(true);
+        router.replace('/transporte/dashboard');
+        break;
+      
+      case 'control_acceso':
+        console.log('🚪 [dashboard] Redirecting to control-acceso');
+        setHasRedirected(true);
+        router.replace('/control-acceso');
+        break;
+      
+      case 'supervisor_carga':
+        console.log('👷 [dashboard] Redirecting to supervisor-carga');
+        setHasRedirected(true);
+        router.replace('/supervisor-carga');
+        break;
+      
+      case 'visor':
+        console.log('👁️ [dashboard] Redirecting to cliente dashboard');
+        setHasRedirected(true);
+        router.replace('/cliente/dashboard');
         break;
       
       default:

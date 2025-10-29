@@ -1,6 +1,6 @@
 // components/Transporte/ViajesAsignados.tsx
 import React, { useState } from 'react';
-import { ChevronRightIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, MapPinIcon, TruckIcon } from '@heroicons/react/24/outline';
 
 interface Viaje {
   id: string;

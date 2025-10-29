@@ -90,10 +90,14 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
   const [isFetching, setIsFetching] = useState<boolean>(false); // 🔥 Evita race conditions
 
   // 🔥 OPTIMIZADO: useMemo para valores derivados
-  const primaryRole = useMemo(() => 
-    roles.length > 0 ? getPrimaryRole(roles) : null, 
-    [roles]
-  );
+  const primaryRole = useMemo(() => {
+    const calculatedRole = roles.length > 0 ? getPrimaryRole(roles) : null;
+    console.log('🎯 [UserRoleContext] primaryRole calculado:', {
+      roles,
+      calculatedRole
+    });
+    return calculatedRole;
+  }, [roles]);
   
   // Derived values for backward compatibility
   const email = useMemo(() => user?.email || '', [user]);
@@ -238,73 +242,30 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         return; // IMPORTANTE: Salir aquí y NO seguir buscando otros roles
       }
 
-      // Get user roles from usuarios_empresa table
+      // 🔥 ACTUALIZADO: Buscar directamente en usuarios_empresa con JOIN a empresas
+      console.log('🔍 [UserRoleContext] Buscando datos de usuario en usuarios_empresa...');
+      console.log('   User ID:', authUser.id);
+      console.log('   Email:', authUser.email);
       
-      const { data: usuarioData, error: usuarioError } = await supabase
-        .from('usuarios')
-        .select('id, nombre_completo')
-        .eq('email', authUser.email)
+      const { data: relacionData, error: relacionError } = await supabase
+        .from('usuarios_empresa')
+        .select(`
+          rol_interno, 
+          empresa_id,
+          empresas (
+            id,
+            nombre,
+            tipo_empresa
+          )
+        `)
+        .eq('user_id', authUser.id)
         .single();
 
-      if (usuarioError) {
-        
-        // Fallback to old profile_users structure
-        const { data: profileData, error: profileError } = await supabase
-          .from('profile_users')
-          .select('roles(name)')
-          .eq('user_id', authUser.id)
-          .single();
+      console.log('📊 [UserRoleContext] Query result:', { relacionData, relacionError });
 
-        if (profileError) {
-          console.warn('No profile found for user, using default role');
-          setRoles(['coordinador']); // Default role
-          setEmpresaId(null);
-          finishFetch();
-          return;
-        }
-
-        if (profileData?.roles) {
-          const rolesRaw: any = profileData.roles;
-          const userRoles = Array.isArray(rolesRaw)
-            ? rolesRaw.map((r: any) => r.name)
-            : [rolesRaw.name];
-          
-          setRoles(userRoles.filter((role: string): role is UserRole => 
-            ['admin', 'coordinador', 'transporte'].includes(role)
-          ));
-          setEmpresaId(null); // Sistema antiguo no tiene empresa_id
-        } else {
-          setRoles(['coordinador']); // Default fallback
-          setEmpresaId(null);
-        }
-        finishFetch();
-        return;
-      }
-
-      // Get role relation separately
-      if (usuarioData) {
-        // Buscar primero con user_id de auth.users (caso de super_admin)
-        // 🔥 ACTUALIZADO: incluir JOIN con empresas para obtener tipo_empresa
-        console.log('🔍 [UserRoleContext] Buscando datos de usuario...');
-        const { data: relacionData, error: relacionError } = await supabase
-          .from('usuarios_empresa')
-          .select(`
-            rol_interno, 
-            empresa_id,
-            empresas (
-              id,
-              nombre,
-              tipo_empresa
-            )
-          `)
-          .eq('user_id', authUser.id)
-          .single();
-
-        console.log('📊 [UserRoleContext] Query result:', { relacionData, relacionError });
-
-        if (relacionError || !relacionData) {
-          console.warn('⚠️ [UserRoleContext] No se encontró relación única, buscando múltiples...');
-          console.warn('   Error:', relacionError?.message);
+      if (relacionError || !relacionData) {
+        console.warn('⚠️ [UserRoleContext] No se encontró relación única, buscando múltiples...');
+        console.warn('   Error:', relacionError?.message);
           // Buscar múltiples empresas (usuario puede tener varios vínculos)
           const { data: multiRelacionData, error: multiError } = await supabase
             .from('usuarios_empresa')
@@ -444,10 +405,6 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           finishFetch();
           return;
         }
-      }
-      
-      setRoles(['coordinador']);
-      finishFetch();
 
     } catch (err) {
       console.error('Error fetching user roles:', err);
