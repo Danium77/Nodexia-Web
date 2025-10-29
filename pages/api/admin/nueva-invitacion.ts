@@ -53,6 +53,110 @@ export default async function handler(
 
     console.log('✅ Empresa encontrada:', empresa.nombre);
 
+    // ========================================
+    // MÉTODO ALTERNATIVO SIN EMAIL (TESTING)
+    // ========================================
+    // Cuando actives SendGrid, comenta este bloque y descomenta el bloque de abajo
+    
+    const USE_EMAIL_METHOD = process.env.NEXT_PUBLIC_USE_EMAIL_INVITES === 'true';
+
+    if (!USE_EMAIL_METHOD) {
+      console.log('🔗 Modo sin email: Generando link de invitación directo');
+      
+      // Generar password temporal seguro
+      const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Date.now().toString().slice(-4)}`;
+      
+      // Crear usuario directamente en Supabase Auth
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: false, // Usuario debe confirmar (o lo hacemos manual)
+        user_metadata: {
+          nombre,
+          apellido,
+          telefono: telefono || '',
+          empresa_id,
+          empresa_nombre: empresa.nombre,
+          rol_interno,
+          departamento: departamento || '',
+          invitado_el: new Date().toISOString()
+        }
+      });
+
+      if (userError) {
+        console.error('❌ Error creando usuario:', userError);
+        
+        if (userError.message?.includes('already') || userError.message?.includes('exists')) {
+          return res.status(400).json({ 
+            error: 'El usuario ya existe',
+            solucion: 'Use la opción "Reenviar Invitación" o contacte al usuario para que restablezca su contraseña'
+          });
+        }
+        
+        return res.status(500).json({ error: userError.message });
+      }
+
+      // Crear registro en usuarios_empresa
+      const { error: vinculoError } = await supabaseAdmin
+        .from('usuarios_empresa')
+        .insert({
+          user_id: userData.user.id,
+          empresa_id,
+          rol_interno,
+          nombre_completo: `${nombre} ${apellido}`,
+          telefono_interno: telefono || '',
+          activo: true,
+          fecha_vinculacion: new Date().toISOString()
+        });
+
+      if (vinculoError) {
+        console.error('❌ Error creando vínculo usuario-empresa:', vinculoError);
+        // No fallar, el usuario ya está creado
+      }
+
+      // Generar link de invitación usando generateLink
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email: email,
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/complete-invite`
+        }
+      });
+
+      if (linkError) {
+        console.error('⚠️ Error generando link:', linkError);
+        // Continuar de todos modos, tenemos el password temporal
+      }
+
+      const inviteLink = linkData?.properties?.action_link || `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/complete-invite`;
+
+      console.log('✅ Usuario creado sin email');
+      
+      return res.status(200).json({
+        success: true,
+        message: `Usuario creado exitosamente`,
+        metodo: 'link_directo',
+        usuario: {
+          email,
+          nombre_completo: `${nombre} ${apellido}`,
+          empresa: empresa.nombre
+        },
+        link_invitacion: inviteLink,
+        password_temporal: tempPassword,
+        instrucciones: [
+          '1. Copia el link de invitación',
+          '2. Envíalo al usuario por WhatsApp/otro medio',
+          '3. El usuario deberá usar el link para activar su cuenta',
+          `4. Credenciales temporales: ${email} / ${tempPassword}`
+        ]
+      });
+    }
+
+    // ========================================
+    // MÉTODO CON EMAIL (PRODUCCIÓN - REQUIERE SMTP)
+    // ========================================
+    // Descomenta este bloque cuando actives SendGrid
+
     // Generar invitación por email con metadata completa
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,

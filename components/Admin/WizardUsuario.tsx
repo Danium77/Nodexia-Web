@@ -527,16 +527,34 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       const result = await response.json();
 
       if (response.ok) {
-        console.log('✅ Invitación enviada exitosamente');
+        console.log('✅ Invitación procesada exitosamente');
+        
         if (isMountedRef.current) {
-          setSuccess(`✅ Invitación enviada a ${formData.email}\n\n${result.message}`);
+          // Mostrar mensaje diferente según el método usado
+          if (result.metodo === 'link_directo') {
+            // Modo sin email: mostrar link y credenciales
+            const linkMsg = `✅ Usuario creado exitosamente!\n\n` +
+              `📧 Email: ${result.usuario.email}\n` +
+              `👤 Nombre: ${result.usuario.nombre_completo}\n` +
+              `🏢 Empresa: ${result.usuario.empresa}\n\n` +
+              `🔗 Link de activación:\n${result.link_invitacion}\n\n` +
+              `🔑 Credenciales temporales:\n` +
+              `Email: ${result.usuario.email}\n` +
+              `Password: ${result.password_temporal}\n\n` +
+              `📋 Envía estos datos al usuario por WhatsApp o mensaje directo.`;
+            
+            setSuccess(linkMsg);
+          } else {
+            // Modo con email: mensaje estándar
+            setSuccess(`✅ Invitación enviada a ${formData.email}\n\n${result.message}`);
+          }
         }
         
         // Limpiar sessionStorage antes de cerrar
         sessionStorage.removeItem('wizardUsuarioState');
         sessionStorage.removeItem('wizardUsuarioOpen');
         
-        // Cerrar el wizard después de 2 segundos
+        // Cerrar el wizard después de 5 segundos (más tiempo para copiar credenciales)
         setTimeout(() => {
           // Primero cerrar el modal para evitar errores de DOM
           onClose();
@@ -544,7 +562,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
           setTimeout(() => {
             onSuccess();
           }, 100);
-        }, 2000);
+        }, 5000);
       } else {
         console.error('❌ Error enviando invitación:', result);
         if (isMountedRef.current) {
@@ -664,6 +682,34 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
 
         {/* Content */}
         <div className="p-6">
+          {success && (
+            <div className="mb-6 bg-green-900 border border-green-700 text-green-100 px-4 py-3 rounded">
+              <div className="flex items-start gap-2">
+                <CheckCircleIcon className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <pre className="whitespace-pre-wrap text-sm font-mono">{success}</pre>
+                  {success.includes('🔗 Link') && (
+                    <button
+                      onClick={() => {
+                        const linkMatch = success.match(/🔗 Link de activación:\n(.+)\n/);
+                        const passwordMatch = success.match(/Password: (.+)\n/);
+                        if (linkMatch && passwordMatch) {
+                          navigator.clipboard.writeText(
+                            `Link de activación: ${linkMatch[1]}\n\nCredenciales temporales:\n${passwordMatch[0]}`
+                          );
+                          alert('✅ Credenciales copiadas al portapapeles');
+                        }
+                      }}
+                      className="mt-3 px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      📋 Copiar credenciales
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded flex items-center gap-2">
               <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
