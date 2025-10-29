@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import {
   UserIcon,
@@ -633,7 +634,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
 
   if (!isOpen) return null;
 
-  return (
+  // Usar portal para evitar conflictos de React DOM
+  const modalContent = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -1093,6 +1095,10 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       )}
     </div>
   );
+
+  // Renderizar usando portal para evitar errores de React DOM
+  if (typeof window === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 };
 
 export default WizardUsuario;
