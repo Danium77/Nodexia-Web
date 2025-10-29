@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import {
   UserIcon,
@@ -52,6 +52,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [autoSaved, setAutoSaved] = useState(false); // Indicador de guardado automático
+  const isMountedRef = useRef(true); // Para evitar errores de setState después de desmontar
   
   // Estados para el modal de email existente
   const [showEmailExistsModal, setShowEmailExistsModal] = useState(false);
@@ -76,6 +77,14 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
 
   // Validaciones por paso
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+
+  // Cleanup al desmontar
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Persistir estado del wizard en sessionStorage
   useEffect(() => {
@@ -318,6 +327,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     setError(null);
     setValidationErrors({});
     sessionStorage.removeItem('wizardUsuarioState');
+    sessionStorage.removeItem('wizardUsuarioOpen');
   };
 
   const handleClose = () => {
@@ -445,18 +455,31 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       const result = await response.json();
 
       if (response.ok) {
-        setSuccess(`✅ Invitación reenviada exitosamente a ${email}.\n\nEl usuario recibirá un nuevo email de invitación.`);
+        console.log('✅ Invitación reenviada exitosamente');
+        if (isMountedRef.current) {
+          setSuccess(`✅ Invitación reenviada exitosamente a ${email}.\n\nEl usuario recibirá un nuevo email de invitación.`);
+        }
+        
+        // Limpiar sessionStorage antes de cerrar
+        sessionStorage.removeItem('wizardUsuarioState');
+        sessionStorage.removeItem('wizardUsuarioOpen');
         
         // Cerrar el wizard después de un breve delay
         setTimeout(() => {
           onClose();
-          if (onSuccess) onSuccess();
+          setTimeout(() => {
+            if (onSuccess) onSuccess();
+          }, 100);
         }, 2000);
       } else {
         if (result.error === 'Usuario ya registrado') {
-          setError(`ℹ️ Este usuario ya completó su registro y puede iniciar sesión normalmente.\n\nNo es necesario enviar otra invitación.`);
+          if (isMountedRef.current) {
+            setError(`ℹ️ Este usuario ya completó su registro y puede iniciar sesión normalmente.\n\nNo es necesario enviar otra invitación.`);
+          }
         } else {
-          setError(`Error al reenviar invitación: ${result.error}`);
+          if (isMountedRef.current) {
+            setError(`Error al reenviar invitación: ${result.error}`);
+          }
         }
       }
     } catch (error: any) {
@@ -505,19 +528,31 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
 
       if (response.ok) {
         console.log('✅ Invitación enviada exitosamente');
-        setSuccess(`✅ Invitación enviada a ${formData.email}\n\n${result.message}`);
+        if (isMountedRef.current) {
+          setSuccess(`✅ Invitación enviada a ${formData.email}\n\n${result.message}`);
+        }
+        
+        // Limpiar sessionStorage antes de cerrar
+        sessionStorage.removeItem('wizardUsuarioState');
+        sessionStorage.removeItem('wizardUsuarioOpen');
         
         // Cerrar el wizard después de 2 segundos
         setTimeout(() => {
-          onSuccess();
+          // Primero cerrar el modal para evitar errores de DOM
           onClose();
+          // Luego llamar a onSuccess para recargar la lista
+          setTimeout(() => {
+            onSuccess();
+          }, 100);
         }, 2000);
       } else {
         console.error('❌ Error enviando invitación:', result);
-        if (result.error?.includes('already been registered')) {
-          setError(`El email ${formData.email} ya está registrado. Use la opción "Reenviar Invitación" en su lugar.`);
-        } else {
-          setError(result.error || 'Error enviando la invitación');
+        if (isMountedRef.current) {
+          if (result.error?.includes('already been registered')) {
+            setError(`El email ${formData.email} ya está registrado. Use la opción "Reenviar Invitación" en su lugar.`);
+          } else {
+            setError(result.error || 'Error enviando la invitación');
+          }
         }
       }
     } catch (err: any) {
