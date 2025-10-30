@@ -1,192 +1,96 @@
 # 📑 ÍNDICE DE DOCUMENTACIÓN - NODEXIA WEB
 
-**Última actualización**: 26 de Octubre, 2025  
-**Estado del sistema**: ✅ 100% Operativo  
-**Versión**: Post Sesión #5 - Onboarding Completo + UI Improvements
+**Última actualización**: 29 de Octubre, 2025  
+**Estado del sistema**: ✅ 100% Operativo - Sesiones diferenciadas por tipo de empresa  
+**Versión**: Post Sesión #6 - Sistema de Roles Diferenciados
 
 ---
 
-## 🚀 DOCUMENTOS ESENCIALES (EN .jary/)
+## 🚀 PARA EMPEZAR (LEER PRIMERO)
 
-### 1. **QUICK-START-COMPLETO.md** 🌟🌟🌟
-**EMPIEZA AQUÍ** - Guía de inicio rápido para cualquier desarrollador
+### 1️⃣ **INICIO-RAPIDO.md** 🌟🌟🌟
+**EMPIEZA AQUÍ** - Guía de onboarding con pasos numerados para nuevos desarrolladores
 
-**Ubicación:** `.jary/QUICK-START-COMPLETO.md`
+**Ubicación:** `INICIO-RAPIDO.md` (raíz del proyecto)
 
-- ✅ Setup inicial en minutos
-- ✅ Credenciales de acceso
-- ✅ Arquitectura del sistema
-- ✅ Flujos principales
-- ✅ Troubleshooting básico
-- ✅ Scripts útiles
+**Contenido:**
+- ✅ Setup inicial en 3 pasos claros
+- ✅ Credenciales de todos los tipos de usuario (planta/transporte/cliente)
+- ✅ Mapa completo de documentación
+- ✅ Funcionalidades operativas del sistema
+- ✅ Problemas conocidos con soluciones
+- ✅ Workflow de desarrollo recomendado
+
+**Tiempo de lectura**: 10 minutos  
+**Úsalo para**: Onboarding completo desde cero
+
+---
+
+## 📚 DOCUMENTACIÓN DE SESIONES (HISTORIAL)
+
+### 🌟🌟 **docs/sesiones/SESION-29-OCT-2025.md** (ÚLTIMA SESIÓN)
+**Sistema de roles diferenciados implementado y funcional**
+
+**Ubicación:** `docs/sesiones/SESION-29-OCT-2025.md`
+
+**Logros de la sesión:**
+- ✅ UserRoleContext refactorizado (query directo a usuarios_empresa + JOIN empresas)
+- ✅ Dashboard redirector con todos los roles (8 casos completos)
+- ✅ Sidebar diferenciado por tipo (planta vs transporte vs chofer)
+- ✅ Cache de tipoEmpresa en localStorage implementado
+- ✅ Scripts de utilidad creados (confirm_user_email.js, check_user_gonzalo.js)
+- ✅ Fixes críticos (TruckIcon import, sintaxis UserRoleContext)
+- ✅ Logs de debugging exitosos documentados
+- ✅ Lecciones aprendidas sobre cache y queries
+
+**Archivos modificados:** 6  
+**Scripts creados:** 2  
+**Duración:** ~3 horas  
+**Estado:** ✅ Exitosa - Sistema completamente funcional
 
 **Tiempo de lectura**: 15 minutos  
-**Úsalo para**: Arrancar con el proyecto desde cero
+**Úsalo para**: Entender el estado actual del sistema y últimos cambios
 
 ---
 
-### 2. **CHANGELOG-SESION-4.md** 🌟🌟
-**Cambios recientes** - Documentación completa de la última sesión de estabilización
-
-**Ubicación:** `.jary/CHANGELOG-SESION-4.md`
-
-- ✅ 7 problemas críticos resueltos
-- ✅ Loops infinitos eliminados
-- ✅ Performance optimizado (95% más rápido)
-- ✅ Sistema de roles corregido
-- ✅ localStorage implementado
-- ✅ Lecciones aprendidas
-
-**Tiempo de lectura**: 20 minutos  
-**Úsalo para**: Entender qué cambió y por qué
-
----
-
-### 3. **TROUBLESHOOTING.md** 🌟
-**Guía de resolución de problemas** - Soluciones a problemas comunes
-
-**Ubicación:** `.jary/TROUBLESHOOTING.md`
-
-- ✅ Loops infinitos de navegación
-- ✅ Detección incorrecta de roles
-- ✅ Performance y carga lenta
-- ✅ Errores de base de datos
-- ✅ Problemas de autenticación
-- ✅ Issues de UI/UX
-
-**Tiempo de lectura**: 25 minutos  
-**Úsalo para**: Resolver bugs rápidamente
-
----
-
-### 4. **ARCHITECTURE.md** 🌟🌟
-**Arquitectura del sistema** - Guía técnica completa
-
-**Ubicación:** `.jary/ARCHITECTURE.md`
-
-- ✅ Stack tecnológico detallado
-- ✅ Arquitectura de navegación
-- ✅ Sistema de roles
-- ✅ Gestión de estado con caché
-- ✅ Base de datos y RLS
-- ✅ Patrones y convenciones
-- ✅ Performance best practices
-
-**Tiempo de lectura**: 30 minutos  
-**Úsalo para**: Entender el sistema a fondo
-
----
-
-## 📚 DOCUMENTACIÓN DE TESTING (19 OCT)
-
-### 5. **docs/SESION-2025-10-26.md** 🌟🌟 (NUEVO)
-**Sesión más reciente** - Flujo completo de onboarding validado
+### 🌟 **docs/SESION-2025-10-26.md**
+**Sesión #5 - Onboarding Completo + UI Improvements**
 
 **Ubicación:** `docs/SESION-2025-10-26.md`
 
-- ✅ Onboarding end-to-end completado (empresa → user → ubicaciones → transportes → despachos)
+- ✅ Flujo end-to-end validado (empresa → usuario → despacho → asignación)
 - ✅ Foreign Key constraints corregidos
-- ✅ UI mejorada (sidebar colapsable, tabla compacta)
-- ✅ Bug de "Medios de comunicación" documentado
-- ✅ Tareas pendientes planificadas
+- ✅ Sidebar colapsable con hover implementado
+- ✅ UI optimizada (tabla compacta, espaciado mejorado)
 
 **Tiempo de lectura**: 10 minutos  
-### 8. **PLAN-DE-ACCION.md** 
-**Tu guía de trabajo** - Plan semana por semana con tareas específicas (19 Oct)
-
-- ✅ Checklist diarios
-- ✅ Objetivos semanales
-- ✅ Comandos útiles
-- ✅ Dashboard de métricas
-
-**Tiempo de lectura**: 10 minutos  
-**Úsalo para**: Saber qué hacer cada día
+**Úsalo para**: Ver progreso de sesión anterior
 
 ---
 
-### 9. **RESUMEN-TESTING.md**
+## 🐛 PROBLEMAS Y SOLUCIONES
 
-**Tiempo de lectura**: 15 minutos  
-**Úsalo para**: Planificar próxima sesión de desarrollo
+### 🔴 **docs/PROBLEMAS-CONOCIDOS.md** (NUEVO)
+**78 problemas del terminal categorizados con soluciones detalladas**
 
----
+**Ubicación:** `docs/PROBLEMAS-CONOCIDOS.md`
 
-### 7. **TESTING-COMPLETADO.md** 🌟
-**Testing de sesión anterior** - Resumen completo de testing TypeScript
+**Resumen de problemas:**
+- 🔴 **Críticos (4)**: TrackingView missing, AdminLayout props faltantes
+- 🟡 **Tipos (30)**: Array vs Object access, optional chaining, exactOptionalPropertyTypes
+- 🟢 **Menores (25)**: Variables no usadas, console.logs, imports sin usar
+- � **Otros (19)**: useEffect cleanup, object possibly undefined
 
-- ✅ Qué se hizo
-- ✅ Qué se encontró
-- ✅ Qué hacer ahora
-- ✅ Dónde están los archivos
+**Contenido detallado:**
+- ✅ Resumen por categoría con prioridades
+- ✅ Código incorrecto vs correcto para cada problema
+- ✅ Plan de acción priorizado (1-2-3)
+- ✅ Notas sobre TypeScript Strict Mode
+- ✅ Comandos de testing y validación
+- ✅ Referencias técnicas
 
-### 10. **docs/REPORTE-TESTING-COMPLETO.md** 📖
-
----
-
-### 6. **PLAN-DE-ACCION.md** 
-**Tu guía de trabajo** - Plan semana por semana con tareas específicas
-
-- ✅ Checklist diarios
-- ✅ Objetivos semanales
-- ✅ Comandos útiles
-- ✅ Dashboard de métricas
-
-**Tiempo de lectura**: 10 minutos  
-**Úsalo para**: Saber qué hacer cada día
-
----
-
-### 7. **RESUMEN-TESTING.md** 
-**Resumen ejecutivo** - Para entender el estado general
-
-- ✅ Hallazgos principales
-- ✅ Métricas de calidad
-- ✅ Recomendaciones técnicas
-- ✅ Conclusiones
-
-**Tiempo de lectura**: 7 minutos  
-**Úsalo para**: Presentaciones o reportes ejecutivos
-
----
-
-## 📚 DOCUMENTACIÓN DETALLADA
-
-### 8. **docs/REPORTE-TESTING-COMPLETO.md** 📖
-**La biblia del testing** - Detalle completo de todos los errores
-
-- ✅ 325 errores TypeScript categorizados
-- ✅ Ejemplos de código para cada tipo
-- ✅ Soluciones detalladas
-- ✅ Plan de acción priorizado
-
-**Tiempo de lectura**: 30 minutos  
-**Úsalo para**: Resolver errores específicos
-
----
-
-### 11. **docs/GUIA-CORRECCIONES-MANUALES.md** 📖
-**Manual de correcciones** - Cómo corregir cada tipo de error
-
-- ✅ Patrones comunes de errores
-- ✅ Código incorrecto vs correcto
-- ✅ Comandos útiles
-- ✅ Checklist de validación
-
-**Tiempo de lectura**: 15 minutos  
-**Úsalo para**: Referencia rápida mientras corriges código
-
----
-
-### 12. **docs/bugs/BUG-REPORT-ASIGNACION-TRANSPORTE.md** 🐛
-**Bug crítico documentado** - Asignación de transporte no funcional
-
-- ✅ Pasos para reproducir
-- ✅ Comportamiento esperado vs actual
-- ✅ Archivos involucrados
-- ✅ Plan de investigación
-
-**Tiempo de lectura**: 5 minutos  
-**Úsalo para**: Resolver el bug crítico
+**Tiempo de lectura**: 20 minutos  
+**Úsalo para**: Resolver problemas específicos del proyecto
 
 ---
 
