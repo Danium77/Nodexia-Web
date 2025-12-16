@@ -135,8 +135,8 @@ export default function TestInteraccionUsuarios() {
       const usuariosTransformados = usuariosData?.map(usuario => ({
         ...usuario,
         empresa: {
-          nombre: usuario.empresas.nombre,
-          tipo_empresa: usuario.empresas.tipo_empresa
+          nombre: Array.isArray(usuario.empresas) && usuario.empresas[0] ? usuario.empresas[0].nombre : 'Sin empresa',
+          tipo_empresa: Array.isArray(usuario.empresas) && usuario.empresas[0] ? usuario.empresas[0].tipo_empresa : 'unknown'
         }
       })) || [];
       

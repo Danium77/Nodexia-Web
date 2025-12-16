@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { useLogsAdmin } from '../../lib/hooks/useSuperAdmin';
-import type { LogAdmin, FiltroLogs } from '../../types/superadmin';
+import type { FiltrosLogs } from '../../types/superadmin';
 
 export default function LogsManager() {
   const { logs, loading } = useLogsAdmin();
-  const [filtros, setFiltros] = useState<FiltroLogs>({
-    accion: undefined,
+  const [filtros, setFiltros] = useState<FiltrosLogs>({
     fecha_desde: '',
-    fecha_hasta: '',
-    admin_id: ''
+    fecha_hasta: ''
   });
 
   const formatDateTime = (dateString: string) => {
@@ -51,8 +49,8 @@ export default function LogsManager() {
   const logsFiltrados = logs.filter(log => {
     if (filtros.accion && log.accion !== filtros.accion) return false;
     if (filtros.admin_id && log.admin_id !== filtros.admin_id) return false;
-    if (filtros.fecha_desde && new Date(log.timestamp) < new Date(filtros.fecha_desde)) return false;
-    if (filtros.fecha_hasta && new Date(log.timestamp) > new Date(filtros.fecha_hasta)) return false;
+    if (filtros.fecha_desde && new Date(log.fecha_creacion) < new Date(filtros.fecha_desde)) return false;
+    if (filtros.fecha_hasta && new Date(log.fecha_creacion) > new Date(filtros.fecha_hasta)) return false;
     return true;
   });
 
@@ -60,14 +58,14 @@ export default function LogsManager() {
     total: logsFiltrados.length,
     hoy: logsFiltrados.filter(log => {
       const hoy = new Date();
-      const fechaLog = new Date(log.timestamp);
+      const fechaLog = new Date(log.fecha_creacion);
       return fechaLog.toDateString() === hoy.toDateString();
     }).length,
     esta_semana: logsFiltrados.filter(log => {
       const hoy = new Date();
       const semanaAtras = new Date();
       semanaAtras.setDate(hoy.getDate() - 7);
-      const fechaLog = new Date(log.timestamp);
+      const fechaLog = new Date(log.fecha_creacion);
       return fechaLog >= semanaAtras;
     }).length,
     acciones_criticas: logsFiltrados.filter(log => 
@@ -184,7 +182,7 @@ export default function LogsManager() {
                       {getAccionLabel(log.accion)}
                     </span>
                     <span className="text-sm text-gray-500">
-                      {formatDateTime(log.timestamp)}
+                      {formatDateTime(log.fecha_creacion)}
                     </span>
                   </div>
                   
@@ -194,17 +192,17 @@ export default function LogsManager() {
                       <span className="ml-2 text-gray-900">{log.admin_email}</span>
                     </div>
                     
-                    {log.empresa_afectada && (
+                    {log.detalles?.empresa_afectada && (
                       <div>
                         <span className="font-medium text-gray-700">Empresa:</span>
-                        <span className="ml-2 text-gray-900">{log.empresa_afectada}</span>
+                        <span className="ml-2 text-gray-900">{log.detalles.empresa_afectada}</span>
                       </div>
                     )}
                     
-                    {log.usuario_afectado && (
+                    {log.detalles?.usuario_afectado && (
                       <div>
                         <span className="font-medium text-gray-700">Usuario:</span>
-                        <span className="ml-2 text-gray-900">{log.usuario_afectado}</span>
+                        <span className="ml-2 text-gray-900">{log.detalles.usuario_afectado}</span>
                       </div>
                     )}
                     
@@ -214,19 +212,19 @@ export default function LogsManager() {
                     </div>
                   </div>
 
-                  {log.detalles_cambios && (
+                  {log.detalles && Object.keys(log.detalles).length > 0 && (
                     <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                       <div className="font-medium text-gray-700 text-sm mb-2">Detalles del cambio:</div>
                       <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">
-                        {JSON.stringify(log.detalles_cambios, null, 2)}
+                        {JSON.stringify(log.detalles, null, 2)}
                       </pre>
                     </div>
                   )}
 
-                  {log.observaciones && (
+                  {log.detalles?.observaciones && (
                     <div className="mt-3 p-3 bg-yellow-50 rounded-lg">
                       <div className="font-medium text-yellow-800 text-sm mb-1">Observaciones:</div>
-                      <div className="text-sm text-yellow-700">{log.observaciones}</div>
+                      <div className="text-sm text-yellow-700">{log.detalles.observaciones}</div>
                     </div>
                   )}
                 </div>

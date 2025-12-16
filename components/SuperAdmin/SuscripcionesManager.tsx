@@ -4,42 +4,37 @@ import {
   useSuscripcionesAdmin,
   useEmpresasAdmin 
 } from '../../lib/hooks/useSuperAdmin';
-import type { 
-  PlanSuscripcion, 
-  SuscripcionEmpresa,
-  EmpresaAdmin 
-} from '../../types/superadmin';
 
 export default function SuscripcionesManager() {
   const { planes } = usePlanesSuscripcion();
-  const { suscripciones, loading, cambiarPlanEmpresa } = useSuscripcionesAdmin();
+  const { suscripciones, loading } = useSuscripcionesAdmin();
   const { empresas } = useEmpresasAdmin();
   
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<string>('');
-  const [processing, setProcessing] = useState(false);
+  // const [processing, setProcessing] = useState(false);
 
-  const handleChangePlan = async () => {
-    if (!selectedEmpresa || !selectedPlan) {
-      alert('Seleccione empresa y plan');
-      return;
-    }
+  // const handleChangePlan = async () => {
+  //   if (!selectedEmpresa || !selectedPlan) {
+  //     alert('Seleccione empresa y plan');
+  //     return;
+  //   }
 
-    try {
-      setProcessing(true);
-      await cambiarPlanEmpresa(selectedEmpresa, selectedPlan);
-      setShowChangePlan(false);
-      setSelectedEmpresa('');
-      setSelectedPlan('');
-      alert('Plan cambiado exitosamente');
-    } catch (error) {
-      console.error('Error changing plan:', error);
-      alert('Error al cambiar plan');
-    } finally {
-      setProcessing(false);
-    }
-  };
+  //   try {
+  //     setProcessing(true);
+  //     await cambiarPlanEmpresa(selectedEmpresa, selectedPlan);
+  //     setShowChangePlan(false);
+  //     setSelectedEmpresa('');
+  //     setSelectedPlan('');
+  //     alert('Plan cambiado exitosamente');
+  //   } catch (error) {
+  //     console.error('Error changing plan:', error);
+  //     alert('Error al cambiar plan');
+  //   } finally {
+  //     setProcessing(false);
+  //   }
+  // };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-AR', {
@@ -85,7 +80,7 @@ export default function SuscripcionesManager() {
               {suscripciones.filter(s => s.plan_id === plan.id && s.estado === 'activa').length} activas
             </div>
             <div className="text-xs text-gray-500 mt-2">
-              Límites: {plan.limite_usuarios} usuarios, {plan.limite_despachos} despachos/mes
+              Límites: {plan.limites?.max_usuarios || 'Ilimitado'} usuarios, {plan.limites?.max_despachos_mes || 'Ilimitado'} despachos/mes
             </div>
           </div>
         ))}
@@ -129,7 +124,7 @@ export default function SuscripcionesManager() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {suscripciones.map((suscripcion) => {
-              const empresa = empresas.find(e => e.empresa_id === suscripcion.empresa_id);
+              const empresa = empresas.find(e => e.id === suscripcion.empresa_id);
               const plan = planes.find(p => p.id === suscripcion.plan_id);
               
               return (
@@ -159,24 +154,20 @@ export default function SuscripcionesManager() {
                       {suscripcion.fecha_fin && (
                         <div>Fin: {formatDate(suscripcion.fecha_fin)}</div>
                       )}
-                      {suscripcion.proximo_pago && (
-                        <div>Próximo: {formatDate(suscripcion.proximo_pago)}</div>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
-                      <div>Usuarios: {suscripcion.usuarios_actuales}/{plan?.limite_usuarios}</div>
-                      <div>Despachos: {suscripcion.despachos_mes_actual}/{plan?.limite_despachos}</div>
+                      <div>Límites aplicados según plan</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>
                       <div className="font-medium">
-                        {formatCurrency(suscripcion.monto_mensual)}
+                        {formatCurrency(suscripcion.precio_pagado)}
                       </div>
                       <div className="text-gray-500">
-                        Ciclo: {suscripcion.ciclo_facturacion}
+                        Ciclo: {suscripcion.periodo}
                       </div>
                     </div>
                   </td>
@@ -204,8 +195,8 @@ export default function SuscripcionesManager() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 >
                   <option value="">Seleccionar empresa...</option>
-                  {empresas.map((empresa) => (
-                    <option key={empresa.empresa_id} value={empresa.empresa_id}>
+                  {empresas.map((empresa, index) => (
+                    <option key={`emp-${index}`} value={empresa.id}>
                       {empresa.nombre} - {empresa.cuit}
                     </option>
                   ))}
@@ -238,14 +229,14 @@ export default function SuscripcionesManager() {
                       <div className="text-sm">
                         <div className="font-medium">{plan.nombre}</div>
                         <div>Precio: {formatCurrency(plan.precio_mensual)}/mes</div>
-                        <div>Usuarios: {plan.limite_usuarios}</div>
-                        <div>Despachos: {plan.limite_despachos}/mes</div>
+                        <div>Usuarios: {plan.limites?.max_usuarios || 'Ilimitado'}</div>
+                        <div>Despachos: {plan.limites?.max_despachos_mes || 'Ilimitado'}/mes</div>
                         {plan.caracteristicas && (
                           <div className="mt-2">
                             <div className="font-medium">Características:</div>
                             <ul className="list-disc list-inside text-gray-600">
-                              {plan.caracteristicas.map((caracteristica, index) => (
-                                <li key={index}>{caracteristica}</li>
+                              {Object.entries(plan.caracteristicas).map(([key, value], index) => (
+                                <li key={index}>{key}: {String(value)}</li>
                               ))}
                             </ul>
                           </div>
@@ -264,13 +255,13 @@ export default function SuscripcionesManager() {
               >
                 Cancelar
               </button>
-              <button
+              {/* <button
                 onClick={handleChangePlan}
                 disabled={processing || !selectedEmpresa || !selectedPlan}
                 className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
                 {processing ? 'Cambiando...' : 'Cambiar Plan'}
-              </button>
+              </button> */}
             </div>
           </div>
         </div>

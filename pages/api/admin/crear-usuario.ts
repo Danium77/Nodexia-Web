@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { withAdminAuth, type NextApiHandlerWithAdmin } from '../../../lib/middleware/withAdminAuth';
 
-const createUserHandler: NextApiHandlerWithAdmin = async (req, res, adminUser) => {
+const createUserHandler: NextApiHandlerWithAdmin = async (req, res, _adminUser) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed' });

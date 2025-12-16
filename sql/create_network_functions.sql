@@ -174,7 +174,7 @@ BEGIN
     WHERE email = p_email_usuario;
     
     IF usuario_target_id IS NULL THEN
-        RAISE EXCEPTION 'Usuario con email % no encontrado', p_email_usuario;
+        RAISE EXCEPTION 'Usuario con email % no encontrado en auth.users', p_email_usuario;
     END IF;
     
     -- Verificar que el usuario no esté ya en la empresa
@@ -185,6 +185,16 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'El usuario ya pertenece a esta empresa';
     END IF;
+    
+    -- Asegurar que existe en profiles (con columna 'name')
+    INSERT INTO public.profiles (id, name)
+    VALUES (usuario_target_id, p_nombre_completo)
+    ON CONFLICT (id) DO NOTHING;
+    
+    -- Asegurar que existe en usuarios
+    INSERT INTO public.usuarios (id, email, nombre_completo)
+    VALUES (usuario_target_id, p_email_usuario, p_nombre_completo)
+    ON CONFLICT (id) DO NOTHING;
     
     -- Agregar usuario a la empresa
     INSERT INTO public.usuarios_empresa (

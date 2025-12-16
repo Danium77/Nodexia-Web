@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { useTransports, useSearch } from '../../lib/hooks';
-import { SearchInput, Button, Input } from '../ui';
+import { SearchInput, Button } from '../ui';
 
 interface TransportOption {
   id: string;
@@ -46,14 +46,60 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
 
   const [selectedTransport, setSelectedTransport] = useState<string>('');
   const [assignmentNotes, setAssignmentNotes] = useState('');
-  const [cantidadViajesAsignar, setCantidadViajesAsignar] = useState<number>(dispatch.cantidad_viajes_solicitados || 1);
+  const [cantidadViajesAsignar, setCantidadViajesAsignar] = useState<number>(1);
+  const [viajesDisponibles, setViajesDisponibles] = useState<number>(1);
+  const [viajesYaAsignados, setViajesYaAsignados] = useState<number>(0); // 🔥 NUEVO
   const [loading, setLoading] = useState(false);
+  const [loadingViajes, setLoadingViajes] = useState(true); // Nuevo estado
   const [error, setError] = useState('');
 
-  // Actualizar cantidad cuando cambia el dispatch (pero sin resetear todo)
+  // Calcular viajes disponibles cuando se abre el modal
   useEffect(() => {
-    setCantidadViajesAsignar(dispatch.cantidad_viajes_solicitados || 1);
-  }, [dispatch.id, dispatch.cantidad_viajes_solicitados]);
+    if (isOpen && dispatch.id) {
+      setLoadingViajes(true);
+      const calcularViajesDisponibles = async () => {
+        try {
+          // Obtener valor original de BD
+          const { data: despachoActual } = await supabase
+            .from('despachos')
+            .select('cantidad_viajes_solicitados')
+            .eq('id', dispatch.id)
+            .single();
+
+          const cantidadOriginal = despachoActual?.cantidad_viajes_solicitados || dispatch.cantidad_viajes_solicitados || 1;
+
+          // 🔥 CORREGIDO: Contar solo viajes realmente asignados (estado = 'asignado')
+          const { data: viajesAsignados } = await supabase
+            .from('viajes_despacho')
+            .select('id, estado')
+            .eq('despacho_id', dispatch.id)
+            .eq('estado', 'asignado'); // Solo viajes con estado asignado
+
+          // Contar todos los viajes (para calcular disponibles)
+          const { data: viajesExistentes } = await supabase
+            .from('viajes_despacho')
+            .select('id')
+            .eq('despacho_id', dispatch.id);
+
+          const yaAsignados = viajesAsignados?.length || 0;
+          const totalViajes = viajesExistentes?.length || 0;
+          const disponibles = cantidadOriginal - totalViajes;
+
+          console.log(`📊 Cálculo inicial: ${cantidadOriginal} total - ${totalViajes} existentes = ${disponibles} disponibles (${yaAsignados} ya asignados)`);
+
+          setViajesYaAsignados(yaAsignados); // 🔥 NUEVO
+          setViajesDisponibles(disponibles);
+          setCantidadViajesAsignar(disponibles);
+        } catch (error) {
+          console.error('⚠️ Error calculando viajes disponibles:', error);
+        } finally {
+          setLoadingViajes(false);
+        }
+      };
+
+      calcularViajesDisponibles();
+    }
+  }, [isOpen, dispatch.id]);
 
   // Resetear SOLO cuando se abre el modal
   useEffect(() => {
@@ -80,29 +126,83 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
       console.log('Transporte seleccionado:', selectedTransport);
       console.log('Cantidad de viajes a asignar:', cantidadViajesAsignar);
 
+      // 🔥 OBTENER EL VALOR REAL Y ACTUALIZADO DE LA BD
+      const { data: despachoActual, error: despachoError } = await supabase
+        .from('despachos')
+        .select('cantidad_viajes_solicitados')
+        .eq('id', dispatch.id)
+        .single();
+
+      if (despachoError) {
+        console.error('❌ Error obteniendo despacho actual:', despachoError);
+        throw despachoError;
+      }
+
+      const cantidadOriginalViajes = despachoActual?.cantidad_viajes_solicitados || dispatch.cantidad_viajes_solicitados || 1;
+      console.log(`📊 Cantidad original de viajes (desde BD): ${cantidadOriginalViajes}`);
+
+      // VALIDACIÓN PREVIA: Verificar cuántos viajes ya existen (excluyendo cancelados)
+      const { data: viajesExistentesCheck, error: checkError } = await supabase
+        .from('viajes_despacho')
+        .select('id, numero_viaje, estado')
+        .eq('despacho_id', dispatch.id)
+        .neq('estado', 'cancelado_por_transporte');
+
+      if (checkError) {
+        console.error('❌ Error verificando viajes existentes:', checkError);
+        throw checkError;
+      }
+
+      const viajesYaAsignados = viajesExistentesCheck?.length || 0;
+      console.log(`🔍 Pre-validación: ${viajesYaAsignados} viajes ya asignados`);
+      console.log(`🔍 Intentando asignar: ${cantidadViajesAsignar} viajes adicionales`);
+      console.log(`🔍 Total después de asignación: ${viajesYaAsignados + cantidadViajesAsignar}`);
+      console.log(`🔍 Cantidad original de viajes: ${cantidadOriginalViajes}`);
+      console.log(`🔍 Viajes realmente pendientes: ${cantidadOriginalViajes - viajesYaAsignados}`);
+
+      // Calcular cuántos viajes REALMENTE quedan disponibles
+      const viajesRealmenteDisponibles = cantidadOriginalViajes - viajesYaAsignados;
+
+      // Validar que no se exceda el límite
+      if (cantidadViajesAsignar > viajesRealmenteDisponibles) {
+        const errorMsg = `⚠️ Solo quedan ${viajesRealmenteDisponibles} viajes pendientes. No puedes asignar ${cantidadViajesAsignar}.`;
+        console.error(errorMsg);
+        setError(errorMsg);
+        setLoading(false);
+        return;
+      }
+
       // Si el despacho tiene múltiples viajes, crear registros en viajes_despacho
       if (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 1) {
         console.log('📋 Creando registros de viajes individuales...');
+        console.log('📊 Estado inicial del despacho:', {
+          cantidad_viajes_solicitados: dispatch.cantidad_viajes_solicitados,
+          cantidadViajesAsignar: cantidadViajesAsignar
+        });
         
-        // Primero, obtener cuántos viajes ya existen para este despacho
+        // Primero, obtener TODOS los viajes existentes para este despacho (excluyendo cancelados)
         const { data: viajesExistentes, error: countError } = await supabase
           .from('viajes_despacho')
-          .select('numero_viaje')
+          .select('numero_viaje, estado')
           .eq('despacho_id', dispatch.id)
-          .order('numero_viaje', { ascending: false })
-          .limit(1);
+          .neq('estado', 'cancelado_por_transporte')
+          .order('numero_viaje', { ascending: false });
 
         if (countError) {
-          console.error('Error contando viajes existentes:', countError);
+          console.error('❌ Error contando viajes existentes:', countError);
           throw countError;
         }
 
+        const cantidadViajesYaAsignados = viajesExistentes?.length || 0;
+        
         // Calcular el próximo número de viaje
         const ultimoNumeroViaje = viajesExistentes && viajesExistentes.length > 0 && viajesExistentes[0]
           ? viajesExistentes[0].numero_viaje 
           : 0;
         
-        console.log(`📊 Último viaje existente: ${ultimoNumeroViaje}, creando desde el ${ultimoNumeroViaje + 1}`);
+        console.log(`📊 Viajes ya asignados: ${cantidadViajesYaAsignados}`);
+        console.log(`📊 Último número de viaje: ${ultimoNumeroViaje}`);
+        console.log(`📊 Creando viajes desde el ${ultimoNumeroViaje + 1} hasta el ${ultimoNumeroViaje + cantidadViajesAsignar}`);
         
         // Crear los viajes asignados a este transporte
         const viajesData = [];
@@ -127,40 +227,122 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
 
         console.log(`✅ ${cantidadViajesAsignar} viajes creados exitosamente (números ${ultimoNumeroViaje + 1} a ${ultimoNumeroViaje + cantidadViajesAsignar})`);
         
-        // Si hay viajes pendientes, actualizar la cantidad en el despacho principal
-        const viajesPendientes = dispatch.cantidad_viajes_solicitados - cantidadViajesAsignar;
+        // Calcular cuántos viajes quedan pendientes usando el valor ORIGINAL de la BD
+        const totalViajesAsignadosAhora = cantidadViajesYaAsignados + cantidadViajesAsignar;
+        const viajesPendientes = cantidadOriginalViajes - totalViajesAsignadosAhora;
+        
+        console.log(`📊 Total viajes asignados ahora: ${totalViajesAsignadosAhora} (anteriores: ${cantidadViajesYaAsignados} + nuevos: ${cantidadViajesAsignar})`);
+        console.log(`📊 Total viajes asignados ahora: ${totalViajesAsignadosAhora} (anteriores: ${cantidadViajesYaAsignados} + nuevos: ${cantidadViajesAsignar})`);
+        console.log(`📊 Cantidad original de viajes: ${cantidadOriginalViajes}`);
+        console.log(`📊 Viajes pendientes: ${viajesPendientes}`);
         
         if (viajesPendientes > 0) {
-          // Actualizar el despacho con la cantidad de viajes restantes
+          // Aún quedan viajes por asignar
+          // Solo actualizamos el comentario (NO viajes_generados)
           const { error: updateError } = await supabase
             .from('despachos')
             .update({
-              cantidad_viajes_solicitados: viajesPendientes,
-              comentarios: `${dispatch.pedido_id} - ${cantidadViajesAsignar} viaje(s) asignado(s), ${viajesPendientes} pendiente(s)`
+              comentarios: `${dispatch.pedido_id} - ${totalViajesAsignadosAhora}/${cantidadOriginalViajes} viajes asignados, ${viajesPendientes} pendiente(s)`
             })
             .eq('id', dispatch.id);
 
-          if (updateError) throw updateError;
+          if (updateError) {
+            console.error('❌ Error actualizando despacho:', updateError);
+            throw updateError;
+          }
           
           console.log(`✅ Despacho actualizado: quedan ${viajesPendientes} viajes pendientes`);
-        } else {
-          // Todos los viajes fueron asignados, marcar despacho como completamente asignado
+        } else if (viajesPendientes === 0) {
+          // Todos los viajes fueron asignados
           const { error: updateError } = await supabase
             .from('despachos')
             .update({
               transport_id: selectedTransport,
               estado: 'transporte_asignado',
-              cantidad_viajes_solicitados: 0, // Ya no quedan viajes pendientes
-              comentarios: assignmentNotes || `${dispatch.pedido_id} - Todos los viajes asignados`
+              comentarios: `${dispatch.pedido_id} - Todos los viajes asignados (${totalViajesAsignadosAhora}/${cantidadOriginalViajes})`
             })
             .eq('id', dispatch.id);
 
-          if (updateError) throw updateError;
+          if (updateError) {
+            console.error('❌ Error actualizando despacho:', updateError);
+            throw updateError;
+          }
           
           console.log('✅ Todos los viajes asignados, despacho completado');
+        } else {
+          // viajesPendientes < 0 - ERROR! Se asignaron más de los solicitados
+          console.error('❌ ERROR: Se intentaron asignar más viajes de los solicitados!');
+          throw new Error(`No se pueden asignar ${cantidadViajesAsignar} viajes. Solo quedan ${viajesRealmenteDisponibles} disponibles.`);
         }
       } else {
         // Despacho simple (1 solo viaje o sin especificar)
+        console.log('📋 Despacho simple - Creando viaje en viajes_despacho...');
+        
+        // Primero, verificar si ya existe un viaje para este despacho (incluyendo cancelados)
+        const { data: viajeExistente, error: checkViajeError } = await supabase
+          .from('viajes_despacho')
+          .select('id, estado')
+          .eq('despacho_id', dispatch.id)
+          .maybeSingle();
+
+        if (checkViajeError) {
+          console.error('❌ Error verificando viaje existente:', checkViajeError);
+          throw checkViajeError;
+        }
+
+        if (!viajeExistente) {
+          // Crear viaje en viajes_despacho
+          console.log('📝 Insertando viaje:', {
+            despacho_id: dispatch.id,
+            numero_viaje: 1,
+            id_transporte: selectedTransport,
+            estado: 'transporte_asignado'
+          });
+
+          const { data: viajeCreado, error: viajeError } = await supabase
+            .from('viajes_despacho')
+            .insert({
+              despacho_id: dispatch.id,
+              numero_viaje: 1,
+              id_transporte: selectedTransport,
+              estado: 'transporte_asignado',
+              observaciones: assignmentNotes || `Viaje único - Asignado a transporte`
+            })
+            .select();
+
+          if (viajeError) {
+            console.error('❌ Error creando viaje:', viajeError);
+            console.error('❌ Detalle del error:', JSON.stringify(viajeError, null, 2));
+            throw viajeError;
+          }
+          
+          console.log('✅ Viaje creado en viajes_despacho:', viajeCreado);
+        } else {
+          console.log('ℹ️ Ya existe un viaje para este despacho, actualizándolo...');
+          
+          // Actualizar el viaje existente (limpiar datos de cancelación si existían)
+          const { error: updateViajeError } = await supabase
+            .from('viajes_despacho')
+            .update({
+              id_transporte: selectedTransport,
+              estado: 'transporte_asignado',
+              observaciones: assignmentNotes || `Viaje único - Asignado a transporte`,
+              motivo_cancelacion: null,
+              fecha_cancelacion: null,
+              cancelado_por: null,
+              id_transporte_cancelado: null
+            })
+            .eq('id', viajeExistente.id);
+
+          if (updateViajeError) {
+            console.error('❌ Error actualizando viaje:', updateViajeError);
+            throw updateViajeError;
+          }
+          
+          console.log('✅ Viaje actualizado en viajes_despacho');
+        }
+
+        // Actualizar despacho
         const updateData = {
           transport_id: selectedTransport,
           estado: 'transporte_asignado',
@@ -172,7 +354,10 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
           .update(updateData)
           .eq('id', dispatch.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('❌ Error actualizando despacho:', updateError);
+          throw updateError;
+        }
         
         console.log('✅ Despacho simple asignado exitosamente');
       }
@@ -254,38 +439,54 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
             </div>
             {dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 1 && (
               <div className="col-span-2 border-t border-gray-600 pt-3 mt-2">
-                <div className="mb-3">
-                  <span className="text-gray-400">🚛 Cantidad de viajes solicitados:</span>
-                  <span className="text-blue-400 ml-2 font-bold text-lg">
-                    {dispatch.cantidad_viajes_solicitados}
-                  </span>
-                </div>
-                <div className="bg-gray-900 p-3 rounded">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    ¿Cuántos viajes asignar?
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      value={cantidadViajesAsignar}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        console.log('📝 Input changed to:', val, 'type:', typeof val);
-                        setCantidadViajesAsignar(val);
-                      }}
-                      min={1}
-                      max={dispatch.cantidad_viajes_solicitados || 1}
-                      step={1}
-                      className="w-24 px-4 py-2 bg-[#1b273b] border border-slate-600 rounded-lg text-slate-50 text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                    />
-                    <span className="text-gray-400 text-sm">
-                      de {dispatch.cantidad_viajes_solicitados} viajes
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <span className="text-gray-400">🚛 Cantidad de viajes solicitados:</span>
+                    <span className="text-blue-400 ml-2 font-bold text-lg">
+                      {dispatch.cantidad_viajes_solicitados}
                     </span>
                   </div>
-                  {cantidadViajesAsignar < dispatch.cantidad_viajes_solicitados && (
-                    <div className="mt-2 text-yellow-400 text-xs">
-                      ℹ️ Quedarán {dispatch.cantidad_viajes_solicitados - cantidadViajesAsignar} viajes pendientes para asignar a otro transporte
+                  {viajesYaAsignados > 0 && (
+                    <div className="text-green-400 text-sm">
+                      ✅ {viajesYaAsignados} ya asignado{viajesYaAsignados > 1 ? 's' : ''}
                     </div>
+                  )}
+                </div>
+                <div className="bg-gray-900 p-3 rounded">
+                  {loadingViajes ? (
+                    <div className="text-center py-4 text-gray-400">
+                      <div className="animate-pulse">Calculando viajes disponibles...</div>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        ¿Cuántos viajes asignar?
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          value={cantidadViajesAsignar}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            console.log('📝 Input changed to:', val, 'type:', typeof val);
+                            setCantidadViajesAsignar(val);
+                          }}
+                          min={1}
+                          max={viajesDisponibles}
+                          step={1}
+                          autoComplete="off"
+                          className="w-24 px-4 py-2 bg-[#1b273b] border border-slate-600 rounded-lg text-slate-50 text-center font-bold text-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        />
+                        <span className="text-gray-400 text-sm">
+                          de {viajesDisponibles} viajes disponibles
+                        </span>
+                      </div>
+                      {cantidadViajesAsignar < viajesDisponibles && (
+                        <div className="mt-2 text-yellow-400 text-xs">
+                          ℹ️ Quedarán {viajesDisponibles - cantidadViajesAsignar} viajes pendientes para asignar a otro transporte
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -359,11 +560,14 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
                       name="transport"
                       value={transport.id}
                       checked={selectedTransport === transport.id}
+                      autoComplete="off"
                       onChange={(e) => {
-                        console.log('🚛 Radio changed, value:', e.target.value);
-                        console.log('🚛 Current selectedTransport:', selectedTransport);
-                        setSelectedTransport(e.target.value);
-                        console.log('🚛 New selectedTransport should be:', e.target.value);
+                        console.log('🚛 Radio changed');
+                        console.log('  - transport.id (original):', transport.id, 'type:', typeof transport.id);
+                        console.log('  - e.target.value:', e.target.value, 'type:', typeof e.target.value);
+                        console.log('  - Are they equal?', transport.id === e.target.value);
+                        setSelectedTransport(transport.id);  // ← FIX: Usar transport.id directamente, no e.target.value
+                        console.log('🚛 selectedTransport set to:', transport.id);
                       }}
                       className="sr-only"
                     />
@@ -396,6 +600,7 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
             onChange={(e) => setAssignmentNotes(e.target.value)}
             placeholder="Instrucciones especiales, contacto, horarios, etc..."
             className="w-full h-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+            autoComplete="off"
           />
         </div>
 
@@ -414,7 +619,6 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
             disabled={!selectedTransport || loading}
             loading={loading}
           >
-            {console.log('🔘 Button render - selectedTransport:', selectedTransport, 'disabled:', !selectedTransport || loading)}
             ✓ Confirmar Asignación
           </Button>
         </div>

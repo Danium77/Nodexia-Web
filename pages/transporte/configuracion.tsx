@@ -37,7 +37,7 @@ export default function TransporteConfiguracion() {
   const router = useRouter();
 
   return (
-    <MainLayout>
+    <MainLayout pageTitle="Configuración de Transporte">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-100">Configuración de Transporte</h1>

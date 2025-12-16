@@ -11,6 +11,7 @@ interface Chofer {
   id_transporte?: string; // Mantener por compatibilidad
   empresa_id?: string; // Nuevo campo para asociación con empresa
   usuario_alta?: string | null;
+  usuario_id?: string | null; // Vinculación con usuario de Nodexia
 }
 
 export function useChoferes() {
@@ -51,23 +52,10 @@ export function useChoferes() {
         throw new Error('Usuario no autenticado');
       }
 
-      // Obtener la empresa del usuario desde la nueva estructura
-      const { data: usuarioEmpresa, error: empresaError } = await supabase
-        .from('usuarios_empresa')
-        .select('empresa_id')
-        .eq('user_id', user.id)
-        .eq('activo', true)
-        .single();
-
-      if (empresaError || !usuarioEmpresa) {
-        // Fallback: usar el sistema anterior si no está en la nueva estructura
-        console.warn('Usuario no está en nueva estructura de empresas, usando sistema anterior');
-        chofer.id_transporte = user.id;
-      } else {
-        // Usar la nueva estructura
-        chofer.empresa_id = usuarioEmpresa.empresa_id;
-        chofer.id_transporte = user.id; // Mantener por compatibilidad
-      }
+      // La tabla choferes solo usa id_transporte (user_id del transporte)
+      // No tiene columna empresa_id
+      chofer.id_transporte = user.id;
+      chofer.usuario_alta = user.id;
 
       const { data, error: insertError } = await supabase
         .from('choferes')
@@ -95,9 +83,8 @@ export function useChoferes() {
           } else if (errorCode === '42501') {
             errorMessage = 'No tiene permisos para realizar esta operación';
           } else {
-            errorMessage = insertError.message || 
-                          insertError.error_description || 
-                          insertError.details || 
+            errorMessage = insertError.message ||
+                          insertError.details ||
                           'Error desconocido en la base de datos';
           }
         }

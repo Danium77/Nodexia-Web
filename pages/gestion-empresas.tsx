@@ -10,7 +10,7 @@ export default function GestionEmpresas() {
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
+export const getServerSideProps: GetServerSideProps = async (_ctx) => {
   return {
     props: {},
   };

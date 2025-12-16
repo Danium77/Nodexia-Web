@@ -1,7 +1,7 @@
 // lib/data/flota.ts
 import { supabase } from '../supabaseClient';
 import { BaseQuery, DataResult, PaginatedResult } from './base';
-import type { Camion, Acoplado, CamionCreateInput, CamionUpdateInput, AcopladoCreateInput, AcopladoUpdateInput } from '../types';
+import type { Camion, Acoplado } from '../types';
 
 export class FlotaData {
   // === CAMIONES ===
@@ -58,7 +58,7 @@ export class FlotaData {
   /**
    * Create new truck
    */
-  static async createCamion(camionData: CamionCreateInput): Promise<DataResult<Camion>> {
+  static async createCamion(camionData: Partial<Camion>): Promise<DataResult<Camion>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('camiones')
@@ -71,7 +71,7 @@ export class FlotaData {
   /**
    * Update truck
    */
-  static async updateCamion(id: string, updates: CamionUpdateInput): Promise<DataResult<Camion>> {
+  static async updateCamion(id: string, updates: Partial<Camion>): Promise<DataResult<Camion>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('camiones')
@@ -135,7 +135,7 @@ export class FlotaData {
   /**
    * Create new trailer
    */
-  static async createAcoplado(acopladoData: AcopladoCreateInput): Promise<DataResult<Acoplado>> {
+  static async createAcoplado(acopladoData: Partial<Acoplado>): Promise<DataResult<Acoplado>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('acoplados')
@@ -148,7 +148,7 @@ export class FlotaData {
   /**
    * Update trailer
    */
-  static async updateAcoplado(id: string, updates: AcopladoUpdateInput): Promise<DataResult<Acoplado>> {
+  static async updateAcoplado(id: string, updates: Partial<Acoplado>): Promise<DataResult<Acoplado>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('acoplados')

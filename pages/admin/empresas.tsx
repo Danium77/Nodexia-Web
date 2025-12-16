@@ -241,7 +241,7 @@ export default function GestionEmpresas() {
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Header */}
-          <div className="mb-8 flex justify-between items-start">
+          <div className="mb-2 flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold text-slate-50 mb-2">
                 Gestión de Empresas
@@ -260,7 +260,7 @@ export default function GestionEmpresas() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-1 mb-2">
             <div className="bg-[#1b273b] rounded-lg p-4 border border-slate-700">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-slate-400 text-sm">Total</span>
@@ -311,7 +311,7 @@ export default function GestionEmpresas() {
           </div>
 
           {/* Filters */}
-          <div className="bg-[#1b273b] rounded-lg p-4 mb-6 border border-slate-700">
+          <div className="bg-[#1b273b] rounded p-2 mb-2 border border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-slate-400" />

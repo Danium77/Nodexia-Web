@@ -1,0 +1,53 @@
+{
+  "name": "Nodexia Chofer",
+  "short_name": "Nodexia",
+  "description": "Sistema de gestión logística para choferes - Nodexia",
+  "start_url": "/chofer-mobile",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait",
+  "scope": "/",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/logo X gruesa.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo X gruesa.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo X gruesa.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo X gruesa.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mis Viajes",
+      "short_name": "Viajes",
+      "description": "Ver mis viajes asignados",
+      "url": "/chofer-mobile",
+      "icons": [
+        {
+          "src": "/logo X gruesa.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}

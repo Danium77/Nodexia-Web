@@ -1,7 +1,7 @@
 // lib/data/choferes.ts
 import { supabase } from '../supabaseClient';
 import { BaseQuery, DataResult, PaginatedResult } from './base';
-import type { Chofer, ChoferCreateInput, ChoferUpdateInput } from '../types';
+import type { Chofer } from '../types';
 
 export class ChoferesData {
   /**
@@ -56,7 +56,7 @@ export class ChoferesData {
   /**
    * Create new driver
    */
-  static async create(choferData: ChoferCreateInput): Promise<DataResult<Chofer>> {
+  static async create(choferData: Partial<Chofer>): Promise<DataResult<Chofer>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('choferes')
@@ -69,7 +69,7 @@ export class ChoferesData {
   /**
    * Update driver
    */
-  static async update(id: string, updates: ChoferUpdateInput): Promise<DataResult<Chofer>> {
+  static async update(id: string, updates: Partial<Chofer>): Promise<DataResult<Chofer>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('choferes')

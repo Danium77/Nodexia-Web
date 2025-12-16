@@ -40,8 +40,8 @@ const mockIncidencias: Incidence[] = [
 
 const InicioDashboard: React.FC<Props> = ({ dispatches: initial = [] }) => {
   // use hooks for real data; fallback to initial dispatches prop
-  const { dispatches: liveDispatches, loading: loadingD } = useDispatches();
-  const { incidencias: liveIncidencias, loading: loadingI } = useIncidencias();
+  const { dispatches: liveDispatches } = useDispatches(); // loading: loadingD removed (not used)
+  const { incidencias: liveIncidencias } = useIncidencias(); // loading: loadingI removed (not used)
 
   const dispatches = (liveDispatches && liveDispatches.length) ? liveDispatches : initial;
 

@@ -141,6 +141,7 @@ export default async function handler(req: any, res: any) {
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email: userData.email,
+      password: 'temp-password-123', // Required but will be replaced
       options: {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002'}/complete-invite`
       }

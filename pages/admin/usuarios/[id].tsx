@@ -525,7 +525,7 @@ const UsuarioDetallePage = () => {
 
 export default UsuarioDetallePage;
 
-export const getServerSideProps: GetServerSideProps = async (context) => {
+export const getServerSideProps: GetServerSideProps = async (_context) => {
   return {
     props: {},
   };

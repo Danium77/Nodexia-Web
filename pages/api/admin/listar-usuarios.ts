@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(403).json({ error: 'Prohibido: No eres administrador' });
       }
     } else {
-      const isAdmin = (profileUser?.roles as Role)?.name === 'admin';
+      const isAdmin = ((profileUser?.roles as unknown) as Role)?.name === 'admin';
       if (roleError || !isAdmin) {
         return res.status(403).json({ error: 'Prohibido: No eres administrador' });
       }
@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 3. Rellenar valores nulos para consistencia en la UI
-    const formattedUsers = users.map(user => ({
+    const formattedUsers = users.map((user: any) => ({
       ...user,
       full_name: user.full_name || 'No asignado',
       dni: user.dni || 'No asignado',

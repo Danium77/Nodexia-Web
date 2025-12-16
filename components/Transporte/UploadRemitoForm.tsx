@@ -98,7 +98,7 @@ const UploadRemitoForm: React.FC<UploadRemitoFormProps> = ({ viajeId, onSuccess 
       const fileName = `${viajeId}/${timestamp}_${tipo}.${fileExt}`;
 
       // Subir archivo a Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('remitos')
         .upload(fileName, file, {
           cacheControl: '3600',

@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const isAdmin = Array.isArray(profileUser?.roles)
           ? (profileUser.roles as Role[]).some((role) => role.name === 'admin')
-          : (profileUser?.roles as Role)?.name === 'admin';
+          : ((profileUser?.roles as unknown) as Role)?.name === 'admin';
 
         if (roleError || !isAdmin) {
             return res.status(403).json({ error: 'Prohibido: No eres administrador' });

@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../../lib/supabaseClient';
 import { ChevronRightIcon, ChevronDownIcon, TruckIcon } from '@heroicons/react/24/outline';
+import { EstadoDualBadge, TimelineEstados } from '../ui/EstadoDualBadge';
+import type { EstadoCargaViaje } from '../../lib/types';
 
 // Importar TrackingMap de forma dinámica para evitar problemas con SSR
 const TrackingMap = dynamic(() => import('./TrackingMap'), {
@@ -40,6 +42,17 @@ interface Viaje {
   acoplado?: {
     patente: string;
   } | undefined;
+  estado_carga_viaje?: {
+    estado_carga: EstadoCargaViaje;
+    fecha_planificado: string | null;
+    fecha_documentacion_preparada: string | null;
+    fecha_en_proceso_carga: string | null;
+    fecha_cargado: string | null;
+    fecha_en_proceso_descarga: string | null;
+    fecha_descargado: string | null;
+    peso_real: number | null;
+    cantidad_bultos: number | null;
+  };
 }
 
 interface Dispatch {
@@ -53,14 +66,17 @@ interface Dispatch {
   scheduled_local_time?: string;
 }
 
-// Estados del viaje en orden
+// Estados del viaje en orden - Sistema Dual Actualizado
 const ESTADOS_VIAJE = [
   { key: 'pendiente', label: 'Pendiente', icon: '⏳', color: 'bg-gray-600' },
-  { key: 'transporte_asignado', label: 'Transporte Asignado', icon: '✅', color: 'bg-green-600' },
-  { key: 'cargando', label: 'Cargando', icon: '⬆️', color: 'bg-orange-600' },
-  { key: 'en_camino', label: 'En Camino', icon: '🚛', color: 'bg-blue-600' },
-  { key: 'descargando', label: 'Descargando', icon: '⬇️', color: 'bg-amber-600' },
-  { key: 'completado', label: 'Completado', icon: '🏁', color: 'bg-gray-600' }
+  { key: 'camion_asignado', label: 'Recursos Asignados', icon: '🚛', color: 'bg-yellow-600' },
+  { key: 'confirmado_chofer', label: 'Confirmado', icon: '✅', color: 'bg-blue-600' },
+  { key: 'en_transito_origen', label: 'Hacia Origen', icon: '🚚', color: 'bg-purple-600' },
+  { key: 'arribo_origen', label: 'En Origen', icon: '📍', color: 'bg-orange-600' },
+  { key: 'en_transito_destino', label: 'Hacia Destino', icon: '🚛', color: 'bg-indigo-600' },
+  { key: 'arribo_destino', label: 'En Destino', icon: '📍', color: 'bg-amber-600' },
+  { key: 'entregado', label: 'Entregado', icon: '✅', color: 'bg-green-600' },
+  { key: 'cancelado', label: 'Cancelado', icon: '❌', color: 'bg-red-600' }
 ];
 
 interface TrackingViewProps {
@@ -84,27 +100,52 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       newExpanded.add(despachoId);
       setExpandedDespachos(newExpanded);
       
-      // Cargar viajes si no están en cache
-      if (!viajesData[despachoId]) {
-        setLoadingViajes(new Set([...loadingViajes, despachoId]));
-        await loadViajes(despachoId);
-        setLoadingViajes(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(despachoId);
-          return newSet;
-        });
-      }
+      // 🔥 SIEMPRE recargar viajes para obtener datos actualizados
+      setLoadingViajes(new Set([...loadingViajes, despachoId]));
+      await loadViajes(despachoId);
+      setLoadingViajes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(despachoId);
+        return newSet;
+      });
     }
   };
 
   const loadViajes = async (despachoId: string) => {
+    console.log('🎯 TrackingView - loadViajes llamado para despacho:', despachoId);
     try {
       // Primero cargar viajes básicos
       const { data: viajes, error } = await supabase
         .from('viajes_despacho')
-        .select('id, numero_viaje, estado, id_transporte, id_chofer, id_camion, id_acoplado, observaciones')
+        .select(`
+          id, 
+          numero_viaje, 
+          estado, 
+          id_transporte, 
+          id_chofer, 
+          id_camion, 
+          id_acoplado, 
+          observaciones,
+          estado_carga_viaje (
+            estado_carga,
+            fecha_planificacion,
+            fecha_documentacion_preparada,
+            fecha_cargando,
+            fecha_carga_completada,
+            fecha_descargando,
+            fecha_descargado,
+            peso_real_kg,
+            cantidad_bultos
+          )
+        `)
         .eq('despacho_id', despachoId)
         .order('numero_viaje', { ascending: true });
+
+      console.log(`🔎 TrackingView - Query result:`, {
+        error,
+        'viajes count': viajes?.length || 0,
+        'viajes': viajes
+      });
 
       if (error) {
         console.error('Error cargando viajes:', error);
@@ -112,6 +153,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       }
 
       if (!viajes || viajes.length === 0) {
+        console.warn(`⚠️ TrackingView - No se encontraron viajes para despacho ${despachoId}`);
         setViajesData(prev => ({
           ...prev,
           [despachoId]: []
@@ -153,13 +195,21 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
         transporte: v.id_transporte ? transportesMap[v.id_transporte] : undefined,
         chofer: v.id_chofer ? choferesMap[v.id_chofer] : undefined,
         camion: v.id_camion ? camionesMap[v.id_camion] : undefined,
-        acoplado: v.id_acoplado ? acopadosMap[v.id_acoplado] : undefined
+        acoplado: v.id_acoplado ? acopadosMap[v.id_acoplado] : undefined,
+        estado_carga_viaje: v.estado_carga_viaje || undefined // 🔥 Preservar estado dual de carga
       }));
 
-      setViajesData(prev => ({
-        ...prev,
-        [despachoId]: viajesCompletos
-      }));
+      console.log('✅ TrackingView - Viajes cargados:', viajesCompletos.length);
+      console.log('📦 TrackingView - Viajes completos:', viajesCompletos);
+
+      setViajesData(prev => {
+        const newState = {
+          ...prev,
+          [despachoId]: viajesCompletos
+        };
+        console.log('🔄 TrackingView - NUEVO ESTADO viajesData:', newState);
+        return newState;
+      });
     } catch (error) {
       console.error('Error cargando viajes:', error);
       setViajesData(prev => ({
@@ -230,6 +280,17 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                 {/* Lista de Viajes Expandida */}
                 {expandedDespachos.has(despacho.id) && (
                   <div className="bg-[#0a0e1a]/50 border-t border-gray-800">
+                    {(() => {
+                      const viajes = viajesData[despacho.id];
+                      const loading = loadingViajes.has(despacho.id);
+                      console.log(`🔍 TrackingView RENDER - Despacho ${despacho.id}:`, {
+                        'loading': loading,
+                        'existe viajesData[despacho.id]': !!viajes,
+                        'length': viajes?.length || 0,
+                        'viajes': viajes
+                      });
+                      return null;
+                    })()}
                     {loadingViajes.has(despacho.id) ? (
                       <div className="p-4 text-center text-gray-400 text-sm">
                         Cargando viajes...
@@ -250,9 +311,18 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                               <span className="text-xs font-mono px-2 py-1 bg-blue-900 text-blue-200 rounded">
                                 Viaje #{viaje.numero_viaje}
                               </span>
-                              <span className={`text-xs px-2 py-1 rounded ${getStatusColor(viaje.estado)} text-white`}>
-                                {getStatusLabel(viaje.estado)}
-                              </span>
+                              {viaje.estado_carga_viaje ? (
+                                <EstadoDualBadge
+                                  tipo="carga"
+                                  estado={viaje.estado_carga_viaje.estado_carga}
+                                  timestamp={viaje.estado_carga_viaje.fecha_carga_completada || viaje.estado_carga_viaje.fecha_cargando}
+                                  size="sm"
+                                />
+                              ) : (
+                                <span className={`text-xs px-2 py-1 rounded ${getStatusColor(viaje.estado)} text-white`}>
+                                  {getStatusLabel(viaje.estado)}
+                                </span>
+                              )}
                             </div>
                             {viaje.transporte ? (
                               <p className="text-xs text-gray-300">
@@ -339,11 +409,32 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                   <span className="text-gray-400 block text-xs mb-1">🔢 Viaje:</span>
                   <span className="text-white font-medium">#{selectedViaje.viaje.numero_viaje}</span>
                 </div>
-                <div>
-                  <span className="text-gray-400 block text-xs mb-1">📊 Estado:</span>
-                  <span className={`px-2 py-1 rounded text-xs inline-block ${getStatusColor(selectedViaje.viaje.estado)} text-white`}>
-                    {getStatusLabel(selectedViaje.viaje.estado)}
-                  </span>
+                <div className="col-span-2">
+                  <span className="text-gray-400 block text-xs mb-1">📊 Estado Carga:</span>
+                  {selectedViaje.viaje.estado_carga_viaje ? (
+                    <div className="space-y-2">
+                      <EstadoDualBadge
+                        tipo="carga"
+                        estado={selectedViaje.viaje.estado_carga_viaje.estado_carga}
+                        timestamp={selectedViaje.viaje.estado_carga_viaje.fecha_cargado || selectedViaje.viaje.estado_carga_viaje.fecha_en_proceso_carga}
+                        size="sm"
+                      />
+                      {selectedViaje.viaje.estado_carga_viaje.peso_real && (
+                        <p className="text-xs text-gray-400">
+                          ⚖️ Peso: {selectedViaje.viaje.estado_carga_viaje.peso_real} kg
+                        </p>
+                      )}
+                      {selectedViaje.viaje.estado_carga_viaje.cantidad_bultos && (
+                        <p className="text-xs text-gray-400">
+                          📦 Bultos: {selectedViaje.viaje.estado_carga_viaje.cantidad_bultos}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <span className={`px-2 py-1 rounded text-xs inline-block ${getStatusColor(selectedViaje.viaje.estado)} text-white`}>
+                      {getStatusLabel(selectedViaje.viaje.estado)}
+                    </span>
+                  )}
                 </div>
 
                 {/* Transporte */}

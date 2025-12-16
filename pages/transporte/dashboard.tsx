@@ -6,6 +6,8 @@ import ViajesAsignados from '../../components/Transporte/ViajesAsignados';
 import ViajeDetalleModal from '../../components/Transporte/ViajeDetalleModal';
 import dynamic from 'next/dynamic';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { useRouter } from 'next/router';
+import { TruckIcon } from '@heroicons/react/24/outline';
 
 // Importar mapa dinámicamente para evitar SSR
 const MapaFlota = dynamic(() => import('../../components/Transporte/MapaFlota'), {
@@ -43,6 +45,7 @@ interface Stats {
 }
 
 const TransporteDashboard = () => {
+  const router = useRouter();
   const { user, userEmpresas, empresaId: empresaIdContext } = useUserRole();
   const [viajes, setViajes] = useState<Viaje[]>([]);
   const [stats, setStats] = useState<Stats>({ pendientes: 0, enCurso: 0, completadosHoy: 0, alertas: 0 });
@@ -193,7 +196,7 @@ const TransporteDashboard = () => {
 
   if (loading) {
     return (
-      <AdminLayout>
+      <AdminLayout pageTitle="Dashboard de Transporte">
         <div className="flex items-center justify-center h-64">
           <div className="text-cyan-400">Cargando dashboard...</div>
         </div>
@@ -202,11 +205,20 @@ const TransporteDashboard = () => {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout pageTitle="Dashboard de Transporte">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Dashboard de Transporte</h1>
-        <p className="text-gray-400">Bienvenido, {user?.email}</p>
+      <div className="mb-2 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Dashboard de Transporte</h1>
+          <p className="text-gray-400">Bienvenido, {user?.email}</p>
+        </div>
+        <button
+          onClick={() => router.push('/transporte/viajes-activos')}
+          className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+        >
+          <TruckIcon className="h-5 w-5" />
+          Ver Viajes Activos
+        </button>
       </div>
 
       {/* Estadísticas */}
@@ -218,7 +230,7 @@ const TransporteDashboard = () => {
       />
 
       {/* Grid principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 mb-1">
         {/* Lista de viajes */}
         <ViajesAsignados viajes={viajes} onSelectViaje={handleSelectViaje} />
 

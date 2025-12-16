@@ -78,11 +78,11 @@ const PlantasPage = () => {
       const plantasAsociadas = (relaciones || [])
         .map(relacion => relacion.empresa_relacionada)
         .filter(Boolean)
-        .filter(empresa => {
+        .filter((empresa: any) => {
           // Filtrar solo plantas por configuración específica
           return empresa.configuracion_empresa?.tipo_instalacion === 'planta';
         })
-        .map(empresa => ({
+        .map((empresa: any) => ({
           id: empresa.id,
           nombre: empresa.nombre,
           cuit: empresa.cuit || '',
@@ -219,7 +219,7 @@ const PlantasPage = () => {
       }
 
       // Crear la relación
-      const { data: relacionCreada, error: relacionError } = await supabase
+      const { error: relacionError } = await supabase
         .from('relaciones_empresa')
         .insert({
           empresa_coordinadora_id: usuarioEmpresa.empresa_id,
@@ -259,7 +259,7 @@ const PlantasPage = () => {
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         Volver
       </button>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-gray-800 rounded shadow-md p-2 mb-2">
         <h2 className="text-2xl font-bold text-green-400 mb-4">Plantas y Depósitos</h2>
         <div className="mb-4 flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1">
@@ -313,7 +313,7 @@ const PlantasPage = () => {
           </div>
         )}
       </div>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6">
+      <div className="bg-gray-800 rounded shadow-md p-2">
         <h3 className="text-xl font-bold text-green-300 mb-4">Mis plantas y depósitos asociados</h3>
         {plantas.length === 0 ? (
           <div className="text-gray-400">No tienes plantas ni depósitos asociados aún.</div>

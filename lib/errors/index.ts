@@ -23,7 +23,7 @@ export class ApplicationError extends Error {
     this.name = 'ApplicationError';
     this.code = code;
     this.statusCode = statusCode;
-    this.details = details;
+    if (details) this.details = details;
   }
 }
 
@@ -90,12 +90,13 @@ export const handleSupabaseError = (error: any): ApplicationError => {
 
 export const handleApiError = (error: any, defaultMessage: string = 'An error occurred'): AppError => {
   if (error instanceof ApplicationError) {
-    return {
+    const result: AppError = {
       code: error.code,
       message: error.message,
-      details: error.details,
       statusCode: error.statusCode
     };
+    if (error.details) result.details = error.details;
+    return result;
   }
 
   if (error?.message) {

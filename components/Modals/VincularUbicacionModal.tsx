@@ -118,11 +118,11 @@ export default function VincularUbicacionModal({
 
   if (!isOpen) return null;
 
-  const ubicacionActual = vinculo?.ubicaciones || ubicacion;
+  const ubicacionActual = vinculo?.ubicacion || ubicacion;
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#1b273b] rounded-lg max-w-2xl w-full border border-slate-700">
+      <div className="bg-[#1b273b] rounded-lg max-w-2xl w-full max-h-[90vh] border border-slate-700 flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center">
           <h2 className="text-2xl font-bold text-slate-50">
@@ -168,7 +168,7 @@ export default function VincularUbicacionModal({
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
           {error && (
             <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded text-red-400 text-sm">
               {error}

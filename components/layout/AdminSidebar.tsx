@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import {
     UsersIcon,
-    ClipboardDocumentListIcon,
+    // ClipboardDocumentListIcon,
     ArrowLeftOnRectangleIcon,
     HomeIcon,
     CogIcon,

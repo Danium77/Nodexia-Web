@@ -1,69 +1,161 @@
 ﻿// pages/supervisor-carga.tsx
-// Interfaz para Supervisor de Carga
+// Interfaz para Supervisor de Carga con sistema de estados duales
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MainLayout from '../components/layout/MainLayout';
-import { QrCodeIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TruckIcon, DocumentTextIcon, ScaleIcon, PhoneIcon, PlayIcon, PauseIcon, ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { QrCodeIcon, TruckIcon, DocumentTextIcon, ScaleIcon, PhoneIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { registrarLlamadoCarga, registrarPosicionadoCarga, iniciarCarga as apiIniciarCarga, registrarCargando, completarCarga, validarDocumentacion, iniciarDescarga, registrarDescargando, completarDescarga, confirmarEntrega } from '../lib/api/estado-carga';
+import { getColorEstadoCarga, getLabelEstadoCarga } from '../lib/helpers/estados-helpers';
+import { useUserRole } from '../lib/contexts/UserRoleContext';
+import { supabase } from '../lib/supabaseClient';
+import type { EstadoUnidadViaje, EstadoCargaViaje } from '../lib/types';
 
 interface ViajeQR {
   id: string;
   numero_viaje: string;
   qr_code: string;
   estado_viaje: string;
-  tipo_operacion: string;
+  estado_unidad: EstadoUnidadViaje;
+  estado_carga: EstadoCargaViaje;
+  tipo_operacion: 'envio' | 'recepcion';
   producto: string;
   peso_estimado: number;
   peso_real?: number;
+  bultos?: number;
+  temperatura?: number;
+  observaciones?: string;
+  planta_origen_id: string;
+  planta_destino_id: string;
   chofer: any;
   camion: any;
 }
 
 export default function SupervisorCarga() {
+  const { empresaId, user } = useUserRole();
   const [qrCode, setQrCode] = useState('');
   const [viaje, setViaje] = useState<ViajeQR | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [pesoReal, setPesoReal] = useState('');
+  const [bultos, setBultos] = useState('');
+  const [temperatura, setTemperatura] = useState('');
+  const [observaciones, setObservaciones] = useState('');
   const [activeTab, setActiveTab] = useState('scanner');
+  const [viajes, setViajes] = useState<ViajeQR[]>([]);
+  const [loadingViajes, setLoadingViajes] = useState(false);
 
-  // Viajes demo simulados con mÃ¡s datos para supervisor de carga
-  const viajesDemo = [
-    {
-      id: '1',
-      numero_viaje: 'VJ-2025-001',
-      qr_code: 'QR-VJ2025001',
-      estado_viaje: 'ingresado_planta',
-      tipo_operacion: 'carga',
-      producto: 'Soja - 35 toneladas',
-      peso_estimado: 35000,
-      chofer: { nombre: 'Juan PÃ©rez', dni: '12345678' },
-      camion: { patente: 'ABC123', marca: 'Mercedes-Benz' }
-    },
-    {
-      id: '2',
-      numero_viaje: 'VJ-2025-002',
-      qr_code: 'QR-VJ2025002',
-      estado_viaje: 'llamado_carga',
-      tipo_operacion: 'carga',
-      producto: 'Trigo - 28 toneladas',
-      peso_estimado: 28000,
-      chofer: { nombre: 'Ana GarcÃ­a', dni: '87654321' },
-      camion: { patente: 'XYZ789', marca: 'Scania' }
-    },
-    {
-      id: '3',
-      numero_viaje: 'VJ-2025-003',
-      qr_code: 'QR-VJ2025003',
-      estado_viaje: 'cargando',
-      tipo_operacion: 'carga',
-      producto: 'MaÃ­z - 32 toneladas',
-      peso_estimado: 32000,
-      chofer: { nombre: 'Roberto Silva', dni: '11223344' },
-      camion: { patente: 'DEF456', marca: 'Volvo' }
+  // Cargar viajes en cola y activos al montar y cada 30 segundos
+  useEffect(() => {
+    cargarViajes();
+    const interval = setInterval(cargarViajes, 30000);
+    return () => clearInterval(interval);
+  }, [empresaId]);
+
+  // Cargar viajes relevantes para supervisor de carga
+  const cargarViajes = async () => {
+    if (!empresaId) return;
+    
+    setLoadingViajes(true);
+    try {
+      console.log('📦 [supervisor-carga] Cargando viajes para empresa:', empresaId);
+      
+      const { data: viajesData, error } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          numero_viaje,
+          despacho_id,
+          id_chofer,
+          id_camion,
+          estado,
+          despachos!inner (
+            id,
+            origen,
+            destino,
+            producto,
+            id_empresa,
+            peso_estimado
+          ),
+          choferes (
+            id,
+            nombre,
+            apellido,
+            dni
+          ),
+          camiones (
+            id,
+            patente,
+            marca,
+            modelo
+          ),
+          estado_unidad_viaje (
+            estado_unidad
+          ),
+          estado_carga_viaje (
+            estado_carga,
+            peso_real_kg,
+            cantidad_bultos,
+            temperatura_carga
+          )
+        `)
+        .eq('despachos.id_empresa', empresaId)
+        .in('estado_unidad_viaje.estado_unidad', [
+          'ingreso_planta',
+          'en_playa_espera',
+          'en_proceso_carga'
+        ])
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ [supervisor-carga] Error cargando viajes:', error);
+        return;
+      }
+
+      console.log('✅ [supervisor-carga] Viajes cargados:', viajesData?.length || 0);
+
+      const viajesFormateados: ViajeQR[] = (viajesData || []).map((v: any) => ({
+        id: v.id,
+        numero_viaje: v.numero_viaje.toString(),
+        qr_code: `QR-${v.numero_viaje}`,
+        estado_viaje: v.estado,
+        estado_unidad: v.estado_unidad_viaje?.estado_unidad || v.estado,
+        estado_carga: v.estado_carga_viaje?.estado_carga || 'pendiente',
+        tipo_operacion: 'envio' as const, // Supervisor solo trabaja en origen
+        producto: v.despachos?.producto || `${v.despachos?.origen} → ${v.despachos?.destino}`,
+        peso_estimado: v.despachos?.peso_estimado || 0,
+        peso_real: v.estado_carga_viaje?.peso_real_kg,
+        bultos: v.estado_carga_viaje?.cantidad_bultos,
+        temperatura: v.estado_carga_viaje?.temperatura_carga,
+        planta_origen_id: v.despachos?.id_empresa,
+        planta_destino_id: v.despachos?.id_empresa,
+        chofer: v.choferes ? {
+          nombre: `${v.choferes.nombre} ${v.choferes.apellido}`,
+          dni: v.choferes.dni
+        } : {
+          nombre: 'Sin asignar',
+          dni: 'N/A'
+        },
+        camion: v.camiones ? {
+          patente: v.camiones.patente,
+          marca: `${v.camiones.marca} ${v.camiones.modelo || ''}`.trim()
+        } : {
+          patente: 'Sin asignar',
+          marca: 'N/A'
+        }
+      }));
+
+      setViajes(viajesFormateados);
+    } catch (error) {
+      console.error('❌ [supervisor-carga] Error en cargarViajes:', error);
+    } finally {
+      setLoadingViajes(false);
     }
-  ];
+  };
 
-  const [viajes] = useState(viajesDemo);
+  // Detectar tipo de operación (envío vs recepción)
+  const detectarTipoOperacion = (viajeData: ViajeQR): 'envio' | 'recepcion' => {
+    return empresaId === viajeData.planta_origen_id ? 'envio' : 'recepcion';
+  };
 
   const escanearQR = async () => {
     if (!qrCode.trim()) return;
@@ -71,80 +163,321 @@ export default function SupervisorCarga() {
     setLoading(true);
     setMessage('');
 
-    const viajeEncontrado = viajesDemo.find(v => v.qr_code === qrCode.trim());
-    
-    if (viajeEncontrado) {
-      setViaje(viajeEncontrado);
-      setMessage(`ðŸ“‹ Viaje ${viajeEncontrado.numero_viaje} encontrado`);
-    } else {
-      setMessage('âŒ CÃ³digo QR no vÃ¡lido o viaje no encontrado');
-      setViaje(null);
-    }
+    try {
+      const codigoBusqueda = qrCode.trim().replace(/^QR-/, '');
+      console.log('🔍 [supervisor-carga] Buscando viaje con código:', codigoBusqueda);
+      
+      const { data: viajeData, error: viajeError } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          numero_viaje,
+          despacho_id,
+          id_chofer,
+          id_camion,
+          estado,
+          despachos!inner (
+            id,
+            origen,
+            destino,
+            producto,
+            id_empresa,
+            peso_estimado
+          ),
+          choferes (
+            id,
+            nombre,
+            apellido,
+            dni
+          ),
+          camiones (
+            id,
+            patente,
+            marca,
+            modelo
+          ),
+          estado_unidad_viaje (
+            estado_unidad
+          ),
+          estado_carga_viaje (
+            estado_carga,
+            peso_real_kg,
+            cantidad_bultos,
+            temperatura_carga
+          )
+        `)
+        .or(`numero_viaje.ilike.%${codigoBusqueda}%,id.eq.${codigoBusqueda}`)
+        .single();
+      
+      if (viajeError || !viajeData) {
+        console.error('❌ [supervisor-carga] Error buscando viaje:', viajeError);
+        setMessage('❌ Código QR no válido o viaje no encontrado');
+        setViaje(null);
+        return;
+      }
 
-    setLoading(false);
+      console.log('✅ [supervisor-carga] Viaje encontrado:', viajeData);
+
+      const tipoOperacion = viajeData.despachos.id_empresa === empresaId ? 'envio' : 'recepcion';
+      
+      const viajeCompleto: ViajeQR = {
+        id: viajeData.id,
+        numero_viaje: viajeData.numero_viaje.toString(),
+        qr_code: `QR-${viajeData.numero_viaje}`,
+        estado_viaje: viajeData.estado,
+        estado_unidad: viajeData.estado_unidad_viaje?.estado_unidad || viajeData.estado,
+        estado_carga: viajeData.estado_carga_viaje?.estado_carga || 'pendiente',
+        tipo_operacion: tipoOperacion,
+        producto: viajeData.despachos.producto || `${viajeData.despachos.origen} → ${viajeData.despachos.destino}`,
+        peso_estimado: viajeData.despachos.peso_estimado || 0,
+        peso_real: viajeData.estado_carga_viaje?.peso_real_kg,
+        bultos: viajeData.estado_carga_viaje?.cantidad_bultos,
+        temperatura: viajeData.estado_carga_viaje?.temperatura_carga,
+        planta_origen_id: viajeData.despachos.id_empresa,
+        planta_destino_id: viajeData.despachos.id_empresa,
+        chofer: viajeData.choferes ? {
+          nombre: `${viajeData.choferes.nombre} ${viajeData.choferes.apellido}`,
+          dni: viajeData.choferes.dni
+        } : {
+          nombre: 'Sin asignar',
+          dni: 'N/A'
+        },
+        camion: viajeData.camiones ? {
+          patente: viajeData.camiones.patente,
+          marca: `${viajeData.camiones.marca} ${viajeData.camiones.modelo || ''}`.trim()
+        } : {
+          patente: 'Sin asignar',
+          marca: 'N/A'
+        }
+      };
+      
+      setViaje(viajeCompleto);
+      setMessage(`📋 Viaje ${viajeCompleto.numero_viaje} encontrado - Operación: ${tipoOperacion === 'envio' ? '📤 Envío (Carga)' : '📥 Recepción (Descarga)'}`);
+      console.log('📊 [supervisor-carga] Viaje completo:', viajeCompleto);
+    } catch (error: any) {
+      console.error('❌ [supervisor-carga] Error en escanearQR:', error);
+      setMessage(`❌ Error: ${error.message}`);
+      setViaje(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const llamarACarga = async (viajeId: string) => {
     setLoading(true);
     try {
-      console.log('Llamando a carga viaje:', viajeId);
-      setMessage(`ðŸ“ž NotificaciÃ³n enviada al chofer para dirigirse a carga`);
+      console.log('📞 [supervisor-carga] Llamando a carga viaje:', viajeId);
+      const result = await registrarLlamadoCarga(viajeId);
       
-      // Simular actualizaciÃ³n de estado
-      const viajeActualizado = viajes.find(v => v.id === viajeId);
-      if (viajeActualizado) {
-        viajeActualizado.estado_viaje = 'llamado_carga';
+      if (result.success) {
+        setMessage(`✅ Notificación enviada al chofer para dirigirse a punto de carga`);
+        console.log('✅ [supervisor-carga] Llamado a carga exitoso');
+        cargarViajes();
+      } else {
+        setMessage(`❌ ${result.error || 'Error al llamar a carga'}`);
+        console.error('❌ [supervisor-carga] Error:', result.error);
       }
     } catch (error) {
-      setMessage('âŒ Error al llamar a carga');
+      setMessage('❌ Error al llamar a carga');
+      console.error('❌ [supervisor-carga] Exception:', error);
     }
     setLoading(false);
   };
 
-  const iniciarCarga = async () => {
+  const posicionarParaCarga = async () => {
+    if (!viaje) return;
+    setLoading(true);
+    try {
+      await registrarPosicionadoCarga(viaje.id);
+      setMessage(`✅ Vehículo posicionado en punto de carga`);
+      setViaje({ ...viaje, estado_carga: 'posicionado_carga' });
+    } catch (error) {
+      setMessage('❌ Error al posicionar vehículo');
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  const iniciarCarga = async (viajeIdOpt?: string) => {
+    const targetViajeId = viajeIdOpt || viaje?.id;
+    if (!targetViajeId) return;
+    
+    setLoading(true);
+    try {
+      console.log('▶️ [supervisor-carga] Iniciando carga:', targetViajeId);
+      const result = await apiIniciarCarga(targetViajeId, viaje?.producto || 'Carga', viaje?.peso_estimado);
+      
+      if (result.success) {
+        setMessage(`✅ Carga iniciada`);
+        console.log('✅ [supervisor-carga] Carga iniciada exitosamente');
+        
+        if (viaje && !viajeIdOpt) {
+          setViaje({ ...viaje, estado_carga: 'iniciando_carga' });
+        }
+        cargarViajes();
+      } else {
+        setMessage(`❌ ${result.error || 'Error al iniciar carga'}`);
+      }
+    } catch (error) {
+      setMessage('❌ Error al iniciar carga');
+      console.error('❌ [supervisor-carga] Error:', error);
+    }
+    setLoading(false);
+  };
+
+  const cerrarCarga = async () => {
     if (!viaje) return;
 
     setLoading(true);
     try {
-      console.log('Iniciando carga para viaje:', viaje.id);
-      setMessage(`âœ… Carga iniciada para ${viaje.numero_viaje}`);
+      console.log('🏁 [supervisor-carga] Cerrando carga:', viaje.id);
       
-      setViaje({
-        ...viaje,
-        estado_viaje: 'cargando'
-      });
-    } catch (error) {
-      setMessage('âŒ Error al iniciar carga');
-    }
-    setLoading(false);
-  };
-
-  const finalizarCarga = async () => {
-    if (!viaje || !pesoReal) {
-      setMessage('âŒ Debe ingresar el peso real');
-      return;
-    }
+  const cerrarCarga = async () => {
+    if (!viaje) return;
 
     setLoading(true);
     try {
-      console.log('Finalizando carga:', { viajeId: viaje.id, pesoReal });
-      setMessage(`âœ… Carga finalizada - Peso: ${pesoReal} kg`);
+      console.log('🏁 [supervisor-carga] Cerrando carga:', viaje.id);
       
-      setViaje({
-        ...viaje,
-        estado_viaje: 'carga_finalizada',
-        peso_real: parseInt(pesoReal)
+      const result = await completarCarga(
+        viaje.id,
+        0, // Peso se registra en Control de Acceso
+        0  // Bultos se registran en Control de Acceso
+      );
+      
+      if (result.success) {
+        setMessage(`✅ Carga cerrada - Peso y bultos se registrarán en Control de Acceso`);
+        console.log('✅ [supervisor-carga] Carga cerrada exitosamente');
+        
+        setViaje({
+          ...viaje,
+          estado_carga: 'carga_completada'
+        });
+
+        setTimeout(() => {
+          setViaje(null);
+          setQrCode('');
+          setMessage('');
+          cargarViajes();
+        }, 3000);
+      } else {
+        setMessage(`❌ ${result.error || 'Error al cerrar carga'}`);
+      }
+    } catch (error) {
+      setMessage('❌ Error al cerrar carga');
+      console.error('❌ [supervisor-carga] Error:', error);
+    }
+    setLoading(false);
+  };;
+          setQrCode('');
+          setPesoReal('');
+          setBultos('');
+          setTemperatura('');
+          setObservaciones('');
+          setMessage('');
+          cargarViajes();
+        }, 3000);
+      } else {
+        setMessage(`❌ ${result.error || 'Error al finalizar carga'}`);
+      }
+    } catch (error) {
+      setMessage('❌ Error al finalizar carga');
+      console.error('❌ [supervisor-carga] Error:', error);
+    }
+    setLoading(false);
+  };
+        bultos: parseInt(bultos)
       });
 
-      // Limpiar despuÃ©s de 3 segundos
       setTimeout(() => {
         setViaje(null);
         setQrCode('');
         setPesoReal('');
+        setBultos('');
+        setTemperatura('');
+        setObservaciones('');
         setMessage('');
       }, 3000);
     } catch (error) {
       setMessage('âŒ Error al finalizar carga');
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  // Funciones para descarga (recepciÃ³n)
+  const iniciarDescargaViaje = async () => {
+    if (!viaje) return;
+    setLoading(true);
+    try {
+      await iniciarDescarga(viaje.id);
+      setMessage(`âœ… Descarga iniciada para ${viaje.numero_viaje}`);
+      setViaje({ ...viaje, estado_carga: 'iniciando_descarga' });
+    } catch (error) {
+      setMessage('âŒ Error al iniciar descarga');
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  const registrarProgresoDescarga = async () => {
+    if (!viaje) return;
+    setLoading(true);
+    try {
+      await registrarDescargando(viaje.id, {
+        observaciones: observaciones || undefined
+      });
+      setMessage(`âœ… Progreso de descarga registrado`);
+      setViaje({ ...viaje, estado_carga: 'descargando' });
+    } catch (error) {
+      setMessage('âŒ Error al registrar progreso');
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  const finalizarDescarga = async () => {
+    if (!viaje) return;
+    setLoading(true);
+    try {
+      await completarDescarga(viaje.id, {
+        observaciones: observaciones || undefined
+      });
+      setMessage(`âœ… Descarga completada para ${viaje.numero_viaje}`);
+      setViaje({ ...viaje, estado_carga: 'descargado' });
+
+      setTimeout(() => {
+        setViaje(null);
+        setQrCode('');
+        setObservaciones('');
+        setMessage('');
+      }, 3000);
+    } catch (error) {
+      setMessage('âŒ Error al completar descarga');
+      console.error(error);
+    }
+    setLoading(false);
+  };
+
+  const confirmarEntregaFinal = async () => {
+    if (!viaje) return;
+    setLoading(true);
+    try {
+      await confirmarEntrega(viaje.id, {
+        observaciones: observaciones || undefined
+      });
+      setMessage(`âœ… Entrega confirmada para ${viaje.numero_viaje}`);
+      setViaje({ ...viaje, estado_carga: 'entregado' });
+
+      setTimeout(() => {
+        setViaje(null);
+        setQrCode('');
+        setObservaciones('');
+        setMessage('');
+      }, 3000);
+    } catch (error) {
+      setMessage('âŒ Error al confirmar entrega');
+      console.error(error);
     }
     setLoading(false);
   };
@@ -153,6 +486,9 @@ export default function SupervisorCarga() {
     setViaje(null);
     setQrCode('');
     setPesoReal('');
+    setBultos('');
+    setTemperatura('');
+    setObservaciones('');
     setMessage('');
   };
 
@@ -258,7 +594,7 @@ export default function SupervisorCarga() {
               <DocumentTextIcon className="h-5 w-5" />
               <span>CÃ³digos Demo para Probar</span>
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
               <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
                 <code className="text-yellow-400 font-mono font-semibold">QR-VJ2025001</code>
                 <p className="text-slate-300 mt-1">En planta (se puede llamar a carga)</p>
@@ -362,23 +698,13 @@ export default function SupervisorCarga() {
                     )}
                     
                     {v.estado_viaje === 'cargando' && (
-                      <div className="flex space-x-3 items-center">
-                        <input
-                          type="number"
-                          placeholder="Peso real (kg)"
-                          value={pesoReal}
-                          onChange={(e) => setPesoReal(e.target.value)}
-                          className="px-3 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none placeholder-slate-400 w-40"
-                        />
-                        <button
-                          onClick={() => finalizarCarga(v.id)}
-                          disabled={loading || !pesoReal}
-                          className="bg-purple-600 text-purple-100 px-4 py-2 rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
-                        >
-                          <CheckCircleIcon className="h-4 w-4" />
-                          <span>Finalizar</span>
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => cerrarCarga()}
+                        disabled={loading}
+                        className="bg-purple-600 text-purple-100 px-4 py-2 rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
+                      >
+                        Cerrar Carga
+                      </button>
                     )}
                   </div>
                 </div>
@@ -386,7 +712,6 @@ export default function SupervisorCarga() {
               
               {viajes.filter(v => ['llamado_carga', 'cargando'].includes(v.estado_viaje)).length === 0 && (
                 <div className="text-center py-8">
-                  <PauseIcon className="h-12 w-12 text-slate-600 mx-auto mb-4" />
                   <p className="text-slate-400">No hay cargas en proceso en este momento</p>
                 </div>
               )}
@@ -397,12 +722,11 @@ export default function SupervisorCarga() {
       {/* Detalle del viaje escaneado */}
       {viaje && (
         <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700 p-6 mt-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <CheckCircleIcon className="h-6 w-6 text-green-500" />
+          <div className="mb-4">
             <h2 className="text-lg font-semibold text-slate-100">Viaje Encontrado</h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-slate-300">NÃºmero de Viaje</label>
@@ -465,26 +789,14 @@ export default function SupervisorCarga() {
             )}
             
             {viaje.estado_viaje === 'cargando' && (
-              <div className="flex space-x-4 items-center">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Peso Real (kg)</label>
-                  <input
-                    type="number"
-                    placeholder="Ingrese peso real"
-                    value={pesoReal}
-                    onChange={(e) => setPesoReal(e.target.value)}
-                    className="px-4 py-3 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none placeholder-slate-400"
-                  />
-                </div>
-                <button
-                  onClick={() => finalizarCarga(viaje.id)}
-                  disabled={loading || !pesoReal}
-                  className="bg-purple-600 text-purple-100 px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2 mt-7"
-                >
-                  <ScaleIcon className="h-5 w-5" />
-                  <span>Finalizar Carga</span>
-                </button>
-              </div>
+              <button
+                onClick={() => cerrarCarga()}
+                disabled={loading}
+                className="bg-purple-600 text-purple-100 px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
+              >
+                <CheckCircleIcon className="h-5 w-5" />
+                <span>Cerrar Carga</span>
+              </button>
             )}
             
             <button

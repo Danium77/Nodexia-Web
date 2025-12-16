@@ -81,7 +81,7 @@ export default async function handler(
     
     return res.status(200).json({
       message: 'Nueva invitación generada exitosamente',
-      enlace: inviteData.properties?.action_link || 'No disponible',
+      enlace: (inviteData as any).properties?.action_link || 'No disponible',
       tipo: 'invite',
       usuario: {
         id: user.user?.id,

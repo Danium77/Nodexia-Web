@@ -3,7 +3,7 @@ import React from 'react';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import AdminSidebar from './AdminSidebar';
 import Sidebar from './Sidebar';
-import NotificationBell from './NotificationBell';
+import NotificacionesDropdown from '../ui/NotificacionesDropdown';
 import { useAutoReload, useHMRStatus } from '../../lib/hooks/useAutoReload';
 
 interface AdminLayoutProps {
@@ -12,11 +12,11 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle }) => {
-    const { user, primaryRole, loading, error, hasRole } = useUserRole();
+    const { user, loading, error, hasRole } = useUserRole(); // primaryRole removed (not used)
     
     // Hooks para manejar problemas de HMR y reconexión
     useAutoReload();
-    const { isConnected } = useHMRStatus();
+    useHMRStatus(); // Monitor connection status
 
     // Show loading state
     if (loading) {
@@ -57,18 +57,18 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle }) => {
                 />
             )}
             <main className="flex-1 overflow-auto">
-                {/* Indicador de estado de conexión (solo en desarrollo) */}
-                {process.env.NODE_ENV === 'development' && !isConnected && (
+                {/* Indicador de estado de conexión deshabilitado */}
+                {/* {process.env.NODE_ENV === 'development' && !isConnected && (
                     <div className="bg-yellow-500 text-black px-4 py-2 text-sm text-center">
                         ⚠️ Conexión HMR perdida - considera recargar la página (F5)
                     </div>
-                )}
+                )} */}
                 
                 {/* Header con notificaciones */}
                 <div className="bg-[#0a0e1a] border-b border-gray-800 px-8 py-4 flex justify-between items-center sticky top-0 z-40">
                     <h1 className="text-2xl font-bold text-white">{pageTitle}</h1>
                     <div className="flex items-center gap-4">
-                        <NotificationBell />
+                        <NotificacionesDropdown />
                         <div className="text-gray-400 text-sm">
                             {user.user_metadata?.name || user.email}
                         </div>

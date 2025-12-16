@@ -22,7 +22,7 @@ export default function ConfiguracionUbicaciones() {
     if (!loading && !user) {
       router.push('/login');
     }
-    if (!loading && !['coordinador', 'admin', 'super_admin'].includes(primaryRole)) {
+    if (!loading && primaryRole && !['coordinador', 'admin', 'super_admin'].includes(primaryRole)) {
       console.log('⚠️ Rol no permitido:', primaryRole);
       router.push('/dashboard');
     }
@@ -155,7 +155,7 @@ export default function ConfiguracionUbicaciones() {
     u => !ubicacionesVinculadas.some(v => v.ubicacion_id === u.id)
   );
 
-  if (loading || !['coordinador', 'admin', 'super_admin'].includes(primaryRole)) {
+  if (loading || !primaryRole || !['coordinador', 'admin', 'super_admin'].includes(primaryRole)) {
     return null;
   }
 
@@ -163,7 +163,7 @@ export default function ConfiguracionUbicaciones() {
     <div className="flex h-screen bg-[#0a0e1a]">
       <Sidebar />
       <div className="flex-1 overflow-auto">
-        <Header />
+        <Header userEmail="" userName="" pageTitle="Gestión de Ubicaciones" />
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Header */}
           <div className="mb-8">
@@ -217,25 +217,27 @@ export default function ConfiguracionUbicaciones() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700">
-                      {ubicacionesVinculadas.map((vinculo) => (
+                      {ubicacionesVinculadas.map((vinculo) => {
+                        const ubicacion = (vinculo as any).ubicaciones;
+                        return (
                         <tr key={vinculo.id} className="hover:bg-[#0a0e1a]/50">
                           <td className="px-4 py-4 text-sm">
-                            <div className="font-medium text-slate-50">{vinculo.ubicaciones?.nombre}</div>
-                            <div className="text-xs text-slate-500">{vinculo.ubicaciones?.cuit}</div>
+                            <div className="font-medium text-slate-50">{ubicacion?.nombre}</div>
+                            <div className="text-xs text-slate-500">{ubicacion?.cuit}</div>
                           </td>
                           <td className="px-4 py-4 text-sm">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              vinculo.ubicaciones?.tipo === 'planta' 
+                              ubicacion?.tipo === 'planta' 
                                 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                : vinculo.ubicaciones?.tipo === 'deposito'
+                                : ubicacion?.tipo === 'deposito'
                                 ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                                 : 'bg-green-500/20 text-green-400 border border-green-500/30'
                             }`}>
-                              {vinculo.ubicaciones?.tipo}
+                              {ubicacion?.tipo}
                             </span>
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-300">
-                            {vinculo.ubicaciones?.ciudad || '-'}
+                            {ubicacion?.ciudad || '-'}
                           </td>
                           <td className="px-4 py-4 text-sm text-slate-300">
                             {vinculo.alias || '-'}
@@ -269,12 +271,13 @@ export default function ConfiguracionUbicaciones() {
                                 onClick={() => handleDesvincular(vinculo.id)}
                                 className="px-3 py-1 text-sm bg-red-700/20 hover:bg-red-700/30 text-red-400 rounded transition-colors border border-red-500/30"
                               >
-                                Desvincular
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                              Desvincular
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

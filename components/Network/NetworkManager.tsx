@@ -7,7 +7,7 @@ import {
   useNetworkStats 
 } from '../../lib/hooks/useNetwork';
 import UsuariosEmpresaManager from './UsuariosEmpresaManager';
-import type { TransportistaDisponible } from '../../types/network';
+// import type { TransportistaDisponible } from '../../types/network';
 
 interface NetworkManagerProps {
   onClose?: () => void;
@@ -16,7 +16,7 @@ interface NetworkManagerProps {
 export default function NetworkManager({ onClose }: NetworkManagerProps) {
   const { context, loading: contextLoading } = useNetworkContext();
   const { transportistas, loading: transportistasLoading, refresh: refreshTransportistas } = useTransportistasDisponibles();
-  const { clientes, loading: clientesLoading, refresh: refreshClientes } = useClientesEmpresa();
+  const { clientes, loading: clientesLoading } = useClientesEmpresa();
   const { relaciones, crearRelacion, finalizarRelacion, loading: relacionesLoading, refresh: refreshRelaciones } = useRelacionesEmpresa();
   const { stats, loading: statsLoading } = useNetworkStats();
   
@@ -25,7 +25,7 @@ export default function NetworkManager({ onClose }: NetworkManagerProps) {
   const [showCreateRelacion, setShowCreateRelacion] = useState(false);
   const [processingRelacion, setProcessingRelacion] = useState(false);
 
-  const isCoordinadorEmpresa = context?.empresa?.tipo_empresa === 'coordinador';
+  const isCoordinadorEmpresa = context?.empresa?.tipo_empresa === 'planta';
   const isTransporteEmpresa = context?.empresa?.tipo_empresa === 'transporte';
 
   const handleCrearRelacion = async () => {
@@ -230,7 +230,7 @@ export default function NetworkManager({ onClose }: NetworkManagerProps) {
                   <span className="text-gray-600">Permisos principales:</span>
                   <div className="text-sm">
                     {Object.entries(context.permisos)
-                      .filter(([key, value]) => value)
+                      .filter(([, value]) => value)
                       .slice(0, 3)
                       .map(([key]) => key.replace('_', ' '))
                       .join(', ')}
@@ -405,13 +405,13 @@ export default function NetworkManager({ onClose }: NetworkManagerProps) {
                         <h4 className="font-medium text-gray-900">
                           {isCoordinadorEmpresa 
                             ? `Transportista: ${relacion.empresa_transporte?.nombre}`
-                            : `Cliente: ${relacion.empresa_cliente?.nombre}`
+                            : `Coordinadora: ${relacion.empresa_coordinadora?.nombre}`
                           }
                         </h4>
                         <p className="text-sm text-gray-600">
                           CUIT: {isCoordinadorEmpresa 
                             ? relacion.empresa_transporte?.cuit
-                            : relacion.empresa_cliente?.cuit
+                            : relacion.empresa_coordinadora?.cuit
                           }
                         </p>
                         <p className="text-sm text-gray-600">

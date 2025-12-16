@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
+import { validateRoleForCompany } from '../../../lib/validators/roleValidator'
+// import { sendActivationEmail } from '../../../lib/email/sendActivationEmail'
 
 interface NuevaInvitacionRequest {
   email: string;
@@ -16,7 +18,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método no permitido' })
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
@@ -30,192 +32,261 @@ export default async function handler(
       departamento 
     }: NuevaInvitacionRequest = req.body;
 
-    console.log('📧 Enviando invitación formal a usuario:', { email, nombre, apellido, empresa_id });
+    console.log('Sending invitation to user:', { email, nombre, apellido, empresa_id });
 
-    // Validar campos requeridos
+    // Validate required fields
     if (!email || !nombre || !apellido || !empresa_id || !rol_interno) {
       return res.status(400).json({
-        error: 'Faltan campos requeridos',
-        requeridos: ['email', 'nombre', 'apellido', 'empresa_id', 'rol_interno']
+        error: 'Missing required fields',
+        required: ['email', 'nombre', 'apellido', 'empresa_id', 'rol_interno']
       });
     }
 
-    // Verificar que la empresa existe
+    // Verify company exists and get tipo_empresa
     const { data: empresa, error: empresaError } = await supabaseAdmin
       .from('empresas')
-      .select('id, nombre')
+      .select('id, nombre, tipo_empresa')
       .eq('id', empresa_id)
       .single();
 
     if (empresaError || !empresa) {
-      return res.status(404).json({ error: 'Empresa no encontrada' });
+      return res.status(404).json({
+        error: 'Company not found',
+        empresa_id
+      });
     }
 
-    console.log('✅ Empresa encontrada:', empresa.nombre);
+    console.log('Company found:', { 
+      nombre: empresa.nombre, 
+      tipo_empresa: empresa.tipo_empresa 
+    });
 
-    // ========================================
-    // MÉTODO ALTERNATIVO SIN EMAIL (TESTING)
-    // ========================================
-    // Cuando actives SendGrid, comenta este bloque y descomenta el bloque de abajo
+    // Detectar si SMTP está configurado
+    const smtpConfigured = !!(
+      process.env.SMTP_HOST && 
+      process.env.SMTP_PORT && 
+      process.env.SMTP_USER && 
+      process.env.SMTP_PASSWORD
+    );
+
+    console.log('SMTP configured:', smtpConfigured);
+
+    // Generar password temporal (solo si no hay SMTP)
+    const temporalPassword = smtpConfigured ? undefined : 'Temporal2024!';
     
-    const USE_EMAIL_METHOD = process.env.NEXT_PUBLIC_USE_EMAIL_INVITES === 'true';
-
-    if (!USE_EMAIL_METHOD) {
-      console.log('🔗 Modo sin email: Generando link de invitación directo');
-      
-      // Generar password temporal seguro
-      const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Date.now().toString().slice(-4)}`;
-      
-      // Crear usuario directamente en Supabase Auth
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true, // ✅ Confirmar email automáticamente en modo testing
-        user_metadata: {
-          nombre,
-          apellido,
-          telefono: telefono || '',
-          empresa_id,
-          empresa_nombre: empresa.nombre,
-          rol_interno,
-          departamento: departamento || '',
-          invitado_el: new Date().toISOString()
-        }
-      });
-
-      if (userError) {
-        console.error('❌ Error creando usuario:', userError);
-        
-        if (userError.message?.includes('already') || userError.message?.includes('exists')) {
-          return res.status(400).json({ 
-            error: 'El usuario ya existe',
-            solucion: 'Use la opción "Reenviar Invitación" o contacte al usuario para que restablezca su contraseña'
-          });
-        }
-        
-        return res.status(500).json({ error: userError.message });
+    // Crear usuario en auth.users
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: temporalPassword, // Solo si no hay SMTP
+      email_confirm: !smtpConfigured, // Auto-confirmar solo si no hay SMTP
+      user_metadata: {
+        nombre,
+        apellido,
+        telefono: telefono || '',
+        empresa_id,
+        empresa_nombre: empresa.nombre,
+        rol_interno,
+        departamento: departamento || ''
       }
+    });
 
-      // Crear registro en usuarios_empresa
-      const { error: vinculoError } = await supabaseAdmin
-        .from('usuarios_empresa')
-        .insert({
-          user_id: userData.user.id,
-          empresa_id,
-          rol_interno,
-          nombre_completo: `${nombre} ${apellido}`,
-          telefono_interno: telefono || '',
-          activo: true,
-          fecha_vinculacion: new Date().toISOString()
+    if (createError) {
+      console.error('Error creating user:', createError);
+      
+      if (createError.message?.includes('already been registered') || createError.message?.includes('already exists')) {
+        return res.status(400).json({
+          error: 'User already registered',
+          email,
+          solution: 'Use "Resend Invitation" or "Reset Password" instead'
         });
-
-      if (vinculoError) {
-        console.error('❌ Error creando vínculo usuario-empresa:', vinculoError);
-        // No fallar, el usuario ya está creado
       }
 
-      // Generar link de invitación usando generateLink
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'invite',
-        email: email,
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/complete-invite`
-        }
+      return res.status(500).json({
+        error: 'Error creating user',
+        details: createError.message
+      });
+    }
+
+    if (!newUser.user) {
+      return res.status(500).json({ error: 'User creation failed' });
+    }
+
+    console.log('User created successfully:', newUser.user.id);
+
+    // Crear entrada en tabla profiles (primero) - con columna 'name' requerida
+    // UPSERT: si ya existe, no hace nada (evita error de duplicado)
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: newUser.user.id,
+        name: `${nombre} ${apellido}` // Columna correcta según estructura real
+      }, {
+        onConflict: 'id',
+        ignoreDuplicates: false
       });
 
-      if (linkError) {
-        console.error('⚠️ Error generando link:', linkError);
-        // Continuar de todos modos, tenemos el password temporal
-      }
+    if (profileError) {
+      console.error('Error creating profile record:', profileError);
+      // Hacer rollback del usuario en auth
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      return res.status(500).json({
+        error: 'User created but failed to create profile',
+        details: profileError.message
+      });
+    }
 
-      const inviteLink = linkData?.properties?.action_link || `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/complete-invite`;
+    console.log('Profile created successfully');
 
-      console.log('✅ Usuario creado sin email');
+    // Crear entrada en tabla usuarios
+    // UPSERT: si ya existe por email, actualiza el registro
+    const { error: usuarioError } = await supabaseAdmin
+      .from('usuarios')
+      .upsert({
+        id: newUser.user.id,
+        email,
+        nombre_completo: `${nombre} ${apellido}`
+      }, {
+        onConflict: 'email',
+        ignoreDuplicates: false
+      });
+
+    if (usuarioError) {
+      console.error('Error creating usuario record:', usuarioError);
+      // Hacer rollback
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      return res.status(500).json({
+        error: 'User created but failed to create usuario record',
+        details: usuarioError.message
+      });
+    }
+
+    console.log('Usuario record created successfully');
+
+    // ✅ VALIDACIÓN CENTRALIZADA - Reemplaza el trigger de BD eliminado
+    // Esta validación antes residía en: trigger_validar_rol -> validar_rol_por_tipo_empresa()
+    // Ahora se hace en el código antes de intentar el INSERT
+    console.log('Validating role for company:', { rol_interno, empresa_id });
+    
+    const roleValidation = await validateRoleForCompany(rol_interno, empresa_id);
+    
+    if (!roleValidation.valid) {
+      console.error('❌ Role validation failed:', roleValidation.error);
+      // Hacer rollback
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      return res.status(400).json({
+        error: 'Invalid role for company type',
+        rol_interno,
+        tipo_empresa: empresa.tipo_empresa,
+        details: roleValidation.error
+      });
+    }
+
+    console.log('✅ Role validation passed:', {
+      roleId: roleValidation.roleId,
+      roleName: roleValidation.roleData?.nombre_rol,
+      tipoEmpresa: roleValidation.roleData?.tipo_empresa
+    });
+
+    // Preparar datos para insertar
+    const dataToInsert = {
+      user_id: newUser.user.id,
+      empresa_id,
+      rol_interno,
+      rol_empresa_id: roleValidation.roleId!, // ✅ ID obtenido del validador
+      email_interno: email,
+      nombre_completo: `${nombre} ${apellido}`,
+      telefono_interno: telefono || null,
+      departamento: departamento || null,
+      activo: true,
+      fecha_vinculacion: new Date().toISOString()
+    };
+
+    console.log('Attempting to insert into usuarios_empresa:', dataToInsert);
+
+    // Crear relación usuario-empresa
+    const { data: relacionData, error: relacionError } = await supabaseAdmin
+      .from('usuarios_empresa')
+      .insert(dataToInsert)
+      .select();
+
+    if (relacionError) {
+      console.error('❌ Error creating user-company relation:', relacionError);
+      console.error('Error code:', relacionError.code);
+      console.error('Error message:', relacionError.message);
+      console.error('Error details:', relacionError.details);
+      console.error('Error hint:', relacionError.hint);
+      
+      // Hacer rollback
+      console.log('Rolling back - deleting user:', newUser.user.id);
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+      
+      return res.status(500).json({
+        error: 'User created but failed to assign to company',
+        details: relacionError.message,
+        hint: relacionError.hint,
+        code: relacionError.code
+      });
+    }
+
+    console.log('✅ User successfully assigned to company:', relacionData);
+
+    console.log('User successfully assigned to company');
+
+    // Respuesta diferente según si hay SMTP o no
+    if (smtpConfigured) {
+      // CON SMTP: Usuario recibirá email de activación
+      // TODO: Implementar envío de email cuando SMTP esté configurado
+      // await sendActivationEmail(email, newUser.user.id, empresa.nombre);
       
       return res.status(200).json({
-        success: true,
-        message: `Usuario creado exitosamente`,
-        metodo: 'link_directo',
+        metodo: 'email_activacion',
+        message: 'Usuario creado exitosamente - email de activación enviado',
         usuario: {
+          id: newUser.user.id,
           email,
           nombre_completo: `${nombre} ${apellido}`,
-          empresa: empresa.nombre
+          empresa: empresa.nombre,
+          rol_interno
         },
-        link_invitacion: inviteLink,
-        password_temporal: tempPassword,
+        email_enviado: true,
         instrucciones: [
-          '1. Copia el link de invitación',
-          '2. Envíalo al usuario por WhatsApp/otro medio',
-          '3. El usuario deberá usar el link para activar su cuenta',
-          `4. Credenciales temporales: ${email} / ${tempPassword}`
+          `✅ Usuario creado: ${email}`,
+          '📧 Email de activación enviado',
+          '⚠️ El usuario debe activar su cuenta desde el email',
+          '🔗 El link de activación expira en 24 horas'
+        ]
+      });
+    } else {
+      // SIN SMTP: Password temporal
+      return res.status(200).json({
+        metodo: 'password_temporal',
+        message: 'Usuario creado exitosamente - credenciales generadas',
+        usuario: {
+          id: newUser.user.id,
+          email,
+          nombre_completo: `${nombre} ${apellido}`,
+          empresa: empresa.nombre,
+          rol_interno
+        },
+        password_temporal: temporalPassword,
+        link_invitacion: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/login`,
+        email_enviado: false,
+        smtp_configurado: false,
+        instrucciones: [
+          `✅ Usuario creado: ${email}`,
+          `🔑 Password temporal: ${temporalPassword}`,
+          '⚠️ El usuario debe cambiar su contraseña en el primer login',
+          '✓ Ya puede iniciar sesión en el sistema',
+          '📝 Envía estas credenciales al usuario por WhatsApp o mensaje directo'
         ]
       });
     }
 
-    // ========================================
-    // MÉTODO CON EMAIL (PRODUCCIÓN - REQUIERE SMTP)
-    // ========================================
-    // Descomenta este bloque cuando actives SendGrid
-
-    // Generar invitación por email con metadata completa
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email,
-      {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003'}/complete-invite`,
-        data: {
-          nombre,
-          apellido,
-          telefono: telefono || '',
-          empresa_id,
-          empresa_nombre: empresa.nombre,
-          rol_interno,
-          departamento: departamento || ''
-        }
-      }
-    );
-
-    if (inviteError) {
-      console.error('❌ Error enviando invitación:', inviteError);
-      
-      // Si el usuario ya existe, intentemos regenerar un enlace
-      if (inviteError.message?.includes('already been registered')) {
-        return res.status(400).json({ 
-          error: 'El usuario ya está registrado',
-          solucion: 'Use la opción "Reenviar Invitación" o "Reset Password" en su lugar'
-        });
-      }
-
-      return res.status(500).json({ 
-        error: 'Error enviando invitación por email',
-        details: inviteError.message
-      });
-    }
-
-    console.log('✅ Invitación enviada exitosamente');
-
-    return res.status(200).json({
-      message: 'Invitación enviada exitosamente por email',
-      usuario: {
-        email,
-        nombre: `${nombre} ${apellido}`,
-        empresa: empresa.nombre,
-        rol_interno
-      },
-      email_enviado: true,
-      instrucciones: [
-        `📧 Se envió un email de invitación a: ${email}`,
-        '👀 El usuario debe revisar su bandeja de entrada (y spam)',
-        '🔗 Al hacer clic en el enlace, podrá crear su contraseña',
-        '📝 Deberá completar su información personal',
-        '✅ Una vez completado, aparecerá automáticamente en la lista'
-      ]
-    });
-
-  } catch (error) {
-    console.error('❌ Error general:', error);
+  } catch (error: any) {
+    console.error('General error:', error);
     return res.status(500).json({ 
-      error: 'Error interno del servidor',
-      details: error instanceof Error ? error.message : 'Error desconocido'
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 }

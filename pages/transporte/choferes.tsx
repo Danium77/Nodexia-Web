@@ -5,21 +5,27 @@ import { useChoferes } from '../../lib/hooks/useChoferes';
 import { supabase } from '../../lib/supabaseClient';
 import { useRouter } from 'next/router';
 
+interface UsuarioChofer {
+  id: string;
+  email: string;
+  nombre_completo: string;
+  foto_url?: string;
+  telefono?: string;
+  dni?: string;
+}
+
 export default function ChoferesGestion() {
-  const [nombre, setNombre] = useState('');
-  const [apellido, setApellido] = useState('');
-  const [dni, setDni] = useState('');
-  const [telefono, setTelefono] = useState('');
-  // Eliminado campo email
-  const [foto, setFoto] = useState<File|null>(null);
-  const fotoInputRef = useRef<HTMLInputElement>(null);
+  const [dniBusqueda, setDniBusqueda] = useState('');
+  const [usuarioEncontrado, setUsuarioEncontrado] = useState<UsuarioChofer | null>(null);
+  const [buscando, setBuscando] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [currentUserId, setCurrentUserId] = useState<string|null>(null);
+  const [empresaId, setEmpresaId] = useState<string|null>(null);
   const { choferes, loading: loadingChoferes, fetchChoferes, addChofer, deleteChofer } = useChoferes();
   const router = useRouter();
 
-  // Get current user ID on component mount
+  // Get current user ID and empresa on component mount
   useEffect(() => {
     async function getCurrentUser() {
       try {
@@ -31,6 +37,24 @@ export default function ChoferesGestion() {
         }
         if (user) {
           setCurrentUserId(user.id);
+          
+          // Obtener empresa del usuario
+          const { data: usuarioEmpresa, error: empresaError } = await supabase
+            .from('usuarios_empresa')
+            .select('empresa_id')
+            .eq('user_id', user.id)
+            .eq('activo', true)
+            .single();
+            
+          if (empresaError) {
+            console.error('Error getting empresa:', empresaError);
+            setError('Error al obtener empresa del usuario');
+            return;
+          }
+          
+          if (usuarioEmpresa) {
+            setEmpresaId(usuarioEmpresa.empresa_id);
+          }
         } else {
           setError('Usuario no encontrado');
         }
@@ -42,88 +66,134 @@ export default function ChoferesGestion() {
     getCurrentUser();
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function buscarChoferPorDNI() {
+    if (!dniBusqueda.trim()) {
+      setError('Ingrese un DNI para buscar');
+      return;
+    }
+
+    setBuscando(true);
     setError(null);
-    setLoading(true);
-    
-    // Validate required fields
-    if (!nombre.trim() || !apellido.trim() || !dni.trim()) {
-      setError('Nombre, apellido y DNI son obligatorios');
-      setLoading(false);
-      return;
-    }
+    setUsuarioEncontrado(null);
 
-    if (!currentUserId) {
-      setError('No se pudo obtener el usuario actual');
-      setLoading(false);
-      return;
-    }
-
-    let foto_url = null;
     try {
-      // Subir foto si fue proporcionada
-      if (foto) {
-        try {
-          const fileExt = foto.name.split('.').pop();
-          const fileName = `choferes/${dni.replace(/\s/g, '_')}_${Date.now()}.${fileExt}`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('flota')
-            .upload(fileName, foto, {
-              cacheControl: '3600',
-              upsert: false
-            });
-            
-          if (uploadError) {
-            console.error('Error al subir foto:', uploadError);
-            // Continuar sin foto si falla la subida
-            setError(`Advertencia: No se pudo subir la foto. El chofer se guardará sin foto.`);
-          } else if (uploadData) {
-            const { data: urlData } = supabase.storage.from('flota').getPublicUrl(fileName);
-            foto_url = urlData.publicUrl;
-          }
-        } catch (photoError) {
-          console.error('Error en subida de foto:', photoError);
-          setError('Advertencia: No se pudo subir la foto. El chofer se guardará sin foto.');
-        }
+      // Buscar usuario por DNI en la tabla usuarios
+      // Primero buscar en usuarios_empresa que tenga el DNI en algún campo relacionado
+      const { data: usuarios, error: searchError } = await supabase
+        .from('usuarios_empresa')
+        .select(`
+          user_id,
+          nombre_completo,
+          email_interno,
+          telefono_interno,
+          rol_interno,
+          empresa_id,
+          empresas!inner(nombre, tipo_empresa)
+        `)
+        .eq('rol_interno', 'chofer')
+        .eq('empresa_id', empresaId)
+        .ilike('nombre_completo', `%${dniBusqueda}%`); // Buscar por DNI en nombre o crear campo específico
+
+      if (searchError) {
+        console.error('Error buscando usuario:', searchError);
+        setError('Error al buscar usuario en el sistema');
+        return;
       }
-      
-      const choferData = {
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
-        dni: dni.trim(),
-        telefono: telefono.trim() || null,
-        foto_url,
+
+      // Si no encontramos por nombre_completo, buscar directamente en usuarios
+      if (!usuarios || usuarios.length === 0) {
+        // Buscar en la tabla usuarios por email que contenga el DNI o por nombre
+        const { data: usuariosData, error: usuariosError } = await supabase
+          .from('usuarios')
+          .select('id, email, nombre_completo')
+          .or(`email.ilike.%${dniBusqueda}%,nombre_completo.ilike.%${dniBusqueda}%`)
+          .limit(5);
+
+        if (usuariosError || !usuariosData || usuariosData.length === 0) {
+          setError(`No se encontró un chofer con DNI "${dniBusqueda}" en tu empresa. Verifica que el usuario fue creado en Admin Nodexia con rol "Chofer" y asignado a tu empresa.`);
+          return;
+        }
+
+        // Verificar que el usuario tenga rol chofer y pertenezca a la empresa
+        const usuarioId = usuariosData[0].id;
+        const { data: vinculacion, error: vinculacionError } = await supabase
+          .from('usuarios_empresa')
+          .select('rol_interno, empresa_id, telefono_interno')
+          .eq('user_id', usuarioId)
+          .eq('empresa_id', empresaId)
+          .single();
+
+        if (vinculacionError || !vinculacion || vinculacion.rol_interno !== 'chofer') {
+          setError(`El usuario encontrado no es un chofer de tu empresa. Verifica que fue asignado correctamente en Admin Nodexia.`);
+          return;
+        }
+
+        setUsuarioEncontrado({
+          id: usuarioId,
+          email: usuariosData[0].email,
+          nombre_completo: usuariosData[0].nombre_completo,
+          telefono: vinculacion.telefono_interno || undefined,
+          dni: dniBusqueda
+        });
+      } else {
+        // Usuario encontrado en usuarios_empresa
+        setUsuarioEncontrado({
+          id: usuarios[0].user_id,
+          email: usuarios[0].email_interno,
+          nombre_completo: usuarios[0].nombre_completo,
+          telefono: usuarios[0].telefono_interno || undefined,
+          dni: dniBusqueda
+        });
+      }
+    } catch (err) {
+      console.error('Error en búsqueda:', err);
+      setError('Error inesperado al buscar usuario');
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  async function vincularChofer() {
+    if (!usuarioEncontrado) return;
+    
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Verificar que el chofer no esté ya en la lista
+      const yaExiste = choferes.some(c => c.usuario_id === usuarioEncontrado.id);
+      if (yaExiste) {
+        setError('Este chofer ya está en tu lista');
+        setLoading(false);
+        return;
+      }
+
+      const choferData: any = {
+        nombre: usuarioEncontrado.nombre_completo.split(' ')[0],
+        apellido: usuarioEncontrado.nombre_completo.split(' ').slice(1).join(' '),
+        dni: usuarioEncontrado.dni || dniBusqueda,
+        telefono: usuarioEncontrado.telefono || '',
+        foto_url: usuarioEncontrado.foto_url || null,
         id_transporte: currentUserId,
-        usuario_alta: currentUserId
+        usuario_alta: currentUserId,
+        usuario_id: usuarioEncontrado.id // ✅ Vinculación con usuario de Nodexia
       };
 
-      if (!currentUserId) {
-        throw new Error('No se pudo obtener el ID del usuario actual');
-      }
-      
       await addChofer(choferData);
       
-      // Limpiar el formulario después del éxito
-      setNombre(''); 
-      setApellido(''); 
-      setDni(''); 
-      setTelefono(''); 
-      setFoto(null);
-      if (fotoInputRef.current) fotoInputRef.current.value = '';
+      // Limpiar formulario
+      setDniBusqueda('');
+      setUsuarioEncontrado(null);
       
-      // Recargar la lista de choferes
+      // Recargar lista
       fetchChoferes();
       
-      // Limpiar errores previos
-      setError(null);
     } catch (err: unknown) {
-      console.error('Error al agregar chofer:', err);
+      console.error('Error al vincular chofer:', err);
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Error inesperado al guardar el chofer');
+        setError('Error inesperado al vincular el chofer');
       }
     } finally {
       setLoading(false);
@@ -132,67 +202,76 @@ export default function ChoferesGestion() {
 
   return (
     <AdminLayout pageTitle="Gestión de Choferes">
-      <div className="w-full bg-gray-800 rounded-lg shadow-md p-8 mt-8">
+      <div className="w-full bg-gray-800 rounded shadow-md p-2 mt-2">
         <h2 className="text-2xl font-bold text-yellow-400 mb-6">Gestión de Choferes</h2>
-        {/* Formulario alineado igual que flota */}
+        
+        {/* Formulario de búsqueda y vinculación */}
         <div className="mb-6">
           <FormCard>
-            <form onSubmit={handleSubmit} className="w-full flex flex-col md:flex-row md:items-end md:gap-6 gap-4">
-            <div className="flex-1 flex flex-col">
-              <label className="block text-gray-200 mb-1 font-semibold">Nombre</label>
-              <input type="text" className="rounded p-2 border border-gray-600 bg-gray-800 text-white" placeholder="Ej: Juan" value={nombre} onChange={e => setNombre(e.target.value)} required />
-            </div>
-            <div className="flex-1 flex flex-col">
-              <label className="block text-gray-200 mb-1 font-semibold">Apellido</label>
-              <input type="text" className="rounded p-2 border border-gray-600 bg-gray-800 text-white" placeholder="Ej: Pérez" value={apellido} onChange={e => setApellido(e.target.value)} required />
-            </div>
-            <div className="flex-1 flex flex-col">
-              <label className="block text-gray-200 mb-1 font-semibold">DNI</label>
-              <input type="text" className="rounded p-2 border border-gray-600 bg-gray-800 text-white" placeholder="Ej: 30123456" value={dni} onChange={e => setDni(e.target.value)} required />
-            </div>
-            <div className="flex-1 flex flex-col">
-              <label className="block text-gray-200 mb-1 font-semibold">Teléfono</label>
-              <input type="text" className="rounded p-2 border border-gray-600 bg-gray-800 text-white" placeholder="Ej: 1122334455" value={telefono} onChange={e => setTelefono(e.target.value)} />
-            </div>
-            <div className="flex-1 flex flex-col">
-              <label className="block text-gray-200 mb-1 font-semibold">Foto</label>
-              <input 
-                id="foto-chofer" 
-                type="file" 
-                accept="image/*" 
-                ref={fotoInputRef} 
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  if (file) {
-                    // Validate file size (max 5MB)
-                    if (file.size > 5 * 1024 * 1024) {
-                      setError('La foto no puede ser mayor a 5MB');
-                      e.target.value = '';
-                      return;
-                    }
-                    // Validate file type
-                    if (!file.type.startsWith('image/')) {
-                      setError('Solo se permiten archivos de imagen');
-                      e.target.value = '';
-                      return;
-                    }
-                  }
-                  setFoto(file);
-                  setError(null); // Clear any previous file-related errors
-                }} 
-                className="block w-full text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-yellow-600" 
-              />
-              {foto && (
-                <div className="text-xs text-green-400 mt-1">
-                  ✓ {foto.name}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-cyan-400 mb-4">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm">Los choferes deben ser creados primero en <strong>Admin Nodexia</strong> con rol "Chofer" y asignados a tu empresa.</p>
+              </div>
+              
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="block text-gray-200 mb-2 font-semibold">
+                    Buscar Chofer por DNI o Nombre
+                  </label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      className="flex-1 rounded p-2 border border-gray-600 bg-gray-800 text-white" 
+                      placeholder="Ej: 30123456 o Juan Pérez" 
+                      value={dniBusqueda} 
+                      onChange={e => setDniBusqueda(e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), buscarChoferPorDNI())}
+                    />
+                    <button 
+                      type="button"
+                      onClick={buscarChoferPorDNI}
+                      disabled={buscando || !dniBusqueda.trim()}
+                      className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded font-bold shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {buscando ? 'Buscando...' : 'Buscar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Usuario encontrado */}
+              {usuarioEncontrado && (
+                <div className="bg-gray-700 border border-cyan-500 rounded-lg p-4 mt-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h3 className="text-lg font-bold text-white">{usuarioEncontrado.nombre_completo}</h3>
+                      </div>
+                      <div className="space-y-1 text-sm text-gray-300">
+                        <p><span className="font-semibold">Email:</span> {usuarioEncontrado.email}</p>
+                        {usuarioEncontrado.telefono && (
+                          <p><span className="font-semibold">Teléfono:</span> {usuarioEncontrado.telefono}</p>
+                        )}
+                        <p><span className="font-semibold">DNI:</span> {usuarioEncontrado.dni}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={vincularChofer}
+                      disabled={loading}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-bold shadow disabled:opacity-50"
+                    >
+                      {loading ? 'Vinculando...' : 'Agregar a mi Lista'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="flex flex-col md:w-auto mt-2 md:mt-0">
-              <label className="block invisible mb-1">Agregar</label>
-              <button type="submit" disabled={loading} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-bold shadow">{loading ? 'Guardando...' : 'Agregar'}</button>
-            </div>
-            </form>
           </FormCard>
           {error && (
             <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded mt-4">
@@ -227,8 +306,8 @@ export default function ChoferesGestion() {
                     <td className="p-3 font-mono text-yellow-200">{v.dni}</td>
                     <td className="p-3">{v.telefono}</td>
                     <td className="p-3 flex gap-2">
-                      <button className="text-yellow-400 underline hover:text-yellow-300" onClick={() => router.push(`/choferes/${v.id}`)}>Ver detalle</button>
-                      <button className="text-red-400 hover:text-red-300" onClick={() => deleteChofer(v.id)}>Eliminar</button>
+                      <button className="text-yellow-400 underline hover:text-yellow-300" onClick={() => v.id && router.push(`/choferes/${v.id}`)}>Ver detalle</button>
+                      <button className="text-red-400 hover:text-red-300" onClick={() => v.id && deleteChofer(v.id)}>Eliminar</button>
                     </td>
                   </tr>
                 ))

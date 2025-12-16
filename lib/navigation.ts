@@ -144,7 +144,7 @@ export function getDefaultDashboard(roles: string[]): string {
   if (roles.includes('control_acceso')) return '/control-acceso'; 
   if (roles.includes('supervisor_carga')) return '/supervisor-carga';
   if (roles.includes('coordinador_transporte')) return '/transporte/dashboard'; // Coordinador de TRANSPORTE
-  if (roles.includes('chofer')) return '/chofer/viajes';
+  if (roles.includes('chofer')) return '/chofer-mobile';
   if (roles.includes('administrativo')) return '/transporte/dashboard';
   if (roles.includes('visor')) return '/cliente/dashboard'; // Cliente solo visualiza
   

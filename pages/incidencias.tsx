@@ -37,7 +37,7 @@ const IncidenciasPage: React.FC = () => {
       <Sidebar userEmail={user.email} userName={userName} />
       <div className="flex-1 flex flex-col">
         <Header userEmail={user.email} userName={userName} pageTitle="Incidencias" />
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-2">
           <div className="max-w-4xl">
             <h2 className="text-white text-xl mb-4">Últimas Incidencias</h2>
 
@@ -46,7 +46,7 @@ const IncidenciasPage: React.FC = () => {
 
             <ul className="space-y-3">
               {incidencias.map((inc) => (
-                <li key={inc.id} className="bg-slate-800/60 border border-slate-700 p-4 rounded-md flex justify-between items-start">
+                <li key={inc.id} className="bg-slate-800/60 border border-slate-700 p-2 rounded flex justify-between items-start">
                   <div>
                     <div className="text-white font-medium">{inc.tipo}</div>
                     <div className="text-slate-400 text-sm">Despacho {inc.despacho_id || '—'}</div>

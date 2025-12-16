@@ -67,17 +67,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 2. Actualizar el viaje con el nuevo estado
     const updateData: any = {
       estado_viaje: nuevoEstado,
-      [campoFecha]: new Date().toISOString(),
-      [campoUsuario]: usuario_id,
       updated_at: new Date().toISOString()
     };
+
+    updateData[campoFecha as string] = new Date().toISOString();
+    updateData[campoUsuario as string] = usuario_id;
 
     if (observaciones) {
       updateData.observaciones = (viaje.observaciones ? viaje.observaciones + '\n' : '') + 
         `[${accion.toUpperCase()}] ${observaciones}`;
     }
 
-    const { data: viajeActualizado, error: updateError } = await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('viajes')
       .update(updateData)
       .eq('id', viaje.id)
@@ -102,10 +103,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 4. Crear notificación para el chofer
-    await crearNotificacionChofer(viaje, accion, nuevoEstado);
+    await crearNotificacionChofer(viaje, accion, nuevoEstado || '');
 
     // 5. Crear log de auditoría (opcional)
-    await crearLogAuditoria(viaje.id, accion, usuario_id, nuevoEstado);
+    await crearLogAuditoria(viaje.id, accion, usuario_id, nuevoEstado || '');
 
     return res.status(200).json({
       success: true,
@@ -160,14 +161,12 @@ async function crearNotificacionChofer(viaje: any, accion: string, nuevoEstado: 
     await supabaseAdmin
       .from('notificaciones')
       .insert({
-        usuario_id: usuarioChofer.id,
-        tipo_notificacion: accion === 'ingreso' ? 'estado_actualizado' : 'estado_actualizado',
+        user_id: usuarioChofer.id,
+        tipo: 'cambio_estado',
         titulo,
         mensaje,
         viaje_id: viaje.id,
-        enviada: true,
-        fecha_envio: new Date().toISOString(),
-        datos_extra: {
+        metadata: {
           estado_nuevo: nuevoEstado,
           accion: accion
         }

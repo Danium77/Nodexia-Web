@@ -229,7 +229,7 @@ const CrearEmpresaModal: React.FC<CrearEmpresaModalProps> = ({
 
       // Cerrar modal y notificar al padre para recargar
       setTimeout(() => {
-        onClose(true); // true = se guardó exitosamente, recargar lista
+        onClose(); // Cerrar modal después de guardar exitosamente
       }, 1500); // Esperar 1.5s para que el usuario vea el mensaje de éxito
 
     } catch (err: any) {
@@ -331,7 +331,7 @@ const CrearEmpresaModal: React.FC<CrearEmpresaModalProps> = ({
 
         {/* Form - Solo mostrar si no hay éxito */}
         {!success && (
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6" autoComplete="off">
           {/* Información Básica */}
           <div>
             <h3 className="text-lg font-semibold text-slate-200 mb-4">Información Básica</h3>

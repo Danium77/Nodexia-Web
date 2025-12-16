@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
     // Lint rules should run during builds — re-enabled to fix remaining issues.
   },
   
+  // 🔥 Permitir cookies en desarrollo HTTP (necesario para Supabase Auth)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
+  
   // Configuración para mejorar HMR y evitar problemas de reconexión
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {

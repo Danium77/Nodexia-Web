@@ -153,7 +153,7 @@ export default function ClienteDetalle() {
         </div>
 
         {/* Status Card */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <div className="bg-gray-800 rounded p-2 border border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className={`w-4 h-4 rounded-full ${cliente.activa ? 'bg-green-500' : 'bg-red-500'}`} />

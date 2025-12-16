@@ -1,7 +1,7 @@
 // lib/data/despachos.ts
 import { supabase } from '../supabaseClient';
 import { BaseQuery, DataResult, PaginatedResult } from './base';
-import type { Despacho, DespachoCreateInput, DespachoUpdateInput } from '../types';
+import type { Despacho } from '../types';
 
 export class DespachosData {
   /**
@@ -80,7 +80,7 @@ export class DespachosData {
   /**
    * Create new dispatch
    */
-  static async create(despachoData: DespachoCreateInput): Promise<DataResult<Despacho>> {
+  static async create(despachoData: Partial<Despacho>): Promise<DataResult<Despacho>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('despachos')
@@ -99,7 +99,7 @@ export class DespachosData {
   /**
    * Update dispatch
    */
-  static async update(id: string, updates: DespachoUpdateInput): Promise<DataResult<Despacho>> {
+  static async update(id: string, updates: Partial<Despacho>): Promise<DataResult<Despacho>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('despachos')

@@ -59,7 +59,7 @@ const Dashboard = () => {
       case 'chofer':
         console.log('🚗 [dashboard] Redirecting to chofer dashboard');
         setHasRedirected(true);
-        router.replace('/chofer/viajes');
+        router.replace('/chofer-mobile');
         break;
       
       case 'administrativo':

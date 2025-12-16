@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
 import { usePagosAdmin } from '../../lib/hooks/useSuperAdmin';
-import type { PagoEmpresa, FiltroPagos } from '../../types/superadmin';
+import type { FiltrosPagos, Pago } from '../../types/superadmin';
 
 export default function PagosManager() {
-  const { pagos, loading, registrarPago, procesarPago } = usePagosAdmin();
-  const [filtros, setFiltros] = useState<FiltroPagos>({
-    estado: undefined,
+  const { pagos, loading } = usePagosAdmin();
+  const [filtros, setFiltros] = useState<FiltrosPagos>({
     fecha_desde: '',
-    fecha_hasta: '',
-    empresa_id: ''
+    fecha_hasta: ''
   });
   
   const [showRegistrarPago, setShowRegistrarPago] = useState(false);
-  const [selectedPago, setSelectedPago] = useState<PagoEmpresa | null>(null);
-  const [processing, setProcessing] = useState(false);
+  const [selectedPago, setSelectedPago] = useState<Pago | null>(null);
+  // const [processing, setProcessing] = useState(false);
 
   const [nuevoPago, setNuevoPago] = useState({
     empresa_id: '',
@@ -30,9 +28,9 @@ export default function PagosManager() {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-AR');
-  };
+  // const formatDate = (dateString: string) => {
+  //   return new Date(dateString).toLocaleDateString('es-AR');
+  // };
 
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('es-AR');
@@ -59,67 +57,67 @@ export default function PagosManager() {
     }
   };
 
-  const handleRegistrarPago = async () => {
-    if (!nuevoPago.empresa_id || !nuevoPago.monto) {
-      alert('Empresa y monto son requeridos');
-      return;
-    }
+  // const handleRegistrarPago = async () => {
+  //   if (!nuevoPago.empresa_id || !nuevoPago.monto) {
+  //     alert('Empresa y monto son requeridos');
+  //     return;
+  //   }
 
-    try {
-      setProcessing(true);
-      await registrarPago({
-        empresa_id: nuevoPago.empresa_id,
-        monto: parseFloat(nuevoPago.monto),
-        metodo_pago: nuevoPago.metodo_pago,
-        referencia_externa: nuevoPago.referencia_externa || undefined,
-        observaciones: nuevoPago.observaciones || undefined
-      });
+  //   try {
+  //     setProcessing(true);
+  //     await registrarPago({
+  //       empresa_id: nuevoPago.empresa_id,
+  //       monto: parseFloat(nuevoPago.monto),
+  //       metodo_pago: nuevoPago.metodo_pago,
+  //       referencia_externa: nuevoPago.referencia_externa || undefined,
+  //       observaciones: nuevoPago.observaciones || undefined
+  //     });
       
-      setShowRegistrarPago(false);
-      setNuevoPago({
-        empresa_id: '',
-        monto: '',
-        metodo_pago: 'transferencia',
-        referencia_externa: '',
-        observaciones: ''
-      });
-      alert('Pago registrado exitosamente');
-    } catch (error) {
-      console.error('Error registering payment:', error);
-      alert('Error al registrar pago');
-    } finally {
-      setProcessing(false);
-    }
-  };
+  //     setShowRegistrarPago(false);
+  //     setNuevoPago({
+  //       empresa_id: '',
+  //       monto: '',
+  //       metodo_pago: 'transferencia',
+  //       referencia_externa: '',
+  //       observaciones: ''
+  //     });
+  //     alert('Pago registrado exitosamente');
+  //   } catch (error) {
+  //     console.error('Error registering payment:', error);
+  //     alert('Error al registrar pago');
+  //   } finally {
+  //     setProcessing(false);
+  //   }
+  // };
 
-  const handleProcesarPago = async (pagoId: string, accion: 'aprobar' | 'rechazar') => {
-    const motivo = accion === 'rechazar' ? prompt('Motivo del rechazo:') : undefined;
-    if (accion === 'rechazar' && !motivo) return;
+  // const handleProcesarPago = async (pagoId: string, accion: 'aprobar' | 'rechazar') => {
+  //   const motivo = accion === 'rechazar' ? prompt('Motivo del rechazo:') : undefined;
+  //   if (accion === 'rechazar' && !motivo) return;
 
-    try {
-      setProcessing(true);
-      await procesarPago(pagoId, accion === 'aprobar', motivo);
-      alert(`Pago ${accion === 'aprobar' ? 'aprobado' : 'rechazado'} exitosamente`);
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      alert('Error al procesar pago');
-    } finally {
-      setProcessing(false);
-    }
-  };
+  //   try {
+  //     setProcessing(true);
+  //     await procesarPago(pagoId, accion === 'aprobar', motivo);
+  //     alert(`Pago ${accion === 'aprobar' ? 'aprobado' : 'rechazado'} exitosamente`);
+  //   } catch (error) {
+  //     console.error('Error processing payment:', error);
+  //     alert('Error al procesar pago');
+  //   } finally {
+  //     setProcessing(false);
+  //   }
+  // };
 
   // Aplicar filtros
   const pagosFiltrados = pagos.filter(pago => {
     if (filtros.estado && pago.estado !== filtros.estado) return false;
     if (filtros.empresa_id && pago.empresa_id !== filtros.empresa_id) return false;
-    if (filtros.fecha_desde && new Date(pago.fecha_pago) < new Date(filtros.fecha_desde)) return false;
-    if (filtros.fecha_hasta && new Date(pago.fecha_pago) > new Date(filtros.fecha_hasta)) return false;
+    if (filtros.fecha_desde && pago.fecha_pago && new Date(pago.fecha_pago) < new Date(filtros.fecha_desde)) return false;
+    if (filtros.fecha_hasta && pago.fecha_pago && new Date(pago.fecha_pago) > new Date(filtros.fecha_hasta)) return false;
     return true;
   });
 
   const resumenPagos = {
     total: pagosFiltrados.reduce((sum, p) => sum + p.monto, 0),
-    completados: pagosFiltrados.filter(p => p.estado === 'completado').reduce((sum, p) => sum + p.monto, 0),
+    completados: pagosFiltrados.filter(p => p.estado === 'pagado').reduce((sum, p) => sum + p.monto, 0),
     pendientes: pagosFiltrados.filter(p => p.estado === 'pendiente').length,
     fallidos: pagosFiltrados.filter(p => p.estado === 'fallido').length
   };
@@ -243,10 +241,10 @@ export default function PagosManager() {
             {pagosFiltrados.map((pago) => (
               <tr key={pago.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatDateTime(pago.fecha_pago)}
+                  {pago.fecha_pago && formatDateTime(pago.fecha_pago)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{pago.empresa_nombre}</div>
+                  <div className="text-sm font-medium text-gray-900">{pago.empresa?.nombre || pago.empresa_id}</div>
                   <div className="text-sm text-gray-500">{pago.suscripcion_id}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -255,7 +253,7 @@ export default function PagosManager() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {getMetodoPagoLabel(pago.metodo_pago)}
+                  {pago.metodo_pago && getMetodoPagoLabel(pago.metodo_pago)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(pago.estado)}`}>
@@ -269,7 +267,7 @@ export default function PagosManager() {
                   <div className="flex gap-2">
                     {pago.estado === 'pendiente' && (
                       <>
-                        <button
+                        {/* <button
                           onClick={() => handleProcesarPago(pago.id, 'aprobar')}
                           disabled={processing}
                           className="text-green-600 hover:text-green-900 disabled:opacity-50"
@@ -282,7 +280,7 @@ export default function PagosManager() {
                           className="text-red-600 hover:text-red-900 disabled:opacity-50"
                         >
                           Rechazar
-                        </button>
+                        </button> */}
                       </>
                     )}
                     <button
@@ -382,13 +380,13 @@ export default function PagosManager() {
               >
                 Cancelar
               </button>
-              <button
+              {/* <button
                 onClick={handleRegistrarPago}
                 disabled={processing}
                 className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
               >
                 {processing ? 'Registrando...' : 'Registrar'}
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
@@ -404,7 +402,7 @@ export default function PagosManager() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-500">Fecha:</label>
-                  <div className="text-sm text-gray-900">{formatDateTime(selectedPago.fecha_pago)}</div>
+                  <div className="text-sm text-gray-900">{selectedPago.fecha_pago && formatDateTime(selectedPago.fecha_pago)}</div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Estado:</label>
@@ -416,7 +414,7 @@ export default function PagosManager() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Empresa:</label>
-                  <div className="text-sm text-gray-900">{selectedPago.empresa_nombre}</div>
+                  <div className="text-sm text-gray-900">{selectedPago.empresa?.nombre || selectedPago.empresa_id}</div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Monto:</label>
@@ -424,25 +422,18 @@ export default function PagosManager() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Método:</label>
-                  <div className="text-sm text-gray-900">{getMetodoPagoLabel(selectedPago.metodo_pago)}</div>
+                  <div className="text-sm text-gray-900">{selectedPago.metodo_pago && getMetodoPagoLabel(selectedPago.metodo_pago)}</div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Referencia:</label>
                   <div className="text-sm text-gray-900">{selectedPago.referencia_externa || '-'}</div>
                 </div>
               </div>
-              
-              {selectedPago.observaciones && (
+
+              {selectedPago.notas && (
                 <div>
                   <label className="text-sm font-medium text-gray-500">Observaciones:</label>
-                  <div className="text-sm text-gray-900 mt-1">{selectedPago.observaciones}</div>
-                </div>
-              )}
-
-              {selectedPago.fecha_procesamiento && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Fecha de Procesamiento:</label>
-                  <div className="text-sm text-gray-900">{formatDateTime(selectedPago.fecha_procesamiento)}</div>
+                  <div className="text-sm text-gray-900 mt-1">{selectedPago.notas}</div>
                 </div>
               )}
             </div>

@@ -111,13 +111,13 @@ export default function SuperAdminDashboard() {
     <MainLayout pageTitle="Panel Super Administrador">
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded p-2 text-white">
           <h1 className="text-3xl font-bold mb-2">AdministraciÃ³n Central Nodexia</h1>
           <p className="text-purple-100">Sistema de gestiÃ³n multi-tenant</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           {/* Total Empresas */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
@@ -178,7 +178,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* Actions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {/* GestiÃ³n de Empresas */}
           <button
             onClick={() => router.push('/admin/empresas')}

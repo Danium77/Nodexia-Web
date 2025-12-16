@@ -16,7 +16,6 @@ import {
   PlusCircleIcon
 } from '@heroicons/react/24/outline';
 import WizardUsuario from '../../components/Admin/WizardUsuario';
-import { useRouter } from 'next/router';
 import { TipoEmpresa, RolInterno, ROLES_BY_TIPO, ROL_INTERNO_LABELS } from '../../lib/types';
 
 // Usuario agrupado con múltiples roles
@@ -104,7 +103,7 @@ const UsuariosPage = () => {
 
   // Prevenir pérdida de datos si el usuario intenta salir/recargar
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent): string | void => {
       if (showModal) {
         e.preventDefault();
         e.returnValue = ''; // Chrome requiere esto
@@ -172,19 +171,51 @@ const UsuariosPage = () => {
 
       if (errorRegistros) throw errorRegistros;
 
+      // Obtener datos de autenticación desde el API
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      let authUsersMap = new Map<string, any>();
+      
+      if (token) {
+        try {
+          const response = await fetch('/api/admin/usuarios-auth', {
+            method: 'GET',
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const { usuarios: authUsers } = await response.json();
+            authUsers?.forEach((authUser: any) => {
+              authUsersMap.set(authUser.id, authUser);
+            });
+          } else {
+            console.warn('No se pudieron cargar datos de autenticación');
+          }
+        } catch (err) {
+          console.warn('Error obteniendo datos de autenticación:', err);
+        }
+      }
+
       // Agrupar por user_id
       const usuariosMap = new Map<string, UsuarioAgrupado>();
 
       registros?.forEach(registro => {
         if (!usuariosMap.has(registro.user_id)) {
+          // Obtener datos de autenticación si existen
+          const authData = authUsersMap.get(registro.user_id);
+          
           // Crear nuevo usuario agrupado
           usuariosMap.set(registro.user_id, {
             user_id: registro.user_id,
-            email: '', // No disponible desde el frontend
+            email: authData?.email || '',
             nombre_completo: registro.nombre_completo,
             telefono_interno: registro.telefono_interno,
-            created_at: '', // No disponible desde el frontend
-            last_sign_in_at: '', // No disponible desde el frontend
+            created_at: authData?.created_at || '',
+            last_sign_in_at: authData?.last_sign_in_at || '',
             empresas: []
           });
         }
@@ -210,12 +241,14 @@ const UsuariosPage = () => {
         }
 
         // Agregar rol a esta empresa
-        empresaEntry.roles.push({
-          id: registro.id,
-          rol_interno: registro.rol_interno,
-          activo: registro.activo,
-          fecha_vinculacion: registro.fecha_vinculacion
-        });
+        if (empresaEntry) {
+          empresaEntry.roles.push({
+            id: registro.id,
+            rol_interno: registro.rol_interno,
+            activo: registro.activo,
+            fecha_vinculacion: registro.fecha_vinculacion
+          });
+        }
       });
 
       // Convertir Map a Array
@@ -448,7 +481,7 @@ const UsuariosPage = () => {
   <AdminLayout pageTitle="Gestión de Usuarios">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-2">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
             <p className="text-gray-600 mt-1">Administra usuarios y roles multi-empresa</p>
@@ -463,8 +496,8 @@ const UsuariosPage = () => {
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
+          <div className="bg-white p-1.5 rounded shadow border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Usuarios</p>
@@ -516,8 +549,8 @@ const UsuariosPage = () => {
         </div>
 
         {/* Filtros */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="bg-white p-2 rounded shadow mb-2">
+          <div className="flex items-center gap-2 mb-2">
             <FunnelIcon className="h-5 w-5 text-gray-600" />
             <span className="font-semibold text-gray-700">Filtros</span>
             <button
@@ -529,7 +562,7 @@ const UsuariosPage = () => {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Buscar

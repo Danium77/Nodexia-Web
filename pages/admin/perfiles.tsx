@@ -135,9 +135,9 @@ const GestionPerfilesPage = () => {
 
     return (
         <AdminLayout pageTitle="Gestión de Perfiles">
-            <div className="bg-[#1b273b] p-6 rounded-lg shadow-lg max-w-4xl mx-auto">
-                <h2 className="text-2xl font-bold mb-6 text-cyan-400">Crear Nuevo Perfil</h2>
-                <form onSubmit={handleCreateProfile} className="grid md:grid-cols-4 gap-4 items-end mb-6">
+            <div className="bg-[#1b273b] p-2 rounded shadow-lg max-w-4xl mx-auto">
+                <h2 className="text-sm font-bold mb-2 text-cyan-400">Crear Nuevo Perfil</h2>
+                <form onSubmit={handleCreateProfile} className="grid md:grid-cols-4 gap-2 items-end mb-2">
                     <input type="text" value={newProfileName} onChange={e => setNewProfileName(e.target.value)} placeholder="Nombre del Perfil (ej: Planta A)" required className="w-full p-2 border border-gray-600 bg-gray-700 text-white rounded focus:ring-cyan-500 focus:border-cyan-500" />
                     <input
                         type="text"

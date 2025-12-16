@@ -1,7 +1,7 @@
 // lib/data/clientes.ts
 import { supabase } from '../supabaseClient';
 import { BaseQuery, DataResult, PaginatedResult } from './base';
-import type { Cliente, ClienteCreateInput, ClienteUpdateInput } from '../types';
+import type { Cliente } from '../types';
 
 export class ClientesData {
   /**
@@ -56,7 +56,7 @@ export class ClientesData {
   /**
    * Create new client
    */
-  static async create(clientData: ClienteCreateInput): Promise<DataResult<Cliente>> {
+  static async create(clientData: Partial<Cliente>): Promise<DataResult<Cliente>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('clientes')
@@ -69,7 +69,7 @@ export class ClientesData {
   /**
    * Update client
    */
-  static async update(id: string, updates: ClienteUpdateInput): Promise<DataResult<Cliente>> {
+  static async update(id: string, updates: Partial<Cliente>): Promise<DataResult<Cliente>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('clientes')

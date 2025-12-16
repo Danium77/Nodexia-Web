@@ -53,7 +53,12 @@ export default function useIncidencias() {
       return () => clearInterval(t);
     }
 
-    return () => { mounted = false; try { subRef.current?.unsubscribe(); } catch (e) {} };
+    return () => { 
+      mounted = false; 
+      if (subRef.current?.unsubscribe) {
+        try { subRef.current.unsubscribe(); } catch (e) { /* ignore */ }
+      }
+    };
   }, []);
 
   return { incidencias, loading, error };

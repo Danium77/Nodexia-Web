@@ -78,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updated_at: new Date().toISOString()
     };
 
-    const { data: viajeActualizado, error: updateError } = await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('viajes')
       .update(updateData)
       .eq('id', viaje_id)
@@ -148,7 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-function validarDatosCarga(viaje: any, pesoReal?: number, remitoUrl?: string) {
+function validarDatosCarga(viaje: any, pesoReal?: number, _remitoUrl?: string) {
   const errores = [];
 
   // Validar peso real si se proporciona
@@ -204,14 +204,12 @@ async function enviarNotificacionCargaFinalizada(viaje: any, pesoReal?: number) 
     await supabaseAdmin
       .from('notificaciones')
       .insert({
-        usuario_id: usuarioChofer.id,
-        tipo_notificacion: 'carga_finalizada',
+        user_id: usuarioChofer.id,
+        tipo: 'mensaje_sistema',
         titulo: '✅ Carga Completada',
         mensaje,
         viaje_id: viaje.id,
-        enviada: true,
-        fecha_envio: new Date().toISOString(),
-        datos_extra: {
+        metadata: {
           numero_viaje: viaje.numero_viaje,
           peso_final: pesoFinal,
           tipo_operacion: viaje.tipo_operacion
@@ -241,14 +239,12 @@ async function notificarControlAccesoEgreso(viaje: any) {
       await supabaseAdmin
         .from('notificaciones')
         .insert({
-          usuario_id: usuario.user_id,
-          tipo_notificacion: 'estado_actualizado',
+          user_id: usuario.user_id,
+          tipo: 'cambio_estado',
           titulo: '🚪 Camión Listo para Egreso',
           mensaje: `Viaje ${viaje.numero_viaje} completado. Camión listo para egresar de planta.`,
           viaje_id: viaje.id,
-          enviada: true,
-          fecha_envio: new Date().toISOString(),
-          datos_extra: {
+          metadata: {
             numero_viaje: viaje.numero_viaje,
             accion_requerida: 'egreso'
           }

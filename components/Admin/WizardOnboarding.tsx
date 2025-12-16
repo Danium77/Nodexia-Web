@@ -5,7 +5,7 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   BuildingOfficeIcon,
-  UserIcon,
+  // UserIcon,
   CreditCardIcon,
   CogIcon,
   DocumentCheckIcon
@@ -167,7 +167,7 @@ export default function WizardOnboarding({ onClose, onComplete }: WizardOnboardi
         return;
       }
 
-      if (data && data.length > 0) {
+      if (data && data.length > 0 && data[0]) {
         setError(`Ya existe una empresa registrada con el CUIT ${cuit}: "${data[0].nombre}"`);
       } else {
         setError(null);

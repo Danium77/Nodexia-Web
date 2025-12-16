@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../components/layout/AdminLayout';
 import NetworkManager from '../components/Network/NetworkManager';
 import SuperAdminPanel from '../components/SuperAdmin/SuperAdminPanel';
-import SimpleSuperAdminPanel from '../components/SuperAdmin/SimpleSuperAdminPanel';
 import { useSuperAdminAccess } from '../lib/hooks/useSuperAdminAccess';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
 
@@ -12,7 +11,7 @@ const ConfiguracionPage = () => {
   const { primaryRole, loading } = useUserRole();
   const [showNetworkManager, setShowNetworkManager] = useState(false);
   const [showSuperAdmin, setShowSuperAdmin] = useState(false);
-  const { isSuperAdmin, loading: superAdminLoading } = useSuperAdminAccess();
+  const { isSuperAdmin } = useSuperAdminAccess();
 
   if (loading) {
     return <AdminLayout pageTitle="Configuración"><div className="text-white">Cargando configuración...</div></AdminLayout>;
@@ -147,7 +146,7 @@ const ConfiguracionPage = () => {
               </div>
             )}
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-2 grid grid-cols-1 md:grid-cols-3 gap-2">
             {cardsToShow.map((card, idx) => (
               <div key={idx} className="bg-gray-800 rounded-lg shadow-md p-6 flex flex-col items-center">
                 <h2 className={`text-xl font-bold mb-2 ${card.color}`}>{card.title}</h2>

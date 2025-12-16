@@ -14,7 +14,6 @@ export type Timestamp = string; // ISO string
 // Company & Role types (MIGRACIÓN COMPLETADA)
 // =====================
 
-import type { Empresa } from '../types/common';
 export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'sistema';
 
 /**
@@ -76,7 +75,6 @@ export type UserRole = RolInterno | 'admin' | 'super_admin';
 // User & Auth types
 // =====================
 import type { User } from '../types/common';
-import type { Role } from '../types/common';
 
 export interface ProfileUser {
   id: UUID;
@@ -381,6 +379,8 @@ export interface Chofer {
   usuario_alta?: UUID | null;
   fecha_alta?: Timestamp;
   fecha_modificacion?: Timestamp;
+  // NUEVO - 21 Nov 2025: Vinculación con usuario para app móvil
+  user_id?: UUID | null;
 }
 
 export interface ChoferCreateInput {
@@ -490,21 +490,54 @@ export interface Incidencia {
 // Viajes Despacho types (NUEVO - Sistema Opción C)
 // =====================
 
-export type EstadoViajeDespacho = 
-  | 'pendiente'
-  | 'transporte_asignado'
-  | 'camion_asignado'
-  | 'confirmado'
-  | 'en_transito'
-  | 'en_planta'
-  | 'esperando_carga'
-  | 'cargando'
-  | 'carga_completa'
-  | 'en_ruta'
-  | 'entregado'
-  | 'completado'
-  | 'cancelado'
-  | 'incidencia';
+// =====================
+// Estados DUALES del Sistema (Nuevo - 21 Nov 2025)
+// =====================
+
+/**
+ * Estados de la UNIDAD (Chofer + Camión)
+ * Tracking logístico del vehículo
+ */
+export type EstadoUnidadViaje = 
+  | 'pendiente'              // Viaje creado, sin transporte asignado
+  | 'asignado'               // Transporte asignado, esperando confirmación
+  | 'confirmado_chofer'      // Chofer confirmó el viaje
+  | 'en_transito_origen'     // En camino a planta de carga
+  | 'arribado_origen'        // Llegó a planta origen
+  | 'en_playa_espera'        // En playa esperando llamado
+  | 'llamado_carga'          // Supervisor llamó a carga
+  | 'posicionado_carga'      // En posición de carga
+  | 'carga_completada'       // Carga finalizada
+  | 'saliendo_origen'        // Saliendo de planta
+  | 'en_transito_destino'    // En camino a destino
+  | 'arribado_destino'       // Llegó a destino
+  | 'descarga_completada'    // Descarga finalizada
+  | 'viaje_completado'       // Viaje cerrado
+  | 'en_incidencia'          // Problema reportado
+  | 'cancelado';             // Viaje cancelado
+
+/**
+ * Estados de la CARGA (Producto + Documentación)
+ * Tracking operativo del producto
+ */
+export type EstadoCargaViaje = 
+  | 'pendiente'                 // Viaje creado, sin planificación
+  | 'planificado'               // Producto y cantidades definidas
+  | 'documentacion_preparada'   // Remitos listos
+  | 'en_proceso_carga'          // Carga en progreso
+  | 'cargado'                   // Producto cargado
+  | 'documentacion_validada'    // Control Acceso validó docs
+  | 'en_transito'               // Producto en tránsito
+  | 'en_proceso_descarga'       // Descarga en progreso
+  | 'descargado'                // Producto entregado
+  | 'documentacion_cierre'      // Docs firmados
+  | 'completado'                // Viaje cerrado
+  | 'con_faltante'              // Entregado con faltante
+  | 'con_rechazo'               // Producto rechazado
+  | 'cancelado_sin_carga';      // Cancelado antes de cargar
+
+// DEPRECATED - Mantener por compatibilidad
+export type EstadoViajeDespacho = EstadoUnidadViaje;
 
 export interface ViajeDespacho {
   id: UUID;
@@ -626,12 +659,187 @@ export interface IncidenciaViaje {
 }
 
 // Vista completa de viajes (para reportes)
-export interface VistaViajeDespacho {
+// =====================
+// Nuevas tablas de Estados Duales (21 Nov 2025)
+// =====================
+
+export interface EstadoUnidadViaje {
+  id: UUID;
+  viaje_id: UUID;
+  estado_unidad: EstadoUnidadViaje;
+  
+  // Timestamps de transiciones (20 estados)
+  fecha_creacion: Timestamp;
+  fecha_asignacion?: Timestamp;
+  fecha_confirmacion_chofer?: Timestamp;
+  fecha_inicio_transito_origen?: Timestamp;
+  fecha_arribo_origen?: Timestamp;
+  fecha_ingreso_planta?: Timestamp;
+  fecha_ingreso_playa?: Timestamp;
+  fecha_inicio_proceso_carga?: Timestamp;
+  fecha_cargado?: Timestamp;
+  fecha_egreso_planta?: Timestamp;
+  fecha_inicio_transito_destino?: Timestamp;
+  fecha_arribo_destino?: Timestamp;
+  fecha_ingreso_destino?: Timestamp;
+  fecha_llamado_descarga?: Timestamp;
+  fecha_inicio_descarga?: Timestamp;
+  fecha_vacio?: Timestamp;
+  fecha_egreso_destino?: Timestamp;
+  fecha_disponible_carga?: Timestamp;
+  fecha_viaje_completado?: Timestamp;
+  fecha_cancelacion?: Timestamp;
+  
+  // GPS Tracking
+  ubicacion_actual_lat?: number;
+  ubicacion_actual_lon?: number;
+  ultima_actualizacion_gps?: Timestamp;
+  velocidad_actual_kmh?: number;
+  
+  // Cancelación
+  cancelado_por?: UUID;
+  motivo_cancelacion?: string;
+  
+  observaciones_unidad?: string;
+  created_at: Timestamp;
+  updated_at?: Timestamp;
+}
+
+export interface EstadoCargaViaje {
+  id: UUID;
+  viaje_id: UUID;
+  estado_carga: EstadoCargaViaje;
+  
+  // Timestamps de transiciones (17 estados)
+  fecha_creacion: Timestamp;
+  fecha_planificacion?: Timestamp;
+  fecha_documentacion_preparada?: Timestamp;
+  fecha_llamado_carga?: Timestamp;
+  fecha_posicionado_carga?: Timestamp;
+  fecha_iniciando_carga?: Timestamp;
+  fecha_cargando?: Timestamp;
+  fecha_carga_completada?: Timestamp;
+  fecha_documentacion_validada?: Timestamp;
+  fecha_en_transito?: Timestamp;
+  fecha_arribado_destino?: Timestamp;
+  fecha_iniciando_descarga?: Timestamp;
+  fecha_descargando?: Timestamp;
+  fecha_descargado?: Timestamp;
+  fecha_entregado?: Timestamp;
+  fecha_cancelacion?: Timestamp;
+  
+  // Datos de carga
+  producto?: string;
+  peso_estimado_kg?: number;
+  peso_real_kg?: number;
+  cantidad_bultos?: number;
+  temperatura_carga?: number;
+  
+  // Documentación
+  remito_numero?: string;
+  remito_url?: string;
+  carta_porte_url?: string;
+  certificado_calidad_url?: string;
+  documentacion_adicional?: any[]; // JSONB array
+  
+  // Faltantes/Rechazos
+  tiene_faltante: boolean;
+  detalle_faltante?: string;
+  peso_faltante_kg?: number;
+  tiene_rechazo: boolean;
+  detalle_rechazo?: string;
+  
+  // Cancelación
+  cancelado_por?: UUID;
+  motivo_cancelacion?: string;
+  
+  observaciones_carga?: string;
+  created_at: Timestamp;
+  updated_at?: Timestamp;
+}
+
+export interface HistorialUbicacion {
+  id: UUID;
+  viaje_id: UUID;
+  chofer_id?: UUID;
+  latitud: number;
+  longitud: number;
+  precision_metros?: number;
+  altitud_metros?: number;
+  velocidad_kmh?: number;
+  rumbo_grados?: number;
+  estado_unidad_momento?: string;
+  fecha_registro: Timestamp;
+  dispositivo_info?: any; // JSONB
+  created_at: Timestamp;
+}
+
+export type TipoNotificacion = 
+  | 'viaje_asignado'
+  | 'llamado_carga'
+  | 'viaje_cancelado'
+  | 'incidencia_reportada'
+  | 'demora_detectada'
+  | 'documentacion_rechazada'
+  | 'viaje_completado'
+  | 'otro';
+
+export interface Notificacion {
+  id: UUID;
+  user_id: UUID;
+  tipo: TipoNotificacion;
+  titulo: string;
+  mensaje: string;
+  datos_adicionales?: any; // JSONB
+  viaje_id?: UUID;
+  despacho_id?: UUID;
+  leida: boolean;
+  fecha_lectura?: Timestamp;
+  enviada_push: boolean;
+  fecha_envio_push?: Timestamp;
+  token_fcm?: string;
+  created_at: Timestamp;
+}
+
+// Vista unificada de estados (para dashboards)
+export interface VistaEstadoViajeCompleto {
   viaje_id: UUID;
   despacho_id: UUID;
   numero_despacho: string;
   numero_viaje: number;
-  estado: EstadoViajeDespacho;
+  
+  // Estado UNIDAD
+  estado_unidad: EstadoUnidadViaje;
+  fecha_asignacion?: Timestamp;
+  fecha_confirmacion_chofer?: Timestamp;
+  fecha_arribo_origen?: Timestamp;
+  fecha_unidad_carga_ok?: Timestamp;
+  fecha_egreso_origen?: Timestamp;
+  fecha_arribo_destino?: Timestamp;
+  fecha_viaje_completado?: Timestamp;
+  ubicacion_actual_lat?: number;
+  ubicacion_actual_lon?: number;
+  ultima_actualizacion_gps?: Timestamp;
+  velocidad_actual_kmh?: number;
+  observaciones_unidad?: string;
+  
+  // Estado CARGA
+  estado_carga: EstadoCargaViaje;
+  fecha_planificacion?: Timestamp;
+  fecha_documentacion_preparada?: Timestamp;
+  fecha_carga_producto_ok?: Timestamp;
+  fecha_documentacion_validada?: Timestamp;
+  fecha_descargado?: Timestamp;
+  fecha_completado?: Timestamp;
+  producto?: string;
+  peso_estimado_kg?: number;
+  peso_real_kg?: number;
+  remito_numero?: string;
+  tiene_faltante: boolean;
+  tiene_rechazo: boolean;
+  observaciones_carga?: string;
+  
+  // Datos relacionados
   transporte_nombre?: string;
   camion_patente?: string;
   camion_marca?: string;
@@ -639,19 +847,27 @@ export interface VistaViajeDespacho {
   acoplado_patente?: string;
   chofer_nombre?: string;
   chofer_telefono?: string;
-  origen?: string;
-  destino?: string;
-  fecha_creacion: Timestamp;
+  chofer_user_id?: UUID;
+  
+  // KPIs calculados
+  horas_en_planta?: number;
+  minutos_de_carga?: number;
+  
+  created_at: Timestamp;
+  updated_at?: Timestamp;
+}
+
+// DEPRECATED - Mantener por compatibilidad
+export interface VistaViajeDespacho extends VistaEstadoViajeCompleto {
+  estado: EstadoViajeDespacho; // Mapea a estado_unidad
   fecha_asignacion_camion?: Timestamp;
   fecha_ingreso_planta?: Timestamp;
   fecha_salida_planta?: Timestamp;
   fecha_confirmacion_entrega?: Timestamp;
-  horas_en_planta?: number;
-  producto?: string;
+  origen?: string;
+  destino?: string;
   peso_estimado?: number;
   peso_real?: number;
-  created_at: Timestamp;
-  updated_at?: Timestamp;
 }
 
 // =====================

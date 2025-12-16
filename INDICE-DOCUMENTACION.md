@@ -1,454 +1,315 @@
-# 📑 ÍNDICE DE DOCUMENTACIÓN - NODEXIA WEB
+# 📚 ÍNDICE DE DOCUMENTACIÓN - NODEXIA
 
-**Última actualización**: 29 de Octubre, 2025  
-**Estado del sistema**: ✅ 100% Operativo - Sesiones diferenciadas por tipo de empresa  
-**Versión**: Post Sesión #6 - Sistema de Roles Diferenciados
-
----
-
-## 🚀 PARA EMPEZAR (LEER PRIMERO)
-
-### 1️⃣ **INICIO-RAPIDO.md** 🌟🌟🌟
-**EMPIEZA AQUÍ** - Guía de onboarding con pasos numerados para nuevos desarrolladores
-
-**Ubicación:** `INICIO-RAPIDO.md` (raíz del proyecto)
-
-**Contenido:**
-- ✅ Setup inicial en 3 pasos claros
-- ✅ Credenciales de todos los tipos de usuario (planta/transporte/cliente)
-- ✅ Mapa completo de documentación
-- ✅ Funcionalidades operativas del sistema
-- ✅ Problemas conocidos con soluciones
-- ✅ Workflow de desarrollo recomendado
-
-**Tiempo de lectura**: 10 minutos  
-**Úsalo para**: Onboarding completo desde cero
+**Última actualización:** 4 de Diciembre 2025  
+**Estado:** ✅ Sistema de usuarios completo + Preparado para SMTP
 
 ---
 
-## 📚 DOCUMENTACIÓN DE SESIONES (HISTORIAL)
+## 🎯 INICIO RÁPIDO
 
-### 🌟🌟 **docs/sesiones/SESION-29-OCT-2025.md** (ÚLTIMA SESIÓN)
-**Sistema de roles diferenciados implementado y funcional**
+### Para Comenzar una Nueva Sesión:
+1. 📖 **PROMPT-CONTINUACION-29-NOV-2025.md** ⭐ - Contexto más reciente
+2. 📧 **docs/INTEGRACION-SMTP-COMPLETA.md** ⭐⭐ - Guía para activar SMTP
+3. 👥 **docs/FLUJO-CREACION-USUARIOS-UI.md** - Sistema de usuarios desde UI
+4. 📱 **GUIA-INSTALACION-PWA.md** - Guía instalación como app móvil
 
-**Ubicación:** `docs/sesiones/SESION-29-OCT-2025.md`
-
-**Logros de la sesión:**
-- ✅ UserRoleContext refactorizado (query directo a usuarios_empresa + JOIN empresas)
-- ✅ Dashboard redirector con todos los roles (8 casos completos)
-- ✅ Sidebar diferenciado por tipo (planta vs transporte vs chofer)
-- ✅ Cache de tipoEmpresa en localStorage implementado
-- ✅ Scripts de utilidad creados (confirm_user_email.js, check_user_gonzalo.js)
-- ✅ Fixes críticos (TruckIcon import, sintaxis UserRoleContext)
-- ✅ Logs de debugging exitosos documentados
-- ✅ Lecciones aprendidas sobre cache y queries
-
-**Archivos modificados:** 6  
-**Scripts creados:** 2  
-**Duración:** ~3 horas  
-**Estado:** ✅ Exitosa - Sistema completamente funcional
-
-**Tiempo de lectura**: 15 minutos  
-**Úsalo para**: Entender el estado actual del sistema y últimos cambios
+### Para Desarrollar:
+- **README.md** - Información general del proyecto
+- **INICIO-RAPIDO.md** - Guía de inicio rápido
+- **docs/guides/CREDENCIALES-LOGIN.md** - Credenciales de testing
 
 ---
 
-### 🌟 **docs/SESION-2025-10-26.md**
-**Sesión #5 - Onboarding Completo + UI Improvements**
-
-**Ubicación:** `docs/SESION-2025-10-26.md`
-
-- ✅ Flujo end-to-end validado (empresa → usuario → despacho → asignación)
-- ✅ Foreign Key constraints corregidos
-- ✅ Sidebar colapsable con hover implementado
-- ✅ UI optimizada (tabla compacta, espaciado mejorado)
-
-**Tiempo de lectura**: 10 minutos  
-**Úsalo para**: Ver progreso de sesión anterior
-
----
-
-## 🐛 PROBLEMAS Y SOLUCIONES
-
-### 🔴 **docs/PROBLEMAS-CONOCIDOS.md** (NUEVO)
-**78 problemas del terminal categorizados con soluciones detalladas**
-
-**Ubicación:** `docs/PROBLEMAS-CONOCIDOS.md`
-
-**Resumen de problemas:**
-- 🔴 **Críticos (4)**: TrackingView missing, AdminLayout props faltantes
-- 🟡 **Tipos (30)**: Array vs Object access, optional chaining, exactOptionalPropertyTypes
-- 🟢 **Menores (25)**: Variables no usadas, console.logs, imports sin usar
-- � **Otros (19)**: useEffect cleanup, object possibly undefined
-
-**Contenido detallado:**
-- ✅ Resumen por categoría con prioridades
-- ✅ Código incorrecto vs correcto para cada problema
-- ✅ Plan de acción priorizado (1-2-3)
-- ✅ Notas sobre TypeScript Strict Mode
-- ✅ Comandos de testing y validación
-- ✅ Referencias técnicas
-
-**Tiempo de lectura**: 20 minutos  
-**Úsalo para**: Resolver problemas específicos del proyecto
-
----
-
-## 🛠️ ARCHIVOS DE CÓDIGO Y CONFIGURACIÓN
-
-### 13. **types/missing-types.ts** ✅
-**Tipos faltantes definidos**
-
-```typescript
-import { Camion, Acoplado, Empresa, UserRole } from '@/types/missing-types';
-```
-
-**Úsalo para**: Importar tipos que faltaban
-
----
-
-### 14. **lib/type-guards.ts** ✅
-**Utilidades de validación**
-
-```typescript
-import { isDefined, isUserRole, hasProperty } from '@/lib/type-guards';
-```
-
-**Úsalo para**: Validar tipos en runtime de forma segura
-
----
-
-### 15. **lib/contexts/UserRoleContext.tsx** ✅ (ACTUALIZADO - Sesión #5)
-**Context central de autenticación y roles**
-
-- ✅ Caché de 5 minutos
-- ✅ Persistencia en localStorage
-- ✅ primaryRole calculado
-- ✅ Helpers: hasRole, hasAnyRole
-- ✅ **empresaId exportado** (Sesión #5)
-
-**Úsalo para**: Gestión de autenticación, roles y empresa multi-tenant
-
----
-### 16. **scripts/fix-critical-issues.js** ✅
-### 14. **scripts/fix-critical-issues.js** ✅
-**Script de correcciones automáticas**
-
-```powershell
-node scripts/fix-critical-issues.js
-```
-
-**Úsalo para**: Aplicar correcciones automáticas
-
----
-### 17. **scripts/verify_and_assign_admin.js** ✅
-### 15. **scripts/verify_and_assign_admin.js** ✅ (NUEVO)
-**Asignar rol super_admin después de outage**
-
-```powershell
-node scripts/verify_and_assign_admin.js
-```
-
-**Úsalo para**: Recuperar acceso admin después de problemas
-
----
-### 18. **eslint.config.improved.mjs** ✅
-### 16. **eslint.config.improved.mjs** ✅
-**Configuración ESLint mejorada**
-
-```powershell
-# Renombrar para usar
-mv eslint.config.improved.mjs eslint.config.mjs
-```
-
-**Úsalo para**: Migrar a ESLint moderno
-
----
-
-## 📊 ESTRUCTURA DE NAVEGACIÓN
+## 📂 ESTRUCTURA PRINCIPAL
 
 ```
-📁 Nodexia-Web/
+Nodexia-Web/
+├── 📄 Documentos Raíz (solo esenciales)
+│   ├── README.md
+│   ├── INICIO-RAPIDO.md
+│   ├── PLAN-DE-ACCION.md
+│   ├── NODEXIA-ROADMAP.md
+│   ├── INSTRUCCIONES-SISTEMA-TRANSPORTE.md
+│   └── MEJORAS-PLANIFICACION-PROPUESTAS.md
 │
-├── 🚀 DOCUMENTOS ESENCIALES (EN .jary/)
-│   ├── 🌟🌟🌟 QUICK-START-COMPLETO.md  ← EMPIEZA AQUÍ
-│   ├── 🌟🌟 CHANGELOG-SESION-4.md      ← CAMBIOS RECIENTES
-│   ├── 🌟 TROUBLESHOOTING.md          ← SOLUCIÓN DE PROBLEMAS
-│   ├── 🌟🌟 ARCHITECTURE.md           ← ARQUITECTURA TÉCNICA
-│   └── 🌟🌟 ONBOARDING.md             ← GUÍA DE ONBOARDING
-├── 📚 DOCUMENTACIÓN DE SESIONES
-│   ├── 🌟🌟 docs/SESION-2025-10-26.md  ← ÚLTIMA SESIÓN (Onboarding)
-│   ├── 🌟 docs/TAREAS-PENDIENTES.md   ← PRÓXIMA SESIÓN
-│   ├── 🌟 TESTING-COMPLETADO.md
-│   ├── 🌟🌟 PLAN-DE-ACCION.md
-│   └── 🌟 RESUMEN-TESTING.md
-│
-├── 📁 docs/
-│   ├── 🌟🌟 SESION-2025-10-26.md       ← NUEVA
-│   ├── 🌟 TAREAS-PENDIENTES.md        ← NUEVA
-│   ├── 📖 REPORTE-TESTING-COMPLETO.md
-│   ├── 📖 GUIA-CORRECCIONES-MANUALES.md
-│   ├── 📖 ARQUITECTURA-OPERATIVA.md
-│   ├── 📖 CREDENCIALES-OFICIALES.md
-│   ├── 📖 DESIGN-SYSTEM.md
-│   └── 📁 bugs/
-│       └── 🐛 BUG-REPORT-ASIGNACION-TRANSPORTE.md (RESUELTO)
-│       └── 🐛 BUG-REPORT-ASIGNACION-TRANSPORTE.md
-│
-├── 📁 types/
-│   └── ✅ missing-types.ts
-│
-├── 📁 lib/
-│   ├── ✅ type-guards.ts
-│   └── 📁 contexts/
-│       └── ✅ UserRoleContext.tsx (ACTUALIZADO)
-│
-├── 📁 scripts/
-│   ├── ✅ fix-critical-issues.js
-│   ├── ✅ verify_and_assign_admin.js (NUEVO)
-│   └── ✅ debug_user_role.js
-│
-└── ✅ eslint.config.improved.mjs
+└── docs/
+    ├── 📍 activos/           ← DOCUMENTOS DE LA SESIÓN ACTUAL
+    ├── 🗄️ archivo/           ← HISTORIAL COMPLETO (sesiones antiguas, .jary)
+    ├── 📖 guides/            ← GUÍAS Y TUTORIALES
+    ├── 📊 summaries/         ← ANÁLISIS Y RESÚMENES
+    ├── 🔧 solutions/         ← SOLUCIONES A PROBLEMAS
+    ├── 🐛 bugs/              ← REPORTES DE BUGS
+    └── 📄 *.md               ← DOCS TÉCNICAS (arquitectura, diseño, etc.)
 ```
 
 ---
 
-## 🎯 FLUJO DE TRABAJO RECOMENDADO
+## 📍 DOCUMENTOS ACTIVOS (docs/activos/)
 
-### Para Nuevos Desarrolladores
+**Sesión Actual - Noviembre 2025:**
+- `SESION-COMPLETADA-2025-11-17.md` ⭐ - Última sesión completada
+- `PROMPT-CONTINUACION-19-NOV-2025.md` ⭐ - Para continuar trabajo
+- `RESUMEN-ESTADO-ACTUAL.md` ⭐ - Estado actual del proyecto
+- `RESUMEN-TESTING.md` - Testing realizado
+- `TESTING-COMPLETADO.md` - Testing completado
 
+---
+
+## 🗄️ ARCHIVO HISTÓRICO (docs/archivo/)
+
+### 📂 Sesiones por Mes
+- **octubre/** - Sesiones de Octubre 2025 (6 archivos)
+- **noviembre/** - Sesiones de Noviembre 2025 (9 archivos)
+- **prompts-antiguos/** - Prompts de sesiones anteriores (5 archivos)
+- **correcciones/** - Archivos de correcciones aplicadas (5 archivos)
+
+### 📂 Documentos Históricos (ex .jary/)
+Archivos consolidados desde `.jary/` **sin prefijo "JARY-"**:
+- `CONTEXTO-NODEXIA.md`
+- `DECISIONES.md`
+- `ESTADO-ACTUAL.md`
+- `INDICE.md`
+- `MEMORIA.md`
+- `NOTAS.md`
+- `PROXIMOS-PASOS.md`
+- `SESIONES.md`
+- `ARCHITECTURE.md`
+- `CHANGELOG.md`
+- Y más archivos históricos...
+
+### 🆕 Sesión 28 de Noviembre 2025
+- `GPS-TRACKING-IMPLEMENTACION-COMPLETA.md` ⭐ - Implementación GPS completa
+
+---
+
+## 📖 GUÍAS Y TUTORIALES (docs/guides/)
+
+### 🗄️ Base de Datos
+- `EJECUTAR-MIGRACIONES.md` ⭐ - Cómo ejecutar migraciones
+- `EJECUTAR-MIGRACION-010.md` - Migración específica 010
+- `EJECUTAR-MIGRACION-011.md` - Migración específica 011
+- `EJECUTAR-INDICES-PERFORMANCE.md` - Optimización de performance
+- `EJECUTAR-RLS-CHOFERES-CAMIONES.md` - RLS para choferes/camiones
+- `INSTRUCCIONES-EJECUTAR-SQL-VIAJES.md` - SQL para sistema de viajes
+- `EJECUTAR-MIGRACIONES-SQL-EDITOR.md` - Ejecutar desde SQL Editor
+
+### 👥 Usuarios y Empresas
+- `CREDENCIALES-LOGIN.md` ⭐ - Credenciales para testing
+- `README-MULTI-USER.md` - Sistema multi-usuario
+- `README-EMPRESAS-USUARIOS.md` - Gestión de empresas
+- `GUIA-ELIMINAR-USUARIOS.md` - Eliminar usuarios correctamente
+
+### 📧 Email y Notificaciones (NUEVO - Dic 2025)
+- `../INTEGRACION-SMTP-COMPLETA.md` ⭐⭐ - Guía completa para activar SMTP
+- `../FLUJO-CREACION-USUARIOS-UI.md` ⭐ - Creación de usuarios desde UI
+- `../CONFIGURACION-SMTP.md` - Configuración rápida de SMTP
+
+### 📧 Sistema de Emails
+- `GUIA-EMAIL-TROUBLESHOOTING.md` - Solución de problemas
+- `INVITACIONES-SIN-EMAIL.md` - Invitaciones sin email
+- `CONFIGURAR-SMTP-SUPABASE.md` - Configuración SMTP
+
+### 🧪 Testing
+- `GUIA-TESTING-DESPACHOS.md` - Testing de despachos
+- `INSTRUCCIONES-RAPIDAS.md` - Instrucciones rápidas
+- `DEMO-README.md` - Demo del sistema
+- `DEMO-PRESENTATION-README.md` - Presentación demo
+
+### 🛠️ Otros
+- `README-NETWORK.md` - Configuración de red
+- `README-DB-restore.md` - Restaurar base de datos
+
+---
+
+## 🏗️ DOCUMENTACIÓN TÉCNICA (docs/)
+
+### Arquitectura y Diseño
+- `ARQUITECTURA-OPERATIVA.md` ⭐ - Arquitectura del sistema
+- `DESIGN-SYSTEM.md` - Sistema de diseño UI/UX
+- `GPS-TRACKING-CHOFER.md` - Sistema GPS para choferes
+
+### Estado y Gestión
+- `CREDENCIALES-OFICIALES.md` ⭐ - Credenciales oficiales
+- `TAREAS-PENDIENTES.md` - Tareas pendientes
+- `PROBLEMAS-CONOCIDOS.md` - Problemas conocidos
+- `BUG-PAGE-RELOAD-PLAN-SOLUCION.md` - Solución bug reload
+
+### Planificación
+- `PLAN-TRABAJO-SIN-SUPABASE.md` - Plan alternativo sin Supabase
+- `PLAN-PRUEBAS-UI.md` - Plan de pruebas UI
+- `GUIA-CORRECCIONES-MANUALES.md` - Correcciones manuales
+- `RESUMEN-DECISIONES-19-OCT-2025.md` - Decisiones del 19 Oct
+- `REVISION-COMPLETA-FINALIZADA.md` - Revisión completada
+- `REPORTE-TESTING-COMPLETO.md` - Reporte de testing
+
+### GPS Tracking (Nuevo - 28 Nov 2025)
+- `GPS-TRACKING-IMPLEMENTACION-COMPLETA.md` ⭐ - **Implementación completa GPS tracking**
+
+---
+
+## 📊 ANÁLISIS Y RESÚMENES (docs/summaries/)
+
+- `ANALISIS-COMPLETO-ARQUITECTURA.md` - Análisis de arquitectura
+- `ANALISIS-COMPLETO-19-OCT-2025.md` - Análisis del 19 Oct
+- `ANALISIS-REFACTORIZACION-2025.md` - Análisis refactorización
+- `RESUMEN-MANTENIMIENTO-COMPLETADO.md` - Mantenimiento
+- `RESUMEN-SESION-16-17-OCT-2025.md` - Sesión 16-17 Oct
+- `RESUMEN-MEJORAS-EMAIL.md` - Mejoras de email
+- `LIMPIEZA-Y-REFACTORIZACION-16-OCT-2025.md` - Limpieza
+- `FLUJO-QR-COMPLETADO.md` - Implementación QR
+- `DOCUMENTACION-COMPONENTES.md` - Docs de componentes
+- `DOCUMENTACION-APIS.md` - Docs de APIs
+- `TIPOS-TYPESCRIPT-MEJORADOS.md` - Mejoras TypeScript
+- `REFACTORING_SUMMARY.md` - Resumen refactoring
+- `INCONSISTENCIAS-DETECTADAS.md` - Inconsistencias
+- `RESULTADOS-TESTING-PREPARACION.md` - Testing preparación
+
+---
+
+## 🔧 SOLUCIONES (docs/solutions/)
+
+- `SOLUCION-ERROR-SMTP-EMAILS.md` - Error SMTP
+- `SOLUCION-BUG-ASIGNACION.md` - Bug asignación transporte
+- `SOLUCION-BUCLE-INFINITO-HOTRELOAD.md` - Bucle infinito
+- `SOLUCION-USUARIO-ELIMINADO-SIGUE-APARECIENDO.md` - Usuario eliminado
+- `CORRECCION-TOKEN-AUTORIZACION.md` - Token autorización
+
+---
+
+## 🐛 BUGS (docs/bugs/)
+
+- `BUG-REPORT-ASIGNACION-TRANSPORTE.md` - Bug asignación transporte
+
+---
+
+## 📝 ROADMAP Y PLANNING
+
+### En Raíz
+- **NODEXIA-ROADMAP.md** ⭐ - Roadmap general
+- **PLAN-DE-ACCION.md** ⭐ - Plan de acción actual
+- **MEJORAS-PLANIFICACION-PROPUESTAS.md** - Mejoras propuestas
+
+---
+
+## 🚀 FLUJOS DE TRABAJO COMUNES
+
+### 1️⃣ Iniciar Nueva Sesión de Desarrollo
+```bash
+1. Leer: docs/activos/PROMPT-CONTINUACION-19-NOV-2025.md
+2. Revisar: docs/activos/SESION-COMPLETADA-2025-11-17.md
+3. Consultar: docs/activos/RESUMEN-ESTADO-ACTUAL.md
+4. Credenciales: docs/guides/CREDENCIALES-LOGIN.md
 ```
-1. Leer .jary/QUICK-START-COMPLETO.md (15 min)
-   ↓
-2. Setup del proyecto (ver QUICK-START)
-   ↓
-3. Leer .jary/ARCHITECTURE.md (30 min)
-   ↓
-4. Revisar .jary/CHANGELOG-SESION-4.md (20 min)
-   ↓
-5. Tener a mano .jary/TROUBLESHOOTING.md
-   ↓
-6. Empezar a desarrollar 🚀
+
+### 2️⃣ Ejecutar Migraciones de Base de Datos
+```bash
+1. Guía principal: docs/guides/EJECUTAR-MIGRACIONES.md
+2. Migraciones específicas: docs/guides/EJECUTAR-MIGRACION-*.md
+3. Performance: docs/guides/EJECUTAR-INDICES-PERFORMANCE.md
 ```
 
-### Para Desarrolladores Existentes
-
-```
-1. Leer .jary/CHANGELOG-SESION-4.md
-   ↓
-2. Entender cambios en UserRoleContext
-   ↓
-3. Actualizar código según nuevos patrones
-   ↓
-4. Consultar .jary/TROUBLESHOOTING.md si hay issues
-   ↓
-5. Usar .jary/ARCHITECTURE.md como referencia
+### 3️⃣ Hacer Testing
+```bash
+1. Credenciales: docs/guides/CREDENCIALES-LOGIN.md
+2. Testing despachos: docs/guides/GUIA-TESTING-DESPACHOS.md
+3. Estado: docs/activos/TESTING-COMPLETADO.md
 ```
 
-### Para Resolver Bugs
-
-```
-1. Buscar en .jary/TROUBLESHOOTING.md
-   ↓
-2. Si no está, revisar .jary/CHANGELOG-SESION-4.md
-   ↓
-3. Consultar .jary/ARCHITECTURE.md para entender flujo
-   ↓
-4. Ejecutar scripts de debug (scripts/debug_user_role.js)
-   ↓
-5. Documentar solución en .jary/TROUBLESHOOTING.md
+### 4️⃣ Solucionar Problemas
+```bash
+1. Problemas conocidos: docs/PROBLEMAS-CONOCIDOS.md
+2. Soluciones: docs/solutions/
+3. Email issues: docs/guides/GUIA-EMAIL-TROUBLESHOOTING.md
 ```
 
-### Para Project Managers
-
-```
-1. Leer CHANGELOG-SESION-4.md (resumen ejecutivo)
-   ↓
-2. Revisar PLAN-DE-ACCION.md (tareas pendientes)
-   ↓
-3. Seguir métricas semanales
-   ↓
-4. Reportar avances basados en documentación
+### 5️⃣ Consultar Arquitectura
+```bash
+1. Arquitectura: docs/ARQUITECTURA-OPERATIVA.md
+2. Design System: docs/DESIGN-SYSTEM.md
+3. Análisis: docs/summaries/ANALISIS-COMPLETO-ARQUITECTURA.md
 ```
 
 ---
 
-## 🔍 BÚSQUEDA RÁPIDA
-| **Empezar con el proyecto** | `.jary/QUICK-START-COMPLETO.md` 🌟🌟🌟 |
-| **Ver ÚLTIMA SESIÓN (26 Oct)** | `docs/SESION-2025-10-26.md` 🌟🌟🌟 |
-| **Ver tareas pendientes** | `docs/TAREAS-PENDIENTES.md` 🌟🌟 |
-| **Entender qué cambió recientemente** | `.jary/CHANGELOG-SESION-4.md` 🌟🌟 |
-| **Resolver un bug** | `.jary/TROUBLESHOOTING.md` 🌟 |
-| **Entender la arquitectura** | `.jary/ARCHITECTURE.md` 🌟🌟 |
-| **Onboarding completo** | `.jary/ONBOARDING.md` 🌟🌟 |
-| **Empezar con el proyecto** | `.jary/QUICK-START-COMPLETO.md` 🌟🌟🌟 |
-| **Entender qué cambió recientemente** | `.jary/CHANGELOG-SESION-4.md` 🌟🌟 |
-| **Resolver un bug** | `.jary/TROUBLESHOOTING.md` 🌟 |
-| **Entender la arquitectura** | `.jary/ARCHITECTURE.md` 🌟🌟 |
-| **Onboarding completo** | `.jary/ONBOARDING.md` 🌟🌟 |
-| Credenciales de acceso | `docs/CREDENCIALES-OFICIALES.md` |
-| Ver arquitectura operativa | `docs/ARQUITECTURA-OPERATIVA.md` |
-| Saber qué hacer hoy | `PLAN-DE-ACCION.md` |
-| Ver todos los errores TS | `docs/REPORTE-TESTING-COMPLETO.md` |
-| Corregir un error específico | `docs/GUIA-CORRECCIONES-MANUALES.md` |
-| Entender un tipo faltante | `types/missing-types.ts` |
-| Validar un tipo en runtime | `lib/type-guards.ts` |
-| Gestionar roles y auth | `lib/contexts/UserRoleContext.tsx` |
-| Resolver bug de asignación | `docs/bugs/BUG-REPORT-ASIGNACION-TRANSPORTE.md` |
-| Aplicar correcciones automáticas | `scripts/fix-critical-issues.js` |
-| Asignar super_admin | `scripts/verify_and_assign_admin.js` |
-### Estado Actual del Sistema (26 OCT 2025)
+## 🔍 BÚSQUEDA POR TEMA
 
-```markdown
-## Estado Operativo
-
-✅ Sistema 100% operativo
-✅ Flujo de onboarding completo validado end-to-end
-✅ Empresa → Usuario → Ubicaciones → Transportes → Despachos → Asignación
-✅ Foreign Key constraints corregidos
-✅ Sidebar colapsable con hover implementado
-✅ UI optimizada (tabla compacta, espaciado mejorado)
-✅ RLS policies configuradas correctamente
-✅ Búsqueda de transportes con CUIT normalizado
-✅ Modal de asignación filtrado por relaciones empresa
-⚠️  Bug conocido: "Medios de comunicación" en prioridad (autocomplete navegador)
-```erformance optimizado (95% más rápido)
-✅ localStorage implementado
-✅ Caché de 5 minutos activo
-✅ Primera ubicación creada exitosamente
-✅ 7 problemas críticos resueltos
-✅ 7 archivos refactorizados
-✅ Documentación completa generada
-```
-
-### Trackear tu progreso como nuevo desarrollador
-
-```markdown
-## Mi Onboarding
-
-- [ ] Leído QUICK-START.md
-- [ ] Setup completado (pnpm install, env vars)
-- [ ] Primer login exitoso
-- [ ] Navegado por diferentes dashboards
-- [ ] Leído ARCHITECTURE.md
-- [ ] Leído CHANGELOG-SESION-4.md
-- [ ] Creado primera ubicación
-- [ ] Revisado TROUBLESHOOTING.md
-- [ ] Primer PR enviado
-- [ ] Code review aprobado
-```
+| Tema | Archivo Principal |
+|------|-------------------|
+| 🚀 Inicio Rápido | `INICIO-RAPIDO.md` |
+| 🗄️ Migraciones DB | `docs/guides/EJECUTAR-MIGRACIONES.md` |
+| 🔑 Credenciales | `docs/guides/CREDENCIALES-LOGIN.md` |
+| 🧪 Testing | `docs/activos/TESTING-COMPLETADO.md` |
+| 🏗️ Arquitectura | `docs/ARQUITECTURA-OPERATIVA.md` |
+| 🎨 Diseño | `docs/DESIGN-SYSTEM.md` |
+| 📧 Emails | `docs/guides/GUIA-EMAIL-TROUBLESHOOTING.md` |
+| 🚛 Transporte | `INSTRUCCIONES-SISTEMA-TRANSPORTE.md` |
+| 📍 GPS Tracking | `docs/GPS-TRACKING-CHOFER.md` |
+| 🎯 GPS Implementación | `docs/GPS-TRACKING-IMPLEMENTACION-COMPLETA.md` ⭐ |
+| 🐛 Bugs Conocidos | `docs/PROBLEMAS-CONOCIDOS.md` |
+| 📝 Tareas Pendientes | `docs/TAREAS-PENDIENTES.md` |
+| 🗺️ Roadmap | `NODEXIA-ROADMAP.md` |
 
 ---
 
-## 🎓 GLOSARIO
+## 📦 CAMBIOS EN ESTA REORGANIZACIÓN (19 Nov 2025)
 
-### Términos Clave
+### ✅ Acciones Realizadas:
+1. **Carpeta `.jary` consolidada:**
+   - Archivos movidos a `docs/archivo/`
+   - Prefijo "JARY-" eliminado de nombres
+   - Total: 25 archivos consolidados
 
-- **TS**: TypeScript
-- **ESLint**: Herramienta de linting para JavaScript/TypeScript
-- **Jest**: Framework de testing
-- **RLS**: Row Level Security (Supabase)
-- **Type Guard**: Función que verifica tipos en runtime
-- **Type-safe**: Código con tipado fuerte y validado
+2. **Sesiones archivadas por mes:**
+   - `docs/archivo/octubre/` - 6 sesiones
+   - `docs/archivo/noviembre/` - 9 sesiones
+   - Solo la sesión más reciente (17-Nov) permanece activa
 
----
+3. **Prompts históricos archivados:**
+   - `docs/archivo/prompts-antiguos/` - 5 prompts
+   - Solo prompt actual (19-Nov) permanece activo
 
-## 💡 TIPS
+4. **Correcciones archivadas:**
+   - `docs/archivo/correcciones/` - 5 archivos
+   - Información ya integrada en código
 
-### Antes de Empezar
+5. **Documentos activos centralizados:**
+   - `docs/activos/` - 5 documentos clave para sesión actual
 
-1. ✅ Hacer backup de tu código
-2. ✅ Crear una rama para las correcciones
-3. ✅ Leer toda la documentación primero
+6. **Guías SQL consolidadas:**
+   - Movidas a `docs/guides/`
+   - Fácil acceso y organización
 
-### Durante el Trabajo
+7. **Raíz del proyecto limpia:**
+   - Solo documentos esenciales (README, INICIO-RAPIDO, etc.)
+   - Resto organizado en `docs/`
 
-1. ✅ Hacer commits frecuentes
-2. ✅ Verificar con `pnpm type-check` después de cada corrección
-3. ✅ Ejecutar tests con `pnpm test`
-
-### Después de Corregir
-
-1. ✅ Actualizar métricas en PLAN-DE-ACCION.md
-2. ✅ Documentar lo aprendido
-3. ✅ Celebrar los logros 🎉
-
----
-
-## 📞 CONTACTO
-
-### ¿Dudas?
-
-- **Documentación**: Ver este índice
-- **Scripts**: `scripts/`
-- **Tipos**: `types/`
-- **Utilidades**: `lib/`
+### 📊 Resultados:
+- ✅ **Estructura clara y organizada**
+- ✅ **Archivos históricos separados de activos**
+- ✅ **Fácil navegación y búsqueda**
+- ✅ **Sin duplicados ni prefijos confusos**
+- ✅ **Raíz del proyecto limpia**
 
 ---
 
-## 📞 CONTACTO Y SOPORTE
+## 📞 SOPORTE
 
-### ¿Necesitas ayuda?
-
-1. **Documentación Técnica**: Ver archivos en `docs/`
-2. **Problemas comunes**: `TROUBLESHOOTING.md`
-3. **Arquitectura**: `ARCHITECTURE.md`
-4. **Scripts**: Ejecutar desde `scripts/` con `node`
-5. **Credenciales**: `docs/CREDENCIALES-OFICIALES.md`
-
-### Recursos Externos
-
-## ✨ ÚLTIMA ACTUALIZACIÓN
-
-**Fecha**: 26 de Octubre, 2025  
-**Sesión**: #5 - Onboarding Completo + UI Improvements  
-**Estado**: ✅ Sistema 100% operativo - Flujo end-to-end validado  
-**Próxima revisión**: Ver `docs/TAREAS-PENDIENTES.md`
-
-## ✨ ÚLTIMA ACTUALIZACIÓN
-
-## 🎉 HITOS RECIENTES
-
-- ✅ **26 Oct 2025**: Sesión #5 - Onboarding Completo + UI Improvements
-  - Flujo completo end-to-end validado (empresa → despacho → asignación)
-  - Foreign Key constraint corregido (despachos.transport_id → empresas.id)
-  - Sidebar colapsable con hover implementado
-  - UI mejorada (tabla compacta, espaciado optimizado)
-  - Búsqueda transporte con CUIT normalizado
-  - 2 documentos nuevos: SESION-2025-10-26.md + TAREAS-PENDIENTES.md
-
-- ✅ **22 Oct 2025**: Sesión #4 - Estabilización completa
-  - Loops infinitos eliminados
-  - Performance mejorado 95%
-  - localStorage implementado
-  - 4 documentos nuevos creados
-
-- ✅ **19 Oct 2025**: Testing completo y documentación
-  - 325 errores TypeScript identificados
-  - Plan de acción creado
-  - Guías de corrección documentadas
+- **Documentación Técnica:** Ver carpeta `docs/`
+- **Problemas Conocidos:** `docs/PROBLEMAS-CONOCIDOS.md`
+- **Credenciales:** `docs/CREDENCIALES-OFICIALES.md`
 
 ---
 
-## 🚧 PRÓXIMA SESIÓN
+## 🎉 ÚLTIMOS HITOS
 
-Ver **`docs/TAREAS-PENDIENTES.md`** para:
-- SQL limpieza de "Medios de comunicación"
-- Implementar buscador en modal transporte
-- **DECISIÓN**: Sistema de múltiples camiones (Opciones A/B/C)
-- Testing completo
-
----
-
-**¡Éxito con el desarrollo!** 💪
+### 28 de Noviembre 2025 - GPS Tracking Funcional ✅
+- ✅ Sistema de tracking GPS en tiempo real completamente implementado
+- ✅ Envío automático cada 30 segundos desde móvil del chofer
+- ✅ Visualización en mapa para coordinadores
+- ✅ Integración completa con sistema de estados duales
+- 📄 Documentación completa: `docs/GPS-TRACKING-IMPLEMENTACION-COMPLETA.md`
 
 ---
 
-*Índice de Documentación - Nodexia Web - Actualizado 26 Oct 2025*
----
-
-**¡Éxito con el desarrollo!** 💪
-
----
-
-*Índice de Documentación - Nodexia Web - Actualizado y Completo*
+**Mantenido por:** Equipo Nodexia  
+**Última actualización:** 28 de Noviembre 2025 - GPS Tracking Implementado

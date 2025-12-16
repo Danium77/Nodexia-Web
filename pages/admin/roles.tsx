@@ -50,7 +50,7 @@ const RolesPagina: React.FC = () => {
     try {
       console.log('🔍 Verificando estructura de la base de datos...');
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('roles_empresa')
         .select('*')
         .limit(1);
@@ -262,18 +262,35 @@ const RolesPagina: React.FC = () => {
   };
 
   // Convertir rol para el formulario (solo tipos compatibles)
-  const convertirRolParaFormulario = (rol: Rol) => {
+  const convertirRolParaFormulario = (rol: Rol): {
+    id: string;
+    nombre_rol: string;
+    tipo_empresa: 'coordinador' | 'transporte' | 'ambos';
+    descripcion?: string;
+    permisos: any;
+    activo: boolean;
+  } | null => {
     if (!rol.tipo_empresa || !['coordinador', 'transporte', 'ambos'].includes(rol.tipo_empresa)) {
       return null;
     }
-    return {
+    const resultado: {
+      id: string;
+      nombre_rol: string;
+      tipo_empresa: 'coordinador' | 'transporte' | 'ambos';
+      descripcion?: string;
+      permisos: any;
+      activo: boolean;
+    } = {
       id: rol.id,
       nombre_rol: rol.nombre_rol,
       tipo_empresa: rol.tipo_empresa as 'coordinador' | 'transporte' | 'ambos',
-      descripcion: rol.descripcion,
       permisos: rol.permisos,
       activo: rol.activo
     };
+    if (rol.descripcion) {
+      resultado.descripcion = rol.descripcion;
+    }
+    return resultado;
   };
 
   return (
@@ -309,7 +326,7 @@ const RolesPagina: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
           <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
@@ -362,8 +379,8 @@ const RolesPagina: React.FC = () => {
         </div>
 
         {/* Búsqueda y Filtros */}
-        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-          <div className="flex flex-col lg:flex-row gap-4">
+        <div className="bg-gray-800 p-2 rounded border border-gray-700">
+          <div className="flex flex-col lg:flex-row gap-2">
             <div className="flex-1">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />

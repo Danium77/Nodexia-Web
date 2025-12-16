@@ -296,6 +296,13 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           // Usuario con múltiples empresas - usar la primera como principal
           setUserEmpresas(multiRelacionData);
           const primeraRelacion = multiRelacionData[0];
+          
+          if (!primeraRelacion) {
+            console.error('❌ No hay relación empresarial disponible');
+            setLoading(false);
+            return;
+          }
+          
           const rolInterno = primeraRelacion.rol_interno;
           const empresaIdValue = primeraRelacion.empresa_id;
           const tipoEmpresaValue = (primeraRelacion.empresas as any)?.tipo_empresa;

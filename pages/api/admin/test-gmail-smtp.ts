@@ -36,7 +36,7 @@ export default async function handler(req: any, res: any) {
 
     console.log(`📤 Intentando envío a email real: ${targetEmail}`);
 
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       targetEmail,
       {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002'}/complete-invite`

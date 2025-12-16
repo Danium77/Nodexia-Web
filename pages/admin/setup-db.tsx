@@ -13,7 +13,7 @@ export default function SetupDB() {
     setLoading(true);
     try {
       // Crear la vista
-      const { data, error } = await supabase.rpc('exec_sql', {
+      const { error } = await supabase.rpc('exec_sql', {
         sql_query: `
           -- Vista completa de empresas con información de planes
           CREATE OR REPLACE VIEW view_empresas_completa AS
@@ -40,7 +40,7 @@ export default function SetupDB() {
 
       if (error) throw error;
       setResult('Vista creada exitosamente');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       setResult(`Error: ${error.message}`);
     } finally {
@@ -58,7 +58,7 @@ export default function SetupDB() {
       if (error) throw error;
       setResult(`Vista funciona! Encontrados ${data?.length} registros`);
       console.log('Datos de la vista:', data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       setResult(`Error probando vista: ${error.message}`);
     } finally {

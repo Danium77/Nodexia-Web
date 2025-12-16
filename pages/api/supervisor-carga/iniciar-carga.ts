@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       updated_at: new Date().toISOString()
     };
 
-    const { data: viajeActualizado, error: updateError } = await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('viajes')
       .update(updateData)
       .eq('id', viaje.id)
@@ -156,14 +156,12 @@ async function enviarNotificacionInicioCarga(viaje: any) {
     await supabaseAdmin
       .from('notificaciones')
       .insert({
-        usuario_id: usuarioChofer.id,
-        tipo_notificacion: 'carga_iniciada',
+        user_id: usuarioChofer.id,
+        tipo: 'mensaje_sistema',
         titulo: '⚡ Carga Iniciada',
         mensaje,
         viaje_id: viaje.id,
-        enviada: true,
-        fecha_envio: new Date().toISOString(),
-        datos_extra: {
+        metadata: {
           numero_viaje: viaje.numero_viaje,
           tipo_operacion: viaje.tipo_operacion,
           producto: viaje.producto

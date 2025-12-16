@@ -86,8 +86,8 @@ const ViajesAsignados: React.FC<ViajesAsignadosProps> = ({ viajes, onSelectViaje
                       <span className="text-xs px-2 py-1 bg-blue-900 text-blue-300 rounded">
                         Viaje #{viaje.numero_viaje}
                       </span>
-                      <span className={`text-xs px-2 py-1 rounded ${estadoConfig.bgColor} text-white`}>
-                        {estadoConfig.label}
+                      <span className={`text-xs px-2 py-1 rounded ${estadoConfig?.bgColor || 'bg-gray-500'} text-white`}>
+                        {estadoConfig?.label || viaje.estado}
                       </span>
                     </div>
 

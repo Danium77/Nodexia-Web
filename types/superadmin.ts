@@ -1,4 +1,5 @@
 // Tipos TypeScript para Super Administración
+import type { Empresa } from './common';
 
 export interface PlanSuscripcion {
   id: string;

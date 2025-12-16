@@ -491,7 +491,7 @@ export default function CrearUbicacionModal({ isOpen, onClose, ubicacion }: Crea
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Observaciones
                 <span className="text-slate-500 text-xs ml-2">
-                  ({formData.observaciones.length}/2000 caracteres)
+                  ({(formData.observaciones || '').length}/2000 caracteres)
                 </span>
               </label>
               <textarea
@@ -502,9 +502,9 @@ export default function CrearUbicacionModal({ isOpen, onClose, ubicacion }: Crea
                 className="w-full px-4 py-2 bg-[#0a0e1a] border border-slate-600 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
                 placeholder="Observaciones adicionales..."
               />
-              {formData.observaciones.length > 1800 && (
+              {(formData.observaciones || '').length > 1800 && (
                 <p className="mt-1 text-xs text-amber-400">
-                  ⚠️ Te quedan {2000 - formData.observaciones.length} caracteres
+                  ⚠️ Te quedan {2000 - (formData.observaciones || '').length} caracteres
                 </p>
               )}
             </div>

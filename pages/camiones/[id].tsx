@@ -19,13 +19,13 @@ export default function CamionDetalle() {
 
   async function fetchCamion() {
     setLoading(true);
-    const { data, error } = await supabase.from('camiones').select('*').eq('id', id).single();
+    const { data } = await supabase.from('camiones').select('*').eq('id', id).single();
     setCamion(data);
     setLoading(false);
   }
 
   async function fetchDocumentos() {
-    const { data, error } = await supabase.from('documentos').select('*').eq('entidad', 'camion').eq('id_entidad', id);
+    const { data } = await supabase.from('documentos').select('*').eq('entidad', 'camion').eq('id_entidad', id);
     setDocumentos(data || []);
   }
 
@@ -39,12 +39,12 @@ export default function CamionDetalle() {
       >
         ← Volver
       </button>
-      <div className="w-full max-w-2xl flex flex-col items-center bg-gray-800 rounded-xl shadow-2xl p-8 mb-8 border border-gray-700">
+      <div className="w-full max-w-2xl flex flex-col items-center bg-gray-800 rounded shadow-2xl p-2 mb-2 border border-gray-700">
         {camion.foto_url && (
           <img src={camion.foto_url} alt="Foto camión" className="w-56 h-40 object-cover rounded mb-4 border-4 border-green-600 shadow-lg" />
         )}
         <h2 className="text-3xl font-bold text-green-300 mb-2 tracking-wide">Patente: <span className="text-white">{camion.patente}</span></h2>
-        <div className="flex gap-8 text-lg mt-2">
+        <div className="flex gap-2 text-sm mt-2">
           <div className="text-gray-300">Marca: <span className="font-semibold text-white">{camion.marca}</span></div>
           <div className="text-gray-300">Modelo: <span className="font-semibold text-white">{camion.modelo}</span></div>
           <div className="text-gray-300">Año: <span className="font-semibold text-white">{camion.anio}</span></div>

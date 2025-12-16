@@ -147,31 +147,34 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
           : Promise.resolve({ data: null })
       ]);
 
-      const despacho = viajeData.despachos;
+      const despacho = Array.isArray(viajeData.despachos) ? viajeData.despachos[0] : viajeData.despachos;
 
-      setViaje({
+      const viajeDetalle: any = {
         id: viajeData.id,
         despacho_id: viajeData.despacho_id,
-        pedido_id: despacho.pedido_id,
+        pedido_id: despacho?.pedido_id,
         numero_viaje: viajeData.numero_viaje,
-        origen: despacho.origen,
-        destino: despacho.destino,
+        origen: despacho?.origen,
+        destino: despacho?.destino,
         estado: viajeData.estado,
-        scheduled_date: despacho.scheduled_local_date,
-        scheduled_time: despacho.scheduled_local_time,
-        distancia_km: despacho.distancia_km,
-        tiempo_estimado_horas: despacho.tiempo_estimado_horas,
-        chofer: choferRes.data || undefined,
-        camion: camionRes.data || undefined,
-        acoplado: acopladoRes.data || undefined,
-        transporte: transporteRes.data || undefined,
-        producto: despacho.producto,
-        cantidad: despacho.cantidad,
-        unidad: despacho.unidad_carga,
-        observaciones: despacho.observaciones,
+        scheduled_date: despacho?.scheduled_local_date,
+        scheduled_time: despacho?.scheduled_local_time,
+        distancia_km: despacho?.distancia_km,
+        tiempo_estimado_horas: despacho?.tiempo_estimado_horas,
+        producto: despacho?.producto,
+        cantidad: despacho?.cantidad,
+        unidad: despacho?.unidad_carga,
+        observaciones: despacho?.observaciones,
         created_at: viajeData.created_at,
         updated_at: viajeData.updated_at
-      });
+      };
+      
+      if (choferRes.data) viajeDetalle.chofer = choferRes.data;
+      if (camionRes.data) viajeDetalle.camion = camionRes.data;
+      if (acopladoRes.data) viajeDetalle.acoplado = acopladoRes.data;
+      if (transporteRes.data) viajeDetalle.transporte = transporteRes.data;
+      
+      setViaje(viajeDetalle);
 
     } catch (err: any) {
       console.error('Error cargando detalle del viaje:', err);
@@ -208,7 +211,8 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
       return;
     }
 
-    if (!confirm(`¿Confirmas cambiar el estado a "${ESTADOS[nuevoEstadoIndex].label}"?`)) {
+    const estadoLabel = ESTADOS[nuevoEstadoIndex]?.label || nuevoEstado;
+    if (!confirm(`¿Confirmas cambiar el estado a "${estadoLabel}"?`)) {
       return;
     }
 
@@ -227,11 +231,13 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
 
       // Crear notificación (si la tabla existe)
       try {
+        const { data: { user } } = await supabase.auth.getUser();
         await supabase.from('notificaciones').insert({
           viaje_id: viajeId,
+          user_id: user?.id || '',
           tipo: 'cambio_estado',
           titulo: `Estado del viaje actualizado`,
-          mensaje: `El viaje #${viaje.numero_viaje} cambió a: ${ESTADOS[nuevoEstadoIndex].label}`,
+          mensaje: `El viaje #${viaje.numero_viaje} cambió a: ${estadoLabel}`,
           leida: false
         });
       } catch (notifError) {
@@ -255,9 +261,9 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
     }
   };
 
-  const getEstadoInfo = (estado: string) => {
-    return ESTADOS.find(e => e.value === estado) || ESTADOS[0];
-  };
+  // const getEstadoInfo = (estado: string) => {
+  //   return ESTADOS.find(e => e.value === estado) || ESTADOS[0];
+  // };
 
   const getCurrentEstadoIndex = () => {
     if (!viaje) return 0;
@@ -267,7 +273,7 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
       <div className="bg-[#1b273b] rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-800">
         {/* Header */}
         <div className="sticky top-0 bg-[#1b273b] border-b border-gray-800 p-6 flex justify-between items-start z-10">
@@ -310,7 +316,6 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
                   const currentIndex = getCurrentEstadoIndex();
                   const isActive = index === currentIndex;
                   const isPast = index < currentIndex;
-                  const isFuture = index > currentIndex;
 
                   return (
                     <div key={estado.value} className="flex items-center">

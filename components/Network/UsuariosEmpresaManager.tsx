@@ -8,7 +8,7 @@ interface UsuariosEmpresaManagerProps {
 
 export default function UsuariosEmpresaManager({ onClose }: UsuariosEmpresaManagerProps) {
   const { usuarios, loading, error, agregarUsuario, actualizarUsuario, desactivarUsuario, reactivarUsuario } = useUsuariosEmpresa();
-  const { roles, loading: rolesLoading } = useRolesEmpresa();
+  const { roles } = useRolesEmpresa();
   
   const [showAddUser, setShowAddUser] = useState(false);
   const [editingUser, setEditingUser] = useState<UsuarioEmpresa | null>(null);
@@ -98,10 +98,10 @@ export default function UsuariosEmpresaManager({ onClose }: UsuariosEmpresaManag
     });
   };
 
-  const getRolDisplayName = (rol: string) => {
-    const roleInfo = roles.find(r => r.nombre_rol === rol);
-    return roleInfo ? `${roleInfo.nombre_rol} - ${roleInfo.descripcion}` : rol;
-  };
+  // const getRolDisplayName = (rol: string) => {
+  //   const roleInfo = roles.find(r => r.nombre_rol === rol);
+  //   return roleInfo ? `${roleInfo.nombre_rol} - ${roleInfo.descripcion}` : rol;
+  // };
 
   if (loading) {
     return (

@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     console.log('🔍 Diagnosticando configuración de email...');
 
     // Intentar enviar invitación de prueba
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       emailPrueba,
       {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/complete-invite`

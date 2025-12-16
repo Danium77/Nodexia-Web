@@ -15,7 +15,7 @@ export default function ChoferDetalle() {
 
   async function fetchChofer() {
     setLoading(true);
-    const { data, error } = await supabase.from('choferes').select('*').eq('id', id).single();
+    const { data } = await supabase.from('choferes').select('*').eq('id', id).single();
     setChofer(data);
     fetchDocumentos(data?.id);
     setLoading(false);
@@ -23,7 +23,7 @@ export default function ChoferDetalle() {
 
   async function fetchDocumentos(choferId: string) {
     if (!choferId) return;
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('documentos')
       .select('*')
       .eq('entidad', 'chofer')

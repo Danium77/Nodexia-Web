@@ -186,7 +186,7 @@ function determinarNuevoEstadoViaje(estadoActual: string, tipoIncidencia: string
   return estadoActual;
 }
 
-function generarAccionesRecomendadas(tipoIncidencia: string, viaje: any) {
+function generarAccionesRecomendadas(tipoIncidencia: string, _viaje: any) {
   const acciones: Record<string, string[]> = {
     'documentacion_faltante': [
       'Contactar al chofer para que presente la documentación faltante',
@@ -246,14 +246,12 @@ async function enviarNotificacionIncidencia(viaje: any, incidencia: any) {
       await supabaseAdmin
         .from('notificaciones')
         .insert({
-          usuario_id: usuarioChofer.id,
-          tipo_notificacion: 'incidencia_reportada',
+          user_id: usuarioChofer.id,
+          tipo: 'mensaje_sistema',
           titulo: '⚠️ Incidencia Reportada',
           mensaje: `Se reportó una incidencia en su viaje ${viaje.numero_viaje}: ${incidencia.descripcion}`,
           viaje_id: viaje.id,
-          enviada: true,
-          fecha_envio: new Date().toISOString(),
-          datos_extra: {
+          metadata: {
             incidencia_id: incidencia.id,
             tipo_incidencia: incidencia.tipo_incidencia,
             prioridad: incidencia.prioridad
@@ -277,14 +275,12 @@ async function enviarNotificacionIncidencia(viaje: any, incidencia: any) {
         await supabaseAdmin
           .from('notificaciones')
           .insert({
-            usuario_id: usuario.user_id,
-            tipo_notificacion: 'incidencia_reportada',
+            user_id: usuario.user_id,
+            tipo: 'mensaje_sistema',
             titulo: '⚠️ Incidencia en Viaje',
             mensaje: `Incidencia reportada en viaje ${viaje.numero_viaje} de ${viaje.chofer.nombre}`,
             viaje_id: viaje.id,
-            enviada: true,
-            fecha_envio: new Date().toISOString(),
-            datos_extra: {
+            metadata: {
               incidencia_id: incidencia.id,
               tipo_incidencia: incidencia.tipo_incidencia
             }
@@ -314,14 +310,12 @@ async function notificarSupervisores(viaje: any, incidencia: any) {
         await supabaseAdmin
           .from('notificaciones')
           .insert({
-            usuario_id: supervisor.user_id,
-            tipo_notificacion: 'incidencia_supervision',
+            user_id: supervisor.user_id,
+            tipo: 'mensaje_sistema',
             titulo: '🚨 Incidencia Requiere Supervisión',
             mensaje: `Incidencia crítica en viaje ${viaje.numero_viaje}. Se requiere intervención de supervisión.`,
             viaje_id: viaje.id,
-            enviada: true,
-            fecha_envio: new Date().toISOString(),
-            datos_extra: {
+            metadata: {
               incidencia_id: incidencia.id,
               tipo_incidencia: incidencia.tipo_incidencia,
               prioridad: incidencia.prioridad

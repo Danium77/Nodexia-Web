@@ -102,10 +102,6 @@ export default function Login() {
     }
   };
 
-  const handleForgotPassword = () => {
-    alert('Función de recuperar contraseña no implementada.');
-  };
-
   return (
     <>
       <title>Nodexia  Iniciar Sesión</title>

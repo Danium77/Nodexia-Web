@@ -99,10 +99,10 @@ const PlantaDetail: React.FC = () => {
         Volver a Plantas
       </button>
 
-      <div className="bg-gray-800 rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold text-blue-400 mb-6">Información de la Planta</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-gray-800 rounded shadow-md p-2">
+        <h2 className="text-sm font-bold text-blue-400 mb-2">Información de la Planta</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <div>
             <label className="block text-gray-300 mb-2">Nombre de la Planta</label>
             <div className="bg-gray-900 p-3 rounded text-white">{planta.nombre}</div>

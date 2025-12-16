@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import Card from '@/components/ui/Card';
 
 export default function TestSMTP() {
   const [emailTest, setEmailTest] = useState('');
-  const [diagnosticResult, setDiagnosticResult] = useState(null);
-  const [createResult, setCreateResult] = useState(null);
+  const [diagnosticResult, setDiagnosticResult] = useState<any>(null);
+  const [createResult, setCreateResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const testDiagnostic = async () => {
@@ -50,11 +50,8 @@ export default function TestSMTP() {
     <div className="container mx-auto p-6 space-y-6">
       <h1 className="text-3xl font-bold">🔬 Prueba de Sistema SMTP</h1>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuración de Prueba</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Card title="Configuración de Prueba">
+        <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">Email de Prueba:</label>
             <input
@@ -82,47 +79,32 @@ export default function TestSMTP() {
               🔗 Crear Usuario Manual
             </button>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
       {diagnosticResult && (
-        <Card>
-          <CardHeader>
-            <CardTitle>📊 Resultado del Diagnóstico</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
-              {JSON.stringify(diagnosticResult, null, 2)}
-            </pre>
-          </CardContent>
+        <Card title="📊 Resultado del Diagnóstico">
+          <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
+            {JSON.stringify(diagnosticResult, null, 2)}
+          </pre>
         </Card>
       )}
 
       {createResult && (
-        <Card>
-          <CardHeader>
-            <CardTitle>👤 Resultado de Creación de Usuario</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
-              {JSON.stringify(createResult, null, 2)}
-            </pre>
-          </CardContent>
+        <Card title="👤 Resultado de Creación de Usuario">
+          <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-auto">
+            {JSON.stringify(createResult, null, 2)}
+          </pre>
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>📋 Guía de Pruebas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <p><strong>1. Diagnóstico SMTP:</strong> Verifica si el SMTP está configurado correctamente</p>
-            <p><strong>2. Crear Usuario Manual:</strong> Prueba el sistema de enlaces manuales</p>
-            <p><strong>3. Revisar Respuestas:</strong> Analiza los JSON devueltos para entender el estado</p>
-            <p><strong>4. Probar en Admin:</strong> Ve a /admin/usuarios para usar las funciones reales</p>
-          </div>
-        </CardContent>
+      <Card title="📋 Guía de Pruebas">
+        <div className="space-y-2 text-sm">
+          <p><strong>1. Diagnóstico SMTP:</strong> Verifica si el SMTP está configurado correctamente</p>
+          <p><strong>2. Crear Usuario Manual:</strong> Prueba el sistema de enlaces manuales</p>
+          <p><strong>3. Revisar Respuestas:</strong> Analiza los JSON devueltos para entender el estado</p>
+          <p><strong>4. Probar en Admin:</strong> Ve a /admin/usuarios para usar las funciones reales</p>
+        </div>
       </Card>
     </div>
   );

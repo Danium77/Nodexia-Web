@@ -68,7 +68,7 @@ export default function CompleteInvite() {
     }
     setLoading(true);
     // Completar el registro usando el token de invitación
-    const { data, error: supaError } = await supabase.auth.exchangeCodeForSession(String(token));
+    const { error: supaError } = await supabase.auth.exchangeCodeForSession(String(token));
     if (supaError) {
       setError('El enlace de invitación es inválido o expiró.');
       setLoading(false);

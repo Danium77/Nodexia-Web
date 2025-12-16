@@ -51,7 +51,7 @@ const TransportesPage = () => {
 
       // Obtener transportes asociados a través de relaciones activas
       const { data: relaciones, error: relacionesError } = await supabase
-        .from('relaciones_empresa')
+        .from('relaciones_empresas')
         .select(`
           empresa_transporte:empresas!empresa_transporte_id(
             id,
@@ -65,9 +65,8 @@ const TransportesPage = () => {
             configuracion_empresa
           )
         `)
-        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
-        .eq('estado', 'activa')
-        .eq('activo', true);
+        .eq('empresa_cliente_id', usuarioEmpresa.empresa_id)
+        .eq('estado', 'activa');
 
       if (relacionesError) {
         console.error('Error al cargar transportes asociados:', relacionesError);
@@ -76,13 +75,13 @@ const TransportesPage = () => {
 
       // Mapear los datos de las empresas de transporte SOLO
       const transportesAsociados = (relaciones || [])
-        .map(relacion => relacion.empresa_transporte)
+        .map((relacion: any) => relacion.empresa_transporte)
         .filter(Boolean)
-        .filter(empresa => {
+        .filter((empresa: any) => {
           // Solo incluir empresas que sean realmente transportes
           return empresa.tipo_empresa === 'transporte';
         })
-        .map(empresa => ({
+        .map((empresa: any) => ({
           id: empresa.id,
           nombre: empresa.nombre,
           cuit: empresa.cuit || '',
@@ -205,9 +204,9 @@ const TransportesPage = () => {
 
       // Verificar si ya existe la relación
       const { data: relacionExistente } = await supabase
-        .from('relaciones_empresa')
+        .from('relaciones_empresas')
         .select('id, estado')
-        .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
+        .eq('empresa_cliente_id', usuarioEmpresa.empresa_id)
         .eq('empresa_transporte_id', nuevoTransporte.id)
         .maybeSingle();
 
@@ -220,10 +219,9 @@ const TransportesPage = () => {
         
         // Reactivar relación existente
         const { error: updateError } = await supabase
-          .from('relaciones_empresa')
+          .from('relaciones_empresas')
           .update({ 
-            estado: 'activa', 
-            activo: true,
+            estado: 'activa',
             fecha_inicio: new Date().toISOString().split('T')[0]
           })
           .eq('id', relacionExistente.id);
@@ -239,13 +237,12 @@ const TransportesPage = () => {
       } else {
         // Crear nueva relación
         const { data: relacionCreada, error: relacionError } = await supabase
-          .from('relaciones_empresa')
+          .from('relaciones_empresas')
           .insert({
-            empresa_coordinadora_id: usuarioEmpresa.empresa_id,
+            empresa_cliente_id: usuarioEmpresa.empresa_id,
             empresa_transporte_id: nuevoTransporte.id,
             estado: 'activa',
-            fecha_inicio: new Date().toISOString().split('T')[0],
-            activo: true
+            fecha_inicio: new Date().toISOString().split('T')[0]
           })
           .select()
           .single();
@@ -286,7 +283,7 @@ const TransportesPage = () => {
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         Volver
       </button>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-gray-800 rounded shadow-md p-2 mb-2">
         <h2 className="text-2xl font-bold text-cyan-400 mb-4">Transportes</h2>
         <div className="mb-4 flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1">
@@ -343,7 +340,7 @@ const TransportesPage = () => {
           </div>
         )}
       </div>
-      <div className="bg-gray-800 rounded-lg shadow-md p-6">
+      <div className="bg-gray-800 rounded shadow-md p-2">
         <h3 className="text-xl font-bold text-cyan-300 mb-4">Mis transportes asociados</h3>
         {transportes.length === 0 ? (
           <div className="text-gray-400">No tienes transportes asociados aún.</div>

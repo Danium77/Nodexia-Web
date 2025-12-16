@@ -111,7 +111,9 @@ export default function useDispatches() {
 
     return () => {
       mounted = false;
-      try { subRef.current?.unsubscribe(); } catch (e) {}
+      if (subRef.current?.unsubscribe) {
+        try { subRef.current.unsubscribe(); } catch (e) { /* ignore */ }
+      }
     };
   }, []);
 

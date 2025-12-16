@@ -25,7 +25,7 @@ export function useRolesEmpresa(tipoEmpresa?: string) {
           .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
           .single();
         
-        tipo = usuarioEmpresa?.empresas?.tipo_empresa;
+        tipo = (usuarioEmpresa?.empresas as any)?.tipo_empresa;
       }
 
       if (!tipo) {
@@ -180,7 +180,7 @@ export function useUserPermisos() {
 
       if (rpcError) throw rpcError;
 
-      setPermisos(data || {});
+      setPermisos((data as Record<string, boolean>) || {});
     } catch (err) {
       console.error('Error loading permisos:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar permisos');

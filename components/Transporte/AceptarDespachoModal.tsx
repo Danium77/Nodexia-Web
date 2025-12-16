@@ -5,7 +5,6 @@ import {
   XMarkIcon,
   TruckIcon,
   UserIcon,
-  PlusIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
@@ -14,6 +13,7 @@ interface AceptarDespachoModalProps {
   onClose: () => void;
   despacho: {
     id: string;
+    despacho_id?: string;
     pedido_id: string;
     origen: string;
     destino: string;
@@ -29,8 +29,9 @@ interface AceptarDespachoModalProps {
 interface Chofer {
   id: string;
   nombre: string;
+  apellido?: string;
   telefono?: string;
-  disponible: boolean;
+  email?: string;
 }
 
 interface Camion {
@@ -38,15 +39,15 @@ interface Camion {
   patente: string;
   marca?: string;
   modelo?: string;
-  tipo_camion?: string;
-  estado: string;
+  anio?: number;
 }
 
 interface Acoplado {
   id: string;
   patente: string;
-  tipo?: string;
-  estado: string;
+  marca?: string;
+  modelo?: string;
+  anio?: number;
 }
 
 const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
@@ -63,17 +64,15 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
   const [choferId, setChoferId] = useState('');
   const [camionId, setCamionId] = useState('');
   const [acopladoId, setAcopladoId] = useState('');
-  const [cantidadViajes, setCantidadViajes] = useState(1);
   
   // Listas
   const [choferes, setChoferes] = useState<Chofer[]>([]);
   const [camiones, setCamiones] = useState<Camion[]>([]);
   const [acoplados, setAcoplados] = useState<Acoplado[]>([]);
-  
-  const [empresaId, setEmpresaId] = useState<string>('');
-  const [error, setError] = useState('');
 
-  useEffect(() => {
+  // const [empresaId, setEmpresaId] = useState<string>('');
+  const [, setEmpresaId] = useState<string>('');
+  const [error, setError] = useState('');  useEffect(() => {
     if (isOpen && user && userEmpresas) {
       loadData();
     }
@@ -83,6 +82,11 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
     try {
       setLoadingData(true);
       setError('');
+
+      if (!user) {
+        setError('Usuario no autenticado');
+        return;
+      }
 
       // Obtener empresa de transporte del usuario
       const empresaTransporte = userEmpresas?.find(
@@ -101,22 +105,16 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
       const [choferesRes, camionesRes, acopladosRes] = await Promise.all([
         supabase
           .from('choferes')
-          .select('id, nombre, telefono, disponible')
-          .eq('empresa_id', empId)
-          .eq('activo', true)
-          .order('nombre'),
+          .select('*')
+          .eq('id_transporte', user.id),
         supabase
           .from('camiones')
-          .select('id, patente, marca, modelo, tipo_camion, estado')
-          .eq('empresa_id', empId)
-          .eq('activo', true)
-          .order('patente'),
+          .select('*')
+          .eq('id_transporte', user.id),
         supabase
           .from('acoplados')
-          .select('id, patente, tipo, estado')
-          .eq('empresa_id', empId)
-          .eq('activo', true)
-          .order('patente')
+          .select('*')
+          .eq('id_transporte', user.id)
       ]);
 
       if (choferesRes.error) throw choferesRes.error;
@@ -139,12 +137,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
     e.preventDefault();
 
     if (!choferId || !camionId) {
-      alert('Debes seleccionar al menos un chofer y un camión');
-      return;
-    }
-
-    if (cantidadViajes < 1 || cantidadViajes > 10) {
-      alert('La cantidad de viajes debe estar entre 1 y 10');
+      setError('Debes seleccionar al menos un chofer y un camión');
       return;
     }
 
@@ -152,77 +145,106 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
       setLoading(true);
       setError('');
 
-      // Crear los viajes
-      const viajesACrear = [];
-      for (let i = 1; i <= cantidadViajes; i++) {
-        viajesACrear.push({
-          despacho_id: despacho.id,
-          numero_viaje: i,
-          id_transporte: empresaId,
+      // 🔍 VALIDACIÓN: Verificar que el chofer no tenga otro viaje en la misma fecha
+      const { data: viajesChofer, error: errorChofer } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          despachos!inner (scheduled_local_date)
+        `)
+        .eq('id_chofer', choferId)
+        .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
+        .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
+        .neq('id', despacho.id); // Excluir el viaje actual
+
+      if (errorChofer) throw errorChofer;
+      
+      if (viajesChofer && viajesChofer.length > 0) {
+        setError(`El chofer seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro chofer.`);
+        setLoading(false);
+        return;
+      }
+
+      // 🔍 VALIDACIÓN: Verificar que el camión no tenga otro viaje en la misma fecha
+      const { data: viajesCamion, error: errorCamion } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          despachos!inner (scheduled_local_date)
+        `)
+        .eq('id_camion', camionId)
+        .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
+        .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
+        .neq('id', despacho.id);
+
+      if (errorCamion) throw errorCamion;
+      
+      if (viajesCamion && viajesCamion.length > 0) {
+        setError(`El camión seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro camión.`);
+        setLoading(false);
+        return;
+      }
+
+      // 🔍 VALIDACIÓN: Verificar que el acoplado (si fue seleccionado) no tenga otro viaje en la misma fecha
+      if (acopladoId) {
+        const { data: viajesAcoplado, error: errorAcoplado } = await supabase
+          .from('viajes_despacho')
+          .select(`
+            id,
+            despachos!inner (scheduled_local_date)
+          `)
+          .eq('id_acoplado', acopladoId)
+          .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
+          .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
+          .neq('id', despacho.id);
+
+        if (errorAcoplado) throw errorAcoplado;
+        
+        if (viajesAcoplado && viajesAcoplado.length > 0) {
+          setError(`El acoplado seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro acoplado o continúa sin acoplado.`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ✅ Todos los recursos están disponibles, proceder con la asignación
+      const { error: viajeError } = await supabase
+        .from('viajes_despacho')
+        .update({
           id_chofer: choferId,
           id_camion: camionId,
           id_acoplado: acopladoId || null,
-          estado: 'transporte_asignado'
-        });
-      }
-
-      // Insertar viajes
-      const { error: viajesError } = await supabase
-        .from('viajes_despacho')
-        .insert(viajesACrear);
-
-      if (viajesError) throw viajesError;
-
-      // Actualizar estado del despacho
-      const { error: despachoError } = await supabase
-        .from('despachos')
-        .update({ estado: 'transporte_asignado' })
+          estado: 'camion_asignado'
+        })
         .eq('id', despacho.id);
 
-      if (despachoError) throw despachoError;
+      if (viajeError) throw viajeError;
 
-      // Actualizar disponibilidad del chofer
-      await supabase
-        .from('choferes')
-        .update({ disponible: false })
-        .eq('id', choferId);
+      // 🔥 CRÍTICO: Actualizar despacho padre con chofer/camión asignados
+      if (despacho.despacho_id) {
+        const { error: despachoError } = await supabase
+          .from('despachos')
+          .update({ 
+            estado: 'camion_asignado',
+            driver_id: choferId,      // ← NUEVO: Sincronizar chofer
+            truck_id: camionId         // ← NUEVO: Sincronizar camión
+          })
+          .eq('id', despacho.despacho_id);
 
-      // Actualizar estado del camión
-      await supabase
-        .from('camiones')
-        .update({ estado: 'en_viaje' })
-        .eq('id', camionId);
-
-      // Actualizar estado del acoplado si existe
-      if (acopladoId) {
-        await supabase
-          .from('acoplados')
-          .update({ estado: 'en_viaje' })
-          .eq('id', acopladoId);
+        if (despachoError) {
+          console.error('⚠️ Error actualizando despacho padre:', despachoError);
+          // No lanzar error para no bloquear, pero registrar
+        } else {
+          console.log('✅ Despacho padre actualizado con driver_id y truck_id');
+        }
       }
 
-      // Crear notificación (si la tabla existe)
-      try {
-        await supabase.from('notificaciones').insert({
-          user_id: user?.id,
-          empresa_id: empresaId,
-          tipo: 'asignacion_viaje',
-          titulo: 'Despacho aceptado',
-          mensaje: `Has aceptado el despacho ${despacho.pedido_id} con ${cantidadViajes} viaje(s)`,
-          despacho_id: despacho.id,
-          pedido_id: despacho.pedido_id
-        });
-      } catch (notifError) {
-        console.log('Notificación no creada (tabla puede no existir aún)');
-      }
-
-      alert(`✅ Despacho aceptado exitosamente!\n${cantidadViajes} viaje(s) creado(s)`);
+      // ✅ Éxito - Solo llamar onSuccess, que manejará el cierre y la recarga
       onSuccess();
 
     } catch (err: any) {
-      console.error('Error aceptando despacho:', err);
+      console.error('Error asignando recursos:', err);
       setError(err.message);
-      alert(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -257,7 +279,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
             Error: {error}
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autoComplete="off">
             <div className="p-6 space-y-6">
               {/* Información del despacho */}
               <div className="bg-[#0a0e1a] rounded-lg p-4 border border-gray-800">
@@ -303,13 +325,13 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
                   value={choferId}
                   onChange={(e) => setChoferId(e.target.value)}
                   required
+                  autoComplete="off"
                   className="w-full px-4 py-3 bg-[#0a0e1a] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
                 >
                   <option value="">Seleccionar chofer...</option>
                   {choferes.map((chofer) => (
-                    <option key={chofer.id} value={chofer.id} disabled={!chofer.disponible}>
-                      {chofer.nombre} {chofer.telefono ? `- ${chofer.telefono}` : ''} 
-                      {!chofer.disponible ? ' (No disponible)' : ''}
+                    <option key={chofer.id} value={chofer.id}>
+                      {chofer.nombre} {chofer.apellido || ''} {chofer.telefono ? `- ${chofer.telefono}` : ''}
                     </option>
                   ))}
                 </select>
@@ -330,6 +352,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
                   value={camionId}
                   onChange={(e) => setCamionId(e.target.value)}
                   required
+                  autoComplete="off"
                   className="w-full px-4 py-3 bg-[#0a0e1a] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
                 >
                   <option value="">Seleccionar camión...</option>
@@ -337,11 +360,9 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
                     <option 
                       key={camion.id} 
                       value={camion.id}
-                      disabled={camion.estado !== 'disponible'}
                     >
                       {camion.patente} 
                       {camion.marca && camion.modelo ? ` - ${camion.marca} ${camion.modelo}` : ''}
-                      {camion.estado !== 'disponible' ? ` (${camion.estado})` : ''}
                     </option>
                   ))}
                 </select>
@@ -360,6 +381,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
                 <select
                   value={acopladoId}
                   onChange={(e) => setAcopladoId(e.target.value)}
+                  autoComplete="off"
                   className="w-full px-4 py-3 bg-[#0a0e1a] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
                 >
                   <option value="">Sin acoplado</option>
@@ -367,44 +389,30 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
                     <option 
                       key={acoplado.id} 
                       value={acoplado.id}
-                      disabled={acoplado.estado !== 'disponible'}
                     >
                       {acoplado.patente}
-                      {acoplado.tipo ? ` - ${acoplado.tipo}` : ''}
-                      {acoplado.estado !== 'disponible' ? ` (${acoplado.estado})` : ''}
+                      {acoplado.marca && acoplado.modelo ? ` - ${acoplado.marca} ${acoplado.modelo}` : ''}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Cantidad de viajes */}
-              <div>
-                <label className="block text-white font-semibold mb-2">
-                  Cantidad de viajes *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={cantidadViajes}
-                  onChange={(e) => setCantidadViajes(parseInt(e.target.value) || 1)}
-                  className="w-full px-4 py-3 bg-[#0a0e1a] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
-                  required
-                />
-                <p className="text-gray-400 text-sm mt-1">
-                  Si el despacho requiere múltiples viajes, especifica la cantidad (máximo 10)
-                </p>
-              </div>
+              {/* Error de validación */}
+              {error && (
+                <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
+                  <h4 className="text-red-400 font-semibold mb-2">⚠️ Error</h4>
+                  <p className="text-sm text-red-300">{error}</p>
+                </div>
+              )}
 
               {/* Resumen */}
               <div className="bg-cyan-900/20 border border-cyan-700 rounded-lg p-4">
                 <h4 className="text-cyan-400 font-semibold mb-2">Resumen</h4>
                 <ul className="text-sm text-gray-300 space-y-1">
-                  <li>• Se crearán {cantidadViajes} viaje(s) para este despacho</li>
-                  <li>• El chofer será marcado como no disponible</li>
-                  <li>• El camión será marcado como en viaje</li>
-                  {acopladoId && <li>• El acoplado será marcado como en viaje</li>}
-                  <li>• El estado del despacho cambiará a "transporte_asignado"</li>
+                  <li>• Se asignarán chofer y camión a los viajes existentes</li>
+                  <li>• El estado cambiará a "Camión Asignado"</li>
+                  <li>• Los recursos quedarán vinculados a este despacho</li>
+                  <li>• Se verificará que los recursos no tengan viajes en la misma fecha</li>
                 </ul>
               </div>
             </div>

@@ -25,14 +25,21 @@ export function useTransports(empresaId: string | null) {
     setError(null);
 
     try {
-      // Obtener transportes vinculados
+      console.log('🔍 Buscando transportes para empresa:', empresaId);
+      
+      // Obtener transportes vinculados desde la tabla correcta
       const { data: relaciones, error: relacionesError } = await supabase
-        .from('relaciones_empresas')
+        .from('relaciones_empresa')
         .select('id, empresa_transporte_id, estado')
-        .eq('empresa_cliente_id', empresaId)
-        .eq('estado', 'activa');
+        .eq('empresa_coordinadora_id', empresaId)
+        .eq('estado', 'activa')
+        .eq('activo', true);
 
-      if (relacionesError) throw relacionesError;
+      console.log('📋 Relaciones encontradas:', relaciones);
+      if (relacionesError) {
+        console.error('❌ Error en query relaciones:', relacionesError);
+        throw relacionesError;
+      }
 
       if (!relaciones || relaciones.length === 0) {
         setError('No hay transportes vinculados. Ve a Configuración → Transportes.');

@@ -191,7 +191,7 @@ export default function EstadosCamiones() {
       </div>
 
       {/* Resumen de Estados */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-1 mb-2">
         <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <div>

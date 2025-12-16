@@ -12,7 +12,7 @@ export default async function handler(req: any, res: any) {
     console.log('🔧 Verificando configuración SMTP (sin envío)...');
 
     // Solo verificar que el cliente de Supabase esté funcionando
-    const { data: authConfig, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+    const { error: authError } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
       perPage: 1
     });

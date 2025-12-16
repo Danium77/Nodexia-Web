@@ -91,7 +91,7 @@ export function useEmpresasAdmin(filtros?: FiltrosEmpresas) {
 
       if (rpcError) throw rpcError;
 
-      let empresasFiltradas = data || [];
+      let empresasFiltradas = (data || []) as EmpresaAdmin[];
 
       // Aplicar filtros localmente
       if (filtros) {
@@ -194,7 +194,7 @@ export function useEstadisticasSistema() {
 
       if (rpcError) throw rpcError;
 
-      setEstadisticas(data);
+      setEstadisticas(data as EstadisticasSistema | null);
     } catch (err) {
       console.error('Error loading estadisticas:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar estadísticas');
@@ -351,10 +351,10 @@ export function useLogsAdmin(filtros?: FiltrosLogs) {
       // Aplicar filtros adicionales localmente
       if (filtros) {
         if (filtros.accion) {
-          logsFiltrados = logsFiltrados.filter(l => l.accion.includes(filtros.accion!));
+          logsFiltrados = logsFiltrados.filter((l: LogAdmin) => l.accion.includes(filtros.accion!));
         }
         if (filtros.entidad_tipo) {
-          logsFiltrados = logsFiltrados.filter(l => l.entidad_tipo === filtros.entidad_tipo);
+          logsFiltrados = logsFiltrados.filter((l: LogAdmin) => l.entidad_tipo === filtros.entidad_tipo);
         }
       }
 

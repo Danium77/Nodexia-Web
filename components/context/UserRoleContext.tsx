@@ -1,11 +1,20 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, ReactNode } from 'react';
 
-const UserRoleContext = createContext();
+interface UserRoleContextType {
+  userRole: string;
+  setUserRoleHandler: (role: string) => void;
+}
 
-export const UserRoleProvider = ({ children }) => {
-  const [userRole, setUserRole] = useState('');
+const UserRoleContext = createContext<UserRoleContextType | undefined>(undefined);
 
-  const setUserRoleHandler = (role) => {
+interface UserRoleProviderProps {
+  children: ReactNode;
+}
+
+export const UserRoleProvider: React.FC<UserRoleProviderProps> = ({ children }) => {
+  const [userRole, setUserRole] = useState<string>('');
+
+  const setUserRoleHandler = (role: string) => {
     setUserRole(role);
   };
 
@@ -16,7 +25,7 @@ export const UserRoleProvider = ({ children }) => {
   );
 };
 
-export const useUserRole = () => {
+export const useUserRole = (): UserRoleContextType => {
   const context = React.useContext(UserRoleContext);
   if (!context) {
     throw new Error('useUserRole must be used within a UserRoleProvider');

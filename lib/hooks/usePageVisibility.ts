@@ -43,7 +43,7 @@ export function usePageVisibility(): PageVisibilityState {
     // Solo ejecutar en el cliente
     if (typeof document === 'undefined') return;
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = (): void => {
       const nowVisible = !document.hidden;
       const wasHidden = !isVisible;
       
@@ -55,13 +55,10 @@ export function usePageVisibility(): PageVisibilityState {
         setIsReturning(true);
         
         // Desactivar flag después de 2 segundos
-        const timeoutId = setTimeout(() => {
+        setTimeout(() => {
           console.log('✅ [PageVisibility] Flag isReturning desactivado - operaciones normales');
           setIsReturning(false);
         }, 2000);
-        
-        // Cleanup si el componente se desmonta antes
-        return () => clearTimeout(timeoutId);
       }
       
       setIsVisible(nowVisible);

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import type { 
-  Empresa, 
   UserNetworkContext, 
   TransportistaDisponible, 
   ClienteEmpresa,
@@ -77,12 +76,12 @@ export function useNetworkContext() {
           user_id: user.id,
           empresa: usuarioEmpresa.empresa,
           rol_interno: usuarioEmpresa.rol_interno,
-          permisos: userPermisos,
-          puede_crear_relaciones: userPermisos.gestionar_relaciones || userPermisos.gestionar_transportistas,
-          puede_gestionar_despachos: userPermisos.crear_despachos || userPermisos.gestionar_despachos,
-          puede_ver_red: userPermisos.ver_dashboard,
-          puede_gestionar_usuarios: userPermisos.gestionar_usuarios,
-          puede_gestionar_flota: userPermisos.gestionar_flota || userPermisos.gestionar_choferes
+          permisos: userPermisos as Record<string, boolean>,
+          puede_crear_relaciones: (userPermisos as any).gestionar_relaciones || (userPermisos as any).gestionar_transportistas,
+          puede_gestionar_despachos: (userPermisos as any).crear_despachos || (userPermisos as any).gestionar_despachos,
+          puede_ver_red: (userPermisos as any).ver_dashboard,
+          puede_gestionar_usuarios: (userPermisos as any).gestionar_usuarios,
+          puede_gestionar_flota: (userPermisos as any).gestionar_flota || (userPermisos as any).gestionar_choferes
         };
 
         setContext(networkContext);
@@ -126,9 +125,8 @@ export function useTransportistasDisponibles() {
         cuit: empresa.cuit,
         email: empresa.email,
         telefono: empresa.telefono,
-        direccion: empresa.direccion,
-        activo: empresa.activo,
-        tiene_relacion: false // Por ahora asumimos false, se puede mejorar
+        activa: empresa.activo,
+        ya_contratado: false // Por ahora asumimos false, se puede mejorar
       }));
 
       setTransportistas(transportistasData);
@@ -250,11 +248,11 @@ export function useRelacionesEmpresa() {
         throw new Error('Usuario no está asociado a ninguna empresa');
       }
       
-      if (usuarioEmpresa.empresa.tipo_empresa !== 'coordinador') {
-        throw new Error(`Usuario pertenece a empresa tipo '${usuarioEmpresa.empresa.tipo_empresa}', se requiere 'coordinador'`);
+      if ((usuarioEmpresa.empresa as any).tipo_empresa !== 'coordinador') {
+        throw new Error(`Usuario pertenece a empresa tipo '${(usuarioEmpresa.empresa as any).tipo_empresa}', se requiere 'coordinador'`);
       }
 
-      console.log('✅ Empresa coordinadora válida:', usuarioEmpresa.empresa.nombre);
+      console.log('✅ Empresa coordinadora válida:', (usuarioEmpresa.empresa as any).nombre);
 
       // Verificar que la empresa transporte existe y no hay relación duplicada
       console.log('🚛 Verificando empresa transporte...');
@@ -456,7 +454,7 @@ export function useNetworkStats() {
 
       if (rpcError) throw rpcError;
 
-      setStats(data);
+      setStats(data as NetworkStats | null);
     } catch (err) {
       console.error('Error loading network stats:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar estadísticas');

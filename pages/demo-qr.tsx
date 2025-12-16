@@ -17,7 +17,7 @@ export default function DemoQR() {
     };
     getUser();
   }, []);
-  const [selectedRole, setSelectedRole] = useState('');
+  const [_selectedRole, _setSelectedRole] = useState('');
 
   const credenciales = [
     {

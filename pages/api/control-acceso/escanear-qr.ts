@@ -116,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function verificarDocumentacion(viaje: any) {
+async function verificarDocumentacion(_viaje: any) {
   // Simular verificación de documentación
   // En implementación real, consultaría tabla de documentación
   const documentosVencidos = [];
@@ -148,7 +148,7 @@ async function verificarDocumentacion(viaje: any) {
   return documentosVencidos;
 }
 
-function determinarAccionesDisponibles(estadoViaje: string, accion: string, documentacionVencida: any[]) {
+function determinarAccionesDisponibles(_estadoViaje: string, accion: string, documentacionVencida: any[]) {
   const documentosCriticosVencidos = documentacionVencida.filter(d => d.critico);
   
   if (accion === 'ingreso') {

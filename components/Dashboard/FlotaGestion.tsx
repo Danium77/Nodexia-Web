@@ -2,11 +2,13 @@
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import FormCard from '../ui/FormCard';
 // import { useChoferes } from '../../lib/hooks/useChoferes';
 
 export default function FlotaGestion() {
   const router = useRouter();
+  const { user } = useUserRole();
   const initialTab = typeof window !== 'undefined' && router.query.tab && ['camion','acoplado'].includes(router.query.tab as string)
     ? router.query.tab as 'camion' | 'acoplado'
     : 'camion';
@@ -60,6 +62,13 @@ export default function FlotaGestion() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    
+    if (!user) {
+      setError('Usuario no autenticado');
+      setLoading(false);
+      return;
+    }
+    
     let foto_url = null;
     try {
       if (foto) {
@@ -69,16 +78,16 @@ export default function FlotaGestion() {
         if (uploadError) throw uploadError;
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
       }
-      // TODO: obtener id_transporte y usuario_alta según contexto
-  const { error: insertError } = await supabase.from('camiones').insert([
+      
+      const { error: insertError } = await supabase.from('camiones').insert([
         {
           patente,
           marca,
           modelo,
           anio: anio ? parseInt(anio) : null,
           foto_url,
-          id_transporte: '00000000-0000-0000-0000-000000000000', // Reemplazar por el id real
-          usuario_alta: null // Reemplazar por el id real si está disponible
+          id_transporte: user.id,
+          usuario_alta: user.id
         }
       ]);
       if (insertError) throw insertError;
@@ -97,6 +106,13 @@ export default function FlotaGestion() {
     e.preventDefault();
     setErrorA(null);
     setLoadingA(true);
+    
+    if (!user) {
+      setErrorA('Usuario no autenticado');
+      setLoadingA(false);
+      return;
+    }
+    
     let foto_url = null;
     try {
       if (fotoA) {
@@ -106,16 +122,16 @@ export default function FlotaGestion() {
         if (uploadError) throw uploadError;
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
       }
-      // TODO: obtener id_transporte y usuario_alta según contexto
-  const { error: insertError } = await supabase.from('acoplados').insert([
+      
+      const { error: insertError } = await supabase.from('acoplados').insert([
         {
           patente: patenteA,
           marca: marcaA,
           modelo: modeloA,
           anio: anioA ? parseInt(anioA) : null,
           foto_url,
-          id_transporte: '00000000-0000-0000-0000-000000000000', // Reemplazar por el id real
-          usuario_alta: null // Reemplazar por el id real si está disponible
+          id_transporte: user.id,
+          usuario_alta: user.id
         }
       ]);
       if (insertError) throw insertError;

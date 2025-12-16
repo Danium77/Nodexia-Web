@@ -130,7 +130,7 @@ export default function GestionEmpresasReal() {
         return;
       }
 
-      const planNombre = planes.find(p => p.id === planSeleccionado)?.nombre;
+      // const planNombre = planes.find(p => p.id === planSeleccionado)?.nombre;
       const tipoNombre = tiposEmpresa.find(t => t.id === tipoSeleccionado)?.nombre;
       
       // Crear empresa usando insert directo en lugar de la función con problemas
@@ -143,7 +143,7 @@ export default function GestionEmpresasReal() {
         created_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('empresas')
         .insert([empresaData])
         .select();
@@ -223,7 +223,7 @@ export default function GestionEmpresasReal() {
         created_at: new Date().toISOString()
       };
 
-      const { data: assignData, error: assignError } = await supabase
+      const { error: assignError } = await supabase
         .from('usuarios_empresa')
         .insert([usuarioEmpresaData])
         .select();

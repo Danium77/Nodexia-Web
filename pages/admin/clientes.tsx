@@ -7,7 +7,6 @@ import {
   PlusIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
-  CreditCardIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   FunnelIcon
@@ -108,7 +107,7 @@ export default function ClientesPage() {
     const matchFiltro = filtro === 'todos' || 
                        (filtro === 'activos' && cliente.activa) ||
                        (filtro === 'inactivos' && !cliente.activa) ||
-                       (filtro === 'alertas' && cliente.alertas_count > 0);
+                       (filtro === 'alertas' && (cliente.alertas_count || 0) > 0);
 
     return matchBusqueda && matchFiltro;
   });
@@ -116,11 +115,11 @@ export default function ClientesPage() {
   const stats = {
     total: clientes.length,
     activos: clientes.filter(c => c.activa).length,
-    conAlertas: clientes.filter(c => c.alertas_count > 0).length,
+    conAlertas: clientes.filter(c => (c.alertas_count || 0) > 0).length,
     totalUsuarios: clientes.reduce((acc, c) => acc + (c.usuarios_count || 0), 0)
   };
 
-  const onWizardComplete = (clienteId: string) => {
+  const onWizardComplete = (_clienteId: string) => {
     setShowWizard(false);
     cargarClientes(); // Recargar la lista
     // Opcional: navegar al detalle del cliente recién creado
@@ -155,7 +154,7 @@ export default function ClientesPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
             <div className="flex items-center justify-between">
               <div>
@@ -200,8 +199,8 @@ export default function ClientesPage() {
         </div>
 
         {/* Filtros y Búsqueda */}
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="bg-gray-800 rounded p-2 border border-gray-700">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-1">
               <div className="relative">
                 <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -231,9 +230,9 @@ export default function ClientesPage() {
         </div>
 
         {/* Lista de Clientes */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
           {clientesFiltrados.map((cliente) => (
-            <div key={cliente.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all">
+            <div key={cliente.id} className="bg-gray-800 rounded p-2 border border-gray-700 hover:border-gray-600 transition-all">
               {/* Header de la Card */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -241,7 +240,7 @@ export default function ClientesPage() {
                   <p className="text-gray-400 text-sm">{cliente.cuit}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {cliente.alertas_count > 0 && (
+                  {(cliente.alertas_count || 0) > 0 && (
                     <div className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
                       {cliente.alertas_count} alertas
                     </div>

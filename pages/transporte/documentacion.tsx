@@ -8,7 +8,7 @@ export default function DocumentacionTransporte() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const { email, role, loading } = useUserRole();
+  const { loading: _loading } = useUserRole();
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -97,7 +97,7 @@ export default function DocumentacionTransporte() {
 
   return (
     <AdminLayout pageTitle="Documentación de Transporte">
-      <div className="max-w-2xl mx-auto bg-gray-800 rounded-lg shadow-md p-8 mt-8">
+      <div className="max-w-2xl mx-auto bg-gray-800 rounded shadow-md p-2 mt-2">
         <h2 className="text-xl font-bold text-cyan-400 mb-6">Documentación</h2>
         <div className="flex items-center justify-between mb-4">
           <span className="text-white">Constancia de inscripción</span>

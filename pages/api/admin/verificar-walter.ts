@@ -33,15 +33,16 @@ export default async function handler(req: any, res: any) {
     console.log('✅ Walter encontrado:', walter.id);
 
     // Generar nuevo enlace de activación
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email: walter.email!,
+      password: 'temp-password-123',
       options: {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002'}/complete-invite`
       }
     });
 
-    const enlaceActivacion = linkData?.properties?.action_link || 
+    const enlaceActivacion = (linkData as any)?.properties?.action_link || 
                            `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002'}/complete-invite`;
 
     return res.status(200).json({

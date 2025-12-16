@@ -5,7 +5,11 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { handleApiError, AuthenticationError, AuthorizationError } from '../errors';
 import { supabase } from '../supabaseClient';
 
-export interface ApiHandler<T = any> {
+// export interface ApiHandler<T = any> {
+//   (req: NextApiRequest, res: NextApiResponse): Promise<void>;
+// }
+
+export interface ApiHandler {
   (req: NextApiRequest, res: NextApiResponse): Promise<void>;
 }
 

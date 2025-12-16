@@ -1,6 +1,6 @@
 // components/Transporte/MapaFlota.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
+// import dynamic from 'next/dynamic';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabaseClient';
@@ -109,7 +109,7 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
               .single();
 
             if (ubicacion) {
-              camionesConUbicacion.push({
+              const camionConUbicacion: Camion = {
                 ...camion,
                 ubicacion: {
                   latitude: parseFloat(ubicacion.latitude),
@@ -117,12 +117,15 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
                   velocidad: ubicacion.velocidad,
                   timestamp: ubicacion.timestamp
                 },
-                chofer: chofer || undefined,
                 viaje_actual: {
-                  pedido_id: viajeActivo.despachos.pedido_id,
-                  destino: viajeActivo.despachos.destino
+                  pedido_id: Array.isArray(viajeActivo.despachos) && viajeActivo.despachos[0] ? viajeActivo.despachos[0].pedido_id : '',
+                  destino: Array.isArray(viajeActivo.despachos) && viajeActivo.despachos[0] ? viajeActivo.despachos[0].destino : ''
                 }
-              });
+              };
+              if (chofer) {
+                camionConUbicacion.chofer = { nombre: chofer.nombre };
+              }
+              camionesConUbicacion.push(camionConUbicacion);
             }
           }
         }
@@ -139,6 +142,7 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
       const interval = setInterval(loadCamionesUbicaciones, 30000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [empresaId]);
 
   // Actualizar marcadores en el mapa

@@ -14,7 +14,7 @@ interface Rol {
   id?: string;
   nombre_rol: string;
   tipo_empresa: 'coordinador' | 'transporte' | 'ambos';
-  descripcion?: string;
+  descripcion?: string | undefined;
   permisos?: any;
   activo: boolean;
 }
@@ -23,7 +23,7 @@ interface FormularioRolProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  rol?: Rol | null;
+  rol?: Rol | null | undefined;
 }
 
 const FormularioRol: React.FC<FormularioRolProps> = ({ 

@@ -19,13 +19,13 @@ export default function AcopladoDetalle() {
 
   async function fetchAcoplado() {
     setLoading(true);
-    const { data, error } = await supabase.from('acoplados').select('*').eq('id', id).single();
+    const { data } = await supabase.from('acoplados').select('*').eq('id', id).single();
     setAcoplado(data);
     setLoading(false);
   }
 
   async function fetchDocumentos() {
-    const { data, error } = await supabase.from('documentos').select('*').eq('entidad', 'acoplado').eq('id_entidad', id);
+    const { data } = await supabase.from('documentos').select('*').eq('entidad', 'acoplado').eq('id_entidad', id);
     setDocumentos(data || []);
   }
 
@@ -39,12 +39,12 @@ export default function AcopladoDetalle() {
       >
         ← Volver
       </button>
-      <div className="w-full max-w-2xl flex flex-col items-center bg-gray-800 rounded-xl shadow-2xl p-8 mb-8 border border-gray-700">
+      <div className="w-full max-w-2xl flex flex-col items-center bg-gray-800 rounded shadow-2xl p-2 mb-2 border border-gray-700">
         {acoplado.foto_url && (
           <img src={acoplado.foto_url} alt="Foto acoplado" className="w-56 h-40 object-cover rounded mb-4 border-4 border-green-600 shadow-lg" />
         )}
         <h2 className="text-3xl font-bold text-green-300 mb-2 tracking-wide">Patente: <span className="text-white">{acoplado.patente}</span></h2>
-        <div className="flex gap-8 text-lg mt-2">
+        <div className="flex gap-2 text-sm mt-2">
           <div className="text-gray-300">Marca: <span className="font-semibold text-white">{acoplado.marca}</span></div>
           <div className="text-gray-300">Modelo: <span className="font-semibold text-white">{acoplado.modelo}</span></div>
           <div className="text-gray-300">Año: <span className="font-semibold text-white">{acoplado.anio}</span></div>

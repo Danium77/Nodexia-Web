@@ -39,7 +39,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     const isAdmin = Array.isArray(profileData?.roles)
       ? (profileData.roles as Role[]).some((role) => role.name === 'admin')
-      : (profileData?.roles as Role)?.name === 'admin';
+      : ((profileData?.roles as unknown) as Role)?.name === 'admin';
 
     if (roleError || !isAdmin) {
       return res.status(403).json({ error: 'Prohibido: No tienes permisos de administrador.' });

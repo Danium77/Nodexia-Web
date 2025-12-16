@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { NodexiaLogoBadge } from '../ui/NodexiaLogo';
 
 interface SidebarProps {
   userEmail?: string;
@@ -26,10 +27,10 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   }, []);
 
   // Guardar estado de collapse
-  const toggleCollapse = () => {
-    const newState = !isCollapsed;
-    setIsCollapsed(newState);
-  };
+  // const toggleCollapse = () => {
+  //   const newState = !isCollapsed;
+  //   setIsCollapsed(newState);
+  // };
 
   // allow override via props (some pages pass them)
   const finalEmail = userEmail || email;
@@ -121,7 +122,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     navItems = [
       { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
       { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
-      { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes' },
+      { name: '🌐 Cargas en Red', icon: GlobeAltIcon, href: '/transporte/cargas-en-red' },
+      { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
       { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota' },
       { name: '👥 Choferes', icon: UserCircleIcon, href: '/transporte/choferes' },
       { name: '⚙️ Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
@@ -130,13 +132,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     // Administrativo de transporte
     navItems = [
       { name: 'Dashboard', icon: HomeIcon, href: '/transporte/dashboard' },
-      { name: 'Viajes', icon: CalendarDaysIcon, href: '/transporte/viajes' },
+      { name: 'Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
       { name: 'Documentación', icon: ChartBarIcon, href: '/transporte/documentos' },
     ];
   } else if (userRole === 'chofer') {
     navItems = [
+      { name: '📱 Vista Móvil', icon: HomeIcon, href: '/chofer-mobile' },
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
-      { name: 'Mis Viajes', icon: TruckIcon, href: '/chofer/viajes' },
+      { name: 'Mis Viajes', icon: TruckIcon, href: '/chofer-mobile' },
       { name: 'Perfil', icon: UserCircleIcon, href: '/chofer/perfil' },
     ];
   } else {
@@ -189,18 +192,44 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       {/* Navegación */}
       <nav className="flex-1 mt-8">
         <ul>
-          {navItems.map((item) => (
-            <li key={item.name} className="mb-3">
-              <Link 
-                href={item.href} 
-                className={`flex items-center ${isCollapsed ? 'justify-center' : ''} p-3 rounded-lg hover:bg-[#0e1a2d] transition-colors duration-200 ${router.pathname === item.href ? 'bg-[#0e1a2d] text-cyan-400' : 'text-slate-300'}`}
-                title={isCollapsed ? item.name : ''}
-              >
-                <item.icon className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'}`} />
-                {!isCollapsed && <span className="font-medium">{item.name}</span>}
-              </Link>
-            </li>
-          ))}
+          {navItems.map((item) => {
+            const isHighlighted = (item as any).highlighted;
+            const badge = (item as any).badge;
+            const isActive = router.pathname === item.href;
+            
+            return (
+              <li key={item.name} className="mb-3">
+                <Link 
+                  href={item.href} 
+                  className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition-all duration-200 relative group ${
+                    isActive 
+                      ? 'bg-[#0e1a2d] text-cyan-400' 
+                      : isHighlighted
+                        ? 'bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-500/30 text-cyan-300 hover:from-cyan-900/50 hover:to-blue-900/50'
+                        : 'text-slate-300 hover:bg-[#0e1a2d]'
+                  }`}
+                  title={isCollapsed ? item.name : ''}
+                >
+                  <div className="flex items-center">
+                    {isHighlighted ? (
+                      <NodexiaLogoBadge className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'}`} />
+                    ) : (
+                      <item.icon className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'} ${isHighlighted && !isActive ? 'text-cyan-400' : ''}`} />
+                    )}
+                    {!isCollapsed && <span className="font-medium">{item.name}</span>}
+                  </div>
+                  {!isCollapsed && badge && (
+                    <span className="px-2 py-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs font-bold rounded-full animate-pulse">
+                      {badge}
+                    </span>
+                  )}
+                  {isHighlighted && !isActive && (
+                    <div className="absolute -right-1 -top-1 w-2 h-2 bg-cyan-400 rounded-full animate-ping"></div>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
@@ -213,7 +242,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         <button
           onClick={handleLogout}
           className={`flex items-center ${isCollapsed ? 'justify-center' : ''} p-3 mt-2 w-full rounded-lg text-red-400 hover:bg-red-900/30 transition-colors duration-200`}
-          title={isCollapsed ? 'Cerrar sesión' : ''}
           title={isCollapsed ? 'Cerrar sesión' : ''}
         >
           <ArrowLeftOnRectangleIcon className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'}`} />

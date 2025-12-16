@@ -1,7 +1,6 @@
 // lib/data/base.ts
 import { supabase } from '../supabaseClient';
-import { handleSupabaseError, ApplicationError, logError } from '../errors';
-import type { ApiResponse } from '@/types';
+import { handleSupabaseError, logError } from '../errors';
 
 export type DatabaseError = {
   message: string;
@@ -39,13 +38,16 @@ export class BaseQuery {
         const appError = handleSupabaseError(error);
         logError(appError, 'BaseQuery.execute');
         
+        const errorResult: DatabaseError = {
+          message: appError.message
+        };
+        
+        if (appError.details) errorResult.details = appError.details;
+        if (appError.code) errorResult.code = appError.code;
+        
         return {
           data: null,
-          error: {
-            message: appError.message,
-            details: appError.details,
-            code: appError.code
-          }
+          error: errorResult
         };
       }
 
@@ -54,13 +56,16 @@ export class BaseQuery {
       const appError = handleSupabaseError(err);
       logError(appError, 'BaseQuery.execute');
       
+      const errorResult: DatabaseError = {
+        message: appError.message
+      };
+      
+      if (appError.details) errorResult.details = appError.details;
+      if (appError.code) errorResult.code = appError.code;
+      
       return {
         data: null,
-        error: {
-          message: appError.message,
-          details: appError.details,
-          code: appError.code
-        }
+        error: errorResult
       };
     }
   }
@@ -79,13 +84,16 @@ export class BaseQuery {
         const appError = handleSupabaseError(error);
         logError(appError, 'BaseQuery.executePaginated');
         
+        const errorResult: DatabaseError = {
+          message: appError.message
+        };
+        
+        if (appError.details) errorResult.details = appError.details;
+        if (appError.code) errorResult.code = appError.code;
+        
         return {
           data: [],
-          error: {
-            message: appError.message,
-            details: appError.details,
-            code: appError.code
-          },
+          error: errorResult,
           count: null,
           hasMore: false
         };
@@ -103,13 +111,16 @@ export class BaseQuery {
       const appError = handleSupabaseError(err);
       logError(appError, 'BaseQuery.executePaginated');
       
+      const errorResult: DatabaseError = {
+        message: appError.message
+      };
+      
+      if (appError.details) errorResult.details = appError.details;
+      if (appError.code) errorResult.code = appError.code;
+      
       return {
         data: [],
-        error: {
-          message: appError.message,
-          details: appError.details,
-          code: appError.code
-        },
+        error: errorResult,
         count: null,
         hasMore: false
       };
@@ -119,7 +130,7 @@ export class BaseQuery {
   /**
    * Build paginated query with ordering
    */
-  static buildPaginatedQuery<T>(
+  static buildPaginatedQuery(
     table: string,
     page: number = 1,
     limit: number = 10,

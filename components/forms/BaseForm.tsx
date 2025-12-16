@@ -1,6 +1,6 @@
 // components/forms/BaseForm.tsx
 import React from 'react';
-import { FormCard } from '../ui/FormCard';
+import FormCard from '../ui/FormCard';
 
 export interface FormFieldConfig {
   name: string;
@@ -109,7 +109,8 @@ export const BaseForm: React.FC<BaseFormProps> = ({
   };
 
   return (
-    <FormCard title={title}>
+    <FormCard>
+      {title && <h2 className="text-xl font-bold text-white mb-6">{title}</h2>}
       <form onSubmit={onSubmit} className="space-y-6">
         {fields.map((field) => (
           <div key={field.name} className="space-y-2">

@@ -166,20 +166,24 @@ const CoordinatorDashboard = () => {
 
       if (error) throw error;
 
-      const formattedDispatches = data?.map(d => ({
-        id: d.id,
-        pedido_id: d.pedido_id,
-        origen: d.origen,
-        destino: d.destino,
-        estado: d.estado,
-        prioridad: d.prioridad,
-        scheduled_local_date: d.scheduled_local_date,
-        transporte_data: Array.isArray(d.transportes) 
+      const formattedDispatches = data?.map(d => {
+        const transporteData = Array.isArray(d.transportes) 
           ? d.transportes[0] 
-          : d.transportes
-      })) || [];
+          : d.transportes;
+        
+        return {
+          id: d.id,
+          pedido_id: d.pedido_id,
+          origen: d.origen,
+          destino: d.destino,
+          estado: d.estado,
+          prioridad: d.prioridad,
+          scheduled_local_date: d.scheduled_local_date,
+          ...(transporteData && { transporte_data: transporteData })
+        };
+      }) || [];
 
-      setRecentDispatches(formattedDispatches);
+      setRecentDispatches(formattedDispatches as any);
 
     } catch (error) {
       console.error('Error loading recent dispatches:', error);
@@ -231,7 +235,7 @@ const CoordinatorDashboard = () => {
       'en_transito': 'bg-blue-600 text-blue-100',
       'entregado': 'bg-gray-600 text-gray-100'
     };
-    return badges[estado] || 'bg-gray-600 text-gray-100';
+    return badges[estado as keyof typeof badges] || 'bg-gray-600 text-gray-100';
   };
 
   const getPrioridadBadge = (prioridad: string) => {
@@ -240,7 +244,7 @@ const CoordinatorDashboard = () => {
       'Normal': 'bg-yellow-600 text-yellow-100',
       'Baja': 'bg-green-600 text-green-100'
     };
-    return badges[prioridad] || 'bg-gray-600 text-gray-100';
+    return badges[prioridad as keyof typeof badges] || 'bg-gray-600 text-gray-100';
   };
 
   if (loading) {
@@ -258,8 +262,8 @@ const CoordinatorDashboard = () => {
     <div className="flex h-screen bg-gray-900">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-6">
+        <Header userEmail="" userName="" pageTitle="Dashboard Coordinador" />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-2">
           
           {/* Header del Dashboard */}
           <div className="mb-8">
@@ -296,7 +300,7 @@ const CoordinatorDashboard = () => {
           {/* Métricas Principales con Animaciones */}
           <NetworkMetrics stats={stats} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             
             {/* Despachos Recientes */}
             <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -398,13 +402,13 @@ const CoordinatorDashboard = () => {
           </div>
 
           {/* Valor de Red NODEXIA */}
-          <div className="mb-8 bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 rounded-xl p-6 border border-cyan-700">
-            <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+          <div className="mb-2 bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 rounded p-2 border border-cyan-700">
+            <h3 className="text-sm font-bold text-white mb-2 flex items-center">
               <span className="text-cyan-400 mr-3">🌐</span>
               El Poder de la Red NODEXIA
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               
               {/* Reducción de Costos */}
               <div className="text-center">

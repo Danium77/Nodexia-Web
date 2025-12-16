@@ -5,7 +5,7 @@ import {
   UserIcon,
   EnvelopeIcon,
   BuildingOfficeIcon,
-  ShieldCheckIcon,
+  // ShieldCheckIcon,
   CheckCircleIcon,
   XMarkIcon,
   ArrowLeftIcon,
@@ -13,6 +13,13 @@ import {
   ExclamationTriangleIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
+
+// Declarar el tipo extendido para window
+declare global {
+  interface Window {
+    resolveEmailExistsModal?: ((value: { continuar: boolean; accion?: string }) => void) | null;
+  }
+}
 
 interface Empresa {
   id: string;
@@ -57,7 +64,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
   
   // Estados para el modal de email existente
   const [showEmailExistsModal, setShowEmailExistsModal] = useState(false);
-  const [emailExistente, setEmailExistente] = useState<string>('');
+  const [emailExistente] = useState<string>(''); // setEmailExistente solo se usaba en función comentada
   
   // Datos del formulario
   const [formData, setFormData] = useState<WizardData>({
@@ -67,7 +74,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     nombre_completo: '',
     telefono: '',
     departamento: '',
-    fecha_ingreso: new Date().toISOString().split('T')[0],
+    fecha_ingreso: new Date().toISOString().split('T')[0] || '',
     notas: ''
   });
 
@@ -131,6 +138,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       const timer = setTimeout(() => setAutoSaved(false), 2000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [formData, currentStep, isOpen]);
 
   useEffect(() => {
@@ -163,7 +171,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     }
   };
 
-  // Función para setup automático de roles
+  // Función para setup automático de roles (NO SE USA - COMENTADA)
+  /*
   const setupRolesEmpresa = async () => {
     console.log('🚀 Ejecutando setup automático de roles...');
 
@@ -251,6 +260,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       return false;
     }
   };
+  */
 
   const loadRoles = async () => {
     try {
@@ -321,7 +331,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       nombre_completo: '',
       telefono: '',
       departamento: '',
-      fecha_ingreso: new Date().toISOString().split('T')[0],
+      fecha_ingreso: new Date().toISOString().split('T')[0] || '',
       notas: ''
     });
     setCurrentStep(1);
@@ -400,6 +410,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     }
   };
 
+  // NO SE USA - COMENTADA
+  /*
   const checkEmailExists = async (email: string): Promise<boolean> => {
     try {
       const { data, error } = await supabase
@@ -415,7 +427,10 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       return false;
     }
   };
+  */
 
+  // NO SE USA - COMENTADA
+  /*
   const mostrarOpcionesEmailExistente = async (email: string): Promise<{continuar: boolean, accion?: string}> => {
     setEmailExistente(email);
     setShowEmailExistsModal(true);
@@ -425,6 +440,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       window.resolveEmailExistsModal = resolve;
     });
   };
+  */
 
   const handleEmailExistsAction = (accion: string) => {
     setShowEmailExistsModal(false);
@@ -443,6 +459,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     }
   };
 
+  // NO SE USA - COMENTADA
+  /*
   const reenviarInvitacionExistente = async (email: string) => {
     try {
       const response = await fetch('/api/admin/reenviar-invitacion', {
@@ -488,6 +506,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       setError(`Error de conexión: ${error.message}`);
     }
   };
+  */
 
 
 
@@ -531,31 +550,55 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
         console.log('✅ Invitación procesada exitosamente');
         
         if (isMountedRef.current) {
-          // Mostrar mensaje diferente según el método usado
-          if (result.metodo === 'link_directo') {
-            // Modo sin email: mostrar link y credenciales
-            const linkMsg = `✅ Usuario creado exitosamente!\n\n` +
+          // Mensaje diferente según el método usado
+          let successMsg = '';
+          
+          if (result.metodo === 'email_activacion') {
+            // CON SMTP: Email de activación enviado
+            successMsg = `✅ Usuario creado exitosamente!\n\n` +
               `📧 Email: ${result.usuario.email}\n` +
               `👤 Nombre: ${result.usuario.nombre_completo}\n` +
-              `🏢 Empresa: ${result.usuario.empresa}\n\n` +
-              `🔗 Link de activación:\n${result.link_invitacion}\n\n` +
-              `🔑 Credenciales temporales:\n` +
-              `Email: ${result.usuario.email}\n` +
-              `Password: ${result.password_temporal}\n\n` +
-              `📋 Envía estos datos al usuario por WhatsApp o mensaje directo.`;
-            
-            setSuccess(linkMsg);
+              `🏢 Empresa: ${result.usuario.empresa}\n` +
+              `📍 Rol: ${result.usuario.rol_interno}\n\n` +
+              `📬 EMAIL DE ACTIVACIÓN ENVIADO\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `El usuario recibirá un email con instrucciones\n` +
+              `para activar su cuenta y establecer su contraseña.\n\n` +
+              `⚠️ IMPORTANTE:\n` +
+              `• El link de activación expira en 24 horas\n` +
+              `• El usuario debe revisar su bandeja de entrada\n` +
+              `• Si no recibe el email, verifica la carpeta de spam\n` +
+              `• Esta ventana se cerrará automáticamente en 10 segundos`;
           } else {
-            // Modo con email: mensaje estándar
-            setSuccess(`✅ Invitación enviada a ${formData.email}\n\n${result.message}`);
+            // SIN SMTP: Credenciales temporales
+            successMsg = `✅ Usuario creado exitosamente!\n\n` +
+              `📧 Email: ${result.usuario.email}\n` +
+              `👤 Nombre: ${result.usuario.nombre_completo}\n` +
+              `🏢 Empresa: ${result.usuario.empresa}\n` +
+              `📍 Rol: ${result.usuario.rol_interno}\n\n` +
+              `🔑 CREDENCIALES TEMPORALES:\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `Email: ${result.usuario.email}\n` +
+              `Password: ${result.password_temporal}\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `⚠️ IMPORTANTE:\n` +
+              `• Guarda estas credenciales ahora\n` +
+              `• Envíalas al usuario por WhatsApp o mensaje directo\n` +
+              `• El usuario debe cambiar su contraseña en el primer login\n` +
+              `• Esta ventana se cerrará automáticamente en 30 segundos`;
           }
+          
+          setSuccess(successMsg);
         }
         
         // Limpiar sessionStorage antes de cerrar
         sessionStorage.removeItem('wizardUsuarioState');
         sessionStorage.removeItem('wizardUsuarioOpen');
         
-        // Cerrar el wizard después de 30 segundos (más tiempo para copiar credenciales)
+        // Tiempo de cierre según el método
+        const closeDelay = result.metodo === 'email_activacion' ? 10000 : 30000;
+        
+        // Cerrar el wizard después del delay
         setTimeout(() => {
           // Primero cerrar el modal para evitar errores de DOM
           onClose();
@@ -563,7 +606,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
           setTimeout(() => {
             onSuccess();
           }, 100);
-        }, 30000);
+        }, closeDelay);
       } else {
         console.error('❌ Error enviando invitación:', result);
         if (isMountedRef.current) {

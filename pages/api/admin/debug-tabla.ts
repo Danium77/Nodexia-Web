@@ -25,7 +25,7 @@ export default async function handler(
     }
 
     // También intentar obtener información de la tabla
-    const { data: allData, error: allError } = await supabaseAdmin
+    const { data: allData } = await supabaseAdmin
       .from('usuarios_empresa')
       .select('*')
       .limit(3);

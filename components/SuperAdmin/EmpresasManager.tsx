@@ -2,7 +2,7 @@ import React from 'react';
 import { useEmpresasAdmin } from '../../lib/hooks/useSuperAdmin';
 
 const EmpresasManager: React.FC = () => {
-  const { empresas, loading, createEmpresa, updateEmpresa, deleteEmpresa } = useEmpresasAdmin();
+  const { empresas, loading } = useEmpresasAdmin();
 
   if (loading) {
     return <div className="text-white">Cargando empresas...</div>;
@@ -36,8 +36,8 @@ const EmpresasManager: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              empresas.map((empresa) => (
-                <tr key={empresa.id} className="border-t border-gray-600">
+              empresas.map((empresa, index) => (
+                <tr key={`empresa-${index}`} className="border-t border-gray-600">
                   <td className="p-4 text-white">{empresa.nombre}</td>
                   <td className="p-4 text-gray-300">{empresa.cuit}</td>
                   <td className="p-4 text-gray-300">{empresa.email}</td>
