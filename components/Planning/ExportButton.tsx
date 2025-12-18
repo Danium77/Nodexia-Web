@@ -21,7 +21,7 @@ interface ExportButtonProps {
   title: string;
 }
 
-const ExportButton: React.FC<ExportButtonProps> = ({ dispatches, title }) => {
+const ExportButton: React.FC<ExportButtonProps> = ({ dispatches, title: _title }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 

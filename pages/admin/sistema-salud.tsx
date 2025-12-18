@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/shadcn-compat';
-import { Badge } from '@/components/ui/shadcn-compat';
 import { Button } from '@/components/ui/Button';
 import { 
   RefreshCw, 

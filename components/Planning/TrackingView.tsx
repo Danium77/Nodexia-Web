@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../../lib/supabaseClient';
 import { ChevronRightIcon, ChevronDownIcon, TruckIcon } from '@heroicons/react/24/outline';
-import { EstadoDualBadge, TimelineEstados } from '../ui/EstadoDualBadge';
+import { EstadoDualBadge } from '../ui/EstadoDualBadge';
 import type { EstadoCargaViaje } from '../../lib/types';
 
 // Importar TrackingMap de forma dinámica para evitar problemas con SSR
@@ -315,7 +315,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                                 <EstadoDualBadge
                                   tipo="carga"
                                   estado={viaje.estado_carga_viaje.estado_carga}
-                                  timestamp={viaje.estado_carga_viaje.fecha_carga_completada || viaje.estado_carga_viaje.fecha_cargando}
+                                  timestamp={viaje.estado_carga_viaje.fecha_cargado || viaje.estado_carga_viaje.fecha_en_proceso_carga}
                                   size="sm"
                                 />
                               ) : (

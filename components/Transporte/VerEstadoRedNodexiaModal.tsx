@@ -300,19 +300,19 @@ export default function VerEstadoRedNodexiaModal({
                 <div className="flex items-center gap-3 mb-2">
                   <TruckIcon className="w-6 h-6 text-cyan-400" />
                   <span className="font-semibold text-white text-lg">
-                    {ofertaSeleccionada.transportes?.nombre || 'Sin nombre'}
+                    {ofertaSeleccionada.transporte?.nombre || 'Sin nombre'}
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
                   <MapPinIcon className="w-4 h-4" />
-                  <span>{ofertaSeleccionada.transportes?.localidad || 'Sin localidad'}</span>
+                  <span>{ofertaSeleccionada.transporte?.localidad || 'Sin localidad'}</span>
                 </div>
 
                 <div className="flex items-center gap-1">
-                  {renderStars(ofertaSeleccionada.transportes?.calificacion_promedio || 0)}
+                  {renderStars(ofertaSeleccionada.transporte?.calificacion || 0)}
                   <span className="text-gray-400 text-sm ml-2">
-                    ({ofertaSeleccionada.transportes?.total_viajes_realizados || 0} viajes)
+                    ({ofertaSeleccionada.transporte?.viajes_realizados || 0} viajes)
                   </span>
                 </div>
               </div>

@@ -3,12 +3,11 @@
 // Para que las plantas publiquen viajes en la red
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import {
   XMarkIcon,
-  GlobeAltIcon,
   TruckIcon,
   CurrencyDollarIcon,
   ExclamationTriangleIcon,

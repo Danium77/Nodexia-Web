@@ -1,6 +1,6 @@
 // components/Planning/PlanningGrid.tsx
 import React, { useState, useMemo, useReducer } from 'react';
-import { MapPinIcon, TruckIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../../lib/supabaseClient';
 
 interface Dispatch {

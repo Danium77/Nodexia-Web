@@ -53,11 +53,10 @@ export default function ChoferMobile() {
   const [viajes, setViajes] = useState<ViajeChofer[]>([]);
   const [viajeActivo, setViajeActivo] = useState<ViajeChofer | null>(null);
   const [choferData, setChoferData] = useState<any>(null);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [ubicacionActual, setUbicacionActual] = useState<UbicacionGPS | null>(null);
   const [activeTab, setActiveTab] = useState<'viajes' | 'incidencias' | 'perfil'>('viajes');
 
   // Verificar rol de chofer
@@ -81,6 +80,7 @@ export default function ChoferMobile() {
       const timer = setTimeout(() => setMessage(null), 5000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [message]);
 
   useEffect(() => {
@@ -88,6 +88,7 @@ export default function ChoferMobile() {
       const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [error]);
 
   // Recargar viajes solo cuando volvemos al tab de viajes desde otro tab

@@ -332,13 +332,6 @@ export default function SupervisorCarga() {
     try {
       console.log('🏁 [supervisor-carga] Cerrando carga:', viaje.id);
       
-  const cerrarCarga = async () => {
-    if (!viaje) return;
-
-    setLoading(true);
-    try {
-      console.log('🏁 [supervisor-carga] Cerrando carga:', viaje.id);
-      
       const result = await completarCarga(
         viaje.id,
         0, // Peso se registra en Control de Acceso
@@ -368,43 +361,9 @@ export default function SupervisorCarga() {
       console.error('❌ [supervisor-carga] Error:', error);
     }
     setLoading(false);
-  };;
-          setQrCode('');
-          setPesoReal('');
-          setBultos('');
-          setTemperatura('');
-          setObservaciones('');
-          setMessage('');
-          cargarViajes();
-        }, 3000);
-      } else {
-        setMessage(`❌ ${result.error || 'Error al finalizar carga'}`);
-      }
-    } catch (error) {
-      setMessage('❌ Error al finalizar carga');
-      console.error('❌ [supervisor-carga] Error:', error);
-    }
-    setLoading(false);
-  };
-        bultos: parseInt(bultos)
-      });
-
-      setTimeout(() => {
-        setViaje(null);
-        setQrCode('');
-        setPesoReal('');
-        setBultos('');
-        setTemperatura('');
-        setObservaciones('');
-        setMessage('');
-      }, 3000);
-    } catch (error) {
-      setMessage('âŒ Error al finalizar carga');
-      console.error(error);
-    }
-    setLoading(false);
   };
 
+  // Funciones para descarga (recepción)
   // Funciones para descarga (recepciÃ³n)
   const iniciarDescargaViaje = async () => {
     if (!viaje) return;
