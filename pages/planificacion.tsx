@@ -9,6 +9,7 @@ import ViewSelector, { ViewType } from '../components/Planning/ViewSelector';
 import ExportButton from '../components/Planning/ExportButton';
 import PlanningAlerts from '../components/Planning/PlanningAlerts';
 import DayView from '../components/Planning/DayView';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 type TabType = 'planning' | 'tracking';
 
@@ -508,7 +509,7 @@ const PlanificacionPage = () => {
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <p className="text-slate-100">Cargando planificación...</p>
+          <LoadingSpinner size="lg" text="Cargando planificación..." />
         </div>
       ) : (
         <>

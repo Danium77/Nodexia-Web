@@ -5,6 +5,7 @@ import { useUserRole } from '../lib/contexts/UserRoleContext';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import NetworkMetrics from '../components/Dashboard/NetworkMetrics';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 interface DashboardStats {
   totalDespachos: number;
@@ -250,10 +251,7 @@ const CoordinatorDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Cargando dashboard...</p>
-        </div>
+        <LoadingSpinner size="xl" text="Cargando dashboard..." />
       </div>
     );
   }

@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { useRouter } from 'next/router';
 import { TruckIcon } from '@heroicons/react/24/outline';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 // Importar mapa dinámicamente para evitar SSR
 const MapaFlota = dynamic(() => import('../../components/Transporte/MapaFlota'), {
@@ -198,7 +199,7 @@ const TransporteDashboard = () => {
     return (
       <AdminLayout pageTitle="Dashboard de Transporte">
         <div className="flex items-center justify-center h-64">
-          <div className="text-cyan-400">Cargando dashboard...</div>
+          <LoadingSpinner size="lg" text="Cargando dashboard..." />
         </div>
       </AdminLayout>
     );
