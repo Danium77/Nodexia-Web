@@ -1,78 +1,110 @@
-# 🚀 PRÓXIMA SESIÓN - Pendiente de inicialización
+# 🎯 PRÓXIMA SESIÓN - Nodexia
 
-**Preparado por:** Sistema automático  
-**Estado:** Este archivo se generará al finalizar tu próxima sesión  
-**Fecha:** 17-Dic-2025
-
----
-
-## 📍 ESTADO ACTUAL
-
-Este es tu primer uso del nuevo sistema de sesiones estructuradas para Copilot.
-
-**Al finalizar tu próxima sesión de trabajo, este archivo se actualizará automáticamente con:**
-
-- ✅ Resumen de lo completado
-- ⏳ Tareas pendientes
-- 📊 Estado del proyecto (tests, errores TS, etc.)
-- 🎯 Opciones sugeridas para la siguiente sesión
-- 🐛 Problemas conocidos activos
-- 💡 Notas importantes
+**Última actualización:** 18-Dic-2025  
+**Estado del proyecto:** 80% completo  
+**Próxima prioridad:** Definida por usuario
 
 ---
 
-## 🎯 PARA EMPEZAR TU PRÓXIMA SESIÓN
+## 📋 QUÉ HACER AL INICIO
 
-1. **Lee:** `GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md`
-2. **Copia al chat:**
+**COPILOT:** Cuando inicie la próxima sesión:
 
-```markdown
-Hola Copilot! Voy a trabajar en Nodexia hoy.
+1. **Leer este archivo completo** para contexto inmediato
+2. **Leer `.session/CONTEXTO-ACTUAL.md`** para estado del proyecto
+3. **Leer `docs/PROBLEMAS-CONOCIDOS.md`** para issues activos
+4. **Revisar último archivo en `.session/history/`** para continuidad
+5. **Esperar instrucciones del usuario** sobre objetivo de hoy
 
-Lee GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md y empecemos.
+---
+
+## ✅ ÚLTIMA SESIÓN (18-Dic-2025)
+
+### Trabajo Completado
+- ✅ Implementado spinner con logo de Nodexia
+- ✅ Actualizado LoadingSpinner.tsx con logo animado
+- ✅ Agregada prop `variant` para elegir logo/círculo
+- ✅ Reemplazado spinner en 3 dashboards principales:
+  - pages/planificacion.tsx
+  - pages/coordinator-dashboard.tsx
+  - pages/transporte/dashboard.tsx
+- ✅ Probado visualmente - funcionando correctamente
+- ✅ Usuario satisfecho con resultado
+
+### Resultado
+✅ **Loading states ahora muestran marca Nodexia**
+- Logo girando con anillo de carga animado
+- Experiencia más profesional y branded
+- Mantiene compatibilidad con código existente
+
+### Commit de la Sesión
 ```
-
-3. **Copilot te guiará** desde ahí con opciones y plan de trabajo
-
----
-
-## 📚 CONTEXTO RÁPIDO DEL PROYECTO
-
-**Proyecto:** Nodexia - Plataforma logística SaaS B2B  
-**Estado:** ~80% completado  
-**Stack:** Next.js 15, TypeScript, Supabase  
-
-**Documentación clave:**
-- Visión: `NODEXIA-VISION-COMPLETA.md`
-- Roadmap: `NODEXIA-ROADMAP.md`
-- Estado actual: `docs/ESTADO-CONTINUACION-16-DIC-2025.md`
-- Problemas conocidos: `docs/PROBLEMAS-CONOCIDOS.md`
+dc70c58 - feat: Implementar spinner con logo de Nodexia
+```
 
 ---
 
 ## 🎓 OPCIONES GENERALES
 
 Si no sabes qué hacer, estas son las áreas principales de trabajo:
+---
 
-### Opción 1: Completar Red Nodexia 🥇
-- Estado: 70%
-- Duración: 3-4 horas
-- Impacto: Alto (feature core del negocio)
+## 🎯 PRÓXIMO OBJETIVO
 
-### Opción 2: Estabilizar código 🛠️
-- 78 errores TypeScript
-- Sin CI/CD
-- Sin error monitoring
+**A DEFINIR POR USUARIO**
 
-### Opción 3: Pulir UI/UX 🎨
-- Mejorar loading states
-- Animaciones
-- Responsive mobile
+El usuario indicará el objetivo al inicio de la siguiente sesión.
 
-**Para detalles completos:** Lee `GUIAS/QUICK-START-PROXIMA-SESION.md`
+### Trabajo Pendiente Relacionado
+
+#### Spinner de Nodexia (23+ ubicaciones restantes)
+Si el usuario quiere continuar actualizando spinners:
+- `pages/dashboard.tsx`
+- `pages/control-acceso.tsx`
+- `pages/despachos.tsx`
+- `pages/transporte/choferes.tsx`
+- Y ~20 ubicaciones más con "Cargando..." texto plano
+
+### Otras Posibles Áreas de Trabajo
+
+#### ✨ Mejoras UX/UI
+1. Completar reemplazo de spinner en páginas restantes
+2. Animaciones y transiciones
+3. Modo oscuro/claro
+4. Accesibilidad (WCAG 2.1)
+
+#### 🔧 Optimizaciones
+1. Resolver 78 errores TypeScript
+2. Mejorar performance de queries Supabase
+3. Implementar caching
+4. Optimizar bundle size
+
+#### 🐛 Bugs y Correcciones
+1. Ver `docs/PROBLEMAS-CONOCIDOS.md`
+2. Resolver test fallando (sync-usuarios)
+3. Mejorar error handling
 
 ---
 
-**Este archivo se actualizará automáticamente al cerrar cada sesión de trabajo.**
+## 🚀 LISTO PARA EMPEZAR
 
-*Sistema implementado: 17-Dic-2025*
+**Usuario:**  
+Copia esto al inicio de la sesión:
+
+```
+Hola Copilot! Iniciemos sesión según protocolo.
+Mi objetivo hoy es: [DESCRIBE TU OBJETIVO]
+```
+
+**Copilot:**  
+1. Lee `.session/PROXIMA-SESION.md` ✓
+2. Lee `.session/CONTEXTO-ACTUAL.md` ✓
+3. Lee último archivo en `.session/history/` ✓
+4. Confirma objetivo y crea plan
+5. ¡A trabajar! 🚀
+
+---
+
+**Sistema de sesiones:** ✅ Operativo  
+**Documentado por:** GitHub Copilot  
+**Próxima sesión:** Cuando el usuario lo indique
