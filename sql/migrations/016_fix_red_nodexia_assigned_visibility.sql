@@ -22,7 +22,7 @@ CREATE POLICY "Transportes ven viajes con sus ofertas"
             WHERE o.viaje_red_id = viajes_red_nodexia.id
             AND o.transporte_id IN (
                 SELECT empresa_id FROM usuarios_empresa 
-                WHERE usuario_id = auth.uid()
+                WHERE user_id = auth.uid()
             )
         )
         AND (
@@ -34,7 +34,7 @@ CREATE POLICY "Transportes ven viajes con sus ofertas"
                 viajes_red_nodexia.estado_red = 'asignado'
                 AND viajes_red_nodexia.transporte_asignado_id IN (
                     SELECT empresa_id FROM usuarios_empresa 
-                    WHERE usuario_id = auth.uid()
+                    WHERE user_id = auth.uid()
                 )
             )
         )
