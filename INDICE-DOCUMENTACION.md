@@ -1,22 +1,387 @@
 # 📚 ÍNDICE DE DOCUMENTACIÓN - NODEXIA
 
-**Última actualización:** 4 de Diciembre 2025  
-**Estado:** ✅ Sistema de usuarios completo + Preparado para SMTP
+**Última actualización:** 17 de Diciembre 2025  
+**Estado:** ✅ Sistema de sesiones estructuradas implementado + Testing completo
 
 ---
 
-## 🎯 INICIO RÁPIDO
+## 🚀 INICIO RÁPIDO PARA USUARIO (JARY)
 
-### Para Comenzar una Nueva Sesión:
-1. 📖 **PROMPT-CONTINUACION-29-NOV-2025.md** ⭐ - Contexto más reciente
-2. 📧 **docs/INTEGRACION-SMTP-COMPLETA.md** ⭐⭐ - Guía para activar SMTP
-3. 👥 **docs/FLUJO-CREACION-USUARIOS-UI.md** - Sistema de usuarios desde UI
-4. 📱 **GUIA-INSTALACION-PWA.md** - Guía instalación como app móvil
+### 🎯 Para empezar una sesión de trabajo HOY:
 
-### Para Desarrollar:
-- **README.md** - Información general del proyecto
-- **INICIO-RAPIDO.md** - Guía de inicio rápido
-- **docs/guides/CREDENCIALES-LOGIN.md** - Credenciales de testing
+**Lee primero:** [COMO-INICIAR-SESION-USUARIO.md](COMO-INICIAR-SESION-USUARIO.md) ⭐⭐⭐
+
+**Luego copia esto al chat con Copilot:**
+
+```markdown
+Hola Copilot! Voy a trabajar en Nodexia hoy.
+
+Lee GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md y empecemos.
+```
+
+**Eso es todo!** Copilot hará el resto automáticamente.
+
+---
+
+## 🤖 PARA COPILOT (IA ASSISTANT)
+
+### Al iniciar sesión:
+1. Lee `GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md`
+2. Lee `.session/PROXIMA-SESION.md`
+3. Lee `.session/CONTEXTO-ACTUAL.md`
+4. Sigue el protocolo paso a paso
+
+### Al cerrar sesión:
+1. Lee `GUIAS/PROTOCOLO-CIERRE-SESION-COPILOT.md`
+2. Documenta en `.session/history/sesion-[FECHA].md`
+3. Actualiza `.session/PROXIMA-SESION.md`
+4. Sigue el protocolo paso a paso
+
+---
+
+## 📂 ESTRUCTURA PRINCIPAL
+
+```
+Nodexia-Web/
+│
+├── 📄 RAÍZ - Documentos esenciales de alto nivel
+│   ├── README.md
+│   ├── NODEXIA-VISION-COMPLETA.md
+│   ├── NODEXIA-ROADMAP.md
+│   ├── INICIO-RAPIDO.md
+│   ├── INDICE-DOCUMENTACION.md (este archivo)
+│   └── COMO-INICIAR-SESION-USUARIO.md ⭐ NUEVO
+│
+├── .session/ ← NUEVO: Contexto entre sesiones
+│   ├── README.md                    # Explicación del sistema
+│   ├── PROXIMA-SESION.md            # Qué hacer en próxima sesión
+│   ├── CONTEXTO-ACTUAL.md           # Estado completo del proyecto
+│   ├── history/                     # Historial de sesiones
+│   │   └── sesion-YYYY-MM-DD.md    # Una por sesión
+│   └── en-progreso/                 # Notas temporales (no versionadas)
+│
+├── GUIAS/ ← NUEVO: Protocolos y guías de trabajo
+│   ├── PROTOCOLO-INICIO-SESION-COPILOT.md  ⭐⭐⭐
+│   ├── PROTOCOLO-CIERRE-SESION-COPILOT.md  ⭐⭐⭐
+│   ├── ESTRUCTURA-SESION-TRABAJO.md
+│   ├── ESTRUCTURA-DOCUMENTACION.md
+│   ├── GUIA-AREAS-TECNICAS.md
+│   ├── QUICK-START-PROXIMA-SESION.md
+│   └── ANALISIS-DIRECTOR-PROYECTO.md
+│
+├── docs/            # Documentación técnica
+│   ├── PROBLEMAS-CONOCIDOS.md
+│   ├── ARQUITECTURA-OPERATIVA.md
+│   ├── ESTADO-CONTINUACION-16-DIC-2025.md
+│   └── [otros docs técnicos]
+│
+└── [código fuente]  # Tu aplicación
+    ├── pages/
+    ├── components/
+    ├── lib/
+    └── etc.
+```
+
+---
+
+## 🎯 ÍNDICE POR PROPÓSITO
+
+### 👤 SOY USUARIO (JARY) - ¿Qué leo?
+
+| Situación | Documento |
+|-----------|-----------|
+| **Voy a trabajar HOY** | [COMO-INICIAR-SESION-USUARIO.md](COMO-INICIAR-SESION-USUARIO.md) |
+| No sé qué hacer | `GUIAS/QUICK-START-PROXIMA-SESION.md` |
+| Quiero ver qué sigue | `.session/PROXIMA-SESION.md` |
+| Quiero ver bugs conocidos | `docs/PROBLEMAS-CONOCIDOS.md` |
+| Necesito entender la visión | `NODEXIA-VISION-COMPLETA.md` |
+
+**💡 Tip:** Solo necesitas leer el primer documento. El resto Copilot lo lee solo.
+
+---
+
+### 🤖 SOY COPILOT - ¿Qué leo?
+
+| Momento | Documentos (en orden) |
+|---------|----------------------|
+| **Al INICIAR sesión** | 1. `GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md`<br>2. `.session/PROXIMA-SESION.md`<br>3. `.session/CONTEXTO-ACTUAL.md`<br>4. `docs/PROBLEMAS-CONOCIDOS.md` |
+| **Al CERRAR sesión** | 1. `GUIAS/PROTOCOLO-CIERRE-SESION-COPILOT.md`<br>2. Crear/actualizar docs según protocolo |
+| **Durante sesión** | Consultar `GUIAS/GUIA-AREAS-TECNICAS.md` según área de trabajo |
+
+---
+
+### 🛠️ TRABAJO EN ÁREA ESPECÍFICA - ¿Qué leo?
+
+| Área | Documentos |
+|------|-----------|
+| **Base de Datos** | `GUIAS/GUIA-AREAS-TECNICAS.md` (sección 🗄️)<br>`docs/ARQUITECTURA-OPERATIVA.md` |
+| **Backend (APIs)** | `GUIAS/GUIA-AREAS-TECNICAS.md` (sección ⚙️)<br>`docs/ARQUITECTURA-OPERATIVA.md` |
+| **Frontend (UI)** | `GUIAS/GUIA-AREAS-TECNICAS.md` (sección 🎨)<br>`docs/DESIGN-SYSTEM.md` |
+| **Testing** | `TESTING-README.md`<br>`__tests__/` |
+
+---
+
+### 📖 QUIERO ENTENDER EL PROYECTO - ¿Qué leo?
+
+| Tema | Documento |
+|------|-----------|
+| **Visión del negocio** | `NODEXIA-VISION-COMPLETA.md` |
+| **Plan de desarrollo** | `NODEXIA-ROADMAP.md` |
+| **Estado actual** | `.session/CONTEXTO-ACTUAL.md`<br>`docs/ESTADO-CONTINUACION-16-DIC-2025.md` |
+| **Arquitectura técnica** | `docs/ARQUITECTURA-OPERATIVA.md` |
+| **Cómo funciona cada feature** | `docs/FLUJO-ESTADOS-OPERACIONES.md`<br>`docs/GPS-TRACKING-IMPLEMENTACION.md`<br>etc. |
+
+---
+
+## 📁 DOCUMENTOS POR CATEGORÍA
+
+### 🚀 INICIO Y PROTOCOLOS
+
+| Documento | Propósito | Para quién |
+|-----------|-----------|-----------|
+| `COMO-INICIAR-SESION-USUARIO.md` | Cómo empezar sesión (usuario) | 👤 Usuario |
+| `GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md` | Protocolo de inicio (Copilot) | 🤖 Copilot |
+| `GUIAS/PROTOCOLO-CIERRE-SESION-COPILOT.md` | Protocolo de cierre (Copilot) | 🤖 Copilot |
+| `GUIAS/QUICK-START-PROXIMA-SESION.md` | Opciones de trabajo disponibles | 👤 Usuario |
+
+### 📋 CONTEXTO DE SESIONES (.session/)
+
+| Documento | Propósito | Actualización |
+|-----------|-----------|---------------|
+| `.session/PROXIMA-SESION.md` | Qué hacer en próxima sesión | Al finalizar cada sesión |
+| `.session/CONTEXTO-ACTUAL.md` | Estado completo del proyecto | Cambios arquitectónicos |
+| `.session/history/sesion-[FECHA].md` | Historial de cada sesión | Una por sesión |
+| `.session/README.md` | Explicación del sistema | Raramente |
+
+### 📚 GUÍAS Y FRAMEWORKS (GUIAS/)
+
+| Documento | Propósito |
+|-----------|-----------|
+| `ESTRUCTURA-SESION-TRABAJO.md` | Framework de 5 fases de trabajo |
+| `ESTRUCTURA-DOCUMENTACION.md` | Dónde guardar cada documento |
+| `GUIA-AREAS-TECNICAS.md` | BD/Frontend/Backend explicados |
+| `ANALISIS-DIRECTOR-PROYECTO.md` | Análisis completo + roadmap 3 meses |
+
+### 📖 VISIÓN Y ESTRATEGIA
+
+| Documento | Propósito |
+|-----------|-----------|
+| `NODEXIA-VISION-COMPLETA.md` | Visión del negocio y propuesta de valor |
+| `NODEXIA-ROADMAP.md` | Plan de desarrollo y milestones |
+| `README.md` | Descripción general del proyecto |
+| `INICIO-RAPIDO.md` | Quick start para desarrollo |
+
+### 🛠️ DOCUMENTACIÓN TÉCNICA (docs/)
+
+| Documento | Propósito |
+|-----------|-----------|
+| `docs/PROBLEMAS-CONOCIDOS.md` | Bugs y limitaciones activas |
+| `docs/ARQUITECTURA-OPERATIVA.md` | Arquitectura completa del sistema |
+| `docs/ESTADO-CONTINUACION-16-DIC-2025.md` | Estado actual detallado |
+| `docs/FLUJO-ESTADOS-OPERACIONES.md` | Lógica de estados de operaciones |
+| `docs/GPS-TRACKING-IMPLEMENTACION.md` | Implementación GPS tracking |
+| `docs/INTEGRACION-SMTP-COMPLETA.md` | Cómo configurar SMTP |
+| `docs/DESIGN-SYSTEM.md` | Sistema de diseño UI |
+| `docs/FLUJO-CREACION-USUARIOS-UI.md` | Sistema de usuarios |
+
+### 🧪 TESTING
+
+| Documento | Propósito |
+|-----------|-----------|
+| `TESTING-README.md` | Guía completa de testing |
+| `__tests__/` | Tests unitarios y de integración |
+| `playwright.config.ts` | Configuración E2E tests |
+
+---
+
+## 🔄 FLUJO DE TRABAJO CON LA DOCUMENTACIÓN
+
+### Flujo típico de una sesión:
+
+```
+1. USUARIO lee:
+   └─ COMO-INICIAR-SESION-USUARIO.md
+   └─ Copia mensaje de inicio al chat
+   
+2. COPILOT lee automáticamente:
+   └─ GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md
+   └─ .session/PROXIMA-SESION.md
+   └─ .session/CONTEXTO-ACTUAL.md
+   └─ docs/PROBLEMAS-CONOCIDOS.md
+   
+3. COPILOT presenta opciones
+   └─ USUARIO elige objetivo
+   
+4. COPILOT trabaja
+   └─ Consulta docs técnicos según necesidad
+   └─ Crea/actualiza código
+   └─ Testea cambios
+   
+5. COPILOT cierra sesión
+   └─ GUIAS/PROTOCOLO-CIERRE-SESION-COPILOT.md
+   └─ Crea .session/history/sesion-[FECHA].md
+   └─ Actualiza .session/PROXIMA-SESION.md
+   
+6. Próxima sesión lista con contexto completo ✅
+```
+
+---
+
+## 🎓 GUÍA RÁPIDA POR ESCENARIO
+
+### Escenario 1: "Es mi primera sesión con el nuevo sistema"
+
+```markdown
+1. Lee: COMO-INICIAR-SESION-USUARIO.md
+2. Lee: .session/README.md (opcional, entender el sistema)
+3. Copia al chat: "Hola Copilot! Primera sesión con el nuevo sistema.
+                    Lee GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md"
+4. Sigue instrucciones de Copilot
+```
+
+---
+
+### Escenario 2: "Quiero trabajar pero no sé en qué"
+
+```markdown
+1. Lee: GUIAS/QUICK-START-PROXIMA-SESION.md (opciones disponibles)
+2. Lee: .session/PROXIMA-SESION.md (recomendaciones de sesión anterior)
+3. Decide objetivo
+4. Copia mensaje de inicio al chat
+```
+
+---
+
+### Escenario 3: "Quiero entender cómo funciona X feature"
+
+```markdown
+BD: docs/ARQUITECTURA-OPERATIVA.md (schema)
+Estados: docs/FLUJO-ESTADOS-OPERACIONES.md
+GPS: docs/GPS-TRACKING-IMPLEMENTACION.md
+Usuarios: docs/FLUJO-CREACION-USUARIOS-UI.md
+Red Nodexia: sql/schema/red_nodexia.sql + componentes
+```
+
+---
+
+### Escenario 4: "Encontré un bug"
+
+```markdown
+1. Copilot lo documenta en: docs/PROBLEMAS-CONOCIDOS.md
+2. Se incluye en: .session/history/sesion-[FECHA].md
+3. Se menciona en: .session/PROXIMA-SESION.md (si es crítico)
+```
+
+---
+
+### Escenario 5: "Quiero ver historial de decisiones"
+
+```markdown
+1. Revisa: .session/history/ (decisiones por sesión)
+2. Revisa: .session/CONTEXTO-ACTUAL.md (decisiones arquitectónicas)
+3. Revisa: docs/[feature específico].md (decisiones de implementación)
+```
+
+---
+
+## 📊 MÉTRICAS DEL SISTEMA DE DOCUMENTACIÓN
+
+**Documentos totales:** ~50+ archivos  
+**Documentos de sesión:** 3 core + historial  
+**Guías y protocolos:** 7 archivos  
+**Docs técnicos:** 20+ archivos  
+**Tests:** 50+ tests  
+
+**Cobertura:**
+- ✅ Inicio/cierre de sesión: 100%
+- ✅ Contexto entre sesiones: 100%
+- ✅ Arquitectura técnica: 90%
+- ✅ Flujos de features: 80%
+- 🟡 Documentación de usuario final: 0%
+
+---
+
+## 🔧 MANTENIMIENTO DE LA DOCUMENTACIÓN
+
+### Actualizar en cada sesión:
+- `.session/PROXIMA-SESION.md`
+- `.session/history/sesion-[FECHA].md`
+
+### Actualizar cuando hay cambios:
+- `.session/CONTEXTO-ACTUAL.md` (cambios arquitectónicos)
+- `docs/PROBLEMAS-CONOCIDOS.md` (bugs nuevos)
+- `docs/[feature].md` (implementaciones nuevas)
+
+### Actualizar raramente:
+- `GUIAS/PROTOCOLO-*.md` (solo si mejoras el proceso)
+- `NODEXIA-ROADMAP.md` (milestones completados)
+- `NODEXIA-VISION-COMPLETA.md` (cambios de visión)
+
+---
+
+## ⚠️ DOCUMENTOS DEPRECADOS / ARCHIVO
+
+Los siguientes documentos están en `docs/archive/` (referencia histórica):
+
+- Documentos de sesiones antiguas (.jary)
+- Versiones antiguas de análisis
+- Documentos pre-sistema estructurado
+
+**No leer estos documentos para contexto actual.**
+
+---
+
+## 🆘 TROUBLESHOOTING DE DOCUMENTACIÓN
+
+### "No encuentro X documento"
+
+→ Usa este índice para buscar  
+→ Ctrl+F en VS Code en la carpeta raíz  
+→ Pregunta a Copilot: "¿Dónde está la documentación de X?"
+
+### "La información está desactualizada"
+
+→ Verifica fecha de última actualización  
+→ `.session/CONTEXTO-ACTUAL.md` es fuente de verdad  
+→ Si encuentras algo viejo, actualízalo o pide a Copilot hacerlo
+
+### "Hay documentos contradictorios"
+
+→ `.session/CONTEXTO-ACTUAL.md` tiene prioridad  
+→ Documentos más recientes tienen prioridad  
+→ Pregunta a Copilot para aclarar
+
+### "No sé qué documento leer"
+
+→ Lee `COMO-INICIAR-SESION-USUARIO.md`  
+→ O usa la tabla "SOY USUARIO - ¿Qué leo?" arriba
+
+---
+
+## 🚀 PRÓXIMOS PASOS
+
+**Para empezar a usar el sistema HOY:**
+
+1. ✅ Lee [COMO-INICIAR-SESION-USUARIO.md](COMO-INICIAR-SESION-USUARIO.md)
+2. ✅ Copia el mensaje de inicio
+3. ✅ Inicia tu primera sesión estructurada
+4. ✅ Deja que Copilot haga el resto
+
+**El sistema se encarga de:**
+- ✅ Mantener contexto entre sesiones
+- ✅ Documentar automáticamente
+- ✅ Sugerir próximos pasos
+- ✅ Trackear progreso
+
+---
+
+**Sistema implementado:** 17-Dic-2025  
+**Versión:** 1.0  
+**Próxima revisión:** Cuando haya 10+ sesiones registradas
+
+---
+
+*Este índice es tu mapa para navegar toda la documentación del proyecto. Guárdalo en favoritos.*
 
 ---
 

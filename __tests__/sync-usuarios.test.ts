@@ -168,8 +168,8 @@ describe('Validaciones de transiciones de estados', () => {
       expect(resultado.valido).toBe(false);
     });
 
-    it('debe permitir cancelación desde cualquier estado', () => {
-      const resultado = validarTransicionLocal('unidad', 'en_transito', 'cancelado');
+    it('debe permitir cancelación desde estado en_incidencia', () => {
+      const resultado = validarTransicionLocal('unidad', 'en_incidencia', 'cancelado');
       expect(resultado.valido).toBe(true);
     });
   });
@@ -198,8 +198,8 @@ describe('Validaciones de transiciones de estados', () => {
       expect(esFinal).toBe(true);
     });
 
-    it('debe identificar en_transito como no final', () => {
-      const esFinal = esEstadoFinal('unidad', 'en_transito');
+    it('debe identificar en_transito_origen como no final', () => {
+      const esFinal = esEstadoFinal('unidad', 'en_transito_origen');
       expect(esFinal).toBe(false);
     });
   });

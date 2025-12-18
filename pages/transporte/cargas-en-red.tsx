@@ -110,26 +110,24 @@ export default function CargasEnRed() {
       // 🔥 FILTRAR viajes donde YA tengo una oferta aceptada o el viaje ya fue asignado
       if (empresaTransporte?.empresa_id) {
         const viajesFiltrados = data.filter(viaje => {
+          // 🔥 CRÍTICO: Excluir viajes con estado_red 'asignado' o 'cerrado'
+          if (viaje.estado_red === 'asignado' || viaje.estado_red === 'cerrado') {
+            console.log(`❌ [cargas-en-red] Viaje ${viaje.id} EXCLUIDO - estado_red: ${viaje.estado_red}`);
+            return false;
+          }
+          
           // Verificar si tengo alguna oferta aceptada para este viaje
           const miOfertaAceptada = viaje.ofertas?.some(
             (oferta: any) => oferta.transporte_id === empresaTransporte.empresa_id && oferta.estado_oferta === 'aceptada'
           );
           
-          // Verificar si el viaje ya fue asignado (a cualquier transporte)
-          const viajeYaAsignado = viaje.estado_red === 'asignado';
-          
-          // Debug de cada viaje
-          if (miOfertaAceptada || viajeYaAsignado) {
-            console.log(`❌ [cargas-en-red] Viaje ${viaje.id} EXCLUIDO:`, {
-              estado_red: viaje.estado_red,
-              miOfertaAceptada,
-              viajeYaAsignado,
-              transporte_asignado: viaje.transporte_asignado_id
-            });
+          if (miOfertaAceptada) {
+            console.log(`❌ [cargas-en-red] Viaje ${viaje.id} EXCLUIDO - tengo oferta aceptada`);
+            return false;
           }
           
-          // Solo mostrar si NO tengo oferta aceptada Y el viaje NO está asignado
-          return !miOfertaAceptada && !viajeYaAsignado;
+          // Solo mostrar si el viaje está disponible
+          return true;
         });
         
         console.log(`✅ [cargas-en-red] Filtrado: ${data.length} total → ${viajesFiltrados.length} disponibles`);

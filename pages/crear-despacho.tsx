@@ -2311,29 +2311,33 @@ const CrearDespacho = () => {
                                                 ? '✅ Entregado'
                                                 : '⏳ Pendiente'}
                                             </span>
-                                            {/* 🔥 Mostrar badge y botón SOLO si está en red Y NO está asignado */}
-                                            {viaje.en_red_nodexia && viaje.estado_red !== 'asignado' && (
+                                            {/* 🔥 Mostrar badge y botón para viajes en Red Nodexia */}
+                                            {viaje.en_red_nodexia && (
                                               <>
-                                                <span className="px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border border-cyan-500/50 animate-pulse">
-                                                  🌐 EN RED
-                                                </span>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleVerEstadoRed(viaje);
-                                                  }}
-                                                  className="px-3 py-1 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                                                  title="Ver transportes que aceptaron este viaje"
-                                                >
-                                                  Ver Estado
-                                                </button>
+                                                {/* Badge según estado */}
+                                                {viaje.estado_red === 'asignado' ? (
+                                                  <span className="px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-green-900 to-cyan-900 text-green-200 border border-green-500/50">
+                                                    ✅ Asignado Red Nodexia 🌐
+                                                  </span>
+                                                ) : (
+                                                  <>
+                                                    <span className="px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border border-cyan-500/50 animate-pulse">
+                                                      🌐 EN RED
+                                                    </span>
+                                                    {/* Botón Ver Estado solo visible cuando NO está asignado */}
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleVerEstadoRed(viaje);
+                                                      }}
+                                                      className="px-3 py-1 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                                                      title="Ver transportes que aceptaron este viaje"
+                                                    >
+                                                      Ver Estado
+                                                    </button>
+                                                  </>
+                                                )}
                                               </>
-                                            )}
-                                            {/* 🔥 Badge de confirmación si fue asignado desde Red Nodexia */}
-                                            {viaje.en_red_nodexia && viaje.estado_red === 'asignado' && (
-                                              <span className="px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-green-900 to-cyan-900 text-green-200 border border-green-500/50">
-                                                ✅ Asignado Red Nodexia 🌐
-                                              </span>
                                             )}
                                           </div>
                                         </td>

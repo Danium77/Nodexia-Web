@@ -1,5 +1,18 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import { UserRoleProvider } from './contexts/UserRoleContext'
+
+// Mock de Supabase para evitar llamadas reales en tests
+jest.mock('./supabaseClient', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: jest.fn(() => ({
+        data: { subscription: { unsubscribe: jest.fn() } },
+      })),
+    },
+    from: jest.fn(),
+  },
+}));
 
 // Utilidad para renderizar componentes con UserRoleContext
 export function renderWithUserContext(ui: React.ReactElement, options = {}) {
@@ -7,7 +20,12 @@ export function renderWithUserContext(ui: React.ReactElement, options = {}) {
     <UserRoleProvider>{children}</UserRoleProvider>
   )
   
-  return render(ui, { wrapper: Wrapper, ...options })
+  let renderResult;
+  act(() => {
+    renderResult = render(ui, { wrapper: Wrapper, ...options });
+  });
+  
+  return renderResult!;
 }
 
 // Mock data para tests

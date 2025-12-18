@@ -21,13 +21,19 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { validateRoleForCompany } from '@/lib/validators/roleValidator';
 
 describe('/api/admin/nueva-invitacion', () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    // Configurar variables de entorno para tests
-    process.env.SMTP_HOST = undefined;
-    process.env.SMTP_PORT = undefined;
-    process.env.SMTP_USER = undefined;
-    process.env.SMTP_PASSWORD = undefined;
+    // Eliminar configuración SMTP para todos los tests por defecto
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_PORT;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
   });
 
   it('debe rechazar métodos que no sean POST', async () => {
@@ -59,6 +65,12 @@ describe('/api/admin/nueva-invitacion', () => {
   });
 
   it('debe crear usuario con rol Control de Acceso exitosamente', async () => {
+    // Asegurar que SMTP NO está configurado para este test
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_PORT;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+
     // Mock de validateRoleForCompany
     (validateRoleForCompany as jest.Mock).mockResolvedValue({
       valid: true,
@@ -74,31 +86,46 @@ describe('/api/admin/nueva-invitacion', () => {
     const mockSupabaseAdmin = supabaseAdmin as jest.Mocked<typeof supabaseAdmin>;
     
     // Mock empresa
-    mockSupabaseAdmin.from = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({
-            data: {
-              id: '3cc1979e-1672-48b8-a5e5-2675f5cac527',
-              nombre: 'Aceitera San Miguel S.A',
-              tipo_empresa: 'planta',
-            },
+    mockSupabaseAdmin.from = jest.fn().mockImplementation((table: string) => {
+      if (table === 'empresas') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: {
+                  id: '3cc1979e-1672-48b8-a5e5-2675f5cac527',
+                  nombre: 'Aceitera San Miguel S.A',
+                  tipo_empresa: 'planta',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      } else if (table === 'profiles' || table === 'usuarios') {
+        return {
+          upsert: jest.fn().mockResolvedValue({
+            data: null,
             error: null,
           }),
-        }),
-      }),
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockResolvedValue({
-          data: [
-            {
-              user_id: 'user-123',
-              empresa_id: '3cc1979e-1672-48b8-a5e5-2675f5cac527',
-              rol_interno: 'Control de Acceso',
-            },
-          ],
-          error: null,
-        }),
-      }),
+        };
+      } else if (table === 'usuarios_empresa') {
+        return {
+          insert: jest.fn().mockReturnValue({
+            select: jest.fn().mockResolvedValue({
+              data: [
+                {
+                  user_id: 'user-123',
+                  empresa_id: '3cc1979e-1672-48b8-a5e5-2675f5cac527',
+                  rol_interno: 'Control de Acceso',
+                },
+              ],
+              error: null,
+            }),
+          }),
+        };
+      }
+      return {} as any;
     }) as any;
 
     // Mock auth.admin
@@ -141,6 +168,12 @@ describe('/api/admin/nueva-invitacion', () => {
   });
 
   it('debe rechazar rol inválido para tipo de empresa', async () => {
+    // Eliminar SMTP para este test
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_PORT;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
+
     // Mock de validateRoleForCompany - rol inválido
     (validateRoleForCompany as jest.Mock).mockResolvedValue({
       valid: false,
@@ -150,19 +183,31 @@ describe('/api/admin/nueva-invitacion', () => {
     // Mock de Supabase
     const mockSupabaseAdmin = supabaseAdmin as jest.Mocked<typeof supabaseAdmin>;
     
-    mockSupabaseAdmin.from = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({
-            data: {
-              id: '3cc1979e-1672-48b8-a5e5-2675f5cac527',
-              nombre: 'Aceitera San Miguel S.A',
-              tipo_empresa: 'planta',
-            },
+    mockSupabaseAdmin.from = jest.fn().mockImplementation((table: string) => {
+      if (table === 'empresas') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: {
+                  id: '3cc1979e-1672-48b8-a5e5-2675f5cac527',
+                  nombre: 'Aceitera San Miguel S.A',
+                  tipo_empresa: 'planta',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      } else if (table === 'profiles' || table === 'usuarios') {
+        return {
+          upsert: jest.fn().mockResolvedValue({
+            data: null,
             error: null,
           }),
-        }),
-      }),
+        };
+      }
+      return {} as any;
     }) as any;
 
     mockSupabaseAdmin.auth = {
@@ -232,8 +277,11 @@ describe('/api/admin/nueva-invitacion', () => {
   });
 
   it('debe incluir password temporal cuando no hay SMTP configurado', async () => {
-    // Sin SMTP configurado
-    process.env.SMTP_HOST = undefined;
+    // Sin SMTP configurado - eliminar explícitamente
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_PORT;
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASSWORD;
 
     (validateRoleForCompany as jest.Mock).mockResolvedValue({
       valid: true,
@@ -243,25 +291,40 @@ describe('/api/admin/nueva-invitacion', () => {
 
     const mockSupabaseAdmin = supabaseAdmin as jest.Mocked<typeof supabaseAdmin>;
     
-    mockSupabaseAdmin.from = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({
-            data: {
-              id: 'company-123',
-              nombre: 'Test Company',
-              tipo_empresa: 'planta',
-            },
+    mockSupabaseAdmin.from = jest.fn().mockImplementation((table: string) => {
+      if (table === 'empresas') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: {
+                  id: 'company-123',
+                  nombre: 'Test Company',
+                  tipo_empresa: 'planta',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      } else if (table === 'profiles' || table === 'usuarios') {
+        return {
+          upsert: jest.fn().mockResolvedValue({
+            data: null,
             error: null,
           }),
-        }),
-      }),
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockResolvedValue({
-          data: [{ user_id: 'user-123' }],
-          error: null,
-        }),
-      }),
+        };
+      } else if (table === 'usuarios_empresa') {
+        return {
+          insert: jest.fn().mockReturnValue({
+            select: jest.fn().mockResolvedValue({
+              data: [{ user_id: 'user-123' }],
+              error: null,
+            }),
+          }),
+        };
+      }
+      return {} as any;
     }) as any;
 
     mockSupabaseAdmin.auth = {
