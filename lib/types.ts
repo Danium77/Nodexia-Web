@@ -14,35 +14,39 @@ export type Timestamp = string; // ISO string
 // Company & Role types (MIGRACIÓN COMPLETADA)
 // =====================
 
-export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'sistema';
+export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'admin';
 
 /**
- * Roles internos por tipo de empresa
- * PLANTA: coordinador, control_acceso, supervisor_carga
- * TRANSPORTE: coordinador_transporte, chofer, administrativo
- * CLIENTE: visor
+ * Roles internos simplificados - Sistema unificado
+ * Los roles se interpretan contextualmente según el tipo de empresa
+ * Migración 022: Roles genéricos que se adaptan al contexto
+ * 
+ * ROLES BASE DEL SISTEMA:
+ * - admin_nodexia: Administrador central (acceso total)
+ * - coordinador: Coordinador (planta/transporte según contexto)
+ * - control_acceso: Control de acceso (solo planta)
+ * - chofer: Chofer (solo transporte)
+ * - supervisor: Supervisor (carga/flota según contexto)
+ * - administrativo: Administrativo (ambos tipos)
  */
 export type RolInterno = 
-  // Roles de Planta
-  | 'coordinador' 
-  | 'control_acceso' 
-  | 'supervisor_carga'
-  // Roles de Transporte
-  | 'coordinador_transporte'
-  | 'chofer'
-  | 'administrativo'
-  // Roles de Cliente
-  | 'visor';
+  | 'admin_nodexia'      // Super admin global
+  | 'coordinador'        // Coordinador genérico (planta o transporte)
+  | 'control_acceso'     // Control de acceso (solo planta)
+  | 'chofer'             // Chofer (solo transporte)
+  | 'supervisor'         // Supervisor genérico (carga o flota)
+  | 'administrativo'     // Administrativo (ambos)
+  | 'visor';             // Visor (clientes)
 
 /**
  * Mapeo de roles válidos por tipo de empresa
- * Usado para validación en formularios y lógica de negocio
+ * Los roles genéricos se adaptan al contexto
  */
 export const ROLES_BY_TIPO: Record<TipoEmpresa, RolInterno[]> = {
-  planta: ['coordinador', 'control_acceso', 'supervisor_carga'],
-  transporte: ['coordinador_transporte', 'chofer', 'administrativo'],
+  planta: ['coordinador', 'control_acceso', 'supervisor', 'administrativo'],
+  transporte: ['coordinador', 'chofer', 'supervisor', 'administrativo'],
   cliente: ['visor'],
-  sistema: [], // Puedes agregar roles especiales aquí si los necesitas
+  admin: ['admin_nodexia'],
 };
 
 /**
@@ -52,17 +56,50 @@ export const TIPO_EMPRESA_LABELS: Record<TipoEmpresa, string> = {
   planta: 'Planta',
   transporte: 'Empresa de Transporte',
   cliente: 'Cliente',
-  sistema: 'Sistema',
+  admin: 'Administración',
 };
 
 /**
- * Labels amigables para roles
+ * Función para obtener el nombre de rol según contexto
+ * Migración 022: Nombres contextuales
+ */
+export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): string {
+  const contextualLabels: Record<RolInterno, Partial<Record<TipoEmpresa, string>>> = {
+    admin_nodexia: { admin: 'Administrador Nodexia' },
+    coordinador: { 
+      planta: 'Coordinador de Planta', 
+      transporte: 'Coordinador de Transporte',
+      cliente: 'Coordinador',
+      admin: 'Coordinador'
+    },
+    supervisor: { 
+      planta: 'Supervisor de Carga', 
+      transporte: 'Supervisor de Flota',
+      cliente: 'Supervisor',
+      admin: 'Supervisor'
+    },
+    control_acceso: { planta: 'Control de Acceso' },
+    chofer: { transporte: 'Chofer' },
+    administrativo: { 
+      planta: 'Administrativo Planta', 
+      transporte: 'Administrativo Transporte',
+      cliente: 'Administrativo',
+      admin: 'Administrativo'
+    },
+    visor: { cliente: 'Visor' },
+  };
+
+  return contextualLabels[rol]?.[tipoEmpresa] || ROL_INTERNO_LABELS[rol] || rol;
+}
+
+/**
+ * Labels base para roles (sin contexto)
  */
 export const ROL_INTERNO_LABELS: Record<RolInterno, string> = {
+  admin_nodexia: 'Administrador Nodexia',
   coordinador: 'Coordinador',
   control_acceso: 'Control de Acceso',
-  supervisor_carga: 'Supervisor de Carga',
-  coordinador_transporte: 'Coordinador de Transporte',
+  supervisor: 'Supervisor',
   chofer: 'Chofer',
   administrativo: 'Administrativo',
   visor: 'Visor',
@@ -661,12 +698,14 @@ export interface IncidenciaViaje {
 // Vista completa de viajes (para reportes)
 // =====================
 // Nuevas tablas de Estados Duales (21 Nov 2025)
+// Interfaces que representan las TABLAS (records en DB)
+// Los TYPES arriba representan los VALUES posibles
 // =====================
 
-export interface EstadoUnidadViaje {
+export interface EstadoUnidadViajeRecord {
   id: UUID;
   viaje_id: UUID;
-  estado_unidad: EstadoUnidadViaje;
+  estado_unidad: EstadoUnidadViaje; // <-- usa el TYPE, no la interface
   
   // Timestamps de transiciones (20 estados)
   fecha_creacion: Timestamp;
@@ -705,10 +744,10 @@ export interface EstadoUnidadViaje {
   updated_at?: Timestamp;
 }
 
-export interface EstadoCargaViaje {
+export interface EstadoCargaViajeRecord {
   id: UUID;
   viaje_id: UUID;
-  estado_carga: EstadoCargaViaje;
+  estado_carga: EstadoCargaViaje; // <-- usa el TYPE, no la interface
   
   // Timestamps de transiciones (17 estados)
   fecha_creacion: Timestamp;

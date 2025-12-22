@@ -6,14 +6,17 @@ import { useUserRole } from '../lib/contexts/UserRoleContext';
  * Dashboard Principal - REDIRECTOR ONLY
  * 
  * Este componente NO renderiza contenido.
- * Solo redirige a los dashboards específicos según el rol:
- * - super_admin → /admin/super-admin-dashboard
- * - coordinador → /coordinator-dashboard
+ * Solo redirige a los dashboards específicos según el rol Y tipo de empresa:
+ * - admin_nodexia → /admin/super-admin-dashboard
+ * - coordinador (transporte) → /transporte/dashboard
+ * - coordinador (planta) → /coordinator-dashboard
+ * - supervisor (transporte) → /transporte/dashboard
+ * - supervisor (planta) → /supervisor-carga
  */
 
 const Dashboard = () => {
   const router = useRouter();
-  const { user, primaryRole, loading } = useUserRole();
+  const { user, primaryRole, loading, tipoEmpresa } = useUserRole();
   const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
@@ -34,8 +37,14 @@ const Dashboard = () => {
       return;
     }
 
+    // Para roles contextuales, esperar a que cargue tipoEmpresa
+    if ((primaryRole === 'coordinador' || primaryRole === 'supervisor') && !tipoEmpresa) {
+      console.log('⏳ [dashboard] Waiting for tipoEmpresa to load...');
+      return;
+    }
+
     // Redirigir según rol
-    console.log(`🎯 [dashboard] Role detected: ${primaryRole}`);
+    console.log(`🎯 [dashboard] Role detected: ${primaryRole}, tipoEmpresa: ${tipoEmpresa}`);
     
     switch (primaryRole) {
       case 'super_admin':
@@ -44,16 +53,23 @@ const Dashboard = () => {
         router.replace('/admin/super-admin-dashboard');
         break;
       
-      case 'coordinador':
-        console.log('📊 [dashboard] Redirecting to coordinator-dashboard (planta)');
+      case 'admin_nodexia':
+        console.log('👑 [dashboard] Redirecting to admin dashboard');
         setHasRedirected(true);
-        router.replace('/coordinator-dashboard');
+        router.replace('/admin/super-admin-dashboard');
         break;
       
-      case 'coordinador_transporte':
-        console.log('🚚 [dashboard] Redirecting to transporte dashboard');
+      case 'coordinador':
+        // Coordinador es contextual - redirige según tipo de empresa
+        console.log(`📊 [dashboard] Redirecting coordinador - tipo_empresa: ${tipoEmpresa}`);
         setHasRedirected(true);
-        router.replace('/transporte/dashboard');
+        if (tipoEmpresa === 'transporte') {
+          console.log('🚚 [dashboard] → Coordinador de Transporte');
+          router.replace('/transporte/dashboard');
+        } else {
+          console.log('🏭 [dashboard] → Coordinador de Planta');
+          router.replace('/coordinator-dashboard');
+        }
         break;
       
       case 'chofer':
@@ -63,9 +79,9 @@ const Dashboard = () => {
         break;
       
       case 'administrativo':
-        console.log('📋 [dashboard] Redirecting to transporte dashboard (administrativo)');
+        console.log('📋 [dashboard] Redirecting to dashboard (administrativo)');
         setHasRedirected(true);
-        router.replace('/transporte/dashboard');
+        router.replace('/dashboard');
         break;
       
       case 'control_acceso':
@@ -74,10 +90,17 @@ const Dashboard = () => {
         router.replace('/control-acceso');
         break;
       
-      case 'supervisor_carga':
-        console.log('👷 [dashboard] Redirecting to supervisor-carga');
+      case 'supervisor':
+        // Supervisor es contextual - redirige según tipo de empresa
+        console.log(`👷 [dashboard] Redirecting supervisor - tipo_empresa: ${tipoEmpresa}`);
         setHasRedirected(true);
-        router.replace('/supervisor-carga');
+        if (tipoEmpresa === 'transporte') {
+          console.log('🚚 [dashboard] → Supervisor de Flota');
+          router.replace('/transporte/dashboard');
+        } else {
+          console.log('🏭 [dashboard] → Supervisor de Carga');
+          router.replace('/supervisor-carga');
+        }
         break;
       
       case 'visor':
@@ -91,7 +114,7 @@ const Dashboard = () => {
         setHasRedirected(true);
         router.replace('/login');
     }
-  }, [user, primaryRole, loading, hasRedirected, router]);
+  }, [user, primaryRole, tipoEmpresa, loading, hasRedirected, router]);
 
   // Mostrar loading mientras se determina la redirección
   return (

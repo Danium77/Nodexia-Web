@@ -46,7 +46,7 @@ interface Relacion {
 type TabType = 'activas' | 'inactivas' | 'pendientes' | 'todas';
 
 export default function GestionRelaciones() {
-  const { empresaId, user, rol } = useUserRole();
+  const { empresaId } = useUserRole();
   
   const [activeTab, setActiveTab] = useState<TabType>('activas');
   const [relaciones, setRelaciones] = useState<Relacion[]>([]);
@@ -197,7 +197,7 @@ export default function GestionRelaciones() {
     }
 
     // Si estamos editando, permitir la misma relación
-    if (relacionId && data?.length === 1 && data[0].id === relacionId) {
+    if (relacionId && data?.length === 1 && data[0]?.id === relacionId) {
       return true;
     }
 

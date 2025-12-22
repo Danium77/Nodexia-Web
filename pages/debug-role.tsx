@@ -113,17 +113,18 @@ export default function DebugRole() {
                       <p className="text-green-800">
                         <strong>Rol esperado:</strong> {
                           manualCheck.usuarios_empresa[0].rol_interno === 'Control de Acceso' ? 'control_acceso' :
-                          manualCheck.usuarios_empresa[0].rol_interno === 'Supervisor de Carga' ? 'supervisor_carga' :
-                          manualCheck.usuarios_empresa[0].rol_interno === 'Super Admin' ? 'admin' :
-                          'transporte'
+                          manualCheck.usuarios_empresa[0].rol_interno === 'Supervisor' ? 'supervisor' :
+                          manualCheck.usuarios_empresa[0].rol_interno === 'Admin Nodexia' ? 'admin_nodexia' :
+                          manualCheck.usuarios_empresa[0].rol_interno === 'Coordinador' ? 'coordinador' :
+                          'coordinador'
                         }
                       </p>
                       <p className="text-sm text-green-600 mt-1">
                         {manualCheck.usuarios_empresa[0].rol_interno === 'Control de Acceso' && 
                           'Debería redirigir a /control-acceso'
                         }
-                        {manualCheck.usuarios_empresa[0].rol_interno === 'Supervisor de Carga' && 
-                          'Debería redirigir a /supervisor-carga'
+                        {manualCheck.usuarios_empresa[0].rol_interno === 'Supervisor' && 
+                          'Debería redirigir a /supervisor-carga o /supervisor-flota según tipo de empresa'
                         }
                       </p>
                     </div>

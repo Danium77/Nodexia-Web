@@ -39,10 +39,10 @@ export function useGPSTracking({
     const gpsData: GPSPosition = {
       latitud: position.coords.latitude,
       longitud: position.coords.longitude,
-      velocidad_kmh: position.coords.speed ? position.coords.speed * 3.6 : undefined, // m/s a km/h
       precision_metros: position.coords.accuracy,
-      rumbo_grados: position.coords.heading || undefined,
-      altitud_metros: position.coords.altitude || undefined
+      ...(position.coords.speed !== null && { velocidad_kmh: position.coords.speed * 3.6 }),
+      ...(position.coords.heading !== null && { rumbo_grados: position.coords.heading }),
+      ...(position.coords.altitude !== null && { altitud_metros: position.coords.altitude }),
     };
 
     try {
@@ -51,10 +51,10 @@ export function useGPSTracking({
         viaje_id: viajeId,
         lat: gpsData.latitud,
         lon: gpsData.longitud,
-        precision_metros: gpsData.precision_metros,
-        velocidad_kmh: gpsData.velocidad_kmh,
-        rumbo_grados: gpsData.rumbo_grados,
-        altitud_metros: gpsData.altitud_metros,
+        ...(gpsData.precision_metros !== undefined && { precision_metros: gpsData.precision_metros }),
+        ...(gpsData.velocidad_kmh !== undefined && { velocidad_kmh: gpsData.velocidad_kmh }),
+        ...(gpsData.rumbo_grados !== undefined && { rumbo_grados: gpsData.rumbo_grados }),
+        ...(gpsData.altitud_metros !== undefined && { altitud_metros: gpsData.altitud_metros }),
       });
 
       setLastPosition(gpsData);

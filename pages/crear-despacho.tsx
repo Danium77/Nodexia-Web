@@ -50,6 +50,7 @@ interface GeneratedDispatch {
   viajes_asignados?: number; // 🔥 NUEVO: Solo viajes con transporte asignado
   viajes_sin_asignar?: number; // 🔥 NUEVO
   viajes_cancelados_por_transporte?: number; // 🔥 NUEVO
+  origen_asignacion?: 'directo' | 'red_nodexia'; // 🔥 NUEVO: Origen de la asignación
   transporte_data?: { 
     nombre: string;
     cuit?: string;
@@ -216,6 +217,7 @@ const CrearDespacho = () => {
           comentarios,
           transport_id,
           cantidad_viajes_solicitados,
+          origen_asignacion,
           created_by
         `)
         .eq('created_by', userId)
@@ -383,6 +385,7 @@ const CrearDespacho = () => {
           viajes_asignados: viajesAsignados, // 🔥 NUEVO: Solo viajes con transporte asignado
           viajes_sin_asignar: viajesSinAsignar, // 🔥 NUEVO
           viajes_cancelados_por_transporte: viajesCanceladosPorTransporte, // 🔥 NUEVO
+          origen_asignacion: d.origen_asignacion, // 🌐 RED NODEXIA
           transporte_data: transporteAsignado,
         };
       }));
@@ -1110,6 +1113,20 @@ const CrearDespacho = () => {
       // 🔥 SIEMPRE recargar viajes para obtener datos actualizados
       console.log('📦 Cargando viajes para despacho:', despachoId);
         try {
+          // Primero obtener el origen_asignacion del despacho padre
+          const { data: despachoData, error: despachoError } = await supabase
+            .from('despachos')
+            .select('origen_asignacion')
+            .eq('id', despachoId)
+            .single();
+          
+          if (despachoError) {
+            console.error('❌ Error obteniendo despacho:', despachoError);
+          }
+          
+          const origenAsignacion = despachoData?.origen_asignacion;
+          console.log('📋 origen_asignacion del despacho:', origenAsignacion);
+          
           const { data: viajes, error } = await supabase
             .from('viajes_despacho')
             .select(`
@@ -1187,13 +1204,15 @@ const CrearDespacho = () => {
           // Agregar flags en_red_nodexia y estado_red a cada viaje
           viajes.forEach(viaje => {
             const estadoRed = viajesEnRedMap.get(viaje.id);
-            (viaje as any).en_red_nodexia = !!estadoRed;
-            (viaje as any).estado_red = estadoRed || null;
+            (viaje as any).en_red_nodexia = !!estadoRed || origenAsignacion === 'red_nodexia';
+            (viaje as any).estado_red = estadoRed || (origenAsignacion === 'red_nodexia' ? 'asignado' : null);
+            (viaje as any).origen_asignacion = origenAsignacion; // Agregar origen del despacho padre
             
             console.log(`📊 [crear-despacho] Viaje ${viaje.numero_viaje}:`, {
               id: viaje.id,
               en_red_nodexia: (viaje as any).en_red_nodexia,
-              estado_red: (viaje as any).estado_red
+              estado_red: (viaje as any).estado_red,
+              origen_asignacion: origenAsignacion
             });
           });
 
@@ -1571,6 +1590,14 @@ const CrearDespacho = () => {
         
         // 🔥 CREAR VIAJES AUTOMÁTICAMENTE basados en cantidad_viajes_solicitados
         const despachoCreado = data[0];
+        
+        if (!despachoCreado) {
+          console.error('❌ Error: despachoCreado es undefined');
+          setError('Error al crear despacho');
+          setLoading(false);
+          return;
+        }
+        
         const cantidadViajes = rowToSave.cantidad_viajes_solicitados || 1;
         
         let viajesCreados = 0;
@@ -2051,7 +2078,15 @@ const CrearDespacho = () => {
                       </td>
                       <td className="px-2 py-3 text-sm font-medium w-32">
                         <div className="flex flex-col gap-1">
-                          <span className="truncate">{dispatch.pedido_id}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate">{dispatch.pedido_id}</span>
+                            {/* 🌐 Badge Red Nodexia */}
+                            {dispatch.origen_asignacion === 'red_nodexia' && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/40 flex items-center gap-0.5 whitespace-nowrap" title="Asignado vía Red Nodexia">
+                                🌐 Red
+                              </span>
+                            )}
+                          </div>
                           {/* 🔥 CONTADOR DE VIAJES */}
                           {dispatch.viajes_generados !== undefined && dispatch.viajes_generados > 0 && (
                             <div className="flex flex-col gap-0.5">
@@ -2224,7 +2259,15 @@ const CrearDespacho = () => {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {viajesDespacho[dispatch.id]?.map((viaje: any) => (
+                                    {viajesDespacho[dispatch.id]?.map((viaje: any) => {
+                                      console.log('🎨 RENDER Viaje:', {
+                                        id: viaje.id,
+                                        numero: viaje.numero_viaje,
+                                        estado_red: viaje.estado_red,
+                                        en_red_nodexia: viaje.en_red_nodexia,
+                                        transporte: viaje.transporte?.nombre
+                                      });
+                                      return (
                                       <tr key={viaje.id} className="border-b border-gray-800 hover:bg-gray-800/50">
                                         <td className="py-2 px-2 font-mono">
                                           <span className="px-2 py-1 bg-blue-900 text-blue-200 rounded">
@@ -2239,7 +2282,14 @@ const CrearDespacho = () => {
                                             </div>
                                           ) : viaje.transporte ? (
                                             <div>
-                                              <div className="text-green-400 font-medium">{viaje.transporte.nombre}</div>
+                                              <div className="text-green-400 font-medium flex items-center gap-2">
+                                                {viaje.transporte.nombre}
+                                                {viaje.estado_red === 'asignado' && (
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30 shadow-lg shadow-cyan-500/20">
+                                                    🌐 Red
+                                                  </span>
+                                                )}
+                                              </div>
                                               <div className="text-gray-500 text-xs">CUIT: {viaje.transporte.cuit}</div>
                                             </div>
                                           ) : (
@@ -2311,34 +2361,6 @@ const CrearDespacho = () => {
                                                 ? '✅ Entregado'
                                                 : '⏳ Pendiente'}
                                             </span>
-                                            {/* 🔥 Mostrar badge y botón para viajes en Red Nodexia */}
-                                            {viaje.en_red_nodexia && (
-                                              <>
-                                                {/* Badge según estado */}
-                                                {viaje.estado_red === 'asignado' ? (
-                                                  <span className="px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-green-900 to-cyan-900 text-green-200 border border-green-500/50">
-                                                    ✅ Asignado Red Nodexia 🌐
-                                                  </span>
-                                                ) : (
-                                                  <>
-                                                    <span className="px-2 py-1 rounded text-xs font-bold bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border border-cyan-500/50 animate-pulse">
-                                                      🌐 EN RED
-                                                    </span>
-                                                    {/* Botón Ver Estado solo visible cuando NO está asignado */}
-                                                    <button
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleVerEstadoRed(viaje);
-                                                      }}
-                                                      className="px-3 py-1 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                                                      title="Ver transportes que aceptaron este viaje"
-                                                    >
-                                                      Ver Estado
-                                                    </button>
-                                                  </>
-                                                )}
-                                              </>
-                                            )}
                                           </div>
                                         </td>
                                         <td className="py-2 px-2 text-gray-400 text-xs">
@@ -2351,7 +2373,16 @@ const CrearDespacho = () => {
                                           )}
                                         </td>
                                         <td className="py-2 px-2">
-                                          {viaje.estado === 'cancelado_por_transporte' ? (
+                                          {/* Botón Ver Estado - Solo si está en Red Nodexia sin transporte asignado */}
+                                          {viaje.en_red_nodexia && !viaje.transporte && viaje.estado_red !== 'asignado' ? (
+                                            <button
+                                              onClick={() => handleVerEstadoRed(viaje)}
+                                              className="px-3 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-cyan-500/30"
+                                              title="Ver ofertas recibidas y seleccionar transporte"
+                                            >
+                                              🌐 Ver Estado
+                                            </button>
+                                          ) : viaje.estado === 'cancelado_por_transporte' ? (
                                             <button
                                               onClick={() => handleReasignarViaje(dispatch, viaje)}
                                               className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs font-medium flex items-center gap-1"
@@ -2375,7 +2406,8 @@ const CrearDespacho = () => {
                                           ) : null}
                                         </td>
                                       </tr>
-                                    ))}
+                                    );
+                                    })}
                                   </tbody>
                                 </table>
                               ) : (

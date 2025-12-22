@@ -52,6 +52,16 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    "dist",
+    "build",
+    "e2e",
+    "__tests__",
+    "docs/archive",
+    "scripts",
+    "*.config.js",
+    "*.config.ts",
+    "*.config.mjs"
   ]
 }

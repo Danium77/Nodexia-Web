@@ -95,8 +95,8 @@ export default function SuperAdminDashboard() {
     loadStats();
   }, [user]);
 
-  // Mostrar loading mientras carga o si no es super_admin
-  if (loading || primaryRole !== 'super_admin') {
+  // Mostrar loading mientras carga o si no es super_admin ni admin_nodexia
+  if (loading || (primaryRole !== 'super_admin' && primaryRole !== 'admin_nodexia')) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0a0e1a]">
         <div className="text-center">

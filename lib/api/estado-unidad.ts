@@ -88,8 +88,8 @@ export async function actualizarEstadoUnidad(
         viaje_id: input.viaje_id,
         lat: input.ubicacion.lat,
         lon: input.ubicacion.lon,
-        precision_metros: input.ubicacion.precision,
-        velocidad_kmh: input.ubicacion.velocidad,
+        ...(input.ubicacion.precision !== undefined && { precision_metros: input.ubicacion.precision }),
+        ...(input.ubicacion.velocidad !== undefined && { velocidad_kmh: input.ubicacion.velocidad }),
       });
     }
 

@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import MainLayout from '../components/layout/MainLayout';
 import { QrCodeIcon, TruckIcon, DocumentTextIcon, ScaleIcon, PhoneIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { registrarLlamadoCarga, registrarPosicionadoCarga, iniciarCarga as apiIniciarCarga, registrarCargando, completarCarga, validarDocumentacion, iniciarDescarga, registrarDescargando, completarDescarga, confirmarEntrega } from '../lib/api/estado-carga';
+import { registrarLlamadoCarga, iniciarCarga as apiIniciarCarga, completarCarga, iniciarDescarga, completarDescarga, confirmarEntrega } from '../lib/api/estado-carga';
 import { getColorEstadoCarga, getLabelEstadoCarga } from '../lib/helpers/estados-helpers';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
 import { supabase } from '../lib/supabaseClient';
@@ -31,18 +31,14 @@ interface ViajeQR {
 }
 
 export default function SupervisorCarga() {
-  const { empresaId, user } = useUserRole();
+  const { empresaId } = useUserRole();
   const [qrCode, setQrCode] = useState('');
   const [viaje, setViaje] = useState<ViajeQR | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [pesoReal, setPesoReal] = useState('');
-  const [bultos, setBultos] = useState('');
-  const [temperatura, setTemperatura] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [activeTab, setActiveTab] = useState('scanner');
   const [viajes, setViajes] = useState<ViajeQR[]>([]);
-  const [loadingViajes, setLoadingViajes] = useState(false);
 
   // Cargar viajes en cola y activos al montar y cada 30 segundos
   useEffect(() => {
@@ -152,10 +148,10 @@ export default function SupervisorCarga() {
     }
   };
 
-  // Detectar tipo de operación (envío vs recepción)
-  const detectarTipoOperacion = (viajeData: ViajeQR): 'envio' | 'recepcion' => {
-    return empresaId === viajeData.planta_origen_id ? 'envio' : 'recepcion';
-  };
+  // Detectar tipo de operación (envío vs recepción) - NO UTILIZADA
+  // const detectarTipoOperacion = (viajeData: ViajeQR): 'envio' | 'recepcion' => {
+  //   return empresaId === viajeData.planta_origen_id ? 'envio' : 'recepcion';
+  // };
 
   const escanearQR = async () => {
     if (!qrCode.trim()) return;
@@ -218,33 +214,40 @@ export default function SupervisorCarga() {
 
       console.log('✅ [supervisor-carga] Viaje encontrado:', viajeData);
 
-      const tipoOperacion = viajeData.despachos.id_empresa === empresaId ? 'envio' : 'recepcion';
+      // Extraer primer elemento de arrays (relaciones Supabase devuelven arrays)
+      const despacho = Array.isArray(viajeData.despachos) ? viajeData.despachos[0] : viajeData.despachos;
+      const chofer = Array.isArray(viajeData.choferes) ? viajeData.choferes[0] : viajeData.choferes;
+      const camion = Array.isArray(viajeData.camiones) ? viajeData.camiones[0] : viajeData.camiones;
+      const estadoUnidadRecord = Array.isArray(viajeData.estado_unidad_viaje) ? viajeData.estado_unidad_viaje[0] : viajeData.estado_unidad_viaje;
+      const estadoCargaRecord = Array.isArray(viajeData.estado_carga_viaje) ? viajeData.estado_carga_viaje[0] : viajeData.estado_carga_viaje;
+
+      const tipoOperacion = despacho?.id_empresa === empresaId ? 'envio' : 'recepcion';
       
       const viajeCompleto: ViajeQR = {
         id: viajeData.id,
         numero_viaje: viajeData.numero_viaje.toString(),
         qr_code: `QR-${viajeData.numero_viaje}`,
         estado_viaje: viajeData.estado,
-        estado_unidad: viajeData.estado_unidad_viaje?.estado_unidad || viajeData.estado,
-        estado_carga: viajeData.estado_carga_viaje?.estado_carga || 'pendiente',
+        estado_unidad: estadoUnidadRecord?.estado_unidad || viajeData.estado,
+        estado_carga: estadoCargaRecord?.estado_carga || 'pendiente',
         tipo_operacion: tipoOperacion,
-        producto: viajeData.despachos.producto || `${viajeData.despachos.origen} → ${viajeData.despachos.destino}`,
-        peso_estimado: viajeData.despachos.peso_estimado || 0,
-        peso_real: viajeData.estado_carga_viaje?.peso_real_kg,
-        bultos: viajeData.estado_carga_viaje?.cantidad_bultos,
-        temperatura: viajeData.estado_carga_viaje?.temperatura_carga,
-        planta_origen_id: viajeData.despachos.id_empresa,
-        planta_destino_id: viajeData.despachos.id_empresa,
-        chofer: viajeData.choferes ? {
-          nombre: `${viajeData.choferes.nombre} ${viajeData.choferes.apellido}`,
-          dni: viajeData.choferes.dni
+        producto: despacho?.producto || `${despacho?.origen || ''} → ${despacho?.destino || ''}`,
+        peso_estimado: despacho?.peso_estimado || 0,
+        peso_real: estadoCargaRecord?.peso_real_kg,
+        bultos: estadoCargaRecord?.cantidad_bultos,
+        temperatura: estadoCargaRecord?.temperatura_carga,
+        planta_origen_id: despacho?.id_empresa,
+        planta_destino_id: despacho?.id_empresa,
+        chofer: chofer ? {
+          nombre: `${chofer.nombre} ${chofer.apellido}`,
+          dni: chofer.dni
         } : {
           nombre: 'Sin asignar',
           dni: 'N/A'
         },
-        camion: viajeData.camiones ? {
-          patente: viajeData.camiones.patente,
-          marca: `${viajeData.camiones.marca} ${viajeData.camiones.modelo || ''}`.trim()
+        camion: camion ? {
+          patente: camion.patente,
+          marca: `${camion.marca} ${camion.modelo || ''}`.trim()
         } : {
           patente: 'Sin asignar',
           marca: 'N/A'
@@ -284,19 +287,8 @@ export default function SupervisorCarga() {
     setLoading(false);
   };
 
-  const posicionarParaCarga = async () => {
-    if (!viaje) return;
-    setLoading(true);
-    try {
-      await registrarPosicionadoCarga(viaje.id);
-      setMessage(`✅ Vehículo posicionado en punto de carga`);
-      setViaje({ ...viaje, estado_carga: 'posicionado_carga' });
-    } catch (error) {
-      setMessage('❌ Error al posicionar vehículo');
-      console.error(error);
-    }
-    setLoading(false);
-  };
+  // DEPRECATED: posicionarParaCarga fusionado con iniciarCarga
+  // const posicionarParaCarga = async () => { ... };
 
   const iniciarCarga = async (viajeIdOpt?: string) => {
     const targetViajeId = viajeIdOpt || viaje?.id;
@@ -312,7 +304,7 @@ export default function SupervisorCarga() {
         console.log('✅ [supervisor-carga] Carga iniciada exitosamente');
         
         if (viaje && !viajeIdOpt) {
-          setViaje({ ...viaje, estado_carga: 'iniciando_carga' });
+          setViaje({ ...viaje, estado_carga: 'en_proceso_carga' });
         }
         cargarViajes();
       } else {
@@ -344,7 +336,7 @@ export default function SupervisorCarga() {
         
         setViaje({
           ...viaje,
-          estado_carga: 'carga_completada'
+          estado_carga: 'cargado'
         });
 
         setTimeout(() => {
@@ -371,7 +363,7 @@ export default function SupervisorCarga() {
     try {
       await iniciarDescarga(viaje.id);
       setMessage(`âœ… Descarga iniciada para ${viaje.numero_viaje}`);
-      setViaje({ ...viaje, estado_carga: 'iniciando_descarga' });
+      setViaje({ ...viaje, estado_carga: 'en_proceso_descarga' });
     } catch (error) {
       setMessage('âŒ Error al iniciar descarga');
       console.error(error);
@@ -383,11 +375,9 @@ export default function SupervisorCarga() {
     if (!viaje) return;
     setLoading(true);
     try {
-      await registrarDescargando(viaje.id, {
-        observaciones: observaciones || undefined
-      });
+      await registrarDescargando(viaje.id, observaciones || undefined);
       setMessage(`âœ… Progreso de descarga registrado`);
-      setViaje({ ...viaje, estado_carga: 'descargando' });
+      setViaje({ ...viaje, estado_carga: 'en_proceso_descarga' });
     } catch (error) {
       setMessage('âŒ Error al registrar progreso');
       console.error(error);
@@ -422,11 +412,10 @@ export default function SupervisorCarga() {
     if (!viaje) return;
     setLoading(true);
     try {
-      await confirmarEntrega(viaje.id, {
-        observaciones: observaciones || undefined
-      });
+      // confirmarEntrega(viaje_id, certificado_entrega_url?)
+      await confirmarEntrega(viaje.id, undefined);
       setMessage(`âœ… Entrega confirmada para ${viaje.numero_viaje}`);
-      setViaje({ ...viaje, estado_carga: 'entregado' });
+      setViaje({ ...viaje, estado_carga: 'completado' });
 
       setTimeout(() => {
         setViaje(null);

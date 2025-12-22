@@ -24,6 +24,8 @@ interface UsuarioAgrupado {
   email: string;
   nombre_completo?: string;
   telefono_interno?: string;
+  dni?: string;
+  departamento?: string;
   created_at: string;
   last_sign_in_at?: string;
   // Roles agrupados por empresa
@@ -35,6 +37,7 @@ interface UsuarioAgrupado {
     roles: Array<{
       id: string; // ID del registro usuarios_empresa
       rol_interno: RolInterno;
+      rol_empresa_id?: string;
       activo: boolean;
       fecha_vinculacion: string;
     }>;
@@ -90,16 +93,22 @@ const UsuariosPage = () => {
   const [selectedUserForRol, setSelectedUserForRol] = useState<{user_id: string, empresa_id: string} | null>(null);
   const [newRol, setNewRol] = useState<RolInterno | ''>('');
   
+  // Estados para modal de edición
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<{
+    user_id: string;
+    empresa_id: string;
+    empresa_nombre: string;
+    rol_id: string;
+    rol_nombre: string;
+    email: string;
+    nombre_completo: string;
+    telefono: string;
+    dni: string;
+    departamento: string;
+  } | null>(null);
+  
   // Eliminado formData/setFormData legacy modal usuario
-
-  // Recuperar estado del modal al montar (si se recargó la página)
-  useEffect(() => {
-    const wasModalOpen = sessionStorage.getItem('wizardUsuarioOpen');
-    if (wasModalOpen === 'true') {
-      console.log('[UsuariosPage] Reabriendo modal después de reload');
-      setShowModal(true);
-    }
-  }, []);
 
   // Prevenir pérdida de datos si el usuario intenta salir/recargar
   useEffect(() => {
@@ -156,10 +165,13 @@ const UsuariosPage = () => {
           user_id,
           empresa_id,
           rol_interno,
+          rol_empresa_id,
           activo,
           fecha_vinculacion,
           nombre_completo,
           telefono_interno,
+          dni,
+          departamento,
           empresas (
             id,
             nombre,
@@ -214,6 +226,8 @@ const UsuariosPage = () => {
             email: authData?.email || '',
             nombre_completo: registro.nombre_completo,
             telefono_interno: registro.telefono_interno,
+            dni: registro.dni,
+            departamento: registro.departamento,
             created_at: authData?.created_at || '',
             last_sign_in_at: authData?.last_sign_in_at || '',
             empresas: []
@@ -245,6 +259,7 @@ const UsuariosPage = () => {
           empresaEntry.roles.push({
             id: registro.id,
             rol_interno: registro.rol_interno,
+            rol_empresa_id: registro.rol_empresa_id,
             activo: registro.activo,
             fecha_vinculacion: registro.fecha_vinculacion
           });
@@ -308,6 +323,44 @@ const UsuariosPage = () => {
   // Abrir modal para nuevo usuario (solo setShowModal)
   const handleNewUsuario = () => {
     setShowModal(true);
+  };
+
+  // Abrir modal para editar usuario existente
+  const handleEditUsuario = async (usuario: UsuarioAgrupado) => {
+    // Tomar la primera empresa/rol del usuario para pre-llenar
+    const primeraEmpresa = usuario.empresas[0];
+    const primerRol = primeraEmpresa?.roles[0];
+    
+    if (!primeraEmpresa || !primerRol) {
+      alert('No se encontró información de empresa/rol para este usuario');
+      return;
+    }
+    
+    // Obtener nombre del rol desde roles_empresa
+    let rolNombre = primerRol.rol_interno; // fallback
+    if (primerRol.rol_empresa_id) {
+      const { data: rolData } = await supabase
+        .from('roles_empresa')
+        .select('nombre_rol')
+        .eq('id', primerRol.rol_empresa_id)
+        .single();
+      
+      if (rolData) rolNombre = rolData.nombre_rol;
+    }
+    
+    setEditingUser({
+      user_id: usuario.user_id,
+      empresa_id: primeraEmpresa.empresa_id,
+      empresa_nombre: primeraEmpresa.empresa_nombre,
+      rol_id: primerRol.rol_empresa_id || '',
+      rol_nombre: rolNombre,
+      email: usuario.email,
+      nombre_completo: usuario.nombre_completo || '',
+      telefono: usuario.telefono_interno || '',
+      dni: usuario.dni || '',
+      departamento: usuario.departamento || ''
+    });
+    setShowEditModal(true);
   };
 
   // Eliminadas funciones legacy de modal usuario (handleEmpresaChange, toggleRol, handleSubmit)
@@ -483,8 +536,8 @@ const UsuariosPage = () => {
         {/* Header */}
         <div className="flex justify-between items-center mb-2">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
-            <p className="text-gray-600 mt-1">Administra usuarios y roles multi-empresa</p>
+            <h1 className="text-3xl font-bold text-white">Gestión de Usuarios</h1>
+            <p className="text-gray-300 mt-1">Administra usuarios y roles multi-empresa</p>
           </div>
           <button
             onClick={handleNewUsuario}
@@ -497,65 +550,65 @@ const UsuariosPage = () => {
 
         {/* Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
-          <div className="bg-white p-1.5 rounded shadow border-l-4 border-blue-500">
+          <div className="bg-gray-800 p-1.5 rounded shadow border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Usuarios</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-sm text-gray-400">Total Usuarios</p>
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
               </div>
-              <UserIcon className="h-8 w-8 text-blue-500" />
+              <UserIcon className="h-8 w-8 text-blue-400" />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
+          <div className="bg-gray-800 p-4 rounded-lg shadow border-l-4 border-purple-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Registros</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalRegistros}</p>
+                <p className="text-sm text-gray-400">Total Registros</p>
+                <p className="text-2xl font-bold text-white">{stats.totalRegistros}</p>
               </div>
-              <BuildingOfficeIcon className="h-8 w-8 text-purple-500" />
+              <BuildingOfficeIcon className="h-8 w-8 text-purple-400" />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+          <div className="bg-gray-800 p-4 rounded-lg shadow border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Activos</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activos}</p>
+                <p className="text-sm text-gray-400">Activos</p>
+                <p className="text-2xl font-bold text-white">{stats.activos}</p>
               </div>
-              <CheckCircleIcon className="h-8 w-8 text-green-500" />
+              <CheckCircleIcon className="h-8 w-8 text-green-400" />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+          <div className="bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Inactivos</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.inactivos}</p>
+                <p className="text-sm text-gray-400">Inactivos</p>
+                <p className="text-2xl font-bold text-white">{stats.inactivos}</p>
               </div>
-              <XCircleIcon className="h-8 w-8 text-red-500" />
+              <XCircleIcon className="h-8 w-8 text-red-400" />
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow border-l-4 border-orange-500">
+          <div className="bg-gray-800 p-4 rounded-lg shadow border-l-4 border-orange-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Multi-Rol</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.multiRol}</p>
+                <p className="text-sm text-gray-400">Multi-Rol</p>
+                <p className="text-2xl font-bold text-white">{stats.multiRol}</p>
               </div>
-              <ShieldCheckIcon className="h-8 w-8 text-orange-500" />
+              <ShieldCheckIcon className="h-8 w-8 text-orange-400" />
             </div>
           </div>
         </div>
 
         {/* Filtros */}
-        <div className="bg-white p-2 rounded shadow mb-2">
+        <div className="bg-gray-800 p-2 rounded shadow mb-2">
           <div className="flex items-center gap-2 mb-2">
-            <FunnelIcon className="h-5 w-5 text-gray-600" />
-            <span className="font-semibold text-gray-700">Filtros</span>
+            <FunnelIcon className="h-5 w-5 text-gray-300" />
+            <span className="font-semibold text-white">Filtros</span>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="text-blue-600 hover:text-blue-700 text-sm"
+              className="text-cyan-400 hover:text-cyan-300 text-sm"
             >
               {showFilters ? 'Ocultar' : 'Mostrar'}
             </button>
@@ -564,7 +617,7 @@ const UsuariosPage = () => {
           {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Buscar
                 </label>
                 <div className="relative">
@@ -574,19 +627,19 @@ const UsuariosPage = () => {
                     placeholder="Email o nombre..."
                     value={filters.busqueda}
                     onChange={(e) => setFilters({ ...filters, busqueda: e.target.value })}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Empresa
                 </label>
                 <select
                   value={filters.empresa}
                   onChange={(e) => setFilters({ ...filters, empresa: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                 >
                   <option value="">Todas</option>
                   {empresas.map(empresa => (
@@ -598,13 +651,13 @@ const UsuariosPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Rol
                 </label>
                 <select
                   value={filters.rol}
                   onChange={(e) => setFilters({ ...filters, rol: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                 >
                   <option value="">Todos</option>
                   {Object.entries(ROL_INTERNO_LABELS).map(([key, label]) => (
@@ -616,13 +669,13 @@ const UsuariosPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Estado
                 </label>
                 <select
                   value={filters.status}
                   onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                 >
                   <option value="">Todos</option>
                   <option value="activo">Activos</option>
@@ -643,37 +696,37 @@ const UsuariosPage = () => {
         )}
 
         {!loading && !error && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="bg-gray-800 rounded-lg shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-700">
+              <thead className="bg-gray-900">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Usuario
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Empresas y Roles
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Último Acceso
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-gray-800 divide-y divide-gray-700">
                 {usuariosFiltrados.map((usuario) => (
-                  <tr key={usuario.user_id} className="hover:bg-gray-50">
+                  <tr key={usuario.user_id} className="hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <UserIcon className="h-6 w-6 text-blue-600" />
+                        <div className="flex-shrink-0 h-10 w-10 bg-cyan-900 rounded-full flex items-center justify-center">
+                          <UserIcon className="h-6 w-6 text-cyan-400" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-white">
                             {usuario.nombre_completo || 'Sin nombre'}
                           </div>
-                          <div className="text-sm text-gray-500">{usuario.email}</div>
+                          <div className="text-sm text-gray-300">{usuario.email}</div>
                           {usuario.telefono_interno && (
                             <div className="text-xs text-gray-400">{usuario.telefono_interno}</div>
                           )}
@@ -683,20 +736,20 @@ const UsuariosPage = () => {
                     <td className="px-6 py-4">
                       <div className="space-y-3">
                         {usuario.empresas.map((empresa) => (
-                          <div key={empresa.empresa_id} className="border-l-2 border-blue-200 pl-3">
+                          <div key={empresa.empresa_id} className="border-l-2 border-cyan-600 pl-3">
                             <div className="flex items-center justify-between mb-1">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-sm font-medium text-white">
                                 {empresa.empresa_nombre}
                               </div>
                               <button
                                 onClick={() => handleAddRol(usuario.user_id, empresa.empresa_id)}
-                                className="text-blue-600 hover:text-blue-700"
+                                className="text-cyan-400 hover:text-cyan-300"
                                 title="Agregar rol"
                               >
                                 <PlusCircleIcon className="h-4 w-4" />
                               </button>
                             </div>
-                            <div className="text-xs text-gray-500 mb-2">
+                            <div className="text-xs text-gray-400 mb-2">
                               {empresa.empresa_cuit}  {empresa.empresa_tipo}
                             </div>
                             <div className="flex flex-wrap gap-1">
@@ -735,15 +788,16 @@ const UsuariosPage = () => {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {usuario.last_sign_in_at 
                         ? new Date(usuario.last_sign_in_at).toLocaleDateString('es-AR')
                         : 'Nunca'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
-                        onClick={() => {/* TODO: Ver detalles */}}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        onClick={() => handleEditUsuario(usuario)}
+                        className="text-cyan-400 hover:text-cyan-300 mr-3"
+                        title="Editar usuario"
                       >
                         <PencilIcon className="h-5 w-5" />
                       </button>
@@ -754,7 +808,7 @@ const UsuariosPage = () => {
             </table>
 
             {usuariosFiltrados.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-400">
                 No se encontraron usuarios con los filtros aplicados.
               </div>
             )}
@@ -773,36 +827,54 @@ const UsuariosPage = () => {
           />
         )}
 
+        {/* Modal: Editar Usuario */}
+        {showEditModal && editingUser && (
+          <WizardUsuario
+            isOpen={showEditModal}
+            mode="edit"
+            initialData={editingUser}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingUser(null);
+            }}
+            onSuccess={() => {
+              setShowEditModal(false);
+              setEditingUser(null);
+              loadUsuarios(); // Recargar usuarios tras editar
+            }}
+          />
+        )}
+
         {/* Modal: Agregar Rol */}
         {showAddRolModal && selectedUserForRol && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">
+                  <h2 className="text-xl font-bold text-white">
                     Agregar Rol Adicional
                   </h2>
                   <button
                     onClick={() => setShowAddRolModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-300"
                   >
                     <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-300">
                     Selecciona un rol adicional para este usuario en esta empresa
                   </p>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       Rol
                     </label>
                     <select
                       value={newRol}
                       onChange={(e) => setNewRol(e.target.value as RolInterno)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500"
                     >
                       <option value="">Seleccionar rol...</option>
                       {getRolesDisponiblesParaAgregar(selectedUserForRol.user_id, selectedUserForRol.empresa_id).map(rol => (
@@ -813,17 +885,17 @@ const UsuariosPage = () => {
                     </select>
                   </div>
 
-                  <div className="flex justify-end gap-3 pt-4 border-t">
+                  <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
                     <button
                       onClick={() => setShowAddRolModal(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                      className="px-4 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-gray-700"
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={handleSubmitNewRol}
                       disabled={loading || !newRol}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? 'Agregando...' : 'Agregar Rol'}
                     </button>

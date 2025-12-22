@@ -8,6 +8,7 @@ interface NuevaInvitacionRequest {
   nombre: string;
   apellido: string;
   telefono?: string;
+  dni?: string;
   empresa_id: string;
   rol_interno: string;
   departamento?: string;
@@ -27,6 +28,7 @@ export default async function handler(
       nombre, 
       apellido, 
       telefono, 
+      dni,
       empresa_id, 
       rol_interno, 
       departamento 
@@ -77,7 +79,7 @@ export default async function handler(
     // Crear usuario en auth.users
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: temporalPassword, // Solo si no hay SMTP
+      ...(temporalPassword && { password: temporalPassword }),
       email_confirm: !smtpConfigured, // Auto-confirmar solo si no hay SMTP
       user_metadata: {
         nombre,
@@ -196,6 +198,7 @@ export default async function handler(
       email_interno: email,
       nombre_completo: `${nombre} ${apellido}`,
       telefono_interno: telefono || null,
+      dni: dni || null,
       departamento: departamento || null,
       activo: true,
       fecha_vinculacion: new Date().toISOString()

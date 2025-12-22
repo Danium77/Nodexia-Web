@@ -9,7 +9,10 @@
     "**/.pnpm-store/**": true,
     "**/docs/archive/**": true,
     "**/*.log": true,
-    "**/pnpm-lock.yaml": true
+    "**/pnpm-lock.yaml": true,
+    "**/.session/**": true,
+    "**/e2e/**": true,
+    "**/__tests__/**": true
   },
   "search.exclude": {
     "**/node_modules": true,
@@ -18,7 +21,9 @@
     "**/build": true,
     "**/docs/archive": true,
     "**/.pnpm-store": true,
-    "**/pnpm-lock.yaml": true
+    "**/pnpm-lock.yaml": true,
+    "**/e2e": true,
+    "**/__tests__": true
   },
   "files.exclude": {
     "**/.git": true,
@@ -26,27 +31,85 @@
     "**/node_modules": false,
     "**/docs/archive": false
   },
-  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.tsserver.maxTsServerMemory": 8192,
   "typescript.disableAutomaticTypeAcquisition": true,
   "typescript.tsserver.watchOptions": {
     "watchFile": "useFsEventsOnParentDirectory",
     "watchDirectory": "useFsEventsOnParentDirectory",
     "fallbackPolling": "dynamicPriority",
-    "synchronousWatchDirectory": false
+    "synchronousWatchDirectory": false,
+    "excludeDirectories": ["**/node_modules", "**/.next", "**/dist", "**/build"]
   },
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.validate.enable": true,
+  "typescript.suggest.enabled": true,
   "editor.quickSuggestions": {
-    "other": true,
+    "other": "inline",
     "comments": false,
     "strings": false
   },
   "editor.suggest.showStatusBar": true,
   "editor.suggest.localityBonus": true,
   "editor.acceptSuggestionOnCommitCharacter": false,
+  "editor.suggestOnTriggerCharacters": true,
+  "editor.wordBasedSuggestions": "off",
+  "editor.parameterHints.enabled": true,
   "files.autoSave": "onFocusChange",
   "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
   "javascript.updateImportsOnFileMove.enabled": "never",
   "typescript.updateImportsOnFileMove.enabled": "never",
   "github.copilot.editor.enableAutoCompletions": true,
   "extensions.autoUpdate": false,
-  "extensions.autoCheckUpdates": false
+  "extensions.autoCheckUpdates": false,
+  "files.trimTrailingWhitespace": false,
+  "git.autofetch": false,
+  "git.autorefresh": false,
+  "git.enableSmartCommit": false,
+  "explorer.incrementalNaming": "smart",
+  "explorer.confirmDelete": false,
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.limit.enabled": true,
+  "workbench.editor.limit.value": 5,
+  "workbench.editor.limit.perEditorGroup": true,
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "none",
+  "editor.lineNumbers": "on",
+  "breadcrumbs.enabled": false,
+  "problems.decorations.enabled": false,
+  "editor.codeLens": false,
+  "editor.inlayHints.enabled": "off",
+  "editor.hover.delay": 300,
+  "editor.hover.sticky": false,
+  "editor.lightbulb.enabled": "off",
+  "editor.gotoLocation.multipleReferences": "goto",
+  "editor.gotoLocation.multipleDefinitions": "goto",
+  "editor.gotoLocation.multipleDeclarations": "goto",
+  "editor.gotoLocation.multipleImplementations": "goto",
+  "editor.gotoLocation.multipleTypeDefinitions": "goto",
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    "**/node_modules/@types/node/**",
+    "**/node_modules/typescript/**"
+  ],
+  "javascript.preferences.includePackageJsonAutoImports": "off",
+  "eslint.enable": true,
+  "eslint.run": "onSave",
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "never"
+  },
+  "workbench.editor.closeOnFileDelete": true,
+  "workbench.editor.highlightModifiedTabs": false,
+  "workbench.startupEditor": "none",
+  "window.restoreWindows": "none",
+  "terminal.integrated.shellIntegration.enabled": false,
+  "search.followSymlinks": false,
+  "search.maxResults": 10000,
+  "search.smartCase": true,
+  "npm.autoDetect": "off",
+  "gulp.autoDetect": "off",
+  "grunt.autoDetect": "off",
+  "jake.autoDetect": "off"
 }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
@@ -15,7 +15,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   const router = useRouter();
-  const { email, name, primaryRole, loading } = useUserRole();
+  const { email, name, primaryRole, loading, tipoEmpresa } = useUserRole();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -93,6 +93,18 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
       { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
     ];
+  } else if (userRole === 'admin_nodexia') {
+    // Admin Nodexia - Panel completo igual que super_admin
+    navItems = [
+      { name: '👑 Admin Nodexia', icon: HomeIcon, href: '/admin/super-admin-dashboard' },
+      { name: '🏢 Empresas', icon: BuildingOfficeIcon, href: '/admin/empresas' },
+      { name: '💎 Ubicaciones', icon: Cog6ToothIcon, href: '/admin/ubicaciones' },
+      { name: '👥 Usuarios', icon: UserCircleIcon, href: '/admin/usuarios' },
+      { name: '📋 Solicitudes', icon: ChartBarIcon, href: '/admin/solicitudes' },
+      { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
+      { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
+      { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
+    ];
   } else if (userRole === 'control_acceso') {
     navItems = [
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
@@ -100,40 +112,52 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
       { name: 'Planificación Hoy', icon: CalendarDaysIcon, href: '/planificacion' },
     ];
-  } else if (userRole === 'supervisor_carga') {
-    navItems = [
-      { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
-      { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
-      { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
-      { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
-      { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
-    ];
+  } else if (userRole === 'supervisor') {
+    // Supervisor (contextual según tipo de empresa)
+    if (tipoEmpresa === 'transporte') {
+      navItems = [
+        { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
+        { name: '👷 Supervisor de Flota', icon: TruckIcon, href: '/transporte/dashboard' },
+        { name: '📊 Viajes Activos', icon: ChartBarIcon, href: '/transporte/viajes-activos' },
+        { name: 'Flota', icon: TruckIcon, href: '/transporte/flota' },
+        { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
+      ];
+    } else {
+      navItems = [
+        { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
+        { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
+        { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
+        { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
+        { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
+      ];
+    }
   } else if (userRole === 'coordinador' || String(userRole).trim().toLowerCase() === 'coordinador' || isCoordinadorByEmail) {
-    // Coordinador de PLANTA
-    navItems = [
-      { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
-      { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
-      { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
-      { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
-      { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
-    ];
-  } else if (userRole === 'coordinador_transporte') {
-    // Coordinador de TRANSPORTE
-    navItems = [
-      { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
-      { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
-      { name: '🌐 Cargas en Red', icon: GlobeAltIcon, href: '/transporte/cargas-en-red' },
-      { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
-      { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota' },
-      { name: '👥 Choferes', icon: UserCircleIcon, href: '/transporte/choferes' },
-      { name: '⚙️ Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
-    ];
+    // Coordinador (contextual según tipo de empresa)
+    if (tipoEmpresa === 'transporte') {
+      navItems = [
+        { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
+        { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
+        { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
+        { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
+        { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota' },
+        { name: '👥 Choferes', icon: UserCircleIcon, href: '/transporte/choferes' },
+        { name: '⚙️ Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
+      ];
+    } else {
+      navItems = [
+        { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
+        { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
+        { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
+        { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
+        { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
+      ];
+    }
   } else if (userRole === 'administrativo') {
-    // Administrativo de transporte
+    // Administrativo (contextual)
     navItems = [
-      { name: 'Dashboard', icon: HomeIcon, href: '/transporte/dashboard' },
-      { name: 'Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
-      { name: 'Documentación', icon: ChartBarIcon, href: '/transporte/documentos' },
+      { name: 'Dashboard', icon: HomeIcon, href: '/dashboard' },
+      { name: 'Viajes', icon: CalendarDaysIcon, href: '/viajes' },
+      { name: 'Documentación', icon: ChartBarIcon, href: '/documentos' },
     ];
   } else if (userRole === 'chofer') {
     navItems = [
@@ -141,6 +165,11 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
       { name: 'Mis Viajes', icon: TruckIcon, href: '/chofer-mobile' },
       { name: 'Perfil', icon: UserCircleIcon, href: '/chofer/perfil' },
+    ];
+  } else if (userRole === 'visor') {
+    navItems = [
+      { name: 'Dashboard', icon: HomeIcon, href: '/cliente/dashboard' },
+      { name: 'Mis Cargas', icon: TruckIcon, href: '/cliente/cargas' },
     ];
   } else {
     // Si el rol es vacío o desconocido, mostrar navegación básica

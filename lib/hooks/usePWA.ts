@@ -60,8 +60,8 @@ export function useIsStandalone() {
  */
 export function useInstallPrompt() {
   useEffect(() => {
-    let deferredPrompt: any;
-
+    let deferredPrompt: any = null;
+    
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevenir que el mini-infobar aparezca automáticamente
       e.preventDefault();

@@ -2,7 +2,7 @@
 
 **Para:** GitHub Copilot  
 **Objetivo:** Cerrar sesión de forma estructurada y preparar la siguiente  
-**Última actualización:** 17-Dic-2025
+**Última actualización:** 22-Dic-2025
 
 ---
 
@@ -599,7 +599,42 @@ Si encontraste bugs nuevos, actualiza:
 
 ---
 
-### FASE 6: COMUNICAR AL USUARIO (2 minutos)
+### FASE 6: OPTIMIZAR VS CODE (2-3 minutos)
+
+Antes de cerrar, asegura que VS Code esté optimizado para la próxima sesión:
+
+#### 6.1 Ejecuta limpieza básica:
+
+```bash
+# Limpia cache de build
+Remove-Item .next -Recurse -Force -ErrorAction SilentlyContinue
+```
+
+#### 6.2 Verifica performance (opcional):
+
+```bash
+# Ejecuta diagnóstico rápido
+.\check-performance.ps1
+```
+
+#### 6.3 Recordatorio al usuario:
+
+```markdown
+💡 **Tip para la próxima sesión:**
+
+Si VS Code está lento al iniciar, ejecuta:
+```bash
+.\optimizar-vscode.ps1
+```
+
+Y sigue las instrucciones en `OPTIMIZACION-VSCODE.md`
+```
+
+**Referencia:** Ver `OPTIMIZACION-VSCODE.md` para guía completa de optimización.
+
+---
+
+### FASE 7: COMUNICAR AL USUARIO (2 minutos)
 
 Muestra resumen final:
 
@@ -666,6 +701,11 @@ Copia esto antes de cerrar sesión:
 - [ ] Actualicé .session/PROXIMA-SESION.md
 - [ ] Actualicé .session/CONTEXTO-ACTUAL.md (si aplicaba)
 - [ ] Actualicé docs/PROBLEMAS-CONOCIDOS.md (si aplica)
+
+### Optimización:
+- [ ] Limpié carpeta .next
+- [ ] Verifiqué performance de VS Code (opcional)
+- [ ] Recordé al usuario sobre OPTIMIZACION-VSCODE.md
 
 ### Comunicación:
 - [ ] Mostré resumen al usuario

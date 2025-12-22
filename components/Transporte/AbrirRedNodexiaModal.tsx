@@ -116,12 +116,12 @@ export default function AbrirRedNodexiaModal({
         descripcion_carga: descripcionCarga,
         requisitos: {
           tipo_camion: tipoCamion,
-          tipo_acoplado: tipoAcoplado || undefined,
+          ...(tipoAcoplado && { tipo_acoplado: tipoAcoplado }),
           tipo_carga: tipoCarga,
-          peso_maximo_kg: pesoMaximo ? parseFloat(pesoMaximo) : undefined,
+          ...(pesoMaximo && { peso_maximo_kg: parseFloat(pesoMaximo) }),
           requiere_carga_peligrosa: requiereCargaPeligrosa,
           requiere_gps: requiereGPS,
-          observaciones: observaciones || undefined
+          ...(observaciones && { observaciones })
         }
       };
 

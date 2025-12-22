@@ -55,7 +55,17 @@ export interface ConfiguracionEmpresa {
 }
 
 // Tipos de Roles y Auth
-export type UserRole = 'super_admin' | 'admin' | 'coordinador' | 'supervisor_carga' | 'control_acceso' | 'chofer';
+// Roles simplificados con interpretación contextual
+export type UserRole = 
+  | 'admin_nodexia'      // Super admin global
+  | 'coordinador'        // Coordinador (contextual según tipo_empresa)
+  | 'control_acceso'     // Control de Acceso (solo planta)
+  | 'chofer'             // Chofer (solo transporte)
+  | 'supervisor'         // Supervisor (contextual según tipo_empresa)
+  | 'administrativo';    // Administrativo (contextual)
+
+// Tipos de empresa
+export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'sistema' | 'ambos';
 
 export interface Role {
   id: string;

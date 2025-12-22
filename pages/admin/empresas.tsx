@@ -75,13 +75,13 @@ export default function GestionEmpresas() {
     if (!loading && !user) {
       router.push('/login');
     }
-    if (!loading && primaryRole !== 'super_admin') {
+    if (!loading && primaryRole !== 'super_admin' && primaryRole !== 'admin_nodexia') {
       router.push('/dashboard');
     }
   }, [user, primaryRole, loading, router]);
 
   useEffect(() => {
-    if (primaryRole === 'super_admin') {
+    if (primaryRole === 'super_admin' || primaryRole === 'admin_nodexia') {
       loadEmpresas();
     }
   }, [primaryRole]);
@@ -231,7 +231,7 @@ export default function GestionEmpresas() {
     }
   };
 
-  if (loading || primaryRole !== 'super_admin') {
+  if (loading || (primaryRole !== 'super_admin' && primaryRole !== 'admin_nodexia')) {
     return null;
   }
 

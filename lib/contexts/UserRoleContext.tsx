@@ -3,7 +3,7 @@
  * Centralizes user role management and avoids repeated database queries
  */
 
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 import { UserRole } from '../types';
@@ -88,6 +88,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     return 0;
   });
   const [isFetching, setIsFetching] = useState<boolean>(false); // 🔥 Evita race conditions
+  const initializedRef = useRef<boolean>(false); // 🔥 Track si ya se inicializó
 
   // 🔥 OPTIMIZADO: useMemo para valores derivados
   const primaryRole = useMemo(() => {
@@ -172,6 +173,9 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     const isAdminDemo = user?.email === 'admin.demo@nodexia.com';
     if (!force && !isAdminDemo && lastFetch && (now - lastFetch) < 300000 && user && roles.length > 0) {
       console.log('📦 [UserRoleContext] Usando datos cacheados (5min)');
+      // Asegurar que loading esté en false
+      setLoading(false);
+      setIsFetching(false);
       return;
     }
     if (isAdminDemo) {
@@ -307,30 +311,37 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           const empresaIdValue = primeraRelacion.empresa_id;
           const tipoEmpresaValue = (primeraRelacion.empresas as any)?.tipo_empresa;
 
+          console.log('🔍 [UserRoleContext] Datos cargados:');
+          console.log('   - rol_interno:', rolInterno);
+          console.log('   - tipo_empresa:', tipoEmpresaValue);
+          console.log('   - empresa_id:', empresaIdValue);
+
           setEmpresaId(empresaIdValue || null);
           setTipoEmpresa(tipoEmpresaValue || null);
           
           // Continuar con mapeo de rol...
           let mappedRole: UserRole;
           switch (rolInterno) {
-            case 'super_admin':
+            case 'admin_nodexia':
             case 'Super Admin':
-              mappedRole = 'super_admin' as UserRole;
+            case 'super_admin':  // Legacy
+              mappedRole = 'admin_nodexia' as UserRole;
               break;
             case 'control_acceso':
             case 'Control de Acceso':
               mappedRole = 'control_acceso' as UserRole;
               break;
-            case 'supervisor_carga':
-            case 'Supervisor de Carga':
-              mappedRole = 'supervisor_carga' as UserRole;
+            case 'supervisor':
+            case 'Supervisor':
+            case 'Supervisor de Carga':  // Legacy
+            case 'supervisor_carga':     // Legacy DB value
+              mappedRole = 'supervisor' as UserRole;
               break;
             case 'coordinador':
             case 'Coordinador':
+            case 'Coordinador de Transporte':  // Legacy
+            case 'coordinador_transporte':     // Legacy DB value
               mappedRole = 'coordinador';
-              break;
-            case 'coordinador_transporte':
-              mappedRole = 'coordinador_transporte';
               break;
             case 'chofer':
             case 'Chofer':
@@ -365,24 +376,26 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           // Mapeo de rol
           let mappedRole: UserRole;
           switch (rolInterno) {
-            case 'super_admin':
+            case 'admin_nodexia':
             case 'Super Admin':
-              mappedRole = 'super_admin' as UserRole;
+            case 'super_admin':  // Legacy
+              mappedRole = 'admin_nodexia' as UserRole;
               break;
             case 'control_acceso':
             case 'Control de Acceso':
               mappedRole = 'control_acceso' as UserRole;
               break;
-            case 'supervisor_carga':
-            case 'Supervisor de Carga':
-              mappedRole = 'supervisor_carga' as UserRole;
+            case 'supervisor':
+            case 'Supervisor':
+            case 'Supervisor de Carga':  // Legacy
+            case 'supervisor_carga':     // Legacy DB value
+              mappedRole = 'supervisor' as UserRole;
               break;
             case 'coordinador':
             case 'Coordinador':
+            case 'Coordinador de Transporte':  // Legacy
+            case 'coordinador_transporte':     // Legacy DB value
               mappedRole = 'coordinador';
-              break;
-            case 'coordinador_transporte':
-              mappedRole = 'coordinador_transporte';
               break;
             case 'chofer':
             case 'Chofer':
@@ -472,6 +485,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       if (!mounted) return;
       await fetchUserAndRoles();
       initialLoadDone = true;
+      initializedRef.current = true; // 🔥 Marcar como inicializado
     };
 
     initializeAuth();
@@ -491,17 +505,32 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           setEmpresaId(null);
           setLoading(false);
           router.push('/login');
-        } else if (event === 'SIGNED_IN' && initialLoadDone) {
-          // 🔥 NO recargar si el usuario ya está cargado (evita override duplicado)
-          if (session.user.id === user?.id) {
-            console.log('⏸️ [UserRoleContext] SIGNED_IN ignorado - usuario ya cargado');
+        } else if (event === 'SIGNED_IN') {
+          // 🔥 NO recargar si ya se inicializó (prevenir loops infinitos)
+          if (initializedRef.current && user?.id && session.user.id === user?.id) {
+            console.log('⏸️ [UserRoleContext] SIGNED_IN ignorado - ya inicializado');
+            setLoading(false);
+            setIsFetching(false);
             return;
           }
           // Solo recargar si es un usuario DIFERENTE
-          await fetchUserAndRoles();
+          if (session.user.id !== user?.id) {
+            console.log('🔄 [UserRoleContext] Nuevo usuario detectado en SIGNED_IN');
+            await fetchUserAndRoles();
+            initializedRef.current = true;
+          }
         } else if (event === 'INITIAL_SESSION') {
           // Manejar sesión inicial - solo si no hay usuario cargado
           console.log('🔄 [UserRoleContext] INITIAL_SESSION detectado');
+          
+          // Si ya pasó la inicialización inicial, ignorar este evento
+          if (initialLoadDone) {
+            console.log('⏸️ [UserRoleContext] INITIAL_SESSION ignorado - inicialización ya completada');
+            setLoading(false);
+            setIsFetching(false);
+            return;
+          }
+          
           if (!user && session) {
             console.log('🔄 [UserRoleContext] Cargando usuario desde sesión inicial');
             await fetchUserAndRoles();

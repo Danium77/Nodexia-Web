@@ -59,11 +59,24 @@ export async function validateRoleForCompany(
       };
     }
 
-    // 2. Buscar el rol que coincida con el nombre y sea compatible con el tipo de empresa
+    // 2. Mapear nombre interno a nombre de rol en BD
+    const roleNameMap: Record<string, string> = {
+      'control_acceso': 'Control de Acceso',
+      'coordinador': 'Coordinador de Planta',
+      'supervisor': 'Supervisor de Carga',
+      'administrativo': 'Administrativo Planta',
+      'chofer': 'Chofer',
+      'admin_nodexia': 'Administrador Nodexia',
+      'visor': 'Visor'
+    };
+
+    const dbRoleName = roleNameMap[roleName] || roleName;
+
+    // 3. Buscar el rol que coincida con el nombre y sea compatible con el tipo de empresa
     const { data: role, error: roleError } = await supabaseAdmin
       .from('roles_empresa')
       .select('id, nombre_rol, tipo_empresa')
-      .eq('nombre_rol', roleName)
+      .eq('nombre_rol', dbRoleName)
       .in('tipo_empresa', [company.tipo_empresa, 'ambos'])
       .eq('activo', true)
       .order('tipo_empresa', { ascending: false }) // Preferir tipo específico sobre 'ambos'
@@ -73,12 +86,12 @@ export async function validateRoleForCompany(
     if (roleError || !role) {
       return {
         valid: false,
-        error: `Role "${roleName}" not valid for company type "${company.tipo_empresa}". ` +
+        error: `Role "${dbRoleName}" not valid for company type "${company.tipo_empresa}". ` +
                `Available roles must match tipo_empresa="${company.tipo_empresa}" or tipo_empresa="ambos".`
       };
     }
 
-    // 3. Validación exitosa
+    // 4. Validación exitosa
     return {
       valid: true,
       roleId: role.id,

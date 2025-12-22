@@ -66,11 +66,11 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
               <div className="flex items-center gap-1 mb-1">
                 <ClockIcon className="h-3 w-3 text-cyan-400" />
                 <h4 className="text-[10px] font-semibold text-cyan-300">{hour}</h4>
-                <span className="text-[9px] text-gray-500">({groupedByHour[hour].length} viaje{groupedByHour[hour].length !== 1 ? 's' : ''})</span>
+                <span className="text-[9px] text-gray-500">({groupedByHour[hour]?.length || 0} viaje{(groupedByHour[hour]?.length || 0) !== 1 ? 's' : ''})</span>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                {groupedByHour[hour].map(dispatch => (
+                {(groupedByHour[hour] || []).map(dispatch => (
                   <div
                     key={dispatch.id}
                     className={`bg-gradient-to-br from-slate-800 to-slate-900 rounded p-1.5 ${getPriorityColor(dispatch.prioridad)} hover:shadow-xl transition-all cursor-pointer`}

@@ -97,21 +97,21 @@ export const ROLES_AUTORIZADOS_UNIDAD: Record<
   RolInterno[] | 'AUTOMATIC'
 > = {
   pendiente: ['coordinador'],
-  asignado: ['coordinador_transporte'],
+  asignado: ['coordinador'],
   confirmado_chofer: ['chofer'],
   en_transito_origen: ['chofer'],
   arribado_origen: ['chofer'],
   en_playa_espera: 'AUTOMATIC',
-  llamado_carga: ['supervisor_carga'],
-  posicionado_carga: ['supervisor_carga'],
+  llamado_carga: ['supervisor'],
+  posicionado_carga: ['supervisor'],
   carga_completada: 'AUTOMATIC',
   saliendo_origen: ['control_acceso'],
   en_transito_destino: ['chofer'],
   arribado_destino: ['chofer'],
   descarga_completada: 'AUTOMATIC',
   viaje_completado: ['chofer', 'coordinador'],
-  en_incidencia: ['chofer', 'coordinador', 'coordinador_transporte'],
-  cancelado: ['coordinador', 'coordinador_transporte'],
+  en_incidencia: ['chofer', 'coordinador'],
+  cancelado: ['coordinador'],
 };
 
 /**
@@ -122,19 +122,19 @@ export const ROLES_AUTORIZADOS_CARGA: Record<
   RolInterno[] | 'AUTOMATIC'
 > = {
   pendiente: ['coordinador'],
-  planificado: ['coordinador', 'supervisor_carga'],
+  planificado: ['coordinador', 'supervisor'],
   documentacion_preparada: 'AUTOMATIC',
-  en_proceso_carga: ['supervisor_carga'],
-  cargado: ['supervisor_carga'],
+  en_proceso_carga: ['supervisor'],
+  cargado: ['supervisor'],
   documentacion_validada: ['control_acceso'],
   en_transito: 'AUTOMATIC',
-  en_proceso_descarga: ['supervisor_carga'],
-  descargado: ['supervisor_carga'],
-  documentacion_cierre: ['supervisor_carga', 'control_acceso'],
-  completado: ['supervisor_carga', 'coordinador'],
-  con_faltante: ['supervisor_carga'],
-  con_rechazo: ['supervisor_carga'],
-  cancelado_sin_carga: ['coordinador', 'coordinador_transporte'],
+  en_proceso_descarga: ['supervisor'],
+  descargado: ['supervisor'],
+  documentacion_cierre: ['supervisor', 'control_acceso'],
+  completado: ['supervisor', 'coordinador'],
+  con_faltante: ['supervisor'],
+  con_rechazo: ['supervisor'],
+  cancelado_sin_carga: ['coordinador'],
 };
 
 // =====================================================

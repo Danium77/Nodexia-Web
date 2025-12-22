@@ -12,7 +12,8 @@ export interface ActualizarEstadoCargaInput {
   observaciones?: string;
   datos_carga?: {
     producto?: string;
-    peso_real_kg?: number;
+    peso_estimado_kg?: number;  // Peso estimado al planificar/iniciar
+    peso_real_kg?: number;       // Peso real al completar
     cantidad_bultos?: number;
     temperatura_carga?: number;
   };
@@ -121,28 +122,33 @@ export async function actualizarEstadoCarga(
 }
 
 /**
- * Registra llamado a carga (Supervisor Carga)
+ * Registra llamado a carga (DEPRECATED - usar iniciarCarga)
+ * El estado 'llamado_carga' fue eliminado
  */
 export async function registrarLlamadoCarga(
   viaje_id: UUID,
   bay_carga?: string
 ): Promise<{ success: boolean; error?: string }> {
+  // Directamente inicia el proceso de carga
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'llamado_carga',
-    observaciones: bay_carga ? `Bay de carga: ${bay_carga}` : undefined,
+    nuevo_estado: 'en_proceso_carga',
+    observaciones: bay_carga ? `Llamado a carga - Bay: ${bay_carga}` : 'Llamado a carga',
   });
 }
 
 /**
- * Registra posicionamiento en bay de carga
+ * Registra posicionamiento en bay de carga (DEPRECATED - usar iniciarCarga)
+ * Este estado se fusiona con en_proceso_carga
  */
 export async function registrarPosicionadoCarga(
   viaje_id: UUID
 ): Promise<{ success: boolean; error?: string }> {
+  // Simplemente inicia el proceso de carga
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'posicionado_carga',
+    nuevo_estado: 'en_proceso_carga',
+    observaciones: 'Vehículo posicionado en bay de carga'
   });
 }
 
@@ -156,25 +162,27 @@ export async function iniciarCarga(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'iniciando_carga',
+    nuevo_estado: 'en_proceso_carga',
     datos_carga: {
       producto,
-      peso_estimado_kg,
+      ...(peso_estimado_kg !== undefined && { peso_estimado_kg }),
     },
   });
 }
 
 /**
- * Registra progreso de carga
+ * Registra progreso de carga (DEPRECATED - usar iniciarCarga)
+ * El estado 'cargando' fue eliminado, solo existe 'en_proceso_carga'
  */
 export async function registrarCargando(
   viaje_id: UUID,
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
+  // Mantener en estado en_proceso_carga con observaciones actualizadas
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'cargando',
-    observaciones,
+    nuevo_estado: 'en_proceso_carga',
+    ...(observaciones && { observaciones }),
   });
 }
 
@@ -189,11 +197,11 @@ export async function completarCarga(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'carga_completada',
+    nuevo_estado: 'cargado',
     datos_carga: {
       peso_real_kg,
-      cantidad_bultos,
-      temperatura_carga,
+      ...(cantidad_bultos !== undefined && { cantidad_bultos }),
+      ...(temperatura_carga !== undefined && { temperatura_carga }),
     },
   });
 }
@@ -212,8 +220,8 @@ export async function validarDocumentacion(
     nuevo_estado: 'documentacion_validada',
     documentacion: {
       remito_numero,
-      remito_url,
-      carta_porte_url,
+      ...(remito_url && { remito_url }),
+      ...(carta_porte_url && { carta_porte_url }),
     },
   });
 }
@@ -226,21 +234,23 @@ export async function iniciarDescarga(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'iniciando_descarga',
+    nuevo_estado: 'en_proceso_descarga',
   });
 }
 
 /**
- * Registra progreso de descarga
+ * Registra progreso de descarga (DEPRECATED - usar iniciarDescarga)
+ * El estado 'descargando' fue eliminado, solo existe 'en_proceso_descarga'
  */
 export async function registrarDescargando(
   viaje_id: UUID,
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
+  // Mantener en estado en_proceso_descarga con observaciones actualizadas
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'descargando',
-    observaciones,
+    nuevo_estado: 'en_proceso_descarga',
+    ...(observaciones && { observaciones }),
   });
 }
 
@@ -261,9 +271,9 @@ export async function completarDescarga(
     faltantes_rechazos: {
       tiene_faltante,
       tiene_rechazo,
-      detalle_faltante,
-      peso_faltante_kg,
-      detalle_rechazo,
+      ...(detalle_faltante && { detalle_faltante }),
+      ...(peso_faltante_kg !== undefined && { peso_faltante_kg }),
+      ...(detalle_rechazo && { detalle_rechazo }),
     },
   });
 }
@@ -277,9 +287,11 @@ export async function confirmarEntrega(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'entregado',
-    documentacion: {
-      certificado_calidad_url: certificado_entrega_url,
-    },
+    nuevo_estado: 'completado',
+    ...(certificado_entrega_url && {
+      documentacion: {
+        certificado_calidad_url: certificado_entrega_url,
+      },
+    }),
   });
 }

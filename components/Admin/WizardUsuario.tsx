@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
+import { getRolDisplayName } from '../../lib/utils/roleHelpers';
 import {
   UserIcon,
   EnvelopeIcon,
@@ -43,6 +44,7 @@ interface WizardData {
   email: string;
   nombre_completo: string;
   telefono: string;
+  dni: string;
   departamento: string;
   fecha_ingreso: string;
   notas: string;
@@ -52,9 +54,28 @@ interface WizardUsuarioProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  mode?: 'create' | 'edit';
+  initialData?: {
+    user_id?: string;
+    empresa_id?: string;
+    empresa_nombre?: string;
+    rol_id?: string;
+    rol_nombre?: string;
+    email?: string;
+    nombre_completo?: string;
+    telefono?: string;
+    dni?: string;
+    departamento?: string;
+  };
 }
 
-const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSuccess }) => {
+const WizardUsuario: React.FC<WizardUsuarioProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSuccess, 
+  mode = 'create',
+  initialData 
+}) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +94,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     email: '',
     nombre_completo: '',
     telefono: '',
+    dni: '',
     departamento: '',
     fecha_ingreso: new Date().toISOString().split('T')[0] || '',
     notas: ''
@@ -100,20 +122,40 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       // Marcar que el modal está abierto
       sessionStorage.setItem('wizardUsuarioOpen', 'true');
       
-      // Intentar recuperar estado guardado
-      const savedState = sessionStorage.getItem('wizardUsuarioState');
-      if (savedState) {
-        try {
-          const parsed = JSON.parse(savedState);
-          setFormData(parsed.formData || formData);
-          setCurrentStep(parsed.currentStep || 1);
-          console.log('[WizardUsuario] Estado recuperado de sessionStorage');
-        } catch (e) {
-          console.error('[WizardUsuario] Error al parsear estado guardado:', e);
+      // Si es modo edición, cargar datos iniciales
+      if (mode === 'edit' && initialData) {
+        const nombrePartes = (initialData.nombre_completo || '').trim().split(' ');
+        const nombre = nombrePartes[0] || '';
+        const apellido = nombrePartes.slice(1).join(' ') || '';
+        
+        setFormData({
+          empresa: initialData.empresa_id || '',
+          rol: initialData.rol_id || '',
+          email: initialData.email || '',
+          nombre_completo: initialData.nombre_completo || '',
+          telefono: initialData.telefono || '',
+          dni: initialData.dni || '',
+          departamento: initialData.departamento || '',
+          fecha_ingreso: new Date().toISOString().split('T')[0] || '',
+          notas: ''
+        });
+        setCurrentStep(2); // Saltar paso de empresa/rol en edición
+      } else {
+        // Modo creación: intentar recuperar estado guardado
+        const savedState = sessionStorage.getItem('wizardUsuarioState');
+        if (savedState) {
+          try {
+            const parsed = JSON.parse(savedState);
+            setFormData(parsed.formData || formData);
+            setCurrentStep(parsed.currentStep || 1);
+            console.log('[WizardUsuario] Estado recuperado de sessionStorage');
+          } catch (e) {
+            console.error('[WizardUsuario] Error al parsear estado guardado:', e);
+            resetForm();
+          }
+        } else {
           resetForm();
         }
-      } else {
-        resetForm();
       }
       loadEmpresas();
       loadRoles();
@@ -122,7 +164,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       sessionStorage.removeItem('wizardUsuarioState');
       sessionStorage.removeItem('wizardUsuarioOpen');
     }
-  }, [isOpen]);
+  }, [isOpen, mode, initialData]);
 
   // Guardar estado cada vez que cambia
   useEffect(() => {
@@ -330,6 +372,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
       email: '',
       nombre_completo: '',
       telefono: '',
+      dni: '',
       departamento: '',
       fecha_ingreso: new Date().toISOString().split('T')[0] || '',
       notas: ''
@@ -517,15 +560,64 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
     setError(null);
 
     try {
-      console.log('📧 Enviando invitación formal por email...');
-
       // Dividir nombre completo en nombre y apellido
       const nombrePartes = formData.nombre_completo.trim().split(' ');
       const nombre = nombrePartes[0] || '';
       const apellido = nombrePartes.slice(1).join(' ') || '';
 
-      // Obtener datos del rol seleccionado
-      const rolSeleccionado = rolesDisponibles.find(r => r.id === formData.rol);
+      if (mode === 'edit' && initialData?.user_id) {
+        // MODO EDICIÓN
+        console.log('📝 Actualizando usuario existente...');
+
+        const response = await fetch('/api/admin/actualizar-usuario', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_id: initialData.user_id,
+            nombre_completo: formData.nombre_completo,
+            telefono: formData.telefono || '',
+            dni: formData.dni || '',
+            departamento: formData.departamento || ''
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          console.log('✅ Usuario actualizado exitosamente');
+          
+          if (isMountedRef.current) {
+            setSuccess(
+              `✅ Usuario actualizado exitosamente\n\n` +
+              `👤 Nombre: ${formData.nombre_completo}\n` +
+              `📧 Email: ${formData.email}\n` +
+              `📞 Teléfono: ${formData.telefono || 'No especificado'}\n` +
+              `🆔 DNI: ${formData.dni || 'No especificado'}`
+            );
+          }
+          
+          // Limpiar sessionStorage
+          sessionStorage.removeItem('wizardUsuarioState');
+          sessionStorage.removeItem('wizardUsuarioOpen');
+          
+          // Cerrar y notificar éxito
+          setTimeout(() => {
+            onClose();
+            setTimeout(() => {
+              if (onSuccess) onSuccess();
+            }, 100);
+          }, 2000);
+        } else {
+          throw new Error(result.error || 'Error al actualizar usuario');
+        }
+      } else {
+        // MODO CREACIÓN (código original)
+        console.log('📧 Enviando invitación formal por email...');
+
+        // Obtener datos del rol seleccionado
+        const rolSeleccionado = rolesDisponibles.find(r => r.id === formData.rol);
 
       // Enviar invitación usando el nuevo API formal
       const response = await fetch('/api/admin/nueva-invitacion', {
@@ -538,6 +630,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
           nombre: nombre,
           apellido: apellido,
           telefono: formData.telefono || '',
+          dni: formData.dni || '',
           empresa_id: formData.empresa,
           rol_interno: rolSeleccionado?.nombre_rol || 'usuario',
           departamento: formData.departamento || ''
@@ -617,9 +710,11 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
           }
         }
       }
+      } // Cierre del else (modo creación)
+
     } catch (err: any) {
-      console.error('Error enviando invitación:', err);
-      setError(err.message || 'Error al enviar la invitación por email');
+      console.error('Error en handleSubmit:', err);
+      setError(err.message || 'Error procesando la solicitud');
     } finally {
       setLoading(false);
     }
@@ -684,7 +779,9 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-white">Crear Nuevo Usuario</h2>
+            <h2 className="text-xl font-bold text-white">
+              {mode === 'edit' ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+            </h2>
             <div className="flex items-center gap-3 mt-1">
               <p className="text-gray-400">Paso {currentStep} de 4: {getStepTitle(currentStep)}</p>
               {autoSaved && (
@@ -772,11 +869,50 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <BuildingOfficeIcon className="mx-auto h-12 w-12 text-cyan-400" />
-                <h3 className="text-lg font-medium text-white mt-2">Seleccionar Empresa y Rol</h3>
+                <h3 className="text-lg font-medium text-white mt-2">
+                  {mode === 'edit' ? 'Empresa y Rol (No Editables)' : 'Seleccionar Empresa y Rol'}
+                </h3>
                 <p className="text-gray-400 mt-1">
-                  Elige la empresa y el rol que tendrá el nuevo usuario
+                  {mode === 'edit' 
+                    ? 'Estos campos no se pueden modificar. Usa la tabla principal para gestionar roles.'
+                    : 'Elige la empresa y el rol que tendrá el nuevo usuario'
+                  }
                 </p>
               </div>
+              {mode === 'edit' ? (
+                // Modo edición: Mostrar datos bloqueados
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Empresa
+                    </label>
+                    <input
+                      type="text"
+                      value={initialData?.empresa_nombre || ''}
+                      disabled
+                      className="w-full bg-gray-700 border border-gray-600 text-gray-400 rounded-lg px-3 py-2 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Rol
+                    </label>
+                    <input
+                      type="text"
+                      value={initialData?.rol_nombre || ''}
+                      disabled
+                      className="w-full bg-gray-700 border border-gray-600 text-gray-400 rounded-lg px-3 py-2 cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-3">
+                    <p className="text-yellow-300 text-xs">
+                      ⚠️ Para cambiar empresa o roles, usa los botones en la tabla de Gestión de Usuarios.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                // Modo creación: Formulario normal
+                <>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Empresa (buscar por CUIT) *
@@ -820,11 +956,15 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
                   }`}
                 >
                   <option value="">Seleccionar rol...</option>
-                  {rolesDisponibles.map(rol => (
-                    <option key={rol.id} value={rol.id}>
-                      {rol.nombre_rol} - {rol.descripcion || 'Sin descripción'}
-                    </option>
-                  ))}
+                  {rolesDisponibles.map(rol => {
+                    const empresaSeleccionada = empresas.find(e => e.id === formData.empresa);
+                    const displayName = getRolDisplayName(rol.nombre_rol, empresaSeleccionada?.tipo_empresa);
+                    return (
+                      <option key={rol.id} value={rol.id}>
+                        {displayName} {rol.descripcion && `- ${rol.descripcion}`}
+                      </option>
+                    );
+                  })}
                 </select>
                 {validationErrors.rol && (
                   <p className="text-red-400 text-sm mt-1">{validationErrors.rol}</p>
@@ -849,6 +989,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
                   </div>
                 )}
               </div>
+              </>
+              )}
             </div>
           )}
 
@@ -865,14 +1007,17 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email *
+                  Email {mode === 'edit' ? '(No editable)' : '*'}
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   placeholder="usuario@empresa.com"
+                  disabled={mode === 'edit'}
                   className={`w-full bg-gray-700 border text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-cyan-500 ${
+                    mode === 'edit' ? 'cursor-not-allowed text-gray-400' : ''
+                  } ${
                     validationErrors.email ? 'border-red-500' : 'border-gray-600'
                   }`}
                 />
@@ -897,6 +1042,22 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
                 {validationErrors.nombre_completo && (
                   <p className="text-red-400 text-sm mt-1">{validationErrors.nombre_completo}</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  DNI
+                </label>
+                <input
+                  type="text"
+                  value={formData.dni}
+                  onChange={(e) => handleInputChange('dni', e.target.value)}
+                  placeholder="12345678"
+                  className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-cyan-500"
+                />
+                <p className="text-gray-400 text-xs mt-1">
+                  Necesario para vincular choferes a la flota
+                </p>
               </div>
 
               <div>
@@ -1073,12 +1234,12 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({ isOpen, onClose, onSucces
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Creando...
+                  {mode === 'edit' ? 'Actualizando...' : 'Creando...'}
                 </>
               ) : currentStep === 4 ? (
                 <>
                   <CheckCircleIcon className="h-4 w-4" />
-                  Crear Usuario
+                  {mode === 'edit' ? 'Guardar Cambios' : 'Crear Usuario'}
                 </>
               ) : (
                 <>

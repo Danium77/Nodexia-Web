@@ -88,8 +88,8 @@ const PlanningAlerts: React.FC<PlanningAlertsProps> = ({ dispatches, onDismiss }
     const hoyIncompletos = dispatches.filter(
       d => d.scheduled_local_date === hoy && 
            d.transport_id && 
-           (!d.driver_id && !d.chofer) && 
-           (!d.truck_id && !d.camion_data)
+           (!d.driver_id) && 
+           (!d.truck_id)
     );
 
     if (hoyIncompletos.length > 0) {

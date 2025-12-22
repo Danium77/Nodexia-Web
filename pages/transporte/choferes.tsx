@@ -1,4 +1,4 @@
- import React, { useState, useRef, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import FormCard from '../../components/ui/FormCard';
 import { useChoferes } from '../../lib/hooks/useChoferes';
@@ -36,12 +36,13 @@ export default function ChoferesGestion() {
           return;
         }
         if (user) {
+          console.log('👤 Usuario actual:', user.id, user.email);
           setCurrentUserId(user.id);
           
           // Obtener empresa del usuario
           const { data: usuarioEmpresa, error: empresaError } = await supabase
             .from('usuarios_empresa')
-            .select('empresa_id')
+            .select('empresa_id, empresas(nombre)')
             .eq('user_id', user.id)
             .eq('activo', true)
             .single();
@@ -53,6 +54,7 @@ export default function ChoferesGestion() {
           }
           
           if (usuarioEmpresa) {
+            console.log('🏢 Empresa del usuario:', usuarioEmpresa);
             setEmpresaId(usuarioEmpresa.empresa_id);
           }
         } else {
@@ -77,8 +79,17 @@ export default function ChoferesGestion() {
     setUsuarioEncontrado(null);
 
     try {
-      // Buscar usuario por DNI en la tabla usuarios
-      // Primero buscar en usuarios_empresa que tenga el DNI en algún campo relacionado
+      console.log('🔍 Buscando chofer con:', { dniBusqueda, empresaId });
+      
+      // Primero intentar buscar solo por empresa_id para ver qué hay
+      const { data: todosUsuarios } = await supabase
+        .from('usuarios_empresa')
+        .select('user_id, nombre_completo, dni, rol_interno')
+        .eq('empresa_id', empresaId);
+      
+      console.log('👥 Todos los usuarios de la empresa:', todosUsuarios);
+      
+      // Buscar usuario por DNI o nombre en la tabla usuarios_empresa
       const { data: usuarios, error: searchError } = await supabase
         .from('usuarios_empresa')
         .select(`
@@ -86,13 +97,16 @@ export default function ChoferesGestion() {
           nombre_completo,
           email_interno,
           telefono_interno,
+          dni,
           rol_interno,
           empresa_id,
           empresas!inner(nombre, tipo_empresa)
         `)
-        .eq('rol_interno', 'chofer')
         .eq('empresa_id', empresaId)
-        .ilike('nombre_completo', `%${dniBusqueda}%`); // Buscar por DNI en nombre o crear campo específico
+        .ilike('rol_interno', 'chofer')
+        .or(`dni.eq.${dniBusqueda},nombre_completo.ilike.*${dniBusqueda}*`);
+
+      console.log('📊 Resultado búsqueda:', { usuarios, searchError });
 
       if (searchError) {
         console.error('Error buscando usuario:', searchError);
@@ -100,51 +114,21 @@ export default function ChoferesGestion() {
         return;
       }
 
-      // Si no encontramos por nombre_completo, buscar directamente en usuarios
+      // Si no encontramos resultados
       if (!usuarios || usuarios.length === 0) {
-        // Buscar en la tabla usuarios por email que contenga el DNI o por nombre
-        const { data: usuariosData, error: usuariosError } = await supabase
-          .from('usuarios')
-          .select('id, email, nombre_completo')
-          .or(`email.ilike.%${dniBusqueda}%,nombre_completo.ilike.%${dniBusqueda}%`)
-          .limit(5);
-
-        if (usuariosError || !usuariosData || usuariosData.length === 0) {
-          setError(`No se encontró un chofer con DNI "${dniBusqueda}" en tu empresa. Verifica que el usuario fue creado en Admin Nodexia con rol "Chofer" y asignado a tu empresa.`);
-          return;
-        }
-
-        // Verificar que el usuario tenga rol chofer y pertenezca a la empresa
-        const usuarioId = usuariosData[0].id;
-        const { data: vinculacion, error: vinculacionError } = await supabase
-          .from('usuarios_empresa')
-          .select('rol_interno, empresa_id, telefono_interno')
-          .eq('user_id', usuarioId)
-          .eq('empresa_id', empresaId)
-          .single();
-
-        if (vinculacionError || !vinculacion || vinculacion.rol_interno !== 'chofer') {
-          setError(`El usuario encontrado no es un chofer de tu empresa. Verifica que fue asignado correctamente en Admin Nodexia.`);
-          return;
-        }
-
-        setUsuarioEncontrado({
-          id: usuarioId,
-          email: usuariosData[0].email,
-          nombre_completo: usuariosData[0].nombre_completo,
-          telefono: vinculacion.telefono_interno || undefined,
-          dni: dniBusqueda
-        });
-      } else {
-        // Usuario encontrado en usuarios_empresa
-        setUsuarioEncontrado({
-          id: usuarios[0].user_id,
-          email: usuarios[0].email_interno,
-          nombre_completo: usuarios[0].nombre_completo,
-          telefono: usuarios[0].telefono_interno || undefined,
-          dni: dniBusqueda
-        });
+        setError(`No se encontró un chofer con DNI o nombre "${dniBusqueda}" en tu empresa. Verifica que el usuario fue creado en Admin Nodexia con rol "Chofer" y asignado a tu empresa.`);
+        return;
       }
+
+      // Usuario encontrado en usuarios_empresa
+      const usuario = usuarios[0];
+      setUsuarioEncontrado({
+        id: usuario?.user_id || '',
+        email: usuario?.email_interno || '',
+        nombre_completo: usuario?.nombre_completo || '',
+        telefono: usuario?.telefono_interno || undefined,
+        dni: usuario?.dni || dniBusqueda
+      });
     } catch (err) {
       console.error('Error en búsqueda:', err);
       setError('Error inesperado al buscar usuario');

@@ -61,11 +61,15 @@ export default async function handler(
     // Calcular distancia total recorrida
     let distanciaTotal = 0;
     for (let i = 1; i < ubicaciones.length; i++) {
+      const prev = ubicaciones[i - 1];
+      const curr = ubicaciones[i];
+      if (!prev || !curr) continue;
+      
       const dist = calcularDistancia(
-        ubicaciones[i - 1].latitude,
-        ubicaciones[i - 1].longitude,
-        ubicaciones[i].latitude,
-        ubicaciones[i].longitude
+        prev.latitude,
+        prev.longitude,
+        curr.latitude,
+        curr.longitude
       );
       distanciaTotal += dist;
     }
@@ -84,8 +88,19 @@ export default async function handler(
       : 0;
 
     // Calcular tiempo total
-    const primerRegistro = new Date(ubicaciones[0].timestamp);
-    const ultimoRegistro = new Date(ubicaciones[ubicaciones.length - 1].timestamp);
+    const primerUbicacion = ubicaciones[0];
+    const ultimaUbicacion = ubicaciones[ubicaciones.length - 1];
+    
+    if (!primerUbicacion || !ultimaUbicacion) {
+      return res.status(200).json({
+        viaje_id,
+        tiene_datos: false,
+        error: 'Datos de ubicación incompletos'
+      });
+    }
+    
+    const primerRegistro = new Date(primerUbicacion.timestamp);
+    const ultimoRegistro = new Date(ultimaUbicacion.timestamp);
     const tiempoTotalMs = ultimoRegistro.getTime() - primerRegistro.getTime();
     const tiempoTotalHoras = tiempoTotalMs / (1000 * 60 * 60);
 
@@ -97,8 +112,8 @@ export default async function handler(
       velocidad_maxima_kmh: Math.round(velocidadMaxima * 100) / 100,
       tiempo_total_horas: Math.round(tiempoTotalHoras * 100) / 100,
       total_puntos: ubicaciones.length,
-      primer_registro: ubicaciones[0].timestamp,
-      ultimo_registro: ubicaciones[ubicaciones.length - 1].timestamp
+      primer_registro: primerUbicacion.timestamp,
+      ultimo_registro: ultimaUbicacion.timestamp
     });
 
   } catch (error: any) {

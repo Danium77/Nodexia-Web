@@ -8,8 +8,8 @@ import { supabase } from '../lib/supabaseClient';
 import DocumentacionDetalle from '../components/DocumentacionDetalle';
 import MainLayout from '../components/layout/MainLayout';
 import { QrCodeIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TruckIcon, DocumentTextIcon, ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { actualizarEstadoUnidad, obtenerEstadoUnidad } from '../lib/api/estado-unidad';
-import { actualizarEstadoCarga, validarDocumentacion as validarDocsCarga } from '../lib/api/estado-carga';
+import { actualizarEstadoUnidad } from '../lib/api/estado-unidad';
+import { validarDocumentacion as validarDocsCarga } from '../lib/api/estado-carga';
 import { getColorEstadoUnidad, getLabelEstadoUnidad } from '../lib/helpers/estados-helpers';
 import type { EstadoUnidadViaje as EstadoUnidadViajeType } from '../lib/types';
 
@@ -59,15 +59,6 @@ export default function ControlAcceso() {
   const [showDocumentacion, setShowDocumentacion] = useState(false);
   const [historial, setHistorial] = useState<RegistroAcceso[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
-  
-  // Estados para egreso con peso y bultos
-  const [pesoReal, setPesoReal] = useState('');
-  const [cantidadBultos, setCantidadBultos] = useState('');
-  const [showModalEgreso, setShowModalEgreso] = useState(false);
-  
-  // Estados para validación de documentación
-  const [docsIncompletas, setDocsIncompletas] = useState(false);
-  const [showModalDocs, setShowModalDocs] = useState(false);
 
   // Cargar historial de accesos al montar el componente
   useEffect(() => {
@@ -124,15 +115,15 @@ export default function ControlAcceso() {
     }
   };
 
-  // Función para detectar si es Envío o Recepción
-  const detectarTipoOperacion = (planta_origen_id: string, planta_destino_id: string): 'envio' | 'recepcion' => {
-    if (empresaId === planta_origen_id) {
-      return 'envio';
-    } else if (empresaId === planta_destino_id) {
-      return 'recepcion';
-    }
-    return 'envio'; // Default
-  };
+  // Función para detectar si es Envío o Recepción - NO UTILIZADA
+  // const detectarTipoOperacion = (planta_origen_id: string, planta_destino_id: string): 'envio' | 'recepcion' => {
+  //   if (empresaId === planta_origen_id) {
+  //     return 'envio';
+  //   } else if (empresaId === planta_destino_id) {
+  //     return 'recepcion';
+  //   }
+  //   return 'envio'; // Default
+  // };
 
   // Escanear QR y obtener viaje desde BD
   const escanearQR = async () => {
@@ -142,11 +133,54 @@ export default function ControlAcceso() {
     setMessage('');
 
     try {
-      // Buscar viaje por número de viaje (el QR puede ser el número de viaje)
-      const codigoBusqueda = qrCode.trim().replace(/^QR-/, ''); // Quitar prefijo QR-
+      // Buscar despacho primero (porque el QR puede ser el número de despacho)
+      const codigoBusqueda = qrCode.trim().replace(/^(QR-|DSP-)/, ''); // Quitar prefijos
       
-      console.log('🔍 [control-acceso] Buscando viaje con código:', codigoBusqueda);
+      console.log('🔍 [control-acceso] Buscando con código:', codigoBusqueda);
+      console.log('🏢 [control-acceso] Empresa ID:', empresaId);
 
+      // Paso 1: Buscar el despacho por código
+      const { data: despacho, error: despachoError } = await supabase
+        .from('despachos')
+        .select('id, pedido_id, origen, destino, created_by, estado')
+        .ilike('pedido_id', `%${codigoBusqueda}%`)
+        .maybeSingle();
+
+      if (despachoError) {
+        console.error('❌ [control-acceso] Error buscando despacho:', despachoError);
+        setMessage('❌ Código QR no válido o viaje no encontrado');
+        setViaje(null);
+        setLoading(false);
+        return;
+      }
+
+      if (!despacho) {
+        console.error('❌ [control-acceso] Despacho no encontrado');
+        setMessage('❌ Despacho no encontrado');
+        setViaje(null);
+        setLoading(false);
+        return;
+      }
+
+      // Paso 2: Verificar que el despacho pertenece a la empresa del usuario
+      // Obtener la empresa del usuario que creó el despacho
+      const { data: usuarioDespacho, error: usuarioError } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', despacho.created_by)
+        .single();
+
+      if (usuarioError || !usuarioDespacho || usuarioDespacho.empresa_id !== empresaId) {
+        console.error('❌ [control-acceso] Despacho no pertenece a esta empresa');
+        setMessage('❌ Este despacho no pertenece a su empresa');
+        setViaje(null);
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ [control-acceso] Despacho encontrado:', despacho);
+
+      // Paso 2: Buscar los viajes del despacho
       const { data: viajeData, error: viajeError } = await supabase
         .from('viajes_despacho')
         .select(`
@@ -156,13 +190,6 @@ export default function ControlAcceso() {
           id_chofer,
           id_camion,
           estado,
-          despachos!inner (
-            id,
-            origen,
-            destino,
-            producto,
-            id_empresa
-          ),
           choferes (
             id,
             nombre,
@@ -179,45 +206,49 @@ export default function ControlAcceso() {
             estado_unidad
           )
         `)
-        .or(`numero_viaje.ilike.%${codigoBusqueda}%,id.eq.${codigoBusqueda}`)
-        .single();
+        .eq('despacho_id', despacho.id)
+        .limit(1)
+        .maybeSingle();
 
       if (viajeError || !viajeData) {
         console.error('❌ [control-acceso] Error buscando viaje:', viajeError);
-        setMessage('❌ Código QR no válido o viaje no encontrado');
+        setMessage('❌ No hay viajes asignados para este despacho');
         setViaje(null);
+        setLoading(false);
         return;
       }
 
       console.log('✅ [control-acceso] Viaje encontrado:', viajeData);
 
-      // Detectar tipo de operación basado en la empresa del despacho
-      const tipoOp: 'envio' | 'recepcion' = 
-        viajeData.despachos.id_empresa === empresaId ? 'envio' : 'recepcion';
+      // Extraer datos (pueden venir como arrays de Supabase)
+      const chofer = Array.isArray(viajeData.choferes) ? viajeData.choferes[0] : viajeData.choferes;
+      const camion = Array.isArray(viajeData.camiones) ? viajeData.camiones[0] : viajeData.camiones;
+      const estadoUnidadRecord = Array.isArray(viajeData.estado_unidad_viaje) ? viajeData.estado_unidad_viaje[0] : viajeData.estado_unidad_viaje;
 
-      const estadoUnidad = viajeData.estado_unidad_viaje?.estado_unidad || viajeData.estado || 'pendiente';
+      const tipoOp: 'envio' | 'recepcion' = 'envio'; // Por defecto envío (la empresa controla sus propios despachos)
+      const estadoUnidad = estadoUnidadRecord?.estado_unidad || viajeData.estado || 'pendiente';
 
       const viajeCompleto: ViajeQR = {
         id: viajeData.id,
-        numero_viaje: viajeData.numero_viaje.toString(),
-        qr_code: `QR-${viajeData.numero_viaje}`,
-        despacho_id: viajeData.despacho_id,
-        planta_origen_id: viajeData.despachos.id_empresa,
-        planta_destino_id: viajeData.despachos.id_empresa, // Simplificado
+        numero_viaje: viajeData.numero_viaje?.toString() || despacho.pedido_id,
+        qr_code: despacho.pedido_id,
+        despacho_id: despacho.id,
+        planta_origen_id: despacho.origen,
+        planta_destino_id: despacho.destino,
         estado_unidad: estadoUnidad as EstadoUnidadViajeType,
         estado_carga: viajeData.estado,
         tipo_operacion: tipoOp,
-        producto: viajeData.despachos.producto || `${viajeData.despachos.origen} → ${viajeData.despachos.destino}`,
-        chofer: viajeData.choferes ? {
-          nombre: `${viajeData.choferes.nombre} ${viajeData.choferes.apellido}`,
-          dni: viajeData.choferes.dni
+        producto: `${despacho.origen || ''} → ${despacho.destino || ''}`,
+        chofer: chofer ? {
+          nombre: `${chofer.nombre} ${chofer.apellido}`,
+          dni: chofer.dni
         } : {
           nombre: 'Sin asignar',
           dni: 'N/A'
         },
-        camion: viajeData.camiones ? {
-          patente: viajeData.camiones.patente,
-          marca: `${viajeData.camiones.marca} ${viajeData.camiones.modelo || ''}`.trim()
+        camion: camion ? {
+          patente: camion.patente,
+          marca: `${camion.marca} ${camion.modelo || ''}`.trim()
         } : {
           patente: 'Sin asignar',
           marca: 'N/A'
@@ -268,7 +299,7 @@ export default function ControlAcceso() {
 
       // Determinar el nuevo estado según el tipo de operación
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'ingreso_planta' : 'ingreso_destino';
+        viaje.tipo_operacion === 'envio' ? 'en_playa_espera' : 'arribado_destino';
       
       console.log('🔄 [control-acceso] Actualizando estado a:', nuevoEstado);
 
@@ -588,7 +619,7 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Asignar Playa de Espera - Solo en origen después del ingreso */}
-                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'ingreso_planta' && (
+                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'en_playa_espera' && (
                       <button
                         onClick={() => {
                           const playa = prompt('Número de playa de espera:');
@@ -649,7 +680,7 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Llamar a Descarga (solo recepción) */}
-                    {viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'ingreso_destino' && (
+                    {viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'arribado_destino' && (
                       <button
                         onClick={llamarADescarga}
                         disabled={loading}

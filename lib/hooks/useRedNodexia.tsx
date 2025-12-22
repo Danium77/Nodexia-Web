@@ -3,7 +3,7 @@
 // Gestión completa de la Red Nodexia
 // ============================================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
   ViajeRedNodexia,
@@ -13,9 +13,7 @@ import {
   CrearViajeRedDTO,
   CrearOfertaDTO,
   FiltrosViajesRed,
-  EstadisticasRedNodexia,
-  EstadoRedNodexia,
-  EstadoOferta
+  EstadisticasRedNodexia
 } from '@/types/red-nodexia';
 
 export function useRedNodexia() {
@@ -291,6 +289,30 @@ export function useRedNodexia() {
       }
 
       console.log('✅ Requisitos creados exitosamente');
+
+      // 3. 🔥 NUEVO: Actualizar el despacho con origen_asignacion = 'red_nodexia'
+      // Primero obtenemos el despacho_id desde viajes_despacho
+      const { data: viajeDespacho, error: viajeError2 } = await supabase
+        .from('viajes_despacho')
+        .select('despacho_id')
+        .eq('id', dto.viaje_id)
+        .single();
+
+      if (!viajeError2 && viajeDespacho?.despacho_id) {
+        console.log('📤 Actualizando despacho con origen_asignacion=red_nodexia:', viajeDespacho.despacho_id);
+        
+        const { error: despachoError } = await supabase
+          .from('despachos')
+          .update({ origen_asignacion: 'red_nodexia' })
+          .eq('id', viajeDespacho.despacho_id);
+
+        if (despachoError) {
+          console.error('⚠️ Error actualizando origen_asignacion del despacho:', despachoError);
+          // No lanzamos error, solo logging
+        } else {
+          console.log('✅ Despacho actualizado con origen_asignacion=red_nodexia');
+        }
+      }
 
       return viajeRed;
     } catch (err: any) {

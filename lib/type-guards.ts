@@ -1,5 +1,6 @@
 /**
  * Type Guards - Utilidades para verificación de tipos en runtime
+ * MIGRACIÓN 022: Roles unificados
  */
 
 import type { UserRole } from '@/types/missing-types';
@@ -9,12 +10,13 @@ import type { UserRole } from '@/types/missing-types';
  */
 export function isUserRole(value: unknown): value is UserRole {
   const validRoles: UserRole[] = [
-    'super_admin',
-    'admin',
+    'admin_nodexia',
     'coordinador',
-    'supervisor_carga',
+    'supervisor',
     'control_acceso',
-    'chofer'
+    'chofer',
+    'administrativo',
+    'visor'
   ];
   return typeof value === 'string' && validRoles.includes(value as UserRole);
 }

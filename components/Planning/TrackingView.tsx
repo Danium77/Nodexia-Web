@@ -190,14 +190,21 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       const acopadosMap = (acopadosData.data || []).reduce((acc: any, a: any) => ({ ...acc, [a.id]: a }), {});
 
       // Combinar datos
-      const viajesCompletos = viajes.map(v => ({
-        ...v,
-        transporte: v.id_transporte ? transportesMap[v.id_transporte] : undefined,
-        chofer: v.id_chofer ? choferesMap[v.id_chofer] : undefined,
-        camion: v.id_camion ? camionesMap[v.id_camion] : undefined,
-        acoplado: v.id_acoplado ? acopadosMap[v.id_acoplado] : undefined,
-        estado_carga_viaje: v.estado_carga_viaje || undefined // 🔥 Preservar estado dual de carga
-      }));
+      const viajesCompletos = viajes.map(v => {
+        // Extraer estado_carga_viaje del array si es necesario
+        const estadoCarga = Array.isArray(v.estado_carga_viaje) 
+          ? v.estado_carga_viaje[0] 
+          : v.estado_carga_viaje;
+          
+        return {
+          ...v,
+          transporte: v.id_transporte ? transportesMap[v.id_transporte] : undefined,
+          chofer: v.id_chofer ? choferesMap[v.id_chofer] : undefined,
+          camion: v.id_camion ? camionesMap[v.id_camion] : undefined,
+          acoplado: v.id_acoplado ? acopadosMap[v.id_acoplado] : undefined,
+          estado_carga_viaje: estadoCarga || undefined // 🔥 Preservar estado dual de carga
+        };
+      });
 
       console.log('✅ TrackingView - Viajes cargados:', viajesCompletos.length);
       console.log('📦 TrackingView - Viajes completos:', viajesCompletos);

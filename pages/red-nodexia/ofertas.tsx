@@ -23,7 +23,7 @@ import { NodexiaLogo } from '@/components/ui/NodexiaLogo';
 export default function OfertasRedNodexia() {
   const router = useRouter();
   const { user, userEmpresas } = useUserRole();
-  const { obtenerMisViajesPublicados, obtenerOfertasViaje, aceptarOferta, rechazarOferta, loading } = useRedNodexia();
+  const { obtenerMisViajesPublicados, obtenerOfertasViaje, aceptarOferta, rechazarOferta } = useRedNodexia();
 
   const [viajes, setViajes] = useState<ViajeRedCompleto[]>([]);
   const [selectedViaje, setSelectedViaje] = useState<ViajeRedCompleto | null>(null);
@@ -140,8 +140,8 @@ export default function OfertasRedNodexia() {
     
     const badge = badges[estado] || badges['abierto'];
     return (
-      <span className={`${badge.color} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
-        {badge.label}
+      <span className={`${badge?.color || 'bg-gray-500'} text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+        {badge?.label || estado}
       </span>
     );
   };

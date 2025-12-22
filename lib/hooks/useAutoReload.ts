@@ -8,17 +8,16 @@ export const useAutoReload = () => {
     const handleVisibilityChange = () => {
       setIsVisible(document.visibilityState === 'visible');
       
-      // Si la pestaña se vuelve visible y estamos en desarrollo
-      if (document.visibilityState === 'visible' && process.env.NODE_ENV === 'development') {
-        // Pequeño delay antes de verificar el estado de la conexión HMR
-        setTimeout(() => {
-          const hmrConnection = (window as any).__NEXT_HMR_CB;
-          if (!hmrConnection || !hmrConnection.connected) {
-            console.log('HMR desconectado, recargando página...');
-            window.location.reload();
-          }
-        }, 1000);
-      }
+      // DESHABILITADO: Auto-reload causaba problemas al cambiar entre apps
+      // if (document.visibilityState === 'visible' && process.env.NODE_ENV === 'development') {
+      //   setTimeout(() => {
+      //     const hmrConnection = (window as any).__NEXT_HMR_CB;
+      //     if (!hmrConnection || !hmrConnection.connected) {
+      //       console.log('HMR desconectado, recargando página...');
+      //       window.location.reload();
+      //     }
+      //   }, 1000);
+      // }
     };
 
     // Detectar errores de red/conexión

@@ -23,7 +23,7 @@ const PlanificacionPage = () => {
   const [viewType, setViewType] = useState<ViewType>('week');
   const [transportes, setTransportes] = useState<Array<{ id: string; nombre: string }>>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = semana actual, 1 = próxima, -1 = anterior
+  const [weekOffset] = useState(0); // 0 = semana actual, 1 = próxima, -1 = anterior
   
   // Estados de filtros
   const [filters, setFilters] = useState<FilterState>({

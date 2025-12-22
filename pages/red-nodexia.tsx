@@ -140,8 +140,8 @@ export default function RedNodexia() {
     
     const config = configs[estado] || configs.abierto;
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
-        {config.text}
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config?.color || 'border-gray-400'}`}>
+        {config?.text || estado}
       </span>
     );
   };

@@ -192,7 +192,7 @@ export default function CargasEnRed() {
       await crearOferta(
         {
           viaje_red_id: viaje.id,
-          mensaje: mensaje || undefined
+          ...(mensaje && { mensaje })
         },
         empresaTransporte.empresa_id,
         user!.id

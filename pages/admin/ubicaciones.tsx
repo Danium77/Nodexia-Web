@@ -35,8 +35,8 @@ export default function GestionUbicaciones() {
       return;
     }
     
-    // Solo hacer redirect si ya verificamos el rol Y definitivamente no es super_admin
-    if (primaryRole && primaryRole !== 'super_admin') {
+    // Solo hacer redirect si ya verificamos el rol Y definitivamente no es super_admin ni admin_nodexia
+    if (primaryRole && primaryRole !== 'super_admin' && primaryRole !== 'admin_nodexia') {
       console.warn('⚠️ [ubicaciones] Usuario sin permisos, redirigiendo a dashboard');
       router.push('/dashboard');
       return;
@@ -47,7 +47,7 @@ export default function GestionUbicaciones() {
 
   // useEffect para cargar ubicaciones
   useEffect(() => {
-    if (authChecked && primaryRole === 'super_admin') {
+    if (authChecked && (primaryRole === 'super_admin' || primaryRole === 'admin_nodexia')) {
       cargarUbicaciones();
     }
   }, [primaryRole, authChecked]);
@@ -120,7 +120,7 @@ export default function GestionUbicaciones() {
     return matchSearch && matchTipo;
   });
 
-  if (loading || primaryRole !== 'super_admin') {
+  if (loading || (primaryRole !== 'super_admin' && primaryRole !== 'admin_nodexia')) {
     return null;
   }
 
