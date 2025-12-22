@@ -20,12 +20,15 @@ interface ViajeQR {
   despacho_id: string;
   planta_origen_id: string;
   planta_destino_id: string;
+  origen_nombre?: string;
+  destino_nombre?: string;
   estado_unidad: EstadoUnidadViajeType;
   estado_carga: string;
   tipo_operacion: 'envio' | 'recepcion'; // Detectado automáticamente
   producto: string;
   chofer: any;
   camion: any;
+  fecha_programada?: string;
   documentacion_validada: boolean;
   docs_chofer: {
     licencia_valida: boolean;
@@ -180,7 +183,21 @@ export default function ControlAcceso() {
 
       console.log('✅ [control-acceso] Despacho encontrado:', despacho);
 
-      // Paso 2: Buscar los viajes del despacho
+      // Paso 2.5: Obtener nombres de ubicaciones
+      const { data: ubicaciones, error: ubicacionesError } = await supabase
+        .from('ubicaciones')
+        .select('id, nombre, tipo')
+        .in('id', [despacho.origen, despacho.destino]);
+
+      const origenUbicacion = ubicaciones?.find(u => u.id === despacho.origen);
+      const destinoUbicacion = ubicaciones?.find(u => u.id === despacho.destino);
+
+      console.log('📍 [control-acceso] Ubicaciones:', { 
+        origen: origenUbicacion?.nombre, 
+        destino: destinoUbicacion?.nombre 
+      });
+
+      // Paso 3: Buscar los viajes del despacho
       const { data: viajeData, error: viajeError } = await supabase
         .from('viajes_despacho')
         .select(`
@@ -190,17 +207,20 @@ export default function ControlAcceso() {
           id_chofer,
           id_camion,
           estado,
+          fecha_salida,
           choferes (
             id,
             nombre,
             apellido,
-            dni
+            dni,
+            telefono
           ),
           camiones (
             id,
             patente,
             marca,
-            modelo
+            modelo,
+            año
           ),
           estado_unidad_viaje (
             estado_unidad
@@ -235,23 +255,30 @@ export default function ControlAcceso() {
         despacho_id: despacho.id,
         planta_origen_id: despacho.origen,
         planta_destino_id: despacho.destino,
+        origen_nombre: origenUbicacion?.nombre || 'Origen desconocido',
+        destino_nombre: destinoUbicacion?.nombre || 'Destino desconocido',
         estado_unidad: estadoUnidad as EstadoUnidadViajeType,
         estado_carga: viajeData.estado,
         tipo_operacion: tipoOp,
-        producto: `${despacho.origen || ''} → ${despacho.destino || ''}`,
+        producto: `${origenUbicacion?.nombre || 'Origen'} → ${destinoUbicacion?.nombre || 'Destino'}`,
+        fecha_programada: viajeData.fecha_salida,
         chofer: chofer ? {
           nombre: `${chofer.nombre} ${chofer.apellido}`,
-          dni: chofer.dni
+          dni: chofer.dni,
+          telefono: chofer.telefono
         } : {
           nombre: 'Sin asignar',
-          dni: 'N/A'
+          dni: 'N/A',
+          telefono: 'N/A'
         },
         camion: camion ? {
           patente: camion.patente,
-          marca: `${camion.marca} ${camion.modelo || ''}`.trim()
+          marca: `${camion.marca} ${camion.modelo || ''}`.trim(),
+          año: camion.año
         } : {
           patente: 'Sin asignar',
-          marca: 'N/A'
+          marca: 'N/A',
+          año: null
         },
         documentacion_validada: true // Por ahora, asumir válida
       };
@@ -536,84 +563,212 @@ export default function ControlAcceso() {
 
           {/* Información del Viaje */}
           {viaje && (
-            <div className="bg-slate-800 rounded-xl shadow-sm border border-slate-700 mb-6">
-              <div className="p-6 border-b border-slate-700">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-600 rounded-lg">
-                    <TruckIcon className="h-5 w-5 text-green-100" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-slate-100">Información del Viaje</h2>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-                  <div className="space-y-4">
-                    <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Número de Viaje</span>
-                      <p className="text-xl font-bold text-slate-100 mt-1">{viaje.numero_viaje}</p>
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-lg border border-slate-700 mb-6">
+              {/* Header de la tarjeta */}
+              <div className="bg-gradient-to-r from-cyan-600 to-blue-600 p-6 rounded-t-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                      <TruckIcon className="h-8 w-8 text-white" />
                     </div>
-                    <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Estado</span>
-                      <div className="flex items-center space-x-2 mt-2">
-                        <span className={`inline-flex px-4 py-2 rounded-full text-sm font-semibold ${getColorEstadoUnidad(viaje.estado_unidad)} text-white`}>
-                          {getLabelEstadoUnidad(viaje.estado_unidad)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Operación</span>
-                      <p className="text-slate-100 font-medium capitalize mt-1">
-                        {viaje.tipo_operacion === 'envio' ? '📤 Envío' : '📥 Recepción'}
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">
+                        {viaje.qr_code}
+                      </h2>
+                      <p className="text-cyan-100 font-medium mt-1">
+                        Viaje #{viaje.numero_viaje}
                       </p>
                     </div>
-                    <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Producto</span>
-                      <p className="text-slate-100 font-medium mt-1">{viaje.producto}</p>
-                    </div>
                   </div>
-                  
-                  <div className="space-y-4">
-                    <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Chofer</span>
-                      <p className="text-slate-100 font-medium mt-1">{viaje.chofer.nombre}</p>
-                      <p className="text-sm text-slate-300 mt-1">DNI: {viaje.chofer.dni}</p>
+                  <div className="text-right">
+                    <span className={`inline-flex px-6 py-3 rounded-xl text-sm font-bold shadow-lg ${getColorEstadoUnidad(viaje.estado_unidad)} text-white`}>
+                      {getLabelEstadoUnidad(viaje.estado_unidad)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {/* Ruta */}
+                <div className="mb-6 bg-slate-700/50 rounded-xl p-5 border border-slate-600">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Origen</p>
+                      <p className="text-xl font-bold text-white">{viaje.origen_nombre}</p>
                     </div>
-                    <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Camión</span>
-                      <p className="text-slate-100 font-medium mt-1">{viaje.camion.patente}</p>
-                      <p className="text-sm text-slate-300 mt-1">{viaje.camion.marca}</p>
-                    </div>
-                    <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documentación</span>
-                      <div className="flex items-center space-x-3 mt-2">
-                        <span className={`inline-flex px-4 py-2 rounded-full text-sm font-semibold ${
-                          viaje.documentacion_validada ? 'bg-green-600 text-green-100' : 'bg-red-600 text-red-100'
-                        }`}>
-                          {viaje.documentacion_validada ? '✅ Válida' : '❌ Faltante'}
-                        </span>
-                        <button
-                          onClick={() => setShowDocumentacion(true)}
-                          className="text-cyan-400 hover:text-cyan-300 text-sm font-semibold underline transition-colors"
-                        >
-                          Ver Detalle
-                        </button>
+                    <div className="px-6">
+                      <div className="p-3 bg-cyan-600 rounded-full">
+                        <ArrowRightIcon className="h-6 w-6 text-white" />
                       </div>
+                    </div>
+                    <div className="flex-1 text-right">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Destino</p>
+                      <p className="text-xl font-bold text-white">{viaje.destino_nombre}</p>
                     </div>
                   </div>
                 </div>
 
+                {/* Grid de información */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {/* Camión */}
+                  <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-cyan-500 transition-colors">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="p-2 bg-cyan-600 rounded-lg">
+                        <TruckIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Camión</span>
+                    </div>
+                    <p className="text-xl font-bold text-white mb-1">{viaje.camion.patente}</p>
+                    <p className="text-sm text-slate-300">{viaje.camion.marca}</p>
+                    {viaje.camion.año && (
+                      <p className="text-xs text-slate-400 mt-1">Año {viaje.camion.año}</p>
+                    )}
+                  </div>
+
+                  {/* Chofer */}
+                  <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-cyan-500 transition-colors">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="p-2 bg-green-600 rounded-lg">
+                        <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Chofer</span>
+                    </div>
+                    <p className="text-lg font-bold text-white mb-1">{viaje.chofer.nombre}</p>
+                    <p className="text-sm text-slate-300">DNI: {viaje.chofer.dni}</p>
+                    {viaje.chofer.telefono && (
+                      <p className="text-xs text-slate-400 mt-1">Tel: {viaje.chofer.telefono}</p>
+                    )}
+                  </div>
+
+                  {/* Info adicional */}
+                  <div className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="p-2 bg-purple-600 rounded-lg">
+                        <ClockIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Información</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-slate-400">Operación</p>
+                        <p className="text-sm font-semibold text-white capitalize">
+                          {viaje.tipo_operacion === 'envio' ? '📤 Envío' : '📥 Recepción'}
+                        </p>
+                      </div>
+                      {viaje.fecha_programada && (
+                        <div>
+                          <p className="text-xs text-slate-400">Fecha Programada</p>
+                          <p className="text-sm font-semibold text-white">
+                            {new Date(viaje.fecha_programada).toLocaleDateString('es-AR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Documentación */}
+                <div className="mb-6 bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <DocumentTextIcon className="h-5 w-5 text-slate-300" />
+                      <span className="text-sm font-semibold text-slate-300">Documentación</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className={`inline-flex px-4 py-2 rounded-lg text-sm font-semibold ${
+                        viaje.documentacion_validada 
+                          ? 'bg-green-600 text-green-100' 
+                          : 'bg-red-600 text-red-100'
+                      }`}>
+                        {viaje.documentacion_validada ? '✅ Válida' : '❌ Faltante'}
+                      </span>
+                      <button
+                        onClick={() => setShowDocumentacion(true)}
+                        className="text-cyan-400 hover:text-cyan-300 text-sm font-semibold underline transition-colors"
+                      >
+                        Ver Detalle
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información contextual según estado */}
+                {viaje.estado_unidad === 'arribo_origen' && viaje.tipo_operacion === 'envio' && (
+                  <div className="mb-6 bg-blue-900/30 border border-blue-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-600 rounded-lg">
+                        <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-blue-100 font-semibold">El camión ha arribado a planta</p>
+                        <p className="text-blue-300 text-sm mt-1">Confirme el ingreso para permitir el acceso a la playa de espera</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viaje.estado_unidad === 'en_playa_espera' && viaje.tipo_operacion === 'envio' && (
+                  <div className="mb-6 bg-yellow-900/30 border border-yellow-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-yellow-600 rounded-lg">
+                        <TruckIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-yellow-100 font-semibold">Camión en playa de espera</p>
+                        <p className="text-yellow-300 text-sm mt-1">Asigne una playa específica o espere llamado a carga del coordinador</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viaje.estado_unidad === 'cargado' && viaje.tipo_operacion === 'envio' && !viaje.documentacion_validada && (
+                  <div className="mb-6 bg-purple-900/30 border border-purple-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-purple-600 rounded-lg">
+                        <DocumentTextIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-purple-100 font-semibold">Carga completada - Validar documentación</p>
+                        <p className="text-purple-300 text-sm mt-1">Verifique que toda la documentación esté completa antes de autorizar la salida</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viaje.estado_unidad === 'arribado_destino' && viaje.tipo_operacion === 'recepcion' && (
+                  <div className="mb-6 bg-teal-900/30 border border-teal-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-teal-600 rounded-lg">
+                        <CheckCircleIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-teal-100 font-semibold">Camión arribó a destino</p>
+                        <p className="text-teal-300 text-sm mt-1">Confirme el ingreso o llame a descarga según el protocolo</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Acciones */}
                 <div className="border-t border-slate-700 pt-6">
-                  <div className="flex flex-wrap gap-4">
-                    {/* Confirmar Ingreso - Solo si el camión llegó (arribo_origen o arribo_destino) */}
+                  <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Acciones Disponibles</p>
+                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó (arribo_origen o arribo_destino) */}
                     {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'arribo_origen') ||
                       (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'arribo_destino')) && (
                       <button
                         onClick={confirmarIngreso}
                         disabled={loading}
-                        className="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
+                        className="flex-1 bg-green-600 text-white px-6 py-4 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
                       >
-                        <CheckCircleIcon className="h-5 w-5" />
+                        <CheckCircleIcon className="h-6 w-6" />
                         <span>{viaje.tipo_operacion === 'envio' ? 'Confirmar Ingreso a Planta' : 'Confirmar Ingreso a Destino'}</span>
                       </button>
                     )}
@@ -639,9 +794,9 @@ export default function ControlAcceso() {
                           }
                         }}
                         disabled={loading}
-                        className="flex-1 bg-cyan-600 text-white px-6 py-3 rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
+                        className="flex-1 bg-cyan-600 text-white px-6 py-4 rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
                       >
-                        <TruckIcon className="h-5 w-5" />
+                        <TruckIcon className="h-6 w-6" />
                         <span>Asignar Playa de Espera</span>
                       </button>
                     )}
@@ -659,9 +814,9 @@ export default function ControlAcceso() {
                           }
                         }}
                         disabled={loading || viaje.documentacion_validada}
-                        className="bg-purple-600 text-white px-6 py-3 rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all shadow-sm font-medium"
+                        className="bg-purple-600 text-white px-6 py-4 rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
                       >
-                        <DocumentTextIcon className="h-5 w-5" />
+                        <DocumentTextIcon className="h-6 w-6" />
                         <span>{viaje.documentacion_validada ? 'Documentación Validada ✓' : 'Validar Documentación'}</span>
                       </button>
                     )}
@@ -672,9 +827,9 @@ export default function ControlAcceso() {
                       <button
                         onClick={confirmarEgreso}
                         disabled={loading}
-                        className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
+                        className="flex-1 bg-blue-600 text-white px-6 py-4 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
                       >
-                        <CheckCircleIcon className="h-5 w-5" />
+                        <CheckCircleIcon className="h-6 w-6" />
                         <span>{viaje.tipo_operacion === 'envio' ? 'Confirmar Egreso de Planta' : 'Confirmar Egreso de Destino'}</span>
                       </button>
                     )}
@@ -684,7 +839,7 @@ export default function ControlAcceso() {
                       <button
                         onClick={llamarADescarga}
                         disabled={loading}
-                        className="flex-1 bg-cyan-600 text-white px-6 py-3 rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-sm font-medium"
+                        className="flex-1 bg-cyan-600 text-white px-6 py-4 rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
                       >
                         <span>📢</span>
                         <span>Llamar a Descarga</span>
@@ -694,18 +849,18 @@ export default function ControlAcceso() {
                     {/* Crear Incidencia */}
                     <button
                       onClick={crearIncidencia}
-                      className="bg-amber-600 text-white px-6 py-3 rounded-xl hover:bg-amber-700 flex items-center space-x-2 transition-all shadow-sm font-medium"
+                      className="bg-amber-600 text-white px-6 py-4 rounded-xl hover:bg-amber-700 flex items-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
                     >
-                      <ExclamationTriangleIcon className="h-5 w-5" />
+                      <ExclamationTriangleIcon className="h-6 w-6" />
                       <span>Crear Incidencia</span>
                     </button>
 
                     {/* Resetear */}
                     <button
                       onClick={resetForm}
-                      className="bg-slate-600 text-white px-6 py-3 rounded-xl hover:bg-slate-700 transition-all shadow-sm font-medium"
+                      className="bg-slate-600 text-white px-6 py-4 rounded-xl hover:bg-slate-700 transition-all shadow-lg hover:shadow-xl font-semibold"
                     >
-                      Resetear
+                      Limpiar
                     </button>
                   </div>
                 </div>
