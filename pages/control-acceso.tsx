@@ -197,56 +197,56 @@ export default function ControlAcceso() {
         destino: destinoUbicacion?.nombre 
       });
 
-      // Paso 3: Buscar los viajes del despacho
-      const { data: viajeData, error: viajeError } = await supabase
-        .from('viajes_despacho')
-        .select(`
-          id,
-          numero_viaje,
-          despacho_id,
-          id_chofer,
-          id_camion,
-          estado,
-          fecha_salida,
-          choferes (
-            id,
-            nombre,
-            apellido,
-            dni,
-            telefono
-          ),
-          camiones (
-            id,
-            patente,
-            marca,
-            modelo,
-            año
-          ),
-          estado_unidad_viaje (
-            estado_unidad
-          )
-        `)
-        .eq('despacho_id', despacho.id)
-        .limit(1)
-        .maybeSingle();
+      // Paso 3: Buscar viaje con chofer y camión usando función SQL
+      console.log('🔍 [control-acceso] Buscando viaje para despacho ID:', despacho.id);
+      console.log('🏢 [control-acceso] Empresa ID para validación:', empresaId);
+      
+      const { data: viajeConDetalles, error: viajeError } = await supabase
+        .rpc('get_viaje_con_detalles', {
+          p_despacho_id: despacho.id,
+          p_empresa_id: empresaId
+        });
 
-      if (viajeError || !viajeData) {
-        console.error('❌ [control-acceso] Error buscando viaje:', viajeError);
-        setMessage('❌ No hay viajes asignados para este despacho');
+      console.log('📦 [control-acceso] Resultado búsqueda viaje:', { viajeConDetalles, viajeError });
+
+      if (viajeError) {
+        console.error('❌ [control-acceso] Error en RPC:', viajeError);
+        setMessage(`❌ Error al buscar viaje: ${viajeError.message}`);
         setViaje(null);
         setLoading(false);
         return;
       }
 
-      console.log('✅ [control-acceso] Viaje encontrado:', viajeData);
+      if (!viajeConDetalles || viajeConDetalles.length === 0) {
+        console.error('❌ [control-acceso] No se encontró viaje para despacho:', despacho.id);
+        setMessage(`❌ No hay viajes asignados para el despacho ${despacho.pedido_id} en su empresa`);
+        setViaje(null);
+        setLoading(false);
+        return;
+      }
 
-      // Extraer datos (pueden venir como arrays de Supabase)
-      const chofer = Array.isArray(viajeData.choferes) ? viajeData.choferes[0] : viajeData.choferes;
-      const camion = Array.isArray(viajeData.camiones) ? viajeData.camiones[0] : viajeData.camiones;
-      const estadoUnidadRecord = Array.isArray(viajeData.estado_unidad_viaje) ? viajeData.estado_unidad_viaje[0] : viajeData.estado_unidad_viaje;
+      const viajeData = viajeConDetalles[0];
+      console.log('✅ [control-acceso] Viaje encontrado con detalles:', viajeData);
 
-      const tipoOp: 'envio' | 'recepcion' = 'envio'; // Por defecto envío (la empresa controla sus propios despachos)
-      const estadoUnidad = estadoUnidadRecord?.estado_unidad || viajeData.estado || 'pendiente';
+      // Los datos ya vienen con los JOINs resueltos
+      const chofer = viajeData.chofer_nombre ? {
+        nombre: `${viajeData.chofer_nombre} ${viajeData.chofer_apellido || ''}`.trim(),
+        apellido: viajeData.chofer_apellido,
+        dni: viajeData.chofer_dni,
+        telefono: viajeData.chofer_telefono
+      } : null;
+
+      const camion = viajeData.camion_patente ? {
+        patente: viajeData.camion_patente,
+        marca: viajeData.camion_marca,
+        modelo: viajeData.camion_modelo
+      } : null;
+
+      console.log('👤 [control-acceso] Chofer procesado:', chofer);
+      console.log('🚛 [control-acceso] Camión procesado:', camion);
+
+      const tipoOp: 'envio' | 'recepcion' = 'envio';
+      const estadoUnidad = viajeData.estado_unidad || viajeData.estado || 'pendiente';
 
       const viajeCompleto: ViajeQR = {
         id: viajeData.id,
@@ -261,7 +261,6 @@ export default function ControlAcceso() {
         estado_carga: viajeData.estado,
         tipo_operacion: tipoOp,
         producto: `${origenUbicacion?.nombre || 'Origen'} → ${destinoUbicacion?.nombre || 'Destino'}`,
-        fecha_programada: viajeData.fecha_salida,
         chofer: chofer ? {
           nombre: `${chofer.nombre} ${chofer.apellido}`,
           dni: chofer.dni,
@@ -274,13 +273,20 @@ export default function ControlAcceso() {
         camion: camion ? {
           patente: camion.patente,
           marca: `${camion.marca} ${camion.modelo || ''}`.trim(),
-          año: camion.año
+          año: null
         } : {
           patente: 'Sin asignar',
           marca: 'N/A',
           año: null
         },
-        documentacion_validada: true // Por ahora, asumir válida
+        documentacion_validada: true, // Por ahora, asumir válida
+        docs_chofer: {
+          licencia_valida: true
+        },
+        docs_camion: {
+          vtv_valida: true,
+          seguro_valido: true
+        }
       };
 
       setViaje(viajeCompleto);
