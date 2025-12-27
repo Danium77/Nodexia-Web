@@ -1,7 +1,7 @@
 # Problemas Conocidos y Soluciones
 
-> **Total de problemas:** 78  
-> **Última revisión:** 29 de Octubre de 2025  
+> **Total de problemas:** 79  
+> **Última revisión:** 27 de Diciembre de 2025  
 > **Prioridad:** 🔴 Alta | 🟡 Media | 🟢 Baja
 
 ---
@@ -19,6 +19,56 @@
 ---
 
 ## 🔴 Problemas Críticos (Bloqueantes)
+
+### 0. **UUIDs Corruptos en viajes_despacho** - Base de Datos 🆕
+```sql
+-- ❌ PROBLEMA
+SELECT 
+  length(id_chofer::text) as len_chofer,
+  length(id_camion::text) as len_camion
+FROM viajes_despacho;
+-- Resultado: id_chofer = 37 chars (debería ser 36)
+--            id_camion = 36 chars (correcto)
+
+-- ❌ IMPACTO
+-- Las queries con .eq('id', uuid) fallan
+-- Las relaciones automáticas no funcionan
+-- Control de Acceso no muestra datos de chofer
+
+-- ✅ WORKAROUND ACTUAL (Temporal)
+CREATE OR REPLACE FUNCTION get_viaje_con_detalles(
+  p_despacho_id uuid,
+  p_empresa_id uuid
+)
+-- Usa LEFT JOIN con LIKE para match de UUIDs:
+-- LEFT JOIN choferes c ON c.id::text LIKE v.id_chofer::text || '%'
+-- LEFT JOIN camiones cam ON cam.id::text LIKE v.id_camion::text || '%'
+
+-- ✅ SOLUCIÓN DEFINITIVA (Recomendada)
+-- 1. Backup de viajes_despacho
+-- 2. UPDATE para limpiar UUIDs (quitar carácter extra)
+-- 3. Cambiar tipo de columna a UUID nativo
+-- 4. Agregar constraint de validación
+-- 5. Actualizar código para usar relaciones nativas
+```
+
+**Impacto:** Control de Acceso no mostraba datos de chofer y camión hasta implementar workaround.
+
+**Estado:** 
+- ✅ Workaround implementado (función SQL con LIKE)
+- ⏳ Testing pendiente
+- ❌ Migración definitiva pendiente
+
+**Archivos afectados:**
+- `pages/control-acceso.tsx`
+- Función SQL: `get_viaje_con_detalles` en Supabase
+- Debugging: `sql/debug-control-acceso.sql`
+
+**Documentación:**
+- [Sesión 26-Dic](.session/history/sesion-2025-12-26.md)
+- Script de debug: `sql/debug-control-acceso.sql`
+
+---
 
 ### 1. **TrackingView no existe** - `planificacion.tsx`
 ```typescript

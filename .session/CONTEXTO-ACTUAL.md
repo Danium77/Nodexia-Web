@@ -1,7 +1,7 @@
 # 📖 CONTEXTO ACTUAL DEL PROYECTO
 
-**Última actualización:** 17 de Diciembre, 2025  
-**Versión:** MVP 0.9 (80% completado)  
+**Última actualización:** 27 de Diciembre, 2025  
+**Versión:** MVP 0.9 (85% completado)  
 **Sistema implementado:** Sesiones estructuradas para Copilot
 
 ---
@@ -110,7 +110,11 @@ Nodexia-Web/
 - ✅ Estados duales (origen/destino) para cross-border
 - ✅ Cambio de estados con validaciones
 - ✅ Historial de cambios
-- ✅ Control de acceso (ingreso/egreso con QR)
+- 🟡 Control de acceso (ingreso/egreso con QR) - 95% completo
+  - ⚠️ **Issue crítico:** UUIDs corruptos (37 chars) en `viajes_despacho.id_chofer` y `id_camion`
+  - ✅ **Workaround implementado:** Función SQL `get_viaje_con_detalles` con LIKE joins
+  - ⏳ **Pendiente:** Testing end-to-end y migración para solución definitiva
+  - 📄 Ver: [sesion-2025-12-26.md](.session/history/sesion-2025-12-26.md)
 
 #### GPS Tracking
 - ✅ Tracking en tiempo real (choferes)
