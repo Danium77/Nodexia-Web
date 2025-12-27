@@ -1,19 +1,48 @@
 # PRÓXIMA SESIÓN - Pendientes y Tareas
 
-**Última actualización**: 20 de Diciembre 2025
+**Última actualización**: 26 de Diciembre 2025  
+**Última sesión**: Resolución de UUIDs en Control de Acceso (Ver [sesion-2025-12-26.md](.session/history/sesion-2025-12-26.md))
 
 ---
 
 ## 🔥 PRIORIDAD ALTA
 
-### 1. ✅ Testing Control de Acceso y Supervisor de Carga
-**Estado**: PENDIENTE (original de inicio de sesión)
-**Motivo**: Se priorizó corrección de bugs críticos (DNI, roles)
+### 1. 🆕 Testing de Control de Acceso con Datos Completos ⭐ URGENTE
+**Estado**: BLOQUEADO - Solución implementada, pendiente validación
+**Sesión anterior**: Implementada función SQL `get_viaje_con_detalles` para resolver problema de UUIDs
+**Issue crítico identificado**: UUIDs corruptos (37 chars) en `viajes_despacho.id_chofer` y `id_camion`
 **Tareas**:
-- [ ] Probar flujo completo Control de Acceso
-  - Registro de ingreso de camión
-  - Cambio de estados
-  - Permisos correctos
+- [ ] **Testing end-to-end** - Validar que la solución funciona
+  - Escanear código: DSP-20251226-001
+  - Verificar que aparezca: "Walter Zayas - DNI: 30123456"
+  - Verificar que aparezca: "ABC123 - Mercedes Axor"
+  - Verificar ruta: "Rosario → Santa Rosa"
+- [ ] Si funciona: ✅ Feature Control de Acceso completa
+- [ ] Si falla: Debug con logs de consola y `sql/debug-control-acceso.sql`
+
+**Archivos relevantes**:
+- `pages/control-acceso.tsx` - Código actualizado con RPC
+- Función SQL: `get_viaje_con_detalles(p_despacho_id, p_empresa_id)` en Supabase
+- Debugging: `sql/debug-control-acceso.sql`
+
+**Próxima acción recomendada**: Migración de UUIDs para solución definitiva
+
+### 2. 🆕 Migración de UUIDs en viajes_despacho
+**Estado**: RECOMENDADO - Solucionar problema de raíz
+**Dificultad**: ⭐⭐⭐ Alta (requiere backup y testing exhaustivo)
+**Duración estimada**: 1-2 horas
+**Tareas**:
+- [ ] Crear script `sql/migrations/fix-uuids-viajes-despacho.sql`
+- [ ] Backup completo de tabla `viajes_despacho`
+- [ ] Limpiar UUIDs (quitar carácter extra en `id_chofer` e `id_camion`)
+- [ ] Cambiar tipo de columna de TEXT a UUID nativo
+- [ ] Agregar constraints de validación
+- [ ] Actualizar código para usar relaciones nativas (eliminar LIKE)
+- [ ] Testing completo de todos los flujos que usan viajes
+
+### 3. Testing Supervisor de Carga
+**Estado**: PENDIENTE
+**Tareas**:
 - [ ] Probar flujo completo Supervisor de Carga
   - Validación de carga
   - Aprobación de descarga
