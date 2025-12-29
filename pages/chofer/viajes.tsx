@@ -145,7 +145,13 @@ const ChoferViajesPage = () => {
           peso_estimado: undefined,
           observaciones_unidad: undefined,
           empresa_data: {
-            nombre: Array.isArray(despacho?.empresas) ? despacho?.empresas[0]?.nombre : despacho?.empresas?.nombre || 'Sin empresa'
+            nombre: (() => {
+              if (!despacho?.empresas) return 'Sin empresa';
+              if (Array.isArray(despacho.empresas)) {
+                return (despacho.empresas[0] as any)?.nombre || 'Sin empresa';
+              }
+              return (despacho.empresas as any)?.nombre || 'Sin empresa';
+            })()
           }
         };
       });

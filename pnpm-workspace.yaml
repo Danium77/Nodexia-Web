@@ -1,0 +1,10 @@
+# pnpm workspace configuration
+# Preparado para futura modularización
+
+packages:
+  # Proyecto principal (por ahora todo está aquí)
+  - '.'
+  
+  # Futuros paquetes modulares (comentados por ahora)
+  # - 'packages/*'
+  # - 'packages/modules/*'

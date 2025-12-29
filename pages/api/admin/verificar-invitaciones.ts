@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Filtrar usuarios con invitaciones pendientes
-    const pendingUsers = users.users.filter(user => 
+    const pendingUsers = users.users.filter((user: any) => 
       !user.email_confirmed_at && 
       user.invited_at &&
       !user.confirmed_at
@@ -26,9 +26,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Estadísticas de invitaciones
     const stats = {
       total_usuarios: users.users.length,
-      usuarios_confirmados: users.users.filter(u => u.email_confirmed_at).length,
+      usuarios_confirmados: users.users.filter((u: any) => u.email_confirmed_at).length,
       invitaciones_pendientes: pendingUsers.length,
-      usuarios_activos: users.users.filter(u => u.last_sign_in_at).length
+      usuarios_activos: users.users.filter((u: any) => u.last_sign_in_at).length
     };
 
     // Detalles de invitaciones pendientes

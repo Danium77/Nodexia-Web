@@ -1,0 +1,91 @@
+{
+  "folders": [
+    {
+      "name": "📦 Main App",
+      "path": "."
+    },
+    {
+      "name": "🔧 Admin Module",
+      "path": "components/Admin"
+    },
+    {
+      "name": "👑 SuperAdmin Module",
+      "path": "components/SuperAdmin"
+    },
+    {
+      "name": "🚚 Transporte Module",
+      "path": "components/Transporte"
+    },
+    {
+      "name": "📅 Planning Module",
+      "path": "components/Planning"
+    },
+    {
+      "name": "📚 Documentation",
+      "path": "docs"
+    }
+  ],
+        "typescript.tsdk": "../node_modules/typescript/lib"
+      }
+    },
+    {
+      "name": "📚 Docs",
+      "path": "docs"
+    }
+  ],
+  "settings": {
+    // Settings globales para todo el workspace
+    "typescript.tsserver.maxTsServerMemory": 8192,
+    "typescript.disableAutomaticTypeAcquisition": true,
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+    
+    // Editor optimizado
+    "editor.formatOnSave": false,
+    "editor.minimap.enabled": false,
+    "breadcrumbs.enabled": false,
+    "editor.codeLens": false,
+    "editor.inlayHints.enabled": "off",
+    
+    // Exclusiones globales
+    "files.watcherExclude": {
+      "**/.git/objects/**": true,
+      "**/node_modules/**": true,
+      "**/.next/**": true,
+      "**/dist/**": true,
+      "**/build/**": true,
+      "**/docs/**": true,
+      "**/scripts/**": true,
+      "**/*.log": true
+    },
+    
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/pnpm-lock.yaml": true
+    },
+    
+    // Límites de editores
+    "workbench.editor.limit.enabled": true,
+    "workbench.editor.limit.value": 5,
+    "workbench.editor.limit.perEditorGroup": true,
+    
+    // Git
+    "git.autofetch": false,
+    "git.autorefresh": false,
+    "git.decorations.enabled": false,
+    
+    // Performance
+    "editor.semanticHighlighting.enabled": false,
+    "editor.occurrencesHighlight": "off",
+    "editor.selectionHighlight": false
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "bradlc.vscode-tailwindcss"
+    ]
+  }
+}

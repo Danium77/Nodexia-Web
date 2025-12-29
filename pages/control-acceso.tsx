@@ -830,15 +830,25 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Validar Documentación - Solo en origen después de carga completada */}
-                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'cargado' && (
+                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'carga_completada' && (
                       <button
                         onClick={async () => {
-                          const result = await validarDocsCarga(viaje.id);
-                          if (result.success) {
+                          setLoading(true);
+                          try {
+                            // Marcar documentación como validada en el viaje
+                            const { error } = await supabase
+                              .from('viajes_despacho')
+                              .update({ documentacion_completa: true })
+                              .eq('id', viaje.id);
+
+                            if (error) throw error;
+                            
                             setMessage(`✅ Documentación validada`);
                             setViaje({...viaje, documentacion_validada: true});
-                          } else {
-                            setMessage(`❌ ${result.error}`);
+                          } catch (error: any) {
+                            setMessage(`❌ ${error.message}`);
+                          } finally {
+                            setLoading(false);
                           }
                         }}
                         disabled={loading || viaje.documentacion_validada}
@@ -850,8 +860,8 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Confirmar Egreso - Solo si documentación está validada o es en destino */}
-                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'cargado' && viaje.documentacion_validada) ||
-                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'vacio')) && (
+                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'carga_completada' && viaje.documentacion_validada) ||
+                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'descarga_completada')) && (
                       <button
                         onClick={confirmarEgreso}
                         disabled={loading}

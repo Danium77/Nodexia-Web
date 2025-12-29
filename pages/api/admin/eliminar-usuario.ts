@@ -52,7 +52,7 @@ export default async function handler(
         throw new Error(`Error al buscar usuario: ${getUserError.message}`);
       }
 
-      const user = users.users.find(u => u.email === email);
+      const user = users.users.find((u: any) => u.email === email);
       if (!user) {
         return res.status(404).json({
           success: false,

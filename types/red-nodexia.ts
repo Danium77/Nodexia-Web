@@ -244,11 +244,22 @@ export interface ViajeRedCompleto extends ViajeRedNodexia {
   viaje?: {
     id: string;
     numero_viaje: string;
+    estado?: string;
+    id_camion?: string;
+    id_chofer?: string;
+    camiones?: {
+      patente: string;
+    };
+    choferes?: {
+      nombre: string;
+      apellido: string;
+    };
     despacho?: {
       origen: string;
       destino: string;
       scheduled_local_date: string;
       scheduled_local_time: string;
+      numero_despacho?: string;
     };
   };
   

@@ -3,8 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import MainLayout from '../components/layout/MainLayout';
-import { QrCodeIcon, TruckIcon, DocumentTextIcon, ScaleIcon, PhoneIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { registrarLlamadoCarga, iniciarCarga as apiIniciarCarga, completarCarga, iniciarDescarga, completarDescarga, confirmarEntrega } from '../lib/api/estado-carga';
+import { QrCodeIcon, TruckIcon, DocumentTextIcon, ScaleIcon, PhoneIcon, PlayIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { registrarLlamadoCarga, iniciarCarga as apiIniciarCarga, completarCarga, iniciarDescarga, completarDescarga, confirmarEntrega, registrarDescargando } from '../lib/api/estado-carga';
 import { getColorEstadoCarga, getLabelEstadoCarga } from '../lib/helpers/estados-helpers';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
 import { supabase } from '../lib/supabaseClient';
@@ -35,10 +35,14 @@ export default function SupervisorCarga() {
   const [qrCode, setQrCode] = useState('');
   const [viaje, setViaje] = useState<ViajeQR | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingViajes, setLoadingViajes] = useState(false);
   const [message, setMessage] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [activeTab, setActiveTab] = useState('scanner');
   const [viajes, setViajes] = useState<ViajeQR[]>([]);
+  const [pesoReal, setPesoReal] = useState('');
+  const [bultos, setBultos] = useState('');
+  const [temperatura, setTemperatura] = useState('');
 
   // Cargar viajes en cola y activos al montar y cada 30 segundos
   useEffect(() => {
@@ -389,9 +393,7 @@ export default function SupervisorCarga() {
     if (!viaje) return;
     setLoading(true);
     try {
-      await completarDescarga(viaje.id, {
-        observaciones: observaciones || undefined
-      });
+      await completarDescarga(viaje.id);
       setMessage(`âœ… Descarga completada para ${viaje.numero_viaje}`);
       setViaje({ ...viaje, estado_carga: 'descargado' });
 

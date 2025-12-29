@@ -18,7 +18,7 @@ export default async function handler(req: any, res: any) {
       throw error;
     }
 
-    const walter = users.users?.find(user => 
+    const walter = users.users?.find((user: any) => 
       user.email?.toLowerCase() === 'waltedanielzaas@gmail.com'
     );
 

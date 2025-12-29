@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "../../.tsbuildinfo/transporte",
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/*": ["../../lib/*"],
+      "@/types/*": ["../../types/*"],
+      "@/components/ui/*": ["../ui/*"],
+      "@/components/layout/*": ["../layout/*"],
+      "@/components/Maps/*": ["../Maps/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "**/*.test.tsx"
+  ]
+}

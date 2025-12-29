@@ -44,13 +44,13 @@ interface Viaje {
   } | undefined;
   estado_carga_viaje?: {
     estado_carga: EstadoCargaViaje;
-    fecha_planificado: string | null;
+    fecha_planificacion: string | null;
     fecha_documentacion_preparada: string | null;
-    fecha_en_proceso_carga: string | null;
-    fecha_cargado: string | null;
-    fecha_en_proceso_descarga: string | null;
+    fecha_cargando: string | null;
+    fecha_carga_completada: string | null;
+    fecha_descargando: string | null;
     fecha_descargado: string | null;
-    peso_real: number | null;
+    peso_real_kg: number | null;
     cantidad_bultos: number | null;
   };
 }
@@ -190,7 +190,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       const acopadosMap = (acopadosData.data || []).reduce((acc: any, a: any) => ({ ...acc, [a.id]: a }), {});
 
       // Combinar datos
-      const viajesCompletos = viajes.map(v => {
+      const viajesCompletos: Viaje[] = viajes.map(v => {
         // Extraer estado_carga_viaje del array si es necesario
         const estadoCarga = Array.isArray(v.estado_carga_viaje) 
           ? v.estado_carga_viaje[0] 
@@ -322,7 +322,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                                 <EstadoDualBadge
                                   tipo="carga"
                                   estado={viaje.estado_carga_viaje.estado_carga}
-                                  timestamp={viaje.estado_carga_viaje.fecha_cargado || viaje.estado_carga_viaje.fecha_en_proceso_carga}
+                                  timestamp={viaje.estado_carga_viaje.fecha_carga_completada || viaje.estado_carga_viaje.fecha_cargando}
                                   size="sm"
                                 />
                               ) : (
@@ -423,12 +423,12 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                       <EstadoDualBadge
                         tipo="carga"
                         estado={selectedViaje.viaje.estado_carga_viaje.estado_carga}
-                        timestamp={selectedViaje.viaje.estado_carga_viaje.fecha_cargado || selectedViaje.viaje.estado_carga_viaje.fecha_en_proceso_carga}
+                        timestamp={selectedViaje.viaje.estado_carga_viaje.fecha_carga_completada || selectedViaje.viaje.estado_carga_viaje.fecha_cargando}
                         size="sm"
                       />
-                      {selectedViaje.viaje.estado_carga_viaje.peso_real && (
+                      {selectedViaje.viaje.estado_carga_viaje.peso_real_kg && (
                         <p className="text-xs text-gray-400">
-                          ⚖️ Peso: {selectedViaje.viaje.estado_carga_viaje.peso_real} kg
+                          ⚖️ Peso: {selectedViaje.viaje.estado_carga_viaje.peso_real_kg} kg
                         </p>
                       )}
                       {selectedViaje.viaje.estado_carga_viaje.cantidad_bultos && (

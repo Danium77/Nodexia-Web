@@ -1593,7 +1593,7 @@ const CrearDespacho = () => {
         
         if (!despachoCreado) {
           console.error('❌ Error: despachoCreado es undefined');
-          setError('Error al crear despacho');
+          setErrorMsg('Error al crear despacho');
           setLoading(false);
           return;
         }

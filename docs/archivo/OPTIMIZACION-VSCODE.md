@@ -2,12 +2,15 @@
 
 ## 🚨 VS Code está lento? Sigue estos pasos
 
-### PASO 1: Limpieza Rápida (30 segundos)
+### PASO 1: Limpieza Profunda (1 minuto)
 ```powershell
 # Ejecuta en PowerShell dentro del proyecto:
-.\optimizar-vscode.ps1
+.\limpiar-cache-vscode.ps1
+```
 
-# Limpia el build cache:
+**O limpieza rápida:**
+```powershell
+.\optimizar-vscode.ps1
 Remove-Item .next -Recurse -Force
 ```
 
@@ -52,6 +55,12 @@ Remove-Item .next -Recurse -Force
 - Minimap desactivado
 - Breadcrumbs desactivados
 - Límite de 5 editores
+- Semantic highlighting desactivado
+- Bracket matching desactivado
+- Selection highlight desactivado
+- Color decorators desactivado
+- Links desactivados
+- Git decorations desactivadas
 
 ✅ **Git optimizado:**
 - Auto-fetch desactivado
@@ -81,8 +90,19 @@ Desactiva estas extensiones (temporalmente):
 
 ### Opción C: Limpiar workspace storage de VS Code
 ```powershell
-# ADVERTENCIA: Esto borrará configuraciones de workspace
+# Usa el script de limpieza profunda:
+.\limpiar-cache-vscode.ps1
+
+# O manual (ADVERTENCIA: Esto borrará configuraciones):
 Remove-Item "$env:APPDATA\Code\User\workspaceStorage" -Recurse -Force
+```
+
+### Opción D: Verificar procesos de VS Code
+```powershell
+# Ver procesos activos de VS Code:
+Get-Process | Where-Object { $_.ProcessName -like "*code*" -or $_.ProcessName -like "*electron*" }
+
+# Si ves muchos procesos, cierra VS Code completamente y reabre
 ```
 
 ---
