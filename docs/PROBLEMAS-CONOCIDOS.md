@@ -1,7 +1,7 @@
 # Problemas Conocidos y Soluciones
 
-> **Total de problemas:** 79  
-> **Última revisión:** 27 de Diciembre de 2025  
+> **Total de problemas:** 32 (TypeScript) + ~10 (Funcionales)  
+> **Última revisión:** 29 de Diciembre de 2025  
 > **Prioridad:** 🔴 Alta | 🟡 Media | 🟢 Baja
 
 ---
@@ -10,94 +10,56 @@
 
 | Categoría | Cantidad | Prioridad | Estado |
 |-----------|----------|-----------|--------|
-| Variables no usadas | ~25 | 🟢 Baja | Refactorización |
-| Errores de tipos (undefined) | ~30 | 🟡 Media | Tipo safety |
-| Imports faltantes | 2 | 🔴 Alta | Bloqueante |
-| Propiedades requeridas | 2 | 🔴 Alta | Funcional |
-| Lógica incompleta | 3 | 🟡 Media | Runtime |
+| Errores TypeScript | 32 | 🟡 Media | En progreso |
+| Variables no usadas | ~15 | 🟢 Baja | Refactorización |
+| Imports faltantes (firebase) | 2 | 🟢 Baja | No crítico |
+| APIs no usadas | 3 | 🟢 Baja | Limpieza |
 
 ---
 
-## 🔴 Problemas Críticos (Bloqueantes)
+## ✅ PROBLEMAS RESUELTOS (29-Dic-2025)
 
-### 0. **UUIDs Corruptos en viajes_despacho** - Base de Datos 🆕
-```sql
--- ❌ PROBLEMA
-SELECT 
-  length(id_chofer::text) as len_chofer,
-  length(id_camion::text) as len_camion
-FROM viajes_despacho;
--- Resultado: id_chofer = 37 chars (debería ser 36)
---            id_camion = 36 chars (correcto)
+### ~~0. UUIDs Corruptos en viajes_despacho~~ ✅ RESUELTO
+**Estado anterior:** UUIDs con 37 caracteres causaban fallos en relaciones  
+**Verificación:** Análisis SQL confirmó que TODOS los UUIDs son válidos (36 chars)  
+**Solución aplicada:** 
+- Removido workaround RPC `get_viaje_con_detalles`
+- Migrado a relaciones nativas de Supabase
+- Código simplificado en `pages/control-acceso.tsx`
 
--- ❌ IMPACTO
--- Las queries con .eq('id', uuid) fallan
--- Las relaciones automáticas no funcionan
--- Control de Acceso no muestra datos de chofer
-
--- ✅ WORKAROUND ACTUAL (Temporal)
-CREATE OR REPLACE FUNCTION get_viaje_con_detalles(
-  p_despacho_id uuid,
-  p_empresa_id uuid
-)
--- Usa LEFT JOIN con LIKE para match de UUIDs:
--- LEFT JOIN choferes c ON c.id::text LIKE v.id_chofer::text || '%'
--- LEFT JOIN camiones cam ON cam.id::text LIKE v.id_camion::text || '%'
-
--- ✅ SOLUCIÓN DEFINITIVA (Recomendada)
--- 1. Backup de viajes_despacho
--- 2. UPDATE para limpiar UUIDs (quitar carácter extra)
--- 3. Cambiar tipo de columna a UUID nativo
--- 4. Agregar constraint de validación
--- 5. Actualizar código para usar relaciones nativas
-```
-
-**Impacto:** Control de Acceso no mostraba datos de chofer y camión hasta implementar workaround.
-
-**Estado:** 
-- ✅ Workaround implementado (función SQL con LIKE)
-- ⏳ Testing pendiente
-- ❌ Migración definitiva pendiente
-
-**Archivos afectados:**
-- `pages/control-acceso.tsx`
-- Función SQL: `get_viaje_con_detalles` en Supabase
-- Debugging: `sql/debug-control-acceso.sql`
-
-**Documentación:**
-- [Sesión 26-Dic](.session/history/sesion-2025-12-26.md)
-- Script de debug: `sql/debug-control-acceso.sql`
+**Commit:** `35fdd12` - refactor(control-acceso): Usar relaciones nativas de Supabase
 
 ---
 
-### 1. **TrackingView no existe** - `planificacion.tsx`
-```typescript
-// ❌ ACTUAL
-import TrackingView from '../components/Planning/TrackingView';
+### ~~1. Errores TypeScript de configuración~~ ✅ RESUELTO
+**Problema:** Project references en tsconfig.json causaban errores  
+**Solución:** Simplificado tsconfig.json, removidos project references  
+**Resultado:** Reducción de 68 → 32 errores TypeScript (53% de mejora)
 
-// ✅ SOLUCIÓN
-// Opción A: Crear el componente TrackingView.tsx
-// Opción B: Eliminar import y uso si no se utiliza
-```
-
-**Impacto:** La página `/planificacion` no compila.
-
-**Solución recomendada:**
-```bash
-# Verificar si se usa TrackingView en planificacion.tsx
-grep -n "TrackingView" pages/planificacion.tsx
-
-# Si no se usa, eliminar el import
-# Si se usa, crear el componente o usar uno existente
-```
+**Commit:** `ac88b53` - fix(typescript): Resolver errores de tipos y configuración
 
 ---
 
-### 2. **AdminLayout requiere prop `pageTitle`** - `transporte/dashboard.tsx`
-```typescript
-// ❌ ACTUAL (líneas 196 y 205)
-<AdminLayout>
-  {children}
+### ~~2. Estados incorrectos en Control de Acceso~~ ✅ RESUELTO
+**Problema:** Estados que no existen en `EstadoUnidadViaje`  
+**Solución aplicada:**
+- `egreso_planta` → `saliendo_origen`
+- `egreso_destino` → `descarga_completada`
+- `llamado_descarga` → `llamado_carga`
+- `arribo_origen` → `arribado_origen`
+- `cargado` → `carga_completada`
+
+---
+
+### ~~3. Type guards con rol inválido~~ ✅ RESUELTO
+**Problema:** `'visor'` no existe en tipo `UserRole`  
+**Solución:** Removido de `lib/type-guards.ts`
+
+---
+
+## 🔴 Problemas Críticos Restantes
+
+### 1. **TrackingView - Errores de tipos** - `components/Planning/TrackingView.tsx`
 </AdminLayout>
 
 // ✅ SOLUCIÓN

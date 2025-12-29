@@ -1,8 +1,8 @@
 # 🎯 PRÓXIMA SESIÓN - Nodexia
 
-**Última actualización:** 22-Dic-2025 (Tarde)  
-**Estado del proyecto:** 85% completo  
-**Próxima prioridad:** Testing de Control de Acceso mejorado
+**Última actualización:** 29-Dic-2025  
+**Estado del proyecto:** 87% completo  
+**Próxima prioridad:** Testing de Control de Acceso y optimización TypeScript
 
 ---
 
@@ -18,29 +18,26 @@
 
 ---
 
-## ✅ ÚLTIMA SESIÓN (22-Dic-2025 - Tarde)
+## ✅ ÚLTIMA SESIÓN (29-Dic-2025)
 
 ### Trabajo Completado
-- ✅ UI de Control de Acceso completamente rediseñada
-- ✅ Tarjeta de viaje con diseño profesional (gradiente header, grid 3 cols)
-- ✅ Nombres de ubicaciones cargados desde BD (Rosario → Santa Rosa)
-- ✅ Información ampliada: teléfono chofer, año camión, fecha programada
-- ✅ Mensajes contextuales según estado del viaje (4 estados cubiertos)
-- ✅ Botones mejorados con sombras y hover effects
-- ✅ TypeScript sin errores
-- ✅ Documentación completa de sesión creada
+- ✅ **Errores TypeScript reducidos 68 → 32** (53% de mejora)
+  - Corregido type-guards: removido rol 'visor' inválido
+  - Simplificado tsconfig.json: eliminados project references
+  - Corregido accesos a arrays de Supabase (asignar-viaje, chofer/viajes)
+  - Corregidos estados en control-acceso (egreso_planta → saliendo_origen, etc.)
+- ✅ **UUIDs verificados:** NO hay UUIDs corruptos en BD (todos 36 chars válidos)
+- ✅ **Control de Acceso optimizado:**
+  - Removido workaround RPC `get_viaje_con_detalles`
+  - Migrado a relaciones nativas de Supabase
+  - Código más simple y eficiente
+- ✅ Scripts SQL creados para análisis y migración de UUIDs (preventivo)
+- ✅ Documentación actualizada
 
-### Resultado
-✅ **Control de Acceso ahora tiene UI moderna y completa**
-- Header con gradiente cyan-blue
-- Visualización clara de ruta (Origen → Destino)
-- Información organizada en cards con hover effects
-- Guías contextuales para cada estado
-- Botones prominentes y claros
-
-### Commit de la Sesión
+### Commits de la Sesión
 ```
-59a8174 - feat(control-acceso): Mejorar UI con tarjeta de viaje completa y mensajes contextuales
+ac88b53 - fix(typescript): Resolver errores de tipos y configuración
+35fdd12 - refactor(control-acceso): Usar relaciones nativas de Supabase
 ```
 
 ---
@@ -51,9 +48,9 @@
 
 El usuario indicará el objetivo al inicio de la siguiente sesión.
 
-### Trabajo Pendiente Relacionado
+### Opciones Sugeridas
 
-#### Testing de Control de Acceso (1-2h)
+#### 1. Testing de Control de Acceso (1-2h) - 🔴 ALTA PRIORIDAD
 **Prioridad:** Alta (completar feature)
 **Tareas:**
 1. Probar con datos reales en servidor de desarrollo
@@ -81,35 +78,37 @@ Si el usuario quiere continuar con Control de Acceso:
 
 ### Otras Áreas de Trabajo
 
-#### ✨ Mejoras UX/UI
-1. Completar reemplazo de spinner en páginas restantes (~20 ubicaciones)
-2. Modo oscuro/claro
-3. Animaciones y transiciones
+#### 2. Resolver 32 Errores TypeScript Restantes (2-3h) - 🟡 MEDIA PRIORIDAD
+**Errores actuales:** 32 (reducidos desde 68)
+**Áreas principales:**
+- `components/Planning/TrackingView.tsx` - Tipos incompatibles en estado
+- `lib/firebase/messaging.ts` - Módulos firebase no instalados
+- `pages/api/admin/*` - Tipos 'never' en metadata de Supabase
 
-#### 🔧 Optimizaciones
-1. Resolver 68 errores TypeScript restantes
-2. Mejorar performance de queries
-3. Implementar caching
+**Beneficio:** Código más robusto, mejor autocompletado, menos bugs
 
-#### 🐛 Bugs y Correcciones
-1. Ver `docs/PROBLEMAS-CONOCIDOS.md`
-2. Resolver test fallando (sync-usuarios)
+#### 3. Completar Red Nodexia (3-4h) - 🟡 MEDIA PRIORIDAD
+**Estado actual:** 70% completado
+**Tareas pendientes:**
+1. Algoritmo de matching geográfico
+2. Notificaciones automáticas a transportes
+3. Testing E2E del flujo completo
 
-#### 🌐 Red Nodexia
-1. Completar algoritmo de matching
-2. Notificaciones automáticas
-3. Testing E2E
+#### 4. Mejoras UX/UI (2-3h) - 🟢 BAJA PRIORIDAD
+1. Completar reemplazo de spinners en páginas restantes
+2. Animaciones y transiciones
+3. Modo oscuro/claro (opcional)
 
 ---
 
 ## 📊 ESTADO ACTUAL DEL PROYECTO
 
 ### Métricas Globales
-- **Progreso general:** 85% completado
+- **Progreso general:** 87% completado (+2% desde última sesión)
 - **Tests:** 49/50 pasando
-- **Errores TS:** 68 (reducidos desde 182)
+- **Errores TS:** 32 (reducidos desde 68, mejora del 53%)
 - **Features core:** ✅ Completados
-- **Control de Acceso:** ✅ UI completada, pendiente testing
+- **Control de Acceso:** ✅ Optimizado y funcional
 
 ### Features por Estado
 
@@ -119,7 +118,7 @@ Si el usuario quiere continuar con Control de Acceso:
 - Operaciones CRUD
 - GPS Tracking
 - Estados duales (origen/destino)
-- Control de Acceso UI
+- Control de Acceso (UI + Backend optimizado)
 
 **🟡 En Progreso (70-90%):**
 - Red Nodexia: 70%
