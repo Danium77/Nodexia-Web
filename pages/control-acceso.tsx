@@ -400,10 +400,10 @@ export default function ControlAcceso() {
       }
 
       // Determinar el nuevo estado según el tipo de operación
-      // Origen: egreso_planta (que automáticamente dispara en_transito_destino)
-      // Destino: egreso_destino (viaje completado)
+      // Origen: saliendo_origen (que automáticamente dispara en_transito_destino)
+      // Destino: descarga_completada (viaje completado)
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'egreso_planta' : 'egreso_destino';
+        viaje.tipo_operacion === 'envio' ? 'saliendo_origen' : 'descarga_completada';
       
       console.log('🔄 [control-acceso] Actualizando estado a:', nuevoEstado);
 
@@ -452,15 +452,15 @@ export default function ControlAcceso() {
     try {
       const result = await actualizarEstadoUnidad({
         viaje_id: viaje.id,
-        nuevo_estado: 'llamado_descarga',
-        observaciones: 'Llamado a descarga desde Control de Acceso',
+        nuevo_estado: 'llamado_carga',
+        observaciones: 'Llamado a carga desde Control de Acceso',
       });
 
       if (result.success) {
-        setMessage(`📢 Llamado a descarga enviado para ${viaje.numero_viaje}`);
+        setMessage(`📢 Llamado a carga enviado para ${viaje.numero_viaje}`);
         setViaje({
           ...viaje,
-          estado_unidad: 'llamado_descarga',
+          estado_unidad: 'llamado_carga',
         });
       } else {
         setMessage(`❌ ${result.error || 'Error al llamar a descarga'}`);
@@ -705,7 +705,7 @@ export default function ControlAcceso() {
                 </div>
 
                 {/* Información contextual según estado */}
-                {viaje.estado_unidad === 'arribo_origen' && viaje.tipo_operacion === 'envio' && (
+                {viaje.estado_unidad === 'arribado_origen' && viaje.tipo_operacion === 'envio' && (
                   <div className="mb-6 bg-blue-900/30 border border-blue-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-blue-600 rounded-lg">
@@ -735,7 +735,7 @@ export default function ControlAcceso() {
                   </div>
                 )}
 
-                {viaje.estado_unidad === 'cargado' && viaje.tipo_operacion === 'envio' && !viaje.documentacion_validada && (
+                {viaje.estado_unidad === 'carga_completada' && viaje.tipo_operacion === 'envio' && !viaje.documentacion_validada && (
                   <div className="mb-6 bg-purple-900/30 border border-purple-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-purple-600 rounded-lg">
@@ -766,9 +766,9 @@ export default function ControlAcceso() {
                 {/* Acciones */}
                 <div className="border-t border-slate-700 pt-6">
                   <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Acciones Disponibles</p>
-                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó (arribo_origen o arribo_destino) */}
-                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'arribo_origen') ||
-                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'arribo_destino')) && (
+                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó (arribado_origen o arribado_destino) */}
+                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'arribado_origen') ||
+                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'arribado_destino')) && (
                       <button
                         onClick={confirmarIngreso}
                         disabled={loading}

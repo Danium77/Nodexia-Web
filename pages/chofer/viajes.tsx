@@ -50,7 +50,6 @@ const ChoferViajesPage = () => {
 
   const { isTracking, lastPosition, error: gpsError, clearError } = useGPSTracking({
     viajeId: viajeActivo?.id || '',
-    userId: user?.id || '',
     enabled: !!shouldTrackGPS,
     intervalMs: 30000, // 30 segundos
     onError: (err) => console.error('GPS Error:', err),
@@ -146,7 +145,7 @@ const ChoferViajesPage = () => {
           peso_estimado: undefined,
           observaciones_unidad: undefined,
           empresa_data: {
-            nombre: despacho?.empresas?.nombre || 'Sin empresa'
+            nombre: Array.isArray(despacho?.empresas) ? despacho?.empresas[0]?.nombre : despacho?.empresas?.nombre || 'Sin empresa'
           }
         };
       });

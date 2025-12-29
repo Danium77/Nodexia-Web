@@ -15,8 +15,7 @@ export function isUserRole(value: unknown): value is UserRole {
     'supervisor',
     'control_acceso',
     'chofer',
-    'administrativo',
-    'visor'
+    'administrativo'
   ];
   return typeof value === 'string' && validRoles.includes(value as UserRole);
 }

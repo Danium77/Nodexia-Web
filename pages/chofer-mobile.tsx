@@ -135,7 +135,6 @@ export default function ChoferMobile() {
           newLocation.velocidad = position.coords.speed;
         }
         setLocation({ lat: newLocation.lat, lon: newLocation.lon });
-        setUbicacionActual(newLocation);
         // TODO: Enviar ubicación al servidor
         console.log('📍 Ubicación actualizada:', position.coords);
       },

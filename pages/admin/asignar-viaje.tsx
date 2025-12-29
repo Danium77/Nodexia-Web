@@ -22,9 +22,7 @@ interface Chofer {
   email: string | null;
   user_id: string | null;
   id_transporte: string;
-  empresas?: {
-    nombre: string;
-  };
+  empresas?: { nombre: string }[] | { nombre: string };
 }
 
 interface Camion {
@@ -34,9 +32,7 @@ interface Camion {
   modelo: string;
   id_transporte: string;
   estado: string;
-  empresas?: {
-    nombre: string;
-  };
+  empresas?: { nombre: string }[] | { nombre: string };
 }
 
 interface Viaje {
@@ -45,14 +41,14 @@ interface Viaje {
   estado: string;
   estado_unidad: string;
   created_at: string;
-  choferes: {
-    nombre: string;
-    apellido: string;
-  };
-  camiones: {
-    patente: string;
-  };
+  choferes: { nombre: string; apellido: string }[] | { nombre: string; apellido: string };
+  camiones: { patente: string }[] | { patente: string };
   despachos: {
+    pedido_id: string;
+    origen: string;
+    destino: string;
+    scheduled_local_date: string;
+  }[] | {
     pedido_id: string;
     origen: string;
     destino: string;
@@ -381,7 +377,7 @@ export default function AsignarViaje() {
                       <option key={chofer.id} value={chofer.id}>
                         {chofer.nombre} {chofer.apellido} ({chofer.dni})
                         {chofer.user_id && ' ✓ Con usuario'}
-                        {chofer.empresas && ` - ${chofer.empresas.nombre}`}
+                        {chofer.empresas && ` - ${Array.isArray(chofer.empresas) ? chofer.empresas[0]?.nombre : chofer.empresas.nombre}`}
                       </option>
                     ))}
                   </select>
@@ -403,7 +399,7 @@ export default function AsignarViaje() {
                     {camiones.map(camion => (
                       <option key={camion.id} value={camion.id}>
                         {camion.patente} - {camion.marca} {camion.modelo}
-                        {camion.empresas && ` - ${camion.empresas.nombre}`}
+                        {camion.empresas && ` - ${Array.isArray(camion.empresas) ? camion.empresas[0]?.nombre : camion.empresas.nombre}`}
                       </option>
                     ))}
                   </select>
@@ -553,7 +549,7 @@ export default function AsignarViaje() {
                             {viaje.numero_viaje}
                           </h3>
                           <p className="text-sm text-slate-400">
-                            {viaje.despachos.pedido_id}
+                            {Array.isArray(viaje.despachos) ? viaje.despachos[0]?.pedido_id : viaje.despachos.pedido_id}
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -578,28 +574,30 @@ export default function AsignarViaje() {
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center text-slate-300">
                           <UserIcon className="h-4 w-4 mr-2 text-cyan-400" />
-                          {viaje.choferes.nombre} {viaje.choferes.apellido}
+                          {Array.isArray(viaje.choferes) 
+                            ? `${viaje.choferes[0]?.nombre} ${viaje.choferes[0]?.apellido}` 
+                            : `${viaje.choferes.nombre} ${viaje.choferes.apellido}`}
                         </div>
                         <div className="flex items-center text-slate-300">
                           <TruckIcon className="h-4 w-4 mr-2 text-cyan-400" />
-                          {viaje.camiones.patente}
+                          {Array.isArray(viaje.camiones) ? viaje.camiones[0]?.patente : viaje.camiones.patente}
                         </div>
                         <div className="flex items-start text-slate-300">
                           <MapPinIcon className="h-4 w-4 mr-2 mt-0.5 text-green-400" />
                           <div className="flex-1">
                             <div className="text-xs text-slate-500">Origen</div>
-                            {viaje.despachos.origen}
+                            {Array.isArray(viaje.despachos) ? viaje.despachos[0]?.origen : viaje.despachos.origen}
                           </div>
                         </div>
                         <div className="flex items-start text-slate-300">
                           <MapPinIcon className="h-4 w-4 mr-2 mt-0.5 text-red-400" />
                           <div className="flex-1">
                             <div className="text-xs text-slate-500">Destino</div>
-                            {viaje.despachos.destino}
+                            {Array.isArray(viaje.despachos) ? viaje.despachos[0]?.destino : viaje.despachos.destino}
                           </div>
                         </div>
                         <div className="text-xs text-slate-500 pt-2 border-t border-slate-600">
-                          Fecha: {new Date(viaje.despachos.scheduled_local_date).toLocaleDateString('es-AR')}
+                          Fecha: {new Date(Array.isArray(viaje.despachos) ? viaje.despachos[0]?.scheduled_local_date : viaje.despachos.scheduled_local_date).toLocaleDateString('es-AR')}
                           {' • '}
                           Creado: {new Date(viaje.created_at).toLocaleString('es-AR')}
                         </div>
