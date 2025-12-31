@@ -231,43 +231,43 @@ export default function ControlAcceso() {
       const viajeData = viajesData[0];
       
       console.log('🔍 [control-acceso] IDs en viaje:', {
-        id_chofer: viajeData.id_chofer,
-        id_camion: viajeData.id_camion
+        chofer_id: viajeData.chofer_id,
+        camion_id: viajeData.camion_id
       });
       
       // Traer chofer y camión con queries separadas
       let choferData = null;
       let camionData = null;
       
-      if (viajeData.id_chofer) {
-        console.log('📞 [control-acceso] Buscando chofer con ID:', viajeData.id_chofer);
+      if (viajeData.chofer_id) {
+        console.log('📞 [control-acceso] Buscando chofer con ID:', viajeData.chofer_id);
         const { data: chofer, error: choferError } = await supabase
           .from('choferes')
           .select('nombre, apellido, dni, telefono')
-          .eq('id', viajeData.id_chofer)
+          .eq('id', viajeData.chofer_id)
           .maybeSingle();
         
         if (choferError) {
           console.error('❌ [control-acceso] Error al buscar chofer:', choferError);
         } else if (!chofer) {
-          console.warn('⚠️ [control-acceso] Chofer no encontrado con ID:', viajeData.id_chofer);
+          console.warn('⚠️ [control-acceso] Chofer no encontrado con ID:', viajeData.chofer_id);
         }
         choferData = chofer;
         console.log('👤 [control-acceso] Chofer cargado:', choferData);
       }
       
-      if (viajeData.id_camion) {
-        console.log('📞 [control-acceso] Buscando camión con ID:', viajeData.id_camion);
+      if (viajeData.camion_id) {
+        console.log('📞 [control-acceso] Buscando camión con ID:', viajeData.camion_id);
         const { data: camion, error: camionError } = await supabase
           .from('camiones')
           .select('patente, marca, modelo, anio')
-          .eq('id', viajeData.id_camion)
+          .eq('id', viajeData.camion_id)
           .maybeSingle();
         
         if (camionError) {
           console.error('❌ [control-acceso] Error al buscar camión:', camionError);
         } else if (!camion) {
-          console.warn('⚠️ [control-acceso] Camión no encontrado con ID:', viajeData.id_camion);
+          console.warn('⚠️ [control-acceso] Camión no encontrado con ID:', viajeData.camion_id);
         }
         camionData = camion;
         console.log('🚛 [control-acceso] Camión cargado:', camionData);

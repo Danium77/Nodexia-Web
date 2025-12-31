@@ -979,8 +979,8 @@ const CrearDespacho = () => {
                 numero_viaje,
                 estado,
                 id_transporte,
-                id_camion,
-                id_chofer,
+                camion_id,
+                chofer_id,
                 observaciones,
                 created_at,
                 camiones (
@@ -1134,8 +1134,8 @@ const CrearDespacho = () => {
               numero_viaje,
               estado,
               id_transporte,
-              id_chofer,
-              id_camion,
+              chofer_id,
+              camion_id,
               id_transporte_cancelado,
               motivo_cancelacion,
               observaciones,
@@ -1223,13 +1223,13 @@ const CrearDespacho = () => {
             .filter((id, index, self) => id && self.indexOf(id) === index) || [];
 
           const choferIds = viajes
-            ?.filter(v => v.id_chofer)
-            .map(v => v.id_chofer)
+            ?.filter(v => v.chofer_id)
+            .map(v => v.chofer_id)
             .filter((id, index, self) => id && self.indexOf(id) === index) || [];
 
           const camionIds = viajes
-            ?.filter(v => v.id_camion)
-            .map(v => v.id_camion)
+            ?.filter(v => v.camion_id)
+            .map(v => v.camion_id)
             .filter((id, index, self) => id && self.indexOf(id) === index) || [];
 
           // Cargar datos en paralelo
@@ -1259,16 +1259,16 @@ const CrearDespacho = () => {
             console.log('🔍 Viaje ID:', v.id);
             console.log('  - camiones (join):', v.camiones);
             console.log('  - choferes (join):', v.choferes);
-            console.log('  - id_camion:', v.id_camion);
-            console.log('  - id_chofer:', v.id_chofer);
+            console.log('  - camion_id:', v.camion_id);
+            console.log('  - chofer_id:', v.chofer_id);
             console.log('  - estado_carga_viaje:', v.estado_carga_viaje);
             
             return {
               ...v,
               transporte: v.id_transporte ? transportesData[v.id_transporte] : null,
               transporte_cancelado: v.id_transporte_cancelado ? transportesData[v.id_transporte_cancelado] : null,
-              chofer: v.choferes || (v.id_chofer ? choferesData[v.id_chofer] : null), // 🔥 Priorizar join
-              camion: v.camiones || (v.id_camion ? camionesData[v.id_camion] : null),  // 🔥 Priorizar join
+              chofer: v.choferes || (v.chofer_id ? choferesData[v.chofer_id] : null), // 🔥 Priorizar join
+              camion: v.camiones || (v.camion_id ? camionesData[v.camion_id] : null),  // 🔥 Priorizar join
               estado_carga_viaje: v.estado_carga_viaje || null // 🔥 NUEVO: Estado dual de carga
             };
           }) || [];
@@ -1332,8 +1332,8 @@ const CrearDespacho = () => {
         .update({ 
           estado: 'cancelado',
           id_transporte: null,
-          id_chofer: null,
-          id_camion: null,
+          chofer_id: null,
+          camion_id: null,
           fecha_cancelacion: new Date().toISOString(),
           cancelado_por: user?.id,
           motivo_cancelacion: motivo,

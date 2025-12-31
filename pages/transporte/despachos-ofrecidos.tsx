@@ -120,8 +120,8 @@ const DespachosOfrecidos = () => {
           id,
           numero_viaje,
           estado,
-          id_chofer,
-          id_camion,
+          chofer_id,
+          camion_id,
           despacho_id,
           id_transporte,
           observaciones,
@@ -172,8 +172,8 @@ const DespachosOfrecidos = () => {
       })));
 
       // Obtener IDs únicos de choferes, camiones y usuarios que cancelaron
-      const choferIds = [...new Set(viajesData?.map((v: any) => v.id_chofer).filter(Boolean))];
-      const camionIds = [...new Set(viajesData?.map((v: any) => v.id_camion).filter(Boolean))];
+      const choferIds = [...new Set(viajesData?.map((v: any) => v.chofer_id).filter(Boolean))];
+      const camionIds = [...new Set(viajesData?.map((v: any) => v.camion_id).filter(Boolean))];
       const canceladoPorIds = [...new Set(viajesData?.map((v: any) => v.cancelado_por).filter(Boolean))];
 
       // Cargar datos de choferes, camiones y usuarios en paralelo
@@ -196,8 +196,8 @@ const DespachosOfrecidos = () => {
 
       // Mapear viajes a formato de despacho para compatibilidad con el UI
       const despachosFormateados = (viajesData || []).map((viaje: any) => {
-        const chofer = viaje.id_chofer ? choferesMap.get(viaje.id_chofer) : null;
-        const camion = viaje.id_camion ? camionesMap.get(viaje.id_camion) : null;
+        const chofer = viaje.chofer_id ? choferesMap.get(viaje.chofer_id) : null;
+        const camion = viaje.camion_id ? camionesMap.get(viaje.camion_id) : null;
         const canceladoPor = viaje.cancelado_por ? usuariosMap.get(viaje.cancelado_por) : null;
         
         const despacho: Despacho = {
@@ -214,8 +214,8 @@ const DespachosOfrecidos = () => {
           prioridad: viaje.despachos?.prioridad,
           created_at: viaje.despachos?.created_at,
           estado_viaje: viaje.estado,
-          tiene_chofer: !!viaje.id_chofer,
-          tiene_camion: !!viaje.id_camion,
+          tiene_chofer: !!viaje.chofer_id,
+          tiene_camion: !!viaje.camion_id,
           chofer_nombre: chofer?.nombre,
           chofer_apellido: chofer?.apellido,
           chofer_telefono: chofer?.telefono,
@@ -352,8 +352,8 @@ const DespachosOfrecidos = () => {
         estado: 'cancelado_por_transporte',
         id_transporte_cancelado: viajeActual.id_transporte,
         id_transporte: null,
-        id_chofer: null,
-        id_camion: null,
+        chofer_id: null,
+        camion_id: null,
         fecha_cancelacion: new Date().toISOString(),
         cancelado_por: user?.id,
         motivo_cancelacion: motivo,

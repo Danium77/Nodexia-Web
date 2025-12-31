@@ -121,6 +121,10 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
       if (camionesRes.error) throw camionesRes.error;
       if (acopladosRes.error) throw acopladosRes.error;
 
+      console.log('🚗 Choferes cargados:', choferesRes.data);
+      console.log('🚛 Camiones cargados:', camionesRes.data);
+      console.log('🚚 Acoplados cargados:', acopladosRes.data);
+
       setChoferes(choferesRes.data || []);
       setCamiones(camionesRes.data || []);
       setAcoplados(acopladosRes.data || []);
@@ -211,9 +215,9 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
       const { error: viajeError } = await supabase
         .from('viajes_despacho')
         .update({
-          id_chofer: choferId,
-          id_camion: camionId,
-          id_acoplado: acopladoId || null,
+          chofer_id: choferId,
+          camion_id: camionId,
+          acoplado_id: acopladoId || null,
           estado: 'camion_asignado'
         })
         .eq('id', despacho.id);
