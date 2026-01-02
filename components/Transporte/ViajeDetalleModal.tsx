@@ -106,9 +106,9 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
           despacho_id,
           numero_viaje,
           estado,
-          id_chofer,
-          id_camion,
-          id_acoplado,
+          chofer_id,
+          camion_id,
+          acoplado_id,
           id_transporte,
           created_at,
           updated_at,
@@ -133,14 +133,14 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
 
       // Cargar datos relacionados en paralelo
       const [choferRes, camionRes, acopladoRes, transporteRes] = await Promise.all([
-        viajeData.id_chofer
-          ? supabase.from('choferes').select('id, nombre, telefono').eq('id', viajeData.id_chofer).single()
+        viajeData.chofer_id
+          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono').eq('id', viajeData.chofer_id).single()
           : Promise.resolve({ data: null }),
-        viajeData.id_camion
-          ? supabase.from('camiones').select('id, patente, marca, modelo').eq('id', viajeData.id_camion).single()
+        viajeData.camion_id
+          ? supabase.from('camiones').select('id, patente, marca, modelo, anio').eq('id', viajeData.camion_id).single()
           : Promise.resolve({ data: null }),
-        viajeData.id_acoplado
-          ? supabase.from('acoplados').select('patente').eq('id', viajeData.id_acoplado).single()
+        viajeData.acoplado_id
+          ? supabase.from('acoplados').select('patente, marca, modelo, anio').eq('id', viajeData.acoplado_id).single()
           : Promise.resolve({ data: null }),
         viajeData.id_transporte
           ? supabase.from('empresas').select('nombre').eq('id', viajeData.id_transporte).single()

@@ -21,9 +21,9 @@ interface Viaje {
   numero_viaje: number;
   estado: string;
   id_transporte: string | null;
-  id_chofer?: string | null;
-  id_camion?: string | null;
-  id_acoplado?: string | null;
+  chofer_id?: string | null;
+  camion_id?: string | null;
+  acoplado_id?: string | null;
   observaciones: string | null;
   transporte?: {
     nombre: string;
@@ -122,9 +122,9 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           numero_viaje, 
           estado, 
           id_transporte, 
-          id_chofer, 
-          id_camion, 
-          id_acoplado, 
+          chofer_id, 
+          camion_id, 
+          acoplado_id, 
           observaciones,
           estado_carga_viaje (
             estado_carga,
@@ -163,9 +163,9 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
 
       // Obtener IDs únicos
       const transporteIds = viajes.filter(v => v.id_transporte).map(v => v.id_transporte).filter((id, index, self) => self.indexOf(id) === index);
-      const choferIds = viajes.filter(v => v.id_chofer).map(v => v.id_chofer).filter((id, index, self) => self.indexOf(id) === index);
-      const camionIds = viajes.filter(v => v.id_camion).map(v => v.id_camion).filter((id, index, self) => self.indexOf(id) === index);
-      const acopadoIds = viajes.filter(v => v.id_acoplado).map(v => v.id_acoplado).filter((id, index, self) => self.indexOf(id) === index);
+      const choferIds = viajes.filter(v => v.chofer_id).map(v => v.chofer_id).filter((id, index, self) => self.indexOf(id) === index);
+      const camionIds = viajes.filter(v => v.camion_id).map(v => v.camion_id).filter((id, index, self) => self.indexOf(id) === index);
+      const acopadoIds = viajes.filter(v => v.acoplado_id).map(v => v.acoplado_id).filter((id, index, self) => self.indexOf(id) === index);
 
       // Cargar datos relacionados en paralelo
       const [transportesData, choferesData, camionesData, acopadosData] = await Promise.all([
@@ -173,13 +173,13 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           ? supabase.from('empresas').select('id, nombre, cuit').in('id', transporteIds)
           : Promise.resolve({ data: [] }),
         choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, telefono, email').in('id', choferIds)
+          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono, email').in('id', choferIds)
           : Promise.resolve({ data: [] }),
         camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, modelo, marca').in('id', camionIds)
+          ? supabase.from('camiones').select('id, patente, modelo, marca, anio').in('id', camionIds)
           : Promise.resolve({ data: [] }),
         acopadoIds.length > 0
-          ? supabase.from('acoplados').select('id, patente').in('id', acopadoIds)
+          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopadoIds)
           : Promise.resolve({ data: [] })
       ]);
 
@@ -199,9 +199,9 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
         return {
           ...v,
           transporte: v.id_transporte ? transportesMap[v.id_transporte] : undefined,
-          chofer: v.id_chofer ? choferesMap[v.id_chofer] : undefined,
-          camion: v.id_camion ? camionesMap[v.id_camion] : undefined,
-          acoplado: v.id_acoplado ? acopadosMap[v.id_acoplado] : undefined,
+          chofer: v.chofer_id ? choferesMap[v.chofer_id] : undefined,
+          camion: v.camion_id ? camionesMap[v.camion_id] : undefined,
+          acoplado: v.acoplado_id ? acopadosMap[v.acoplado_id] : undefined,
           estado_carga_viaje: estadoCarga || undefined // 🔥 Preservar estado dual de carga
         };
       });

@@ -112,11 +112,9 @@ const ChoferViajesPage = () => {
               nombre
             )
           ),
-          camiones:id_camion(
-            patente
-          )
+          camion_id
         `)
-        .eq('id_chofer', choferData.id)
+        .eq('chofer_id', choferData.id)
         .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino'])
         .order('created_at', { ascending: false });
 

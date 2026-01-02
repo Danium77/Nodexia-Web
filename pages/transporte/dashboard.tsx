@@ -112,8 +112,8 @@ const TransporteDashboard = () => {
             scheduled_local_date,
             scheduled_local_time
           ),
-          choferes:id_chofer(nombre),
-          camiones:id_camion(patente)
+          chofer_id,
+          camion_id
         `)
         .eq('id_transporte', empresaId)
         .in('estado', ['pendiente', 'transporte_asignado', 'cargando', 'en_camino', 'descargando'])

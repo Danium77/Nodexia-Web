@@ -84,10 +84,10 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
             .from('viajes_despacho')
             .select(`
               id,
-              id_chofer,
+              chofer_id,
               despachos!inner(pedido_id, destino)
             `)
-            .eq('id_camion', camion.id)
+            .eq('camion_id', camion.id)
             .in('estado', ['transporte_asignado', 'cargando', 'en_camino', 'descargando'])
             .single();
 

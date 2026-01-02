@@ -204,13 +204,9 @@ export default function ChoferMobile() {
             scheduled_local_time,
             type
           ),
-          camiones:id_camion (
-            patente,
-            marca,
-            modelo
-          )
+          camion_id
         `)
-        .eq('id_chofer', chofer.id)
+        .eq('chofer_id', chofer.id)
         .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'entregado'])
         .order('created_at', { ascending: false });
 

@@ -65,8 +65,8 @@ export default function SupervisorCarga() {
           id,
           numero_viaje,
           despacho_id,
-          id_chofer,
-          id_camion,
+          chofer_id,
+          camion_id,
           estado,
           despachos!inner (
             id,
@@ -173,8 +173,8 @@ export default function SupervisorCarga() {
           id,
           numero_viaje,
           despacho_id,
-          id_chofer,
-          id_camion,
+          chofer_id,
+          camion_id,
           estado,
           despachos!inner (
             id,
