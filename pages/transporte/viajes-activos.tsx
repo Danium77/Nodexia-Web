@@ -21,9 +21,9 @@ interface ViajeActivo {
   id: string;
   numero_viaje: number;
   estado: string;
-  id_chofer?: string;
-  id_camion?: string;
-  id_acoplado?: string;
+  chofer_id?: string;
+  camion_id?: string;
+  acoplado_id?: string;
   observaciones?: string;
   despacho_id: string;
   // Datos del despacho
@@ -36,10 +36,16 @@ interface ViajeActivo {
   // Datos de recursos
   chofer_nombre?: string;
   chofer_apellido?: string;
+  chofer_dni?: string;
   chofer_telefono?: string;
   camion_patente?: string;
   camion_marca?: string;
+  camion_modelo?: string;
+  camion_anio?: number;
   acoplado_patente?: string;
+  acoplado_marca?: string;
+  acoplado_modelo?: string;
+  acoplado_anio?: number;
   // Estado dual - Unidad
   estado_unidad?: EstadoUnidadViaje;
   fecha_confirmacion_chofer?: string | null;
@@ -89,9 +95,9 @@ const ViajesActivos = () => {
           id,
           numero_viaje,
           estado,
-          id_chofer,
-          id_camion,
-          id_acoplado,
+          chofer_id,
+          camion_id,
+          acoplado_id,
           despacho_id,
           observaciones,
           created_at,
@@ -131,21 +137,21 @@ const ViajesActivos = () => {
       console.log('📦 Despachos Map:', despachosMap);
 
       // Obtener IDs de recursos
-      const choferIds = [...new Set(viajesData?.map((v: any) => v.id_chofer).filter(Boolean))];
-      const camionIds = [...new Set(viajesData?.map((v: any) => v.id_camion).filter(Boolean))];
-      const acopladoIds = [...new Set(viajesData?.map((v: any) => v.id_acoplado).filter(Boolean))];
+      const choferIds = [...new Set(viajesData?.map((v: any) => v.chofer_id).filter(Boolean))];
+      const camionIds = [...new Set(viajesData?.map((v: any) => v.camion_id).filter(Boolean))];
+      const acopladoIds = [...new Set(viajesData?.map((v: any) => v.acoplado_id).filter(Boolean))];
       const viajeIds = viajesData?.map((v: any) => v.id).filter(Boolean) || [];
 
       // Cargar datos de recursos y ubicaciones GPS en paralelo
       const [choferesData, camionesData, acopladosData, ubicacionesData] = await Promise.all([
         choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds)
+          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono').in('id', choferIds)
           : Promise.resolve({ data: [] }),
         camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
+          ? supabase.from('camiones').select('id, patente, marca, modelo, anio').in('id', camionIds)
           : Promise.resolve({ data: [] }),
         acopladoIds.length > 0
-          ? supabase.from('acoplados').select('id, patente, marca, modelo').in('id', acopladoIds)
+          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopladoIds)
           : Promise.resolve({ data: [] }),
         // Obtener última ubicación GPS de cada viaje
         viajeIds.length > 0
@@ -172,18 +178,18 @@ const ViajesActivos = () => {
 
       // Mapear viajes con datos completos incluyendo GPS
       const viajesCompletos = (viajesData || []).map((viaje: any) => {
-        const chofer = viaje.id_chofer ? choferesMap.get(viaje.id_chofer) : null;
-        const camion = viaje.id_camion ? camionesMap.get(viaje.id_camion) : null;
-        const acoplado = viaje.id_acoplado ? acopladosMap.get(viaje.id_acoplado) : null;
+        const chofer = viaje.chofer_id ? choferesMap.get(viaje.chofer_id) : null;
+        const camion = viaje.camion_id ? camionesMap.get(viaje.camion_id) : null;
+        const acoplado = viaje.acoplado_id ? acopladosMap.get(viaje.acoplado_id) : null;
         const ubicacion = ubicacionesMap.get(viaje.id);
 
         return {
           id: viaje.id,
           numero_viaje: viaje.numero_viaje,
           estado: viaje.estado,
-          id_chofer: viaje.id_chofer,
-          id_camion: viaje.id_camion,
-          id_acoplado: viaje.id_acoplado,
+          chofer_id: viaje.chofer_id,
+          camion_id: viaje.camion_id,
+          acoplado_id: viaje.acoplado_id,
           observaciones: viaje.observaciones,
           despacho_id: viaje.despacho_id,
           pedido_id: `${despachosMap[viaje.despacho_id]?.pedido_id || 'N/A'} - Viaje #${viaje.numero_viaje}`,
@@ -194,10 +200,16 @@ const ViajesActivos = () => {
           prioridad: despachosMap[viaje.despacho_id]?.prioridad,
           chofer_nombre: chofer?.nombre,
           chofer_apellido: chofer?.apellido,
+          chofer_dni: chofer?.dni,
           chofer_telefono: chofer?.telefono,
           camion_patente: camion?.patente,
           camion_marca: camion?.marca,
+          camion_modelo: camion?.modelo,
+          camion_anio: camion?.anio,
           acoplado_patente: acoplado?.patente,
+          acoplado_marca: acoplado?.marca,
+          acoplado_modelo: acoplado?.modelo,
+          acoplado_anio: acoplado?.anio,
           // Estados duales
           estado_unidad: viaje.estado_unidad_viaje?.estado_unidad,
           fecha_confirmacion_chofer: viaje.estado_unidad_viaje?.fecha_confirmacion_chofer,
