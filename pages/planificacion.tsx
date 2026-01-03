@@ -9,6 +9,7 @@ import ViewSelector, { ViewType } from '../components/Planning/ViewSelector';
 import ExportButton from '../components/Planning/ExportButton';
 import PlanningAlerts from '../components/Planning/PlanningAlerts';
 import DayView from '../components/Planning/DayView';
+import MonthView from '../components/Planning/MonthView';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 type TabType = 'planning' | 'tracking';
@@ -187,8 +188,8 @@ const PlanificacionPage = () => {
               numero_viaje,
               estado,
               id_transporte,
-              id_camion,
-              id_chofer,
+              camion_id,
+              chofer_id,
               observaciones,
               created_at,
               despacho_id
@@ -211,8 +212,8 @@ const PlanificacionPage = () => {
         if (viajesData && viajesData.length > 0) {
           console.log('🔍 Primer viaje crudo:', viajesData[0]);
           console.log('  - id_transporte:', viajesData[0].id_transporte);
-          console.log('  - id_camion:', viajesData[0].id_camion);
-          console.log('  - id_chofer:', viajesData[0].id_chofer);
+          console.log('  - camion_id:', viajesData[0].camion_id);
+          console.log('  - chofer_id:', viajesData[0].chofer_id);
         }
 
         // 2.5. Cargar datos de transportes, choferes y camiones de los VIAJES
@@ -220,11 +221,11 @@ const PlanificacionPage = () => {
           .filter(v => v.id_transporte)
           .map(v => v.id_transporte);
         const viajeChoferIds = (viajesData || [])
-          .filter(v => v.id_chofer)
-          .map(v => v.id_chofer);
+          .filter(v => v.chofer_id)
+          .map(v => v.chofer_id);
         const viajeCamionIds = (viajesData || [])
-          .filter(v => v.id_camion)
-          .map(v => v.id_camion);
+          .filter(v => v.camion_id)
+          .map(v => v.camion_id);
 
         console.log('🔍 IDs de viajes:', {
           transportes: viajeTransporteIds,
@@ -284,6 +285,7 @@ const PlanificacionPage = () => {
               observaciones: despacho.comentarios || '',
               transporte_data: despacho.transport_id ? transportesMap[despacho.transport_id] : null,
               camion_data: despacho.truck_id ? camionesMap[despacho.truck_id] : null,
+              chofer_data: despacho.driver_id ? choferesMap[despacho.driver_id] : null,
               chofer: despacho.driver_id ? choferesMap[despacho.driver_id] : null
             };
           });
@@ -298,8 +300,8 @@ const PlanificacionPage = () => {
           
           // Obtener datos del viaje (prioridad 1)
           const transporteViaje = viaje.id_transporte ? transportesMap[viaje.id_transporte] : null;
-          const camionViaje = viaje.id_camion ? camionesMap[viaje.id_camion] : null;
-          const choferViaje = viaje.id_chofer ? choferesMap[viaje.id_chofer] : null;
+          const camionViaje = viaje.camion_id ? camionesMap[viaje.camion_id] : null;
+          const choferViaje = viaje.chofer_id ? choferesMap[viaje.chofer_id] : null;
           
           // Obtener datos del despacho padre como fallback (prioridad 2)
           const transporteDespacho = despachoPadre?.transport_id ? transportesMap[despachoPadre.transport_id] : null;
@@ -312,7 +314,7 @@ const PlanificacionPage = () => {
           const choferFinal = choferViaje || choferDespacho;
           
           console.log('🔍 [Mapeo] Viaje:', viaje.id, viaje.numero_viaje);
-          console.log('  - viaje: transport:', viaje.id_transporte, 'camion:', viaje.id_camion, 'chofer:', viaje.id_chofer);
+          console.log('  - viaje: transport:', viaje.id_transporte, 'camion:', viaje.camion_id, 'chofer:', viaje.chofer_id);
           console.log('  - despacho: transport:', despachoPadre?.transport_id, 'truck:', despachoPadre?.truck_id, 'driver:', despachoPadre?.driver_id);
           console.log('  - FINAL: transport:', transporteFinal?.nombre, 'camion:', camionFinal?.patente, 'chofer:', choferFinal?.nombre_completo);
           
@@ -333,6 +335,7 @@ const PlanificacionPage = () => {
             // 🔥 Datos con prioridad: viaje > despacho padre
             transporte_data: transporteFinal,
             camion_data: camionFinal,
+            chofer_data: choferFinal,
             chofer: choferFinal
           };
         });
@@ -570,13 +573,20 @@ const PlanificacionPage = () => {
                     </>
                   );
                 } else {
-                  // Vista mensual (pendiente)
+                  // Vista mensual
                   return (
-                    <div className="bg-[#1b273b] rounded p-2 text-center">
-                      <div className="text-6xl mb-4">📅</div>
-                      <h3 className="text-xl font-bold text-cyan-400 mb-2">Vista Mensual</h3>
-                      <p className="text-gray-400">Próximamente disponible</p>
-                    </div>
+                    <>
+                      <MonthView 
+                        title="Despachos" 
+                        dispatches={sortedDespachos} 
+                        type="despachos"
+                      />
+                      <MonthView 
+                        title="Recepciones" 
+                        dispatches={sortedRecepciones} 
+                        type="recepciones"
+                      />
+                    </>
                   );
                 }
 

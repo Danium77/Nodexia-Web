@@ -356,12 +356,12 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
         )}
       </div>
 
-      {/* Panel Derecho: Mapa */}
-      <div className="col-span-8 bg-[#1b273b] rounded-lg p-4 flex flex-col">
+      {/* Panel Derecho: Mapa y Detalles */}
+      <div className="col-span-8 bg-[#1b273b] rounded-lg p-4 flex flex-col h-[calc(100vh-12rem)]">
         {selectedViaje ? (
           <>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-700">
+            {/* Header - Altura fija */}
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-700 flex-shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-cyan-400">
                   📍 Seguimiento en Tiempo Real
@@ -378,25 +378,25 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
               </div>
             </div>
 
-            {/* Mapa - Leaflet */}
-            <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden mb-4 relative">
+            {/* Mapa - Altura fija 400px */}
+            <div className="h-[400px] bg-gray-900 rounded-lg overflow-hidden mb-3 relative flex-shrink-0">
               <TrackingMap 
                 origen={selectedViaje.despacho.origen}
                 destino={selectedViaje.despacho.destino}
                 transporteNombre={selectedViaje.viaje.transporte?.nombre}
                 viajeId={selectedViaje.viaje.id}
-                choferId={selectedViaje.viaje.id_chofer || undefined}
+                choferId={selectedViaje.viaje.chofer_id || undefined}
               />
               <div className="absolute top-4 right-4 bg-[#1b273b] px-3 py-2 rounded-lg border border-cyan-500/30 shadow-lg">
                 <p className="text-xs text-gray-400">Ubicación en tiempo real</p>
                 <p className="text-sm font-semibold text-cyan-400">
-                  {selectedViaje.viaje.id_chofer ? '🟢 GPS Activo' : '⚪ Simulado'}
+                  {selectedViaje.viaje.chofer_id ? '🟢 GPS Activo' : '⚪ Simulado'}
                 </p>
               </div>
             </div>
 
-            {/* Timeline de Estados - Panel Inferior */}
-            <div className="bg-[#0a0e1a] rounded-lg p-4 border border-gray-800">
+            {/* Panel de Detalles - Con scroll si es necesario */}
+            <div className="flex-1 bg-[#0a0e1a] rounded-lg p-4 border border-gray-800 overflow-y-auto">
               <h4 className="text-sm font-bold text-cyan-400 mb-4">Detalles del Viaje</h4>
               
               {/* Grid con todos los datos */}
