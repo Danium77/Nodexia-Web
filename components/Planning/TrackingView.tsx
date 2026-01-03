@@ -245,9 +245,9 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
   };
 
   return (
-    <div className="grid grid-cols-12 gap-6 h-[calc(100vh-200px)]">
+    <div className="grid grid-cols-12 gap-4 h-[calc(100vh-180px)]">
       {/* Panel Izquierdo: Lista de Despachos */}
-      <div className="col-span-4 bg-[#1b273b] rounded-lg p-4 overflow-y-auto">
+      <div className="col-span-3 bg-[#1b273b] rounded-lg p-4 overflow-y-auto">
         <h3 className="text-lg font-bold text-cyan-400 mb-4 sticky top-0 bg-[#1b273b] pb-2 border-b border-gray-700">
           📦 Despachos Activos ({dispatches.length})
         </h3>
@@ -357,7 +357,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       </div>
 
       {/* Panel Derecho: Mapa y Detalles */}
-      <div className="col-span-8 bg-[#1b273b] rounded-lg p-4 flex flex-col h-[calc(100vh-12rem)]">
+      <div className="col-span-9 bg-[#1b273b] rounded-lg p-4 flex flex-col h-[calc(100vh-12rem)]">
         {selectedViaje ? (
           <>
             {/* Header - Altura fija */}
@@ -378,8 +378,8 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
               </div>
             </div>
 
-            {/* Mapa - Altura fija 400px */}
-            <div className="h-[400px] bg-gray-900 rounded-lg overflow-hidden mb-3 relative flex-shrink-0">
+            {/* Mapa - Altura fija 280px */}
+            <div className="h-[280px] bg-gray-900 rounded-lg overflow-hidden mb-3 relative flex-shrink-0">
               <TrackingMap 
                 origen={selectedViaje.despacho.origen}
                 destino={selectedViaje.despacho.destino}

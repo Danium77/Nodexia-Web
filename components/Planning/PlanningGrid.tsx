@@ -159,6 +159,11 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', dispatch.id);
     
+    // 🔥 CRÍTICO: Crear imagen transparente para evitar que bloquee el drop
+    const img = new Image();
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    e.dataTransfer.setDragImage(img, 0, 0);
+    
     // Actualizar estados
     setDraggedDispatch(dispatch);
     setIsDragging(true);

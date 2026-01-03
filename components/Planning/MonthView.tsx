@@ -26,6 +26,8 @@ interface MonthViewProps {
 
 const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
   const [selectedDispatch, setSelectedDispatch] = useState<Dispatch | null>(null);
+  const [expandedDay, setExpandedDay] = useState<{ date: string; dispatches: Dispatch[] } | null>(null);
+  
   // Obtener mes y año actual
   const today = new Date();
   const currentMonth = today.getMonth();
@@ -172,7 +174,14 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                   {date.getDate()}
                 </span>
                 {dayDispatches.length > 0 && (
-                  <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold">
+                  <span 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedDay({ date: dateStr, dispatches: dayDispatches });
+                    }}
+                    className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold cursor-pointer hover:bg-blue-500 transition-colors"
+                    title={`Ver todos los ${dayDispatches.length} viajes`}
+                  >
                     {dayDispatches.length}
                   </span>
                 )}
@@ -187,35 +196,38 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                     className="text-xs bg-gradient-to-r from-slate-800 to-slate-900 rounded p-1.5 cursor-pointer hover:shadow-lg hover:scale-105 transition-all border-l-2 border-cyan-500"
                   >
                     {/* Destino */}
-                    <div className="flex items-center gap-1 text-[9px] text-cyan-300 truncate mb-0.5">
-                      <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                      <span className="truncate font-semibold">{dispatch.destino?.substring(0, 15)}</span>
+                    <div className="flex items-start gap-1 text-[9px] text-cyan-300 mb-0.5">
+                      <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0 mt-0.5" />
+                      <span className="font-semibold break-words">{dispatch.destino}</span>
                     </div>
                     {/* Chofer */}
                     {dispatch.chofer && (
-                      <div className="flex items-center gap-1 text-[9px] text-gray-300 truncate">
-                        <UserIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                        <span className="truncate">{dispatch.chofer.nombre_completo?.substring(0, 12)}</span>
+                      <div className="flex items-start gap-1 text-[9px] text-gray-300">
+                        <UserIcon className="h-2.5 w-2.5 flex-shrink-0 mt-0.5" />
+                        <span className="break-words">{dispatch.chofer.nombre_completo}</span>
                       </div>
                     )}
                     {/* Camión */}
                     {dispatch.camion_data && (
-                      <div className="flex items-center gap-1 text-[9px] text-emerald-300 truncate">
+                      <div className="flex items-center gap-1 text-[9px] text-emerald-300">
                         <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                        <span className="truncate">{dispatch.camion_data.patente}</span>
+                        <span>{dispatch.camion_data.patente}</span>
                       </div>
                     )}
                     {/* Acoplado */}
                     {dispatch.acoplado && (
-                      <div className="text-[9px] text-blue-300 truncate">
+                      <div className="text-[9px] text-blue-300">
                         🔗 {dispatch.acoplado.patente}
                       </div>
                     )}
                   </div>
                 ))}
                 {dayDispatches.length > 3 && (
-                  <div className="text-[9px] text-center text-cyan-400 font-semibold">
-                    +{dayDispatches.length - 3} más
+                  <div 
+                    onClick={() => setExpandedDay({ date: dateStr, dispatches: dayDispatches })}
+                    className="text-[9px] text-center text-cyan-400 font-semibold cursor-pointer hover:text-cyan-300"
+                  >
+                    +{dayDispatches.length - 3} más (click para ver)
                   </div>
                 )}
               </div>
@@ -236,6 +248,91 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
           </span>
         </div>
       </div>
+
+      {/* Modal de Día Expandido */}
+      {expandedDay && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setExpandedDay(null)}>
+          <div className="bg-[#1b273b] rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-700">
+              <h3 className="text-xl font-bold text-cyan-400">
+                {type === 'despachos' ? 'Despachos' : 'Recepciones'} - {expandedDay.date}
+              </h3>
+              <button onClick={() => setExpandedDay(null)} className="text-gray-400 hover:text-white">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Lista completa de viajes */}
+            <div className="space-y-3">
+              {expandedDay.dispatches.map(dispatch => (
+                <div
+                  key={dispatch.id}
+                  onClick={() => {
+                    setExpandedDay(null);
+                    setSelectedDispatch(dispatch);
+                  }}
+                  className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-lg p-4 cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all border-l-4 border-cyan-500"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Columna izquierda */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-bold text-white">{dispatch.pedido_id}</span>
+                        <span className={`text-xs px-2 py-1 rounded ${getStatusColor(dispatch.estado)} text-white`}>
+                          {dispatch.estado}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex items-start gap-2">
+                          <MapPinIcon className="h-4 w-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-gray-400 text-xs">Origen:</p>
+                            <p className="text-white">{dispatch.origen}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <MapPinIcon className="h-4 w-4 text-green-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-gray-400 text-xs">Destino:</p>
+                            <p className="text-white">{dispatch.destino}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Columna derecha */}
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <p className="text-gray-400 text-xs mb-1">Prioridad:</p>
+                        <p className="text-white">{getPriorityIndicator(dispatch.prioridad)} {dispatch.prioridad || 'Media'}</p>
+                      </div>
+                      {dispatch.chofer && (
+                        <div>
+                          <p className="text-gray-400 text-xs mb-1">👤 Chofer:</p>
+                          <p className="text-white">{dispatch.chofer.nombre_completo}</p>
+                        </div>
+                      )}
+                      {dispatch.camion_data && (
+                        <div>
+                          <p className="text-gray-400 text-xs mb-1">🚛 Camión:</p>
+                          <p className="text-white">{dispatch.camion_data.patente}</p>
+                        </div>
+                      )}
+                      {dispatch.transporte_data && (
+                        <div>
+                          <p className="text-gray-400 text-xs mb-1">🚚 Transporte:</p>
+                          <p className="text-white">{dispatch.transporte_data.nombre}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Detalles */}
       {selectedDispatch && (
