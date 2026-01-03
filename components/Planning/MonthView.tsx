@@ -1,6 +1,6 @@
 // components/Planning/MonthView.tsx
-import React, { useMemo } from 'react';
-import { MapPinIcon, TruckIcon } from '@heroicons/react/24/outline';
+import React, { useMemo, useState } from 'react';
+import { MapPinIcon, TruckIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface Dispatch {
   id: string;
@@ -12,8 +12,10 @@ interface Dispatch {
   scheduled_local_time?: string;
   prioridad?: string;
   transporte_data?: { nombre: string };
-  camion_data?: { patente: string };
-  chofer?: { nombre_completo: string };
+  camion_data?: { patente: string; marca?: string; modelo?: string };
+  chofer?: { nombre_completo: string; telefono?: string };
+  acoplado?: { patente: string };
+  observaciones?: string;
 }
 
 interface MonthViewProps {
@@ -23,6 +25,7 @@ interface MonthViewProps {
 }
 
 const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
+  const [selectedDispatch, setSelectedDispatch] = useState<Dispatch | null>(null);
   // Obtener mes y año actual
   const today = new Date();
   const currentMonth = today.getMonth();
@@ -180,21 +183,32 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                 {dayDispatches.slice(0, 3).map(dispatch => (
                   <div
                     key={dispatch.id}
-                    className="text-xs bg-gradient-to-r from-slate-800 to-slate-900 rounded p-1.5 cursor-pointer hover:shadow-lg transition-all border-l-2 border-cyan-500"
-                    title={`${dispatch.pedido_id}: ${dispatch.origen} → ${dispatch.destino}`}
+                    onClick={() => setSelectedDispatch(dispatch)}
+                    className="text-xs bg-gradient-to-r from-slate-800 to-slate-900 rounded p-1.5 cursor-pointer hover:shadow-lg hover:scale-105 transition-all border-l-2 border-cyan-500"
                   >
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <span className="font-mono text-white truncate">{dispatch.pedido_id}</span>
-                      <span className="text-[9px]">{getPriorityIndicator(dispatch.prioridad)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[9px] text-gray-400 truncate">
+                    {/* Destino */}
+                    <div className="flex items-center gap-1 text-[9px] text-cyan-300 truncate mb-0.5">
                       <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                      <span className="truncate">{dispatch.origen?.substring(0, 12)}</span>
+                      <span className="truncate font-semibold">{dispatch.destino?.substring(0, 15)}</span>
                     </div>
-                    {dispatch.transporte_data && (
-                      <div className="flex items-center gap-1 text-[9px] text-emerald-400 truncate mt-0.5">
+                    {/* Chofer */}
+                    {dispatch.chofer && (
+                      <div className="flex items-center gap-1 text-[9px] text-gray-300 truncate">
+                        <UserIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                        <span className="truncate">{dispatch.chofer.nombre_completo?.substring(0, 12)}</span>
+                      </div>
+                    )}
+                    {/* Camión */}
+                    {dispatch.camion_data && (
+                      <div className="flex items-center gap-1 text-[9px] text-emerald-300 truncate">
                         <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                        <span className="truncate">{dispatch.transporte_data.nombre?.substring(0, 15)}</span>
+                        <span className="truncate">{dispatch.camion_data.patente}</span>
+                      </div>
+                    )}
+                    {/* Acoplado */}
+                    {dispatch.acoplado && (
+                      <div className="text-[9px] text-blue-300 truncate">
+                        🔗 {dispatch.acoplado.patente}
                       </div>
                     )}
                   </div>
@@ -222,6 +236,92 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
           </span>
         </div>
       </div>
+
+      {/* Modal de Detalles */}
+      {selectedDispatch && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setSelectedDispatch(null)}>
+          <div className="bg-[#1b273b] rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-700">
+              <h3 className="text-xl font-bold text-cyan-400">Detalles del Viaje</h3>
+              <button onClick={() => setSelectedDispatch(null)} className="text-gray-400 hover:text-white">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Información del Viaje */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <span className="text-xs text-gray-400">Pedido ID:</span>
+                <p className="text-white font-semibold">{selectedDispatch.pedido_id}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">Estado:</span>
+                <p className={`text-sm font-semibold ${getStatusColor(selectedDispatch.estado)} px-2 py-1 rounded inline-block`}>
+                  {selectedDispatch.estado}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">📍 Origen:</span>
+                <p className="text-white">{selectedDispatch.origen}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">🏭 Destino:</span>
+                <p className="text-white">{selectedDispatch.destino}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">📅 Fecha:</span>
+                <p className="text-white">{selectedDispatch.scheduled_local_date}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">🕐 Hora:</span>
+                <p className="text-white">{selectedDispatch.scheduled_local_time}</p>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400">Prioridad:</span>
+                <p className="text-white">{getPriorityIndicator(selectedDispatch.prioridad)} {selectedDispatch.prioridad || 'Media'}</p>
+              </div>
+            </div>
+
+            {/* Recursos Asignados */}
+            <div className="mb-4 pt-4 border-t border-gray-700">
+              <h4 className="text-sm font-bold text-cyan-400 mb-3">Recursos Asignados</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-400">🚚 Transporte:</span>
+                  <p className="text-white">{selectedDispatch.transporte_data?.nombre || 'Sin asignar'}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400">👤 Chofer:</span>
+                  <p className="text-white">{selectedDispatch.chofer?.nombre_completo || 'Sin asignar'}</p>
+                  {selectedDispatch.chofer?.telefono && (
+                    <p className="text-xs text-gray-400">📞 {selectedDispatch.chofer.telefono}</p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400">🚛 Camión:</span>
+                  <p className="text-white">{selectedDispatch.camion_data?.patente || 'Sin asignar'}</p>
+                  {selectedDispatch.camion_data?.marca && (
+                    <p className="text-xs text-gray-400">{selectedDispatch.camion_data.marca} {selectedDispatch.camion_data.modelo}</p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400">🔗 Acoplado:</span>
+                  <p className="text-white">{selectedDispatch.acoplado?.patente || 'Sin acoplado'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Observaciones */}
+            {selectedDispatch.observaciones && (
+              <div className="pt-4 border-t border-gray-700">
+                <span className="text-xs text-gray-400">Observaciones:</span>
+                <p className="text-white mt-1">{selectedDispatch.observaciones}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

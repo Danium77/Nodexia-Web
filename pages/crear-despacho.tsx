@@ -983,18 +983,6 @@ const CrearDespacho = () => {
                 chofer_id,
                 observaciones,
                 created_at,
-                camiones (
-                  id,
-                  patente,
-                  marca,
-                  modelo
-                ),
-                choferes (
-                  id,
-                  nombre,
-                  apellido,
-                  telefono
-                ),
                 estado_carga_viaje (
                   estado_carga,
                   fecha_planificacion,
@@ -1136,22 +1124,11 @@ const CrearDespacho = () => {
               id_transporte,
               chofer_id,
               camion_id,
+              acoplado_id,
               id_transporte_cancelado,
               motivo_cancelacion,
               observaciones,
               created_at,
-              camiones (
-                id,
-                patente,
-                marca,
-                modelo
-              ),
-              choferes (
-                id,
-                nombre,
-                apellido,
-                telefono
-              ),
               estado_carga_viaje (
                 estado_carga,
                 fecha_planificacion,
@@ -1232,16 +1209,24 @@ const CrearDespacho = () => {
             .map(v => v.camion_id)
             .filter((id, index, self) => id && self.indexOf(id) === index) || [];
 
+          const acopladoIds = viajes
+            ?.filter(v => v.acoplado_id)
+            .map(v => v.acoplado_id)
+            .filter((id, index, self) => id && self.indexOf(id) === index) || [];
+
           // Cargar datos en paralelo
-          const [transportesResult, choferesResult, camionesResult] = await Promise.all([
+          const [transportesResult, choferesResult, camionesResult, acopladosResult] = await Promise.all([
             transporteIds.length > 0
               ? supabase.from('empresas').select('id, nombre, cuit').in('id', transporteIds)
               : Promise.resolve({ data: [] }),
             choferIds.length > 0
-              ? supabase.from('choferes').select('id, nombre, apellido, telefono, documento').in('id', choferIds)
+              ? supabase.from('choferes').select('id, nombre, apellido, telefono, dni').in('id', choferIds)
               : Promise.resolve({ data: [] }),
             camionIds.length > 0
-              ? supabase.from('camiones').select('id, patente, marca, modelo, tipo').in('id', camionIds)
+              ? supabase.from('camiones').select('id, patente, marca, modelo, anio').in('id', camionIds)
+              : Promise.resolve({ data: [] }),
+            acopladoIds.length > 0
+              ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopladoIds)
               : Promise.resolve({ data: [] })
           ]);
 
@@ -1249,10 +1234,23 @@ const CrearDespacho = () => {
           const transportesData: Record<string, any> = {};
           const choferesData: Record<string, any> = {};
           const camionesData: Record<string, any> = {};
+          const acopladosData: Record<string, any> = {};
+
+          console.log('📊 [crear-despacho] Resultados de queries paralelas:');
+          console.log('  - transportesResult:', { error: transportesResult.error, count: transportesResult.data?.length });
+          console.log('  - choferesResult:', { error: choferesResult.error, count: choferesResult.data?.length, data: choferesResult.data });
+          console.log('  - camionesResult:', { error: camionesResult.error, count: camionesResult.data?.length, data: camionesResult.data });
+          console.log('  - acopladosResult:', { error: acopladosResult.error, count: acopladosResult.data?.length, data: acopladosResult.data });
 
           transportesResult.data?.forEach(t => { transportesData[t.id] = t; });
           choferesResult.data?.forEach(c => { choferesData[c.id] = c; });
           camionesResult.data?.forEach(c => { camionesData[c.id] = c; });
+          acopladosResult.data?.forEach(a => { acopladosData[a.id] = a; });
+
+          console.log('📦 [crear-despacho] Diccionarios creados:');
+          console.log('  - choferesData:', choferesData);
+          console.log('  - camionesData:', camionesData);
+          console.log('  - acopladosData:', acopladosData);
 
           // Agregar info completa a cada viaje
           const viajesConDatos = viajes?.map(v => {
@@ -1269,6 +1267,7 @@ const CrearDespacho = () => {
               transporte_cancelado: v.id_transporte_cancelado ? transportesData[v.id_transporte_cancelado] : null,
               chofer: v.choferes || (v.chofer_id ? choferesData[v.chofer_id] : null), // 🔥 Priorizar join
               camion: v.camiones || (v.camion_id ? camionesData[v.camion_id] : null),  // 🔥 Priorizar join
+              acoplado: v.acoplados || (v.acoplado_id ? acopladosData[v.acoplado_id] : null), // 🔥 NUEVO: Acoplado
               estado_carga_viaje: v.estado_carga_viaje || null // 🔥 NUEVO: Estado dual de carga
             };
           }) || [];
@@ -2253,6 +2252,7 @@ const CrearDespacho = () => {
                                       <th className="py-2 px-2 w-44">Transporte</th>
                                       <th className="py-2 px-2 w-40">Chofer</th>
                                       <th className="py-2 px-2 w-36">Camión</th>
+                                      <th className="py-2 px-2 w-36">Acoplado</th>
                                       <th className="py-2 px-2 w-28">Estado</th>
                                       <th className="py-2 px-2">Observaciones</th>
                                       <th className="py-2 px-2 w-24">Acción</th>
@@ -2322,6 +2322,20 @@ const CrearDespacho = () => {
                                             </div>
                                           ) : (
                                             <span className="text-gray-500 text-xs">Sin asignar</span>
+                                          )}
+                                        </td>
+                                        <td className="py-2 px-2">
+                                          {viaje.acoplado ? (
+                                            <div>
+                                              <div className="text-cyan-400 font-bold">
+                                                🚚 {viaje.acoplado.patente}
+                                              </div>
+                                              <div className="text-gray-500 text-xs">
+                                                {viaje.acoplado.marca} {viaje.acoplado.modelo}
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <span className="text-gray-500 text-xs">-</span>
                                           )}
                                         </td>
                                         <td className="py-2 px-2">

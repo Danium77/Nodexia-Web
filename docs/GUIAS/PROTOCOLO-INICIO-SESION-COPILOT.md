@@ -18,6 +18,9 @@ OBLIGATORIO (en este orden):
 2. .session/CONTEXTO-ACTUAL.md         ← Contexto completo del proyecto
 3. docs/PROBLEMAS-CONOCIDOS.md         ← Bugs y limitaciones actuales
 4. QUICK-START-PROXIMA-SESION.md       ← Opciones de trabajo disponibles
+
+SI VAS A TRABAJAR CON BD (choferes, camiones, acoplados, viajes):
+5. docs/ESTRUCTURA-BD-RECURSOS-TRANSPORTE.md  ← OBLIGATORIO - Estructura oficial de tablas
 ```
 
 #### 1.2 Confirma con el usuario:
@@ -53,6 +56,28 @@ Voy a revisar el estado del proyecto...
 [Lee: docs/PROBLEMAS-CONOCIDOS.md]
 
 Estoy listo. ¿Qué quieres trabajar hoy?
+```
+
+#### 1.4 Verificación especial para trabajo con Base de Datos:
+
+**⚠️ SI VAS A TRABAJAR CON RECURSOS DE TRANSPORTE** (choferes, camiones, acoplados, viajes):
+
+```markdown
+⚠️ IMPORTANTE: Veo que vas a trabajar con recursos de transporte.
+
+📚 **LECTURA OBLIGATORIA antes de continuar:**
+→ `docs/ESTRUCTURA-BD-RECURSOS-TRANSPORTE.md`
+
+Este documento contiene:
+✅ Nombres EXACTOS de columnas (dni NO documento, anio NO tipo)
+✅ Nombres EXACTOS de FKs (chofer_id NO id_chofer)
+✅ Patrón Dictionary correcto para queries
+✅ Errores comunes a evitar
+✅ Código de referencia que funciona
+
+**Regla de Oro:** Copiar patrón de `pages/crear-despacho.tsx` líneas 1210-1252
+
+He leído el documento. Listo para trabajar con estructura oficial. ✅
 ```
 
 ---

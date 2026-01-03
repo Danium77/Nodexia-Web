@@ -174,11 +174,11 @@ export function useRedNodexia() {
                             }
                         }
                         // Obtener chofer si existe
-                        if (viajeRed.viaje.id_chofer) {
+                        if (viajeRed.viaje.chofer_id) {
                             const { data: chofer } = await supabase
                                 .from('choferes')
-                                .select('id, nombre, apellido, documento, telefono')
-                                .eq('id', viajeRed.viaje.id_chofer)
+                                .select('id, nombre, apellido, dni, telefono')
+                                .eq('id', viajeRed.viaje.chofer_id)
                                 .single();
                             if (chofer) {
                                 viajeRed.viaje.choferes = chofer;

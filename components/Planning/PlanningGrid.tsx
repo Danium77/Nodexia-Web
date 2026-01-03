@@ -150,31 +150,19 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
     if (!dragAllowed) {
       console.log('❌ Drag no permitido, cancelando');
       e.preventDefault();
-      return; // NO stopPropagation
+      return;
     }
     
-    // NO prevenir default ni detener propagación si está permitido
     console.log('✅ Iniciando drag de:', dispatch.pedido_id, 'ID:', dispatch.id);
-    console.log('📝 Estado ANTES:', { isDragging, draggedDispatch: draggedDispatch?.id });
     
-    // 🔥 CRÍTICO: Configurar dataTransfer ANTES de cambiar estados
+    // 🔥 Configurar dataTransfer ANTES de cambiar estados
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', dispatch.id);
     
-    // 🔥 NUEVO: Crear imagen de arrastre personalizada para evitar cancelación
-    const dragImage = e.currentTarget as HTMLElement;
-    if (dragImage) {
-      e.dataTransfer.setDragImage(dragImage, dragImage.offsetWidth / 2, dragImage.offsetHeight / 2);
-    }
-    
-    // Actualizar estados DESPUÉS de configurar dataTransfer
+    // Actualizar estados
     setDraggedDispatch(dispatch);
     setIsDragging(true);
     
-    // 🔥 CRÍTICO: Forzar re-render inmediato del componente
-    setTimeout(() => forceUpdate(), 0);
-    
-    console.log('📝 Estado configurado:', { nuevoIsDragging: true, nuevoDragged: dispatch.id });
     console.log('🚀 handleDragStart COMPLETADO para', dispatch.pedido_id);
   };
 

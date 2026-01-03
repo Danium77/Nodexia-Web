@@ -395,12 +395,12 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
               </div>
             </div>
 
-            {/* Panel de Detalles - Con scroll si es necesario */}
-            <div className="flex-1 bg-[#0a0e1a] rounded-lg p-4 border border-gray-800 overflow-y-auto">
-              <h4 className="text-sm font-bold text-cyan-400 mb-4">Detalles del Viaje</h4>
+            {/* Panel de Detalles - Sin scroll, todo visible */}
+            <div className="flex-1 bg-[#0a0e1a] rounded-lg p-3 border border-gray-800 overflow-hidden">
+              <h4 className="text-sm font-bold text-cyan-400 mb-3">Detalles del Viaje</h4>
               
               {/* Grid con todos los datos */}
-              <div className="grid grid-cols-6 gap-4 text-sm mb-6 pb-4 border-b border-gray-800">
+              <div className="grid grid-cols-6 gap-3 text-sm mb-4 pb-3 border-b border-gray-800">
                 {/* Origen y Destino */}
                 <div>
                   <span className="text-gray-400 block text-xs mb-1">📍 Origen:</span>

@@ -495,7 +495,7 @@ const PlanificacionPage = () => {
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
-            📅 Planificación Semanal
+            📅 Planificación {viewType === 'day' ? 'Diaria' : viewType === 'week' ? 'Semanal' : 'Mensual'}
           </button>
           <button
             onClick={() => setActiveTab('tracking')}

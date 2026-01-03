@@ -27,10 +27,37 @@ export function useChoferes() {
   async function fetchChoferes() {
     setLoading(true);
     setError(null);
+    
+    // Obtener empresa del usuario actual
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError('Usuario no autenticado');
+      setLoading(false);
+      return;
+    }
+
+    // Obtener empresa de transporte del usuario
+    const { data: userEmpresa } = await supabase
+      .from('usuarios_empresa')
+      .select('empresa_id, empresas(id, tipo_empresa)')
+      .eq('user_id', user.id)
+      .eq('activo', true)
+      .single();
+
+    if (!userEmpresa || !userEmpresa.empresas) {
+      setError('No se encontró empresa asociada');
+      setLoading(false);
+      return;
+    }
+
+    const empresaId = userEmpresa.empresa_id;
+
     const { data, error: fetchError } = await supabase
       .from('choferes')
       .select('*')
+      .eq('id_transporte', empresaId)
       .order('apellido', { ascending: true });
+      
     if (fetchError) {
       console.error('Error fetching choferes:', fetchError);
       setError(fetchError.message || 'Error al cargar choferes');
@@ -52,9 +79,20 @@ export function useChoferes() {
         throw new Error('Usuario no autenticado');
       }
 
-      // La tabla choferes solo usa id_transporte (user_id del transporte)
-      // No tiene columna empresa_id
-      chofer.id_transporte = user.id;
+      // Obtener empresa de transporte del usuario
+      const { data: userEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (!userEmpresa) {
+        throw new Error('No se encontró empresa asociada');
+      }
+
+      // La tabla choferes usa id_transporte para asociar con la EMPRESA
+      chofer.id_transporte = userEmpresa.empresa_id;
       chofer.usuario_alta = user.id;
 
       const { data, error: insertError } = await supabase

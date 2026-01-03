@@ -49,12 +49,46 @@ export default function FlotaGestion() {
   }, [tab]);
 
   async function fetchCamiones() {
-    const { data, error } = await supabase.from('camiones').select('*').order('fecha_alta', { ascending: false });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: userEmpresa } = await supabase
+      .from('usuarios_empresa')
+      .select('empresa_id')
+      .eq('user_id', user.id)
+      .eq('activo', true)
+      .single();
+
+    if (!userEmpresa) return;
+
+    const { data, error } = await supabase
+      .from('camiones')
+      .select('*')
+      .eq('id_transporte', userEmpresa.empresa_id)
+      .order('fecha_alta', { ascending: false });
+      
     if (!error) setCamiones(data || []);
   }
 
   async function fetchAcoplados() {
-    const { data, error } = await supabase.from('acoplados').select('*').order('fecha_alta', { ascending: false });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: userEmpresa } = await supabase
+      .from('usuarios_empresa')
+      .select('empresa_id')
+      .eq('user_id', user.id)
+      .eq('activo', true)
+      .single();
+
+    if (!userEmpresa) return;
+
+    const { data, error } = await supabase
+      .from('acoplados')
+      .select('*')
+      .eq('id_transporte', userEmpresa.empresa_id)
+      .order('fecha_alta', { ascending: false });
+      
     if (!error) setAcoplados(data || []);
   }
 
@@ -79,6 +113,18 @@ export default function FlotaGestion() {
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
       }
       
+      // Obtener empresa del usuario
+      const { data: userEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (!userEmpresa) {
+        throw new Error('No se encontró empresa asociada');
+      }
+      
       const { error: insertError } = await supabase.from('camiones').insert([
         {
           patente,
@@ -86,7 +132,7 @@ export default function FlotaGestion() {
           modelo,
           anio: anio ? parseInt(anio) : null,
           foto_url,
-          id_transporte: user.id,
+          id_transporte: userEmpresa.empresa_id,
           usuario_alta: user.id
         }
       ]);
@@ -95,8 +141,14 @@ export default function FlotaGestion() {
       if (fotoInputRef.current) fotoInputRef.current.value = '';
       fetchCamiones();
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError(String(err) || 'Error al guardar');
+      console.error('Error al agregar camión:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+        setError((err as any).message);
+      } else {
+        setError('Error al guardar camión');
+      }
     } finally {
       setLoading(false);
     }
@@ -123,6 +175,18 @@ export default function FlotaGestion() {
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
       }
       
+      // Obtener empresa del usuario
+      const { data: userEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (!userEmpresa) {
+        throw new Error('No se encontró empresa asociada');
+      }
+      
       const { error: insertError } = await supabase.from('acoplados').insert([
         {
           patente: patenteA,
@@ -130,7 +194,7 @@ export default function FlotaGestion() {
           modelo: modeloA,
           anio: anioA ? parseInt(anioA) : null,
           foto_url,
-          id_transporte: user.id,
+          id_transporte: userEmpresa.empresa_id,
           usuario_alta: user.id
         }
       ]);
@@ -139,8 +203,14 @@ export default function FlotaGestion() {
       if (fotoInputRefA.current) fotoInputRefA.current.value = '';
       fetchAcoplados();
     } catch (err: unknown) {
-      if (err instanceof Error) setErrorA(err.message);
-      else setErrorA(String(err) || 'Error al guardar');
+      console.error('Error al agregar acoplado:', err);
+      if (err instanceof Error) {
+        setErrorA(err.message);
+      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+        setErrorA((err as any).message);
+      } else {
+        setErrorA('Error al guardar acoplado');
+      }
     } finally {
       setLoadingA(false);
     }

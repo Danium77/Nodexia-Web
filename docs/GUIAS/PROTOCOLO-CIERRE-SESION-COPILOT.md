@@ -189,7 +189,14 @@ Tests: [X/X] pasando"
 - [x] `CONTEXTO-ACTUAL.md` - Actualizado con cambios
 - [ ] `docs/ARQUITECTURA-OPERATIVA.md` - [Si/No hubo cambios arquitectónicos]
 - [ ] `docs/PROBLEMAS-CONOCIDOS.md` - [Si/No se encontraron bugs]
+- [ ] `docs/ESTRUCTURA-BD-RECURSOS-TRANSPORTE.md` - ⚠️ [Si trabajaste con choferes/camiones/acoplados]
 - [ ] `NODEXIA-ROADMAP.md` - [Si/No se completaron milestones]
+
+**⚠️ Especial atención a:**
+Si modificaste queries de recursos de transporte:
+- Verificar que cumplan con estructura oficial documentada
+- Actualizar documento si descubriste nuevas columnas o relaciones
+- Agregar ejemplos de código si implementaste nuevo patrón
 
 ---
 
