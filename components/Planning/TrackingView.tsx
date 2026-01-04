@@ -31,6 +31,7 @@ interface Viaje {
   };
   chofer?: {
     nombre: string;
+    apellido?: string;
     telefono: string;
     email: string;
   } | undefined;
@@ -195,11 +196,17 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
         const estadoCarga = Array.isArray(v.estado_carga_viaje) 
           ? v.estado_carga_viaje[0] 
           : v.estado_carga_viaje;
+        
+        // Combinar nombre y apellido del chofer
+        const choferData = v.chofer_id && choferesMap[v.chofer_id] ? {
+          ...choferesMap[v.chofer_id],
+          nombre: `${choferesMap[v.chofer_id].nombre || ''} ${choferesMap[v.chofer_id].apellido || ''}`.trim()
+        } : undefined;
           
         return {
           ...v,
           transporte: v.id_transporte ? transportesMap[v.id_transporte] : undefined,
-          chofer: v.chofer_id ? choferesMap[v.chofer_id] : undefined,
+          chofer: choferData,
           camion: v.camion_id ? camionesMap[v.camion_id] : undefined,
           acoplado: v.acoplado_id ? acopadosMap[v.acoplado_id] : undefined,
           estado_carga_viaje: estadoCarga || undefined // 🔥 Preservar estado dual de carga
