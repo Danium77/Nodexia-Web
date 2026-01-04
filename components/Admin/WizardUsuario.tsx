@@ -347,11 +347,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
       return;
     }
 
-    // Filtrar roles según el tipo de empresa
-    const rolesFiltrados = roles.filter(rol => 
-      rol.tipo_empresa === empresaSeleccionada.tipo_empresa || 
-      rol.tipo_empresa === 'ambos'
-    );
+    // 🔥 Usar mapeo de roles del sistema nuevo
+    const rolesFiltrados = ROLES_BY_TIPO[empresaSeleccionada.tipo_empresa] || [];
     
     console.log(`📋 Roles disponibles para ${empresaSeleccionada.tipo_empresa}:`, rolesFiltrados.length);
     console.log('📋 Detalle de roles:', rolesFiltrados);
@@ -359,7 +356,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
     setRolesDisponibles(rolesFiltrados);
     
     // Si el rol actual no está disponible, limpiar la selección
-    if (formData.rol && !rolesFiltrados.find(r => r.id === formData.rol)) {
+    if (formData.rol && !rolesFiltrados.includes(formData.rol as RolInterno)) {
       console.log('⚠️ Rol actual no disponible para esta empresa, limpiando selección');
       setFormData(prev => ({ ...prev, rol: '' }));
     }
@@ -616,8 +613,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
         // MODO CREACIÓN (código original)
         console.log('📧 Enviando invitación formal por email...');
 
-        // Obtener datos del rol seleccionado
-        const rolSeleccionado = rolesDisponibles.find(r => r.id === formData.rol);
+        // El rol ya es un RolInterno (string), no necesitamos buscar
+        const rolInterno = formData.rol as RolInterno;
 
       // Enviar invitación usando el nuevo API formal
       const response = await fetch('/api/admin/nueva-invitacion', {
@@ -632,7 +629,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
           telefono: formData.telefono || '',
           dni: formData.dni || '',
           empresa_id: formData.empresa,
-          rol_interno: rolSeleccionado?.nombre_rol || 'usuario',
+          rol_interno: rolInterno,
           departamento: formData.departamento || ''
         })
       });
@@ -958,10 +955,10 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
                   <option value="">Seleccionar rol...</option>
                   {rolesDisponibles.map(rol => {
                     const empresaSeleccionada = empresas.find(e => e.id === formData.empresa);
-                    const displayName = getRolDisplayName(rol.nombre_rol, empresaSeleccionada?.tipo_empresa);
+                    const displayName = getRolDisplayName(rol, empresaSeleccionada?.tipo_empresa || 'planta');
                     return (
-                      <option key={rol.id} value={rol.id}>
-                        {displayName} {rol.descripcion && `- ${rol.descripcion}`}
+                      <option key={rol} value={rol}>
+                        {displayName}
                       </option>
                     );
                   })}
