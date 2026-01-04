@@ -402,26 +402,26 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
               </div>
             </div>
 
-            {/* Panel de Detalles - Sin scroll, todo visible */}
-            <div className="flex-1 bg-[#0a0e1a] rounded-lg p-3 border border-gray-800 overflow-hidden">
-              <h4 className="text-sm font-bold text-cyan-400 mb-3">Detalles del Viaje</h4>
+            {/* Panel de Detalles - Sin scroll, compacto */}
+            <div className="flex-1 bg-[#0a0e1a] rounded-lg p-2 border border-gray-800 overflow-hidden">
+              <h4 className="text-xs font-bold text-cyan-400 mb-2">Деtalles del Viaje</h4>
               
               {/* Grid con todos los datos */}
-              <div className="grid grid-cols-6 gap-3 text-sm mb-4 pb-3 border-b border-gray-800">
+              <div className="grid grid-cols-6 gap-2 text-xs mb-3 pb-2 border-b border-gray-800">
                 {/* Origen y Destino */}
                 <div>
-                  <span className="text-gray-400 block text-xs mb-1">📍 Origen:</span>
-                  <span className="text-white font-medium">{selectedViaje.despacho.origen}</span>
+                  <span className="text-gray-400 block text-[10px] mb-0.5">📍 Origen:</span>
+                  <span className="text-white font-medium text-xs">{selectedViaje.despacho.origen}</span>
                 </div>
                 <div>
-                  <span className="text-gray-400 block text-xs mb-1">🏭 Destino:</span>
-                  <span className="text-white font-medium">{selectedViaje.despacho.destino}</span>
+                  <span className="text-gray-400 block text-[10px] mb-0.5">🏭 Destino:</span>
+                  <span className="text-white font-medium text-xs">{selectedViaje.despacho.destino}</span>
                 </div>
                 
                 {/* Viaje y Estado */}
                 <div>
-                  <span className="text-gray-400 block text-xs mb-1">🔢 Viaje:</span>
-                  <span className="text-white font-medium">#{selectedViaje.viaje.numero_viaje}</span>
+                  <span className="text-gray-400 block text-[10px] mb-0.5">🔢 Viaje:</span>
+                  <span className="text-white font-medium text-xs">#{selectedViaje.viaje.numero_viaje}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-gray-400 block text-xs mb-1">📊 Estado Carga:</span>
