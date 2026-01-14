@@ -132,7 +132,7 @@ export async function registrarLlamadoCarga(
   // Directamente inicia el proceso de carga
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'en_proceso_carga',
+    nuevo_estado: 'cargando',
     observaciones: bay_carga ? `Llamado a carga - Bay: ${bay_carga}` : 'Llamado a carga',
   });
 }
