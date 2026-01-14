@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { getRolDisplayName } from '../../lib/utils/roleHelpers';
+import { ROLES_BY_TIPO, RolInterno, TipoEmpresa, ROL_INTERNO_LABELS } from '../../lib/types';
 import {
   UserIcon,
   EnvelopeIcon,
@@ -348,7 +349,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
     }
 
     // 🔥 Usar mapeo de roles del sistema nuevo
-    const rolesFiltrados = ROLES_BY_TIPO[empresaSeleccionada.tipo_empresa] || [];
+    const rolesFiltrados = ROLES_BY_TIPO[empresaSeleccionada.tipo_empresa as TipoEmpresa] || [];
     
     console.log(`📋 Roles disponibles para ${empresaSeleccionada.tipo_empresa}:`, rolesFiltrados.length);
     console.log('📋 Detalle de roles:', rolesFiltrados);
