@@ -104,7 +104,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
   // Opciones para selectores
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [roles, setRoles] = useState<Rol[]>([]);
-  const [rolesDisponibles, setRolesDisponibles] = useState<Rol[]>([]);
+  const [rolesDisponibles, setRolesDisponibles] = useState<RolInterno[]>([]);
 
   // Validaciones por paso
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
