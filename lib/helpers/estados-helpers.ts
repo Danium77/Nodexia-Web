@@ -256,22 +256,23 @@ export function calcularProgresoViaje(
   estadoUnidad: EstadoUnidadViaje
 ): number {
   const progresoUnidad: Record<EstadoUnidadViaje, number> = {
-    pendiente: 0,
-    asignado: 5,
-    confirmado_chofer: 10,
+    camion_asignado: 10,
     en_transito_origen: 20,
-    arribado_origen: 30,
-    en_playa_espera: 35,
+    ingresado_origen: 30,
+    en_playa_origen: 35,
     llamado_carga: 40,
-    posicionado_carga: 45,
-    carga_completada: 55,
-    saliendo_origen: 60,
+    cargando: 45,
+    egreso_origen: 60,
     en_transito_destino: 70,
     arribado_destino: 80,
-    descarga_completada: 90,
-    viaje_completado: 100,
-    en_incidencia: 50,
+    ingresado_destino: 82,
+    llamado_descarga: 85,
+    descargando: 90,
+    vacio: 95,
+    disponible: 100,
     cancelado: 0,
+    expirado: 0,
+    incidencia: 50,
   };
 
   return progresoUnidad[estadoUnidad] || 0;
