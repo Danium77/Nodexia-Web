@@ -995,6 +995,16 @@ const CrearDespacho = () => {
                 chofer_id,
                 observaciones,
                 created_at,
+                camiones (
+                  patente,
+                  marca,
+                  modelo
+                ),
+                choferes (
+                  nombre,
+                  apellido,
+                  dni
+                ),
                 estado_carga_viaje (
                   estado_carga,
                   fecha_planificacion,
