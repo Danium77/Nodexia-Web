@@ -217,7 +217,7 @@ export async function validarDocumentacion(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'documentacion_validada',
+    nuevo_estado: 'cargado',
     documentacion: {
       remito_numero,
       ...(remito_url && { remito_url }),
