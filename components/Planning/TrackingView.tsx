@@ -1,5 +1,5 @@
 // components/Planning/TrackingView.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '../../lib/supabaseClient';
 import { ChevronRightIcon, ChevronDownIcon, TruckIcon } from '@heroicons/react/24/outline';
@@ -65,6 +65,8 @@ interface Dispatch {
   type?: string;
   scheduled_local_date?: string;
   scheduled_local_time?: string;
+  origen_provincia?: string;
+  destino_provincia?: string;
 }
 
 // Estados del viaje en orden - Sistema Dual Actualizado
@@ -77,6 +79,7 @@ const ESTADOS_VIAJE = [
   { key: 'en_transito_destino', label: 'Hacia Destino', icon: '🚛', color: 'bg-indigo-600' },
   { key: 'arribo_destino', label: 'En Destino', icon: '📍', color: 'bg-amber-600' },
   { key: 'entregado', label: 'Entregado', icon: '✅', color: 'bg-green-600' },
+  { key: 'expirado', label: 'Expirado', icon: '⚠️', color: 'bg-red-700' },
   { key: 'cancelado', label: 'Cancelado', icon: '❌', color: 'bg-red-600' }
 ];
 
@@ -90,6 +93,48 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
   const [viajesData, setViajesData] = useState<Record<string, Viaje[]>>({});
   const [selectedViaje, setSelectedViaje] = useState<{ despacho: Dispatch; viaje: Viaje } | null>(null);
   const [loadingViajes, setLoadingViajes] = useState<Set<string>>(new Set());
+  const [despachosConRecursos, setDespachosConRecursos] = useState<Set<string>>(new Set());
+
+  // Cargar despachos que tengan al menos UN viaje con chofer Y camión
+  useEffect(() => {
+    const loadDespachosConRecursos = async () => {
+      const despachosIds = dispatches.map(d => d.id);
+      
+      // Query para obtener despachos que tienen viajes con chofer Y camión
+      const { data: viajes } = await supabase
+        .from('viajes_despacho')
+        .select('despacho_id')
+        .in('despacho_id', despachosIds)
+        .not('chofer_id', 'is', null)
+        .not('camion_id', 'is', null);
+      
+      if (viajes) {
+        const despachoIdsConRecursos = new Set(viajes.map(v => v.despacho_id));
+        setDespachosConRecursos(despachoIdsConRecursos);
+      }
+    };
+    
+    if (dispatches.length > 0) {
+      loadDespachosConRecursos();
+    }
+  }, [dispatches]);
+
+  // Filtrar solo despachos en estados activos Y que tengan viajes con recursos
+  const ESTADOS_INACTIVOS = ['expirado', 'viaje_completado', 'entregado', 'cancelado', 'descarga_completada'];
+  
+  const despachosActivos = dispatches.filter(d => {
+    // 1. Verificar que tenga estado activo
+    if (d.estado && ESTADOS_INACTIVOS.includes(d.estado.toLowerCase())) {
+      return false;
+    }
+    
+    // 2. ✅ Verificar que tenga al menos un viaje con recursos asignados
+    if (!despachosConRecursos.has(d.id)) {
+      return false;
+    }
+    
+    return true;
+  });
 
   const toggleDespacho = async (despachoId: string) => {
     const newExpanded = new Set(expandedDespachos);
@@ -256,17 +301,17 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       {/* Panel Izquierdo: Lista de Despachos */}
       <div className="col-span-3 bg-[#1b273b] rounded-lg p-4 overflow-y-auto">
         <h3 className="text-lg font-bold text-cyan-400 mb-4 sticky top-0 bg-[#1b273b] pb-2 border-b border-gray-700">
-          📦 Despachos Activos ({dispatches.length})
+          📦 Despachos Activos ({despachosActivos.length})
         </h3>
 
-        {dispatches.length === 0 ? (
+        {despachosActivos.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <TruckIcon className="h-16 w-16 mx-auto mb-3 opacity-50" />
             <p>No hay despachos activos</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {dispatches.map(despacho => (
+            {despachosActivos.map((despacho) => (
               <div key={despacho.id} className="bg-[#0a0e1a] rounded-lg overflow-hidden border border-gray-800">
                 {/* Header del Despacho */}
                 <div
@@ -285,9 +330,32 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                         {despacho.type === 'recepcion' ? 'RX' : 'TX'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 ml-6">
-                      📍 {despacho.origen} → {despacho.destino}
-                    </p>
+                    <div className="ml-6">
+                      {/* Origen con Provincia */}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] text-gray-500">📍 Origen:</span>
+                        <div className="flex flex-col gap-0.5">
+                          {despacho.origen_provincia && (
+                            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wide">
+                              {despacho.origen_provincia}
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-white">{despacho.origen}</span>
+                        </div>
+                      </div>
+                      {/* Destino con Provincia */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-500">🎯 Destino:</span>
+                        <div className="flex flex-col gap-0.5">
+                          {despacho.destino_provincia && (
+                            <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wide">
+                              {despacho.destino_provincia}
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-white">{despacho.destino}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -385,120 +453,119 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
               </div>
             </div>
 
-            {/* Mapa - Altura fija 280px */}
-            <div className="h-[280px] bg-gray-900 rounded-lg overflow-hidden mb-3 relative flex-shrink-0">
-              <TrackingMap 
-                origen={selectedViaje.despacho.origen}
-                destino={selectedViaje.despacho.destino}
-                transporteNombre={selectedViaje.viaje.transporte?.nombre}
-                viajeId={selectedViaje.viaje.id}
-                choferId={selectedViaje.viaje.chofer_id || undefined}
-              />
-              <div className="absolute top-4 right-4 bg-[#1b273b] px-3 py-2 rounded-lg border border-cyan-500/30 shadow-lg">
-                <p className="text-xs text-gray-400">Ubicación en tiempo real</p>
-                <p className="text-sm font-semibold text-cyan-400">
-                  {selectedViaje.viaje.chofer_id ? '🟢 GPS Activo' : '⚪ Simulado'}
-                </p>
+            {/* Layout horizontal: Mapa (50%) | Detalles (50%) */}
+            <div className="flex-1 flex gap-3 overflow-hidden">
+              {/* Columna Izquierda: Mapa */}
+              <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden relative">
+                <TrackingMap 
+                  origen={selectedViaje.despacho.origen}
+                  destino={selectedViaje.despacho.destino}
+                  transporteNombre={selectedViaje.viaje.transporte?.nombre}
+                  viajeId={selectedViaje.viaje.id}
+                  choferId={selectedViaje.viaje.chofer_id || undefined}
+                />
+                <div className="absolute top-4 right-4 bg-[#1b273b] px-3 py-2 rounded-lg border border-cyan-500/30 shadow-lg">
+                  <p className="text-xs text-gray-400">Ubicación en tiempo real</p>
+                  <p className="text-sm font-semibold text-cyan-400">
+                    {selectedViaje.viaje.chofer_id ? '🟢 GPS Activo' : '⚪ Simulado'}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {/* Panel de Detalles - Sin scroll, compacto */}
-            <div className="flex-1 bg-[#0a0e1a] rounded-lg p-2 border border-gray-800 overflow-hidden">
-              <h4 className="text-xs font-bold text-cyan-400 mb-2">Деtalles del Viaje</h4>
+              {/* Columna Derecha: Detalles */}
+              <div className="flex-1 bg-[#0a0e1a] rounded-lg p-2 border border-gray-800 overflow-hidden flex flex-col">
+                <h4 className="text-xs font-bold text-cyan-400 mb-2">📄 Detalles del Viaje</h4>
               
-              {/* Grid con todos los datos */}
-              <div className="grid grid-cols-6 gap-2 text-xs mb-3 pb-2 border-b border-gray-800">
-                {/* Origen y Destino */}
-                <div>
-                  <span className="text-gray-400 block text-[10px] mb-0.5">📍 Origen:</span>
-                  <span className="text-white font-medium text-xs">{selectedViaje.despacho.origen}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400 block text-[10px] mb-0.5">🏭 Destino:</span>
-                  <span className="text-white font-medium text-xs">{selectedViaje.despacho.destino}</span>
-                </div>
-                
-                {/* Viaje y Estado */}
-                <div>
-                  <span className="text-gray-400 block text-[10px] mb-0.5">🔢 Viaje:</span>
-                  <span className="text-white font-medium text-xs">#{selectedViaje.viaje.numero_viaje}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-gray-400 block text-xs mb-1">📊 Estado Carga:</span>
+                {/* Grid con todos los datos - 4 columnas */}
+                <div className="grid grid-cols-2 gap-2 text-xs mb-2 pb-2 border-b border-gray-800">
+                  {/* Origen con Provincia - Destacado */}
+                  <div className="col-span-1 bg-emerald-500/5 p-2 rounded border border-emerald-500/20">
+                    <span className="text-emerald-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">📍 ORIGEN</span>
+                    {selectedViaje.despacho.origen_provincia && (
+                      <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wide block mb-0.5">
+                        {selectedViaje.despacho.origen_provincia}
+                      </span>
+                    )}
+                    <span className="text-white font-semibold text-xs block truncate">{selectedViaje.despacho.origen}</span>
+                  </div>
+                  
+                  {/* Destino con Provincia - Destacado */}
+                  <div className="col-span-1 bg-cyan-500/5 p-2 rounded border border-cyan-500/20">
+                    <span className="text-cyan-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">🎯 DESTINO</span>
+                    {selectedViaje.despacho.destino_provincia && (
+                      <span className="text-[9px] font-bold text-cyan-300 uppercase tracking-wide block mb-0.5">
+                        {selectedViaje.despacho.destino_provincia}
+                      </span>
+                    )}
+                    <span className="text-white font-semibold text-xs block truncate">{selectedViaje.despacho.destino}</span>
+                  </div>
+                  
+                  {/* Viaje */}
+                  <div className="col-span-1">
+                    <span className="text-gray-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">🔢 Viaje</span>
+                    <span className="text-white font-bold text-sm">#{selectedViaje.viaje.numero_viaje}</span>
+                  </div>
+
+                  {/* Estado Carga */}
+                  <div className="col-span-1">
+                    <span className="text-gray-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">📊 Estado</span>
                   {selectedViaje.viaje.estado_carga_viaje ? (
-                    <div className="space-y-2">
                       <EstadoDualBadge
                         tipo="carga"
                         estado={selectedViaje.viaje.estado_carga_viaje.estado_carga}
                         timestamp={selectedViaje.viaje.estado_carga_viaje.fecha_carga_completada || selectedViaje.viaje.estado_carga_viaje.fecha_cargando}
                         size="sm"
                       />
-                      {selectedViaje.viaje.estado_carga_viaje.peso_real_kg && (
-                        <p className="text-xs text-gray-400">
-                          ⚖️ Peso: {selectedViaje.viaje.estado_carga_viaje.peso_real_kg} kg
-                        </p>
-                      )}
-                      {selectedViaje.viaje.estado_carga_viaje.cantidad_bultos && (
-                        <p className="text-xs text-gray-400">
-                          📦 Bultos: {selectedViaje.viaje.estado_carga_viaje.cantidad_bultos}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <span className={`px-2 py-1 rounded text-xs inline-block ${getStatusColor(selectedViaje.viaje.estado)} text-white`}>
-                      {getStatusLabel(selectedViaje.viaje.estado)}
+                    ) : (
+                      <span className={`px-2 py-0.5 rounded text-[10px] inline-block ${getStatusColor(selectedViaje.viaje.estado)} text-white`}>
+                        {getStatusLabel(selectedViaje.viaje.estado)}
+                      </span>
+                    )}
+                  </div>
+                  {/* Transporte */}
+                  <div className="col-span-1">
+                    <span className="text-gray-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">🚚 Transporte</span>
+                    <span className="text-white font-medium text-xs block truncate">
+                      {selectedViaje.viaje.transporte?.nombre || 'Sin asignar'}
                     </span>
-                  )}
+                  </div>
+
+                  {/* Chofer */}
+                  <div className="col-span-1">
+                    <span className="text-gray-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">👤 Chofer</span>
+                    {selectedViaje.viaje.chofer ? (
+                      <p className="text-white font-medium text-xs truncate">{selectedViaje.viaje.chofer.nombre}</p>
+                    ) : (
+                      <span className="text-orange-400 text-[10px]">Sin asignar</span>
+                    )}
+                  </div>
+
+                  {/* Camión */}
+                  <div className="col-span-1">
+                    <span className="text-gray-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">🚛 Camión</span>
+                    {selectedViaje.viaje.camion ? (
+                      <p className="text-white font-bold text-xs">{selectedViaje.viaje.camion.patente}</p>
+                    ) : (
+                      <span className="text-orange-400 text-[10px]">Sin asignar</span>
+                    )}
+                  </div>
+
+                  {/* Acoplado */}
+                  <div className="col-span-1">
+                    <span className="text-gray-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">🔗 Acoplado</span>
+                    {selectedViaje.viaje.acoplado ? (
+                      <p className="text-white font-bold text-xs">{selectedViaje.viaje.acoplado.patente}</p>
+                    ) : (
+                      <span className="text-gray-500 text-[10px] italic">Sin acoplado</span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Transporte */}
-                <div className="col-span-2">
-                  <span className="text-gray-400 block text-xs mb-1">🚚 Transporte:</span>
-                  <span className="text-white font-medium">
-                    {selectedViaje.viaje.transporte?.nombre || 'Sin asignar'}
-                  </span>
-                </div>
-
-                {/* Chofer */}
-                <div className="col-span-2">
-                  <span className="text-gray-400 block text-xs mb-1">👤 Chofer:</span>
-                  {selectedViaje.viaje.chofer ? (
-                    <div>
-                      <p className="text-white font-medium">{selectedViaje.viaje.chofer.nombre}</p>
-                      <p className="text-gray-400 text-xs">📞 {selectedViaje.viaje.chofer.telefono}</p>
-                    </div>
-                  ) : (
-                    <span className="text-orange-400 text-xs">Sin asignar</span>
-                  )}
-                </div>
-
-                {/* Camión */}
-                <div className="col-span-2">
-                  <span className="text-gray-400 block text-xs mb-1">🚛 Camión:</span>
-                  {selectedViaje.viaje.camion ? (
-                    <div>
-                      <p className="text-white font-medium">{selectedViaje.viaje.camion.patente}</p>
-                      <p className="text-gray-400 text-xs">{selectedViaje.viaje.camion.marca} {selectedViaje.viaje.camion.modelo}</p>
-                    </div>
-                  ) : (
-                    <span className="text-orange-400 text-xs">Sin asignar</span>
-                  )}
-                </div>
-
-                {/* Acoplado */}
-                <div className="col-span-2">
-                  <span className="text-gray-400 block text-xs mb-1">🔗 Acoplado:</span>
-                  {selectedViaje.viaje.acoplado ? (
-                    <p className="text-white font-medium">{selectedViaje.viaje.acoplado.patente}</p>
-                  ) : (
-                    <span className="text-gray-500 text-xs">Sin acoplado</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Cadena de Estados tipo Timeline */}
-              <div className="relative">
-                <div className="flex items-center justify-between">
+                {/* Cadena de Estados tipo Timeline Horizontal */}
+                <div className="mt-2 flex-1 flex flex-col">
+                  <h5 className="text-[9px] font-bold text-gray-400 mb-2 uppercase tracking-wider">🛣️ Estado del Viaje</h5>
+                  <div className="relative flex-1">
+                    <div className="flex items-center justify-between gap-0.5">
                   {ESTADOS_VIAJE.map((estado, index) => {
                     const estadoActualIndex = getEstadoIndex(selectedViaje.viaje.estado);
                     const isCompleted = index <= estadoActualIndex;
@@ -508,7 +575,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                       <div key={estado.key} className="flex-1 relative">
                         {/* Línea conectora */}
                         {index < ESTADOS_VIAJE.length - 1 && (
-                          <div className="absolute top-5 left-1/2 w-full h-1">
+                          <div className="absolute top-3 left-1/2 w-full h-0.5">
                             <div className={`h-full transition-all duration-500 ${
                               isCompleted ? 'bg-cyan-500' : 'bg-gray-700'
                             }`} />
@@ -518,9 +585,9 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                         {/* Círculo de estado */}
                         <div className="relative z-10 flex flex-col items-center">
                           <div className={`
-                            w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all duration-500 border-2
+                            w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all duration-500 border
                             ${isCurrent 
-                              ? 'bg-cyan-500 border-cyan-300 shadow-lg shadow-cyan-500/50 scale-125 animate-pulse' 
+                              ? 'bg-cyan-500 border-cyan-300 shadow-lg shadow-cyan-500/50 scale-110' 
                               : isCompleted 
                                 ? 'bg-cyan-600 border-cyan-400' 
                                 : 'bg-gray-700 border-gray-600'
@@ -528,7 +595,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                           `}>
                             {estado.icon}
                           </div>
-                          <p className={`text-xs mt-2 text-center max-w-[80px] transition-colors ${
+                          <p className={`text-[8px] mt-1 text-center max-w-[60px] transition-colors leading-tight ${
                             isCurrent ? 'text-cyan-400 font-bold' : isCompleted ? 'text-gray-300' : 'text-gray-500'
                           }`}>
                             {estado.label}
@@ -537,16 +604,10 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                       </div>
                     );
                   })}
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {/* Observaciones si existen */}
-              {selectedViaje.viaje.observaciones && (
-                <div className="mt-4 pt-4 border-t border-gray-800">
-                  <p className="text-xs text-gray-400 mb-1">Observaciones:</p>
-                  <p className="text-sm text-gray-300">{selectedViaje.viaje.observaciones}</p>
-                </div>
-              )}
             </div>
           </>
         ) : (

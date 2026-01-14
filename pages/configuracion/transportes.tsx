@@ -118,32 +118,41 @@ const TransportesPage = () => {
       }
 
       console.log('🔍 Buscando transporte con CUIT:', cuitNormalizado);
+      console.log('📋 Query parameters:', {
+        tipo_empresa: 'transporte',
+        cuit_normalizado: cuitNormalizado,
+        cuit_original: cuitInput.trim(),
+        activo: true
+      });
 
-      // Buscar en la tabla empresas
-      const { data: empresaEncontrada, error: busquedaError } = await supabase
+      // Buscar en la tabla empresas - SIN .single() para ver todos los resultados
+      const { data: empresasEncontradas, error: busquedaError } = await supabase
         .from('empresas')
         .select('*')
         .eq('tipo_empresa', 'transporte')
         .or(`cuit.eq.${cuitNormalizado},cuit.eq.${cuitInput.trim()}`)
-        .eq('activo', true)
-        .single();
+        .eq('activo', true);
+
+      console.log('📦 Resultado búsqueda:', {
+        cantidad: empresasEncontradas?.length || 0,
+        error: busquedaError,
+        empresas: empresasEncontradas
+      });
 
       if (busquedaError) {
-        if (busquedaError.code === 'PGRST116') {
-          setMensaje('Error: No se encontró la empresa de transporte en la base de datos. Debe registrarse primero desde el panel de Super Admin.');
-        } else {
-          console.error('Error en búsqueda:', busquedaError);
-          setMensaje('Error al buscar el transporte: ' + busquedaError.message);
-        }
+        console.error('Error en búsqueda:', busquedaError);
+        setMensaje('Error al buscar el transporte: ' + busquedaError.message);
         setLoading(false);
         return;
       }
 
-      if (!empresaEncontrada) {
-        setMensaje('El transporte no existe en la red Nodexia. Debe registrarse antes de poder asociarlo.');
+      if (!empresasEncontradas || empresasEncontradas.length === 0) {
+        setMensaje('No se encontró ninguna empresa de transporte con ese CUIT en la red Nodexia. Debe registrarse primero desde el panel de Super Admin.');
         setLoading(false);
         return;
       }
+
+      const empresaEncontrada = empresasEncontradas[0];
 
       console.log('✅ Transporte encontrado:', empresaEncontrada);
 

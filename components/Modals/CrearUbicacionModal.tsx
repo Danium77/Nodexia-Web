@@ -160,60 +160,47 @@ export default function CrearUbicacionModal({ isOpen, onClose, ubicacion }: Crea
 
       console.log('✅ Validaciones pasadas');
 
-      // Obtener user_id actual
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Usuario no autenticado');
-
-      console.log('✅ Usuario autenticado:', user.id);
-
-      const dataToSave = {
-        ...formData,
-        created_by: ubicacion ? undefined : user.id, // Solo en creación
-        updated_at: new Date().toISOString()
-      };
-
-      console.log('📦 Data a guardar:', dataToSave);
+      console.log('📦 Data a guardar:', formData);
 
       if (ubicacion) {
-        // Actualizar ubicación existente
+        // Actualizar ubicación existente usando API
         console.log('🔄 Actualizando ubicación existente...');
-        const { error: updateError } = await supabase
-          .from('ubicaciones')
-          .update(dataToSave)
-          .eq('id', ubicacion.id);
+        const response = await fetch('/api/ubicaciones/actualizar', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: ubicacion.id,
+            ...formData
+          })
+        });
 
-        if (updateError) {
-          console.error('❌ Error al actualizar:', updateError);
-          throw updateError;
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error('❌ Error al actualizar:', result);
+          throw new Error(result.error || 'Error al actualizar la ubicación');
         }
-        console.log('✅ Ubicación actualizada');
+        console.log('✅ Ubicación actualizada:', result.data);
       } else {
-        // Crear nueva ubicación
+        // Crear nueva ubicación usando API
         console.log('➕ Creando nueva ubicación...');
-        const { error: insertError } = await supabase
-          .from('ubicaciones')
-          .insert([dataToSave]);
+        const response = await fetch('/api/ubicaciones/crear', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData)
+        });
 
-        if (insertError) {
-          console.error('❌ Error al insertar:', insertError);
-          
-          // 🔥 Manejo de errores específicos y claros
-          if (insertError.code === '23505') {
-            throw new Error('Ya existe una ubicación con ese CUIT');
-          }
-          
-          // Error de longitud de campo (PostgreSQL error 22001)
-          if (insertError.code === '22001' || insertError.message.includes('demasiado largo')) {
-            // Extraer qué campo causó el error si es posible
-            const fieldMatch = insertError.message.match(/para el tipo carácter variable \((\d+)\)/);
-            const maxLength = fieldMatch ? fieldMatch[1] : '255';
-            throw new Error(`Uno de los campos supera el límite de ${maxLength} caracteres. Por favor, revisa los campos de texto y acorta su contenido.`);
-          }
-          
-          // Error genérico más amigable
-          throw new Error(`Error al guardar: ${insertError.message}`);
+        const result = await response.json();
+
+        if (!response.ok) {
+          console.error('❌ Error al crear:', result);
+          throw new Error(result.error || 'Error al crear la ubicación');
         }
-        console.log('✅ Ubicación creada exitosamente');
+        console.log('✅ Ubicación creada exitosamente:', result.data);
       }
 
       // Éxito

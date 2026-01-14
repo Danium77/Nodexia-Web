@@ -194,7 +194,7 @@ export default async function handler(
       user_id: newUser.user.id,
       empresa_id,
       rol_interno,
-      rol_empresa_id: roleValidation.roleId!, // ✅ ID obtenido del validador
+      // rol_empresa_id eliminado - Migration 022 usa solo rol_interno
       email_interno: email,
       nombre_completo: `${nombre} ${apellido}`,
       telefono_interno: telefono || null,

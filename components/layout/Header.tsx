@@ -1,31 +1,50 @@
 // components/Layout/Header.tsx
 import React from 'react';
-import { BellIcon, UserCircleIcon } from '@heroicons/react/24/outline'; // XMarkIcon ya no se necesita
+import { BellIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 
 interface HeaderProps {
   userEmail: string;
   userName: string;
-  pageTitle: string; // La prop que recibe el título de la página actual
+  pageTitle: string;
+  empresaNombre?: string; // Nombre de la empresa del usuario
 }
 
-const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle }) => {
-  const displayUserName = userName ? userName.split(' ')[0] : (userEmail ? userEmail.split('@')[0] : 'Usuario');
+const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle, empresaNombre }) => {
+  
+  const handleNotificationsClick = () => {
+    // TODO: Implementar panel de notificaciones
+    console.log('📬 Abrir notificaciones');
+  };
+
+  const handleProfileClick = () => {
+    // TODO: Implementar menú de perfil
+    console.log('👤 Abrir perfil');
+  };
   
   return (
     <header className="bg-[#1b273b] p-4 flex items-center justify-between shadow-md text-slate-100">
       <div className="flex items-center gap-4">
-        {/* El logo X pequeño que aparecía al lado del título HA SIDO ELIMINADO DEFINITIVAMENTE */}
-        {/* Título principal en el Header - Asegurado que pageTitle se muestra */}
-        <h2 className="text-2xl font-bold text-white">{pageTitle}</h2> {/* Muestra pageTitle */}
+        <h2 className="text-2xl font-bold text-white">{pageTitle}</h2>
       </div>
       <div className="flex items-center space-x-4">
-        <span className="text-base font-medium">Hola, {displayUserName}</span> 
-        
-        <button className="p-2 rounded-full hover:bg-[#0e1a2d] transition-colors">
+        <button 
+          onClick={handleNotificationsClick}
+          className="p-2 rounded-full hover:bg-[#0e1a2d] transition-colors"
+          title="Notificaciones"
+        >
           <BellIcon className="h-7 w-7 text-cyan-400" /> 
         </button>
-        <button className="p-2 rounded-full hover:bg-[#0e1a2d] transition-colors">
+        <button 
+          onClick={handleProfileClick}
+          className="flex flex-col items-center p-2 rounded-lg hover:bg-[#0e1a2d] transition-colors"
+          title="Perfil de usuario"
+        >
           <UserCircleIcon className="h-7 w-7 text-cyan-400" />
+          {empresaNombre && (
+            <span className="text-xs text-slate-300 mt-1 max-w-[120px] truncate">
+              {empresaNombre}
+            </span>
+          )}
         </button>
       </div>
     </header>

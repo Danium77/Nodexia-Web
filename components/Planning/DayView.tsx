@@ -73,7 +73,11 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
                 {(groupedByHour[hour] || []).map(dispatch => (
                   <div
                     key={dispatch.id}
-                    className={`bg-gradient-to-br from-slate-800 to-slate-900 rounded p-1.5 ${getPriorityColor(dispatch.prioridad)} hover:shadow-xl transition-all cursor-pointer`}
+                    className={`bg-gradient-to-br rounded p-1.5 hover:shadow-xl transition-all cursor-pointer ${
+                      dispatch.estado === 'expirado' 
+                        ? 'from-gray-800/50 to-gray-700/50 border border-gray-600 opacity-75' 
+                        : `from-slate-800 to-slate-900 ${getPriorityColor(dispatch.prioridad)}`
+                    }`}
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between mb-1">
@@ -86,15 +90,44 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
                     {/* Ruta */}
                     <div className="flex items-center gap-1 text-[9px] text-slate-300 mb-1">
                       <MapPinIcon className="h-3 w-3 text-cyan-400 flex-shrink-0" />
-                      <span className="truncate">{dispatch.origen || 'N/A'}</span>
-                      <span>→</span>
-                      <span className="truncate">{dispatch.destino || 'N/A'}</span>
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        {/* Origen */}
+                        <div className="flex flex-col gap-0.5">
+                          {(dispatch as any).origen_provincia && (
+                            <span className={`text-[10px] font-bold uppercase tracking-wide ${
+                              dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-cyan-300'
+                            }`}>
+                              {(dispatch as any).origen_provincia}
+                            </span>
+                          )}
+                          <span className={`truncate ${
+                            dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-slate-200'
+                          }`}>{dispatch.origen || 'N/A'}</span>
+                        </div>
+                        {/* Flecha */}
+                        <span className="text-slate-500">→</span>
+                        {/* Destino */}
+                        <div className="flex flex-col gap-0.5">
+                          {(dispatch as any).destino_provincia && (
+                            <span className={`text-[10px] font-bold uppercase tracking-wide ${
+                              dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-cyan-300'
+                            }`}>
+                              {(dispatch as any).destino_provincia}
+                            </span>
+                          )}
+                          <span className={`truncate ${
+                            dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-slate-200'
+                          }`}>{dispatch.destino || 'N/A'}</span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Transporte */}
                     {dispatch.transport_id && (
                       <div className="space-y-1 mt-3 pt-3 border-t border-gray-700">
-                        <div className="flex items-center gap-2 text-xs text-emerald-300">
+                        <div className={`flex items-center gap-2 text-xs ${
+                          dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-emerald-300'
+                        }`}>
                           <TruckIcon className="h-4 w-4 flex-shrink-0" />
                           <span className="truncate">{dispatch.transporte_data?.nombre || 'Transporte'}</span>
                         </div>

@@ -13,7 +13,10 @@ interface DashboardStats {
   despachosPendientes: number;
   transportesActivos: number;
   eficienciaRed: number;
-  ahorro: number;
+  // 🆕 KPIs Operativos de Planta
+  slotAdherence: number; // % de cumplimiento de ventanas horarias
+  dwellTimePromedio: number; // Tiempo promedio en planta (minutos)
+  pendientesDescarga: number; // Unidades próximas a arribar
 }
 
 interface DespachoReciente {
@@ -47,7 +50,9 @@ const CoordinatorDashboard = () => {
     despachosPendientes: 0,
     transportesActivos: 0,
     eficienciaRed: 0,
-    ahorro: 0
+    slotAdherence: 0,
+    dwellTimePromedio: 0,
+    pendientesDescarga: 0
   });
   const [recentDispatches, setRecentDispatches] = useState<DespachoReciente[]>([]);
   const [activeTransports, setActiveTransports] = useState<TransporteActivo[]>([]);
@@ -103,8 +108,183 @@ const CoordinatorDashboard = () => {
     }
   };
 
+  // 🆕 KPI 1: Calcular Slot Adherence (% de cumplimiento de ventanas horarias)
+  const calcularSlotAdherence = async (userId: string): Promise<number> => {
+    try {
+      // Obtener viajes de los últimos 7 días con hora programada
+      const { data: viajes } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          despacho_id,
+          despachos!inner(scheduled_at, created_by)
+        `)
+        .eq('despachos.created_by', userId)
+        .gte('despachos.scheduled_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+
+      if (!viajes || viajes.length === 0) return 0;
+
+      // Obtener registros de control de acceso (ingresos)
+      const viajeIds = viajes.map(v => v.id);
+      const { data: registros } = await supabase
+        .from('registro_control_acceso')
+        .select('viaje_id, fecha_hora')
+        .in('viaje_id', viajeIds)
+        .eq('tipo_movimiento', 'ingreso');
+
+      if (!registros || registros.length === 0) return 0;
+
+      // Calcular cumplimiento: llegó ±15min de la hora programada
+      let cumplidos = 0;
+      registros.forEach(registro => {
+        const viaje = viajes.find(v => v.id === registro.viaje_id);
+        if (viaje && viaje.despachos) {
+          const despacho = viaje.despachos as any;
+          const horaProgr = new Date(despacho.scheduled_at).getTime();
+          const horaReal = new Date(registro.fecha_hora).getTime();
+          const diff = Math.abs(horaReal - horaProgr) / 60000; // diferencia en minutos
+          
+          if (diff <= 15) cumplidos++; // ±15 minutos = cumplido
+        }
+      });
+
+      return Math.round((cumplidos / registros.length) * 100);
+    } catch (error) {
+      console.error('Error calculando slot adherence:', error);
+      return 0;
+    }
+  };
+
+  // 🆕 KPI 2: Calcular Dwell Time Promedio (tiempo de permanencia en planta)
+  const calcularDwellTime = async (userId: string): Promise<number> => {
+    try {
+      // Obtener viajes con ingreso Y egreso en los últimos 7 días
+      const { data: viajes } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          despacho_id,
+          despachos!inner(created_by)
+        `)
+        .eq('despachos.created_by', userId);
+
+      if (!viajes || viajes.length === 0) return 0;
+
+      const viajeIds = viajes.map(v => v.id);
+      const { data: registros } = await supabase
+        .from('registro_control_acceso')
+        .select('viaje_id, tipo_movimiento, fecha_hora')
+        .in('viaje_id', viajeIds)
+        .order('fecha_hora', { ascending: true });
+
+      if (!registros || registros.length === 0) return 0;
+
+      // Agrupar por viaje y calcular dwell time
+      const dwellTimes: number[] = [];
+      const viajesConIngresoEgreso = new Map<string, { ingreso?: Date; egreso?: Date }>();
+
+      registros.forEach(r => {
+        if (!viajesConIngresoEgreso.has(r.viaje_id)) {
+          viajesConIngresoEgreso.set(r.viaje_id, {});
+        }
+        const viaje = viajesConIngresoEgreso.get(r.viaje_id)!;
+        
+        if (r.tipo_movimiento === 'ingreso' && !viaje.ingreso) {
+          viaje.ingreso = new Date(r.fecha_hora);
+        } else if (r.tipo_movimiento === 'egreso' && !viaje.egreso) {
+          viaje.egreso = new Date(r.fecha_hora);
+        }
+      });
+
+      // Calcular tiempos
+      viajesConIngresoEgreso.forEach((viaje) => {
+        if (viaje.ingreso && viaje.egreso) {
+          const diff = (viaje.egreso.getTime() - viaje.ingreso.getTime()) / 60000; // minutos
+          if (diff > 0 && diff < 480) dwellTimes.push(diff); // Solo si es < 8 horas (filtrar anomalías)
+        }
+      });
+
+      if (dwellTimes.length === 0) return 0;
+
+      const promedio = dwellTimes.reduce((a, b) => a + b, 0) / dwellTimes.length;
+      return Math.round(promedio);
+    } catch (error) {
+      console.error('Error calculando dwell time:', error);
+      return 0;
+    }
+  };
+
+  // 🆕 KPI 3: Calcular Pendientes de Descarga (unidades próximas a arribar)
+  const calcularPendientesDescarga = async (userId: string): Promise<number> => {
+    try {
+      // Obtener empresa del usuario para identificar recepciones
+      const { data: usuarioEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id, empresas!inner(cuit)')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!usuarioEmpresa) return 0;
+
+      const empresaId = usuarioEmpresa.empresa_id;
+      const empresa = usuarioEmpresa.empresas as any;
+      const cuit = empresa?.cuit;
+
+      // Obtener ubicaciones de la empresa
+      const { data: ubicaciones } = await supabase
+        .from('ubicaciones')
+        .select('id')
+        .eq('cuit', cuit)
+        .eq('activo', true);
+
+      if (!ubicaciones || ubicaciones.length === 0) return 0;
+
+      const ubicacionIds = ubicaciones.map(u => u.id);
+
+      // Contar viajes en tránsito hacia estas ubicaciones (RECEPCIONES)
+      const { data: despachos } = await supabase
+        .from('despachos')
+        .select('id')
+        .in('destino_id', ubicacionIds);
+
+      if (!despachos || despachos.length === 0) return 0;
+
+      const despachoIds = despachos.map(d => d.id);
+      
+      // Contar viajes en estados próximos a arribar
+      const { data: viajesEnTransito, count } = await supabase
+        .from('viajes_despacho')
+        .select('id', { count: 'exact', head: true })
+        .in('despacho_id', despachoIds)
+        .in('estado_carga', ['en_transito_destino', 'arribo_destino']);
+
+      return count || 0;
+    } catch (error) {
+      console.error('Error calculando pendientes de descarga:', error);
+      return 0;
+    }
+  };
+
   const loadDashboardStats = async (userId: string) => {
     try {
+      // Obtener empresa del usuario coordinador
+      const { data: usuarioEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const empresaCoordinadoraId = usuarioEmpresa?.empresa_id;
+
+      // Obtener transportes vinculados directamente a la empresa
+      const { data: transportesVinculados } = await supabase
+        .from('relaciones_empresa')
+        .select('empresa_transporte_id')
+        .eq('empresa_coordinadora_id', empresaCoordinadoraId)
+        .eq('activo', true);
+
+      const transportesVinculadosIds = transportesVinculados?.map(r => r.empresa_transporte_id) || [];
+
       // Obtener estadísticas de despachos
       const { data: despachos, error } = await supabase
         .from('despachos')
@@ -117,18 +297,32 @@ const CoordinatorDashboard = () => {
       const despachosAsignados = despachos?.filter(d => d.transport_id).length || 0;
       const despachosPendientes = totalDespachos - despachosAsignados;
 
-      // Obtener empresas de transporte activas (en lugar de tabla transportes)
+      // 🔹 Eficiencia de RED NODEXIA: solo despachos asignados a transportes NO vinculados
+      const despachosRedNodexia = despachos?.filter(d => 
+        d.transport_id && !transportesVinculadosIds.includes(d.transport_id)
+      ).length || 0;
+
+      // Obtener empresas de transporte activas en la red Nodexia (NO vinculadas)
       const { data: empresasTransporte } = await supabase
         .from('empresas')
         .select('id')
         .eq('tipo_empresa', 'transporte')
-        .eq('activo', true);
+        .eq('activo', true)
+        .not('id', 'in', `(${transportesVinculadosIds.join(',')})`);
 
       const transportesActivos = empresasTransporte?.length || 0;
 
-      // Calcular métricas de eficiencia
-      const eficienciaRed = totalDespachos > 0 ? Math.round((despachosAsignados / totalDespachos) * 100) : 0;
-      const ahorro = despachosAsignados * 15000; // $15k promedio de ahorro por despacho optimizado
+      // Calcular métricas de eficiencia (solo con red Nodexia)
+      const eficienciaRed = totalDespachos > 0 ? Math.round((despachosRedNodexia / totalDespachos) * 100) : 0;
+
+      // 🆕 KPI 1: Slot Adherence (Cumplimiento de ventanas horarias)
+      const slotAdherence = await calcularSlotAdherence(userId);
+
+      // 🆕 KPI 2: Dwell Time Promedio (Tiempo de permanencia en planta)
+      const dwellTimePromedio = await calcularDwellTime(userId);
+
+      // 🆕 KPI 3: Pendientes de Descarga (Unidades próximas a arribar)
+      const pendientesDescarga = await calcularPendientesDescarga(userId);
 
       setStats({
         totalDespachos,
@@ -136,7 +330,9 @@ const CoordinatorDashboard = () => {
         despachosPendientes,
         transportesActivos,
         eficienciaRed,
-        ahorro
+        slotAdherence,
+        dwellTimePromedio,
+        pendientesDescarga
       });
 
     } catch (error) {
@@ -297,6 +493,106 @@ const CoordinatorDashboard = () => {
 
           {/* Métricas Principales con Animaciones */}
           <NetworkMetrics stats={stats} />
+
+          {/* 🆕 KPIs Operativos de Planta */}
+          <div className="mb-6 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 rounded-xl p-6 border border-indigo-500/30">
+            <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <span className="text-indigo-400 mr-3">📊</span>
+              KPIs Operativos de Planta
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Slot Adherence */}
+              <div className="bg-gray-800/50 rounded-lg p-5 border border-indigo-500/20 hover:border-indigo-500/40 transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-gray-300 text-sm font-medium">Cumplimiento de Horarios</h4>
+                  <span className="text-2xl">⏱️</span>
+                </div>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className={`text-4xl font-bold ${
+                    stats.slotAdherence >= 80 ? 'text-green-400' :
+                    stats.slotAdherence >= 60 ? 'text-yellow-400' :
+                    'text-red-400'
+                  }`}>
+                    {stats.slotAdherence}%
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Llegadas dentro de ventana horaria (±15 min)
+                </p>
+                <div className="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${
+                      stats.slotAdherence >= 80 ? 'bg-green-500' :
+                      stats.slotAdherence >= 60 ? 'bg-yellow-500' :
+                      'bg-red-500'
+                    }`}
+                    style={{ width: `${stats.slotAdherence}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Dwell Time */}
+              <div className="bg-gray-800/50 rounded-lg p-5 border border-indigo-500/20 hover:border-indigo-500/40 transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-gray-300 text-sm font-medium">Tiempo de Permanencia</h4>
+                  <span className="text-2xl">🕐</span>
+                </div>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className={`text-4xl font-bold ${
+                    stats.dwellTimePromedio <= 60 ? 'text-green-400' :
+                    stats.dwellTimePromedio <= 120 ? 'text-yellow-400' :
+                    'text-red-400'
+                  }`}>
+                    {stats.dwellTimePromedio}
+                  </span>
+                  <span className="text-gray-400 text-lg">min</span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Tiempo promedio en planta (últimos 7 días)
+                </p>
+                <div className="mt-3 flex items-center gap-2 text-xs">
+                  <span className="text-green-400">✓ Meta: &lt; 60 min</span>
+                </div>
+              </div>
+
+              {/* Pendientes de Descarga */}
+              <div className="bg-gray-800/50 rounded-lg p-5 border border-indigo-500/20 hover:border-indigo-500/40 transition-all">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-gray-300 text-sm font-medium">Próximos a Arribar</h4>
+                  <span className="text-2xl">🚛</span>
+                </div>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className={`text-4xl font-bold ${
+                    stats.pendientesDescarga === 0 ? 'text-gray-400' :
+                    stats.pendientesDescarga <= 5 ? 'text-green-400' :
+                    stats.pendientesDescarga <= 10 ? 'text-yellow-400' :
+                    'text-red-400'
+                  }`}>
+                    {stats.pendientesDescarga}
+                  </span>
+                  <span className="text-gray-400 text-lg">unidades</span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Viajes en tránsito hacia planta
+                </p>
+                <div className="mt-3">
+                  {stats.pendientesDescarga > 0 ? (
+                    <button 
+                      onClick={() => router.push('/planificacion?tab=tracking')}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                    >
+                      Ver en seguimiento →
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-500">Sin unidades pendientes</span>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             

@@ -562,11 +562,12 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                       }
                                     }}
                                     className={`group relative p-1.5 rounded mb-1 last:mb-0 transition-all duration-200 border select-none
-                                      ${getPriorityBorderColor(dispatch.prioridad)}
-                                      bg-gradient-to-br ${getPriorityGradient(dispatch.prioridad)}
+                                      ${dispatch.estado === 'expirado' ? 'border-gray-600' : getPriorityBorderColor(dispatch.prioridad)}
+                                      bg-gradient-to-br ${dispatch.estado === 'expirado' ? 'from-gray-800/50 to-gray-700/50' : getPriorityGradient(dispatch.prioridad)}
+                                      ${dispatch.estado === 'expirado' ? 'opacity-75' : ''}
                                       ${isDraggable
                                         ? 'cursor-grab hover:cursor-grab active:cursor-grabbing hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1' 
-                                        : 'cursor-not-allowed opacity-60'
+                                        : 'cursor-not-allowed opacity-75'
                                       }
                                     ${selectedDispatch?.id === dispatch.id ? 'ring-2 ring-cyan-500' : ''}
                                     ${isBeingDragged ? 'opacity-80 scale-95 shadow-2xl ring-2 ring-cyan-400' : ''}
@@ -589,15 +590,39 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     pointerEvents: 'none' // Esto hace que todos los clics pasen al padre
                                   }}
                                 >
-                                  {/* Destino */}
-                                  <div className="flex items-center gap-0.5 text-[9px] text-cyan-300 truncate">
-                                    <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                                    <span className="truncate font-semibold">{dispatch.destino || 'N/A'}</span>
+                                  {/* Destino u Origen según el tipo de vista */}
+                                  <div className="flex flex-col gap-0.5">
+                                    {/* Provincia ARRIBA - más prominente */}
+                                    {((type === 'recepciones' && (dispatch as any).origen_provincia) || 
+                                      (type === 'despachos' && (dispatch as any).destino_provincia)) && (
+                                      <div className={`text-[9px] font-bold uppercase tracking-wide truncate ${
+                                        dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-cyan-400'
+                                      }`}>
+                                        {type === 'recepciones' 
+                                          ? (dispatch as any).origen_provincia
+                                          : (dispatch as any).destino_provincia
+                                        }
+                                      </div>
+                                    )}
+                                    {/* Cliente/Ubicación ABAJO */}
+                                    <div className={`flex items-center gap-0.5 text-[9px] truncate ${
+                                      dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-slate-200'
+                                    }`}>
+                                      <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                                      <span className="truncate font-medium">
+                                        {type === 'recepciones' 
+                                          ? (dispatch.origen || 'N/A')  // Recepciones: mostrar ORIGEN
+                                          : (dispatch.destino || 'N/A') // Despachos: mostrar DESTINO
+                                        }
+                                      </span>
+                                    </div>
                                   </div>
 
                                   {/* Transporte */}
                                   {dispatch.transporte_data && (
-                                    <div className="flex items-center gap-0.5 text-[9px] text-emerald-300 truncate">
+                                    <div className={`flex items-center gap-0.5 text-[9px] truncate ${
+                                      dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-emerald-300'
+                                    }`}>
                                       <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
                                       <span className="truncate">{dispatch.transporte_data.nombre}</span>
                                     </div>
@@ -605,7 +630,9 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
                                   {/* Chofer y Camión */}
                                   {(dispatch.chofer || dispatch.camion_data) && (
-                                    <div className="text-[9px] text-blue-300 truncate">
+                                    <div className={`text-[9px] truncate ${
+                                      dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-blue-300'
+                                    }`}>
                                       <span className="truncate">
                                         {dispatch.chofer?.nombre_completo?.split(' ')[0] || ''}
                                         {dispatch.chofer && dispatch.camion_data && ' - '}

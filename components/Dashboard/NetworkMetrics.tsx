@@ -52,7 +52,7 @@ const NetworkMetrics: React.FC<NetworkMetricsProps> = ({ stats }) => {
   }, [stats]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       
       {/* Total Despachos con Progreso */}
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -145,29 +145,6 @@ const NetworkMetrics: React.FC<NetworkMetricsProps> = ({ stats }) => {
         </div>
         <div className="text-sm">
           <span className="text-blue-400">🔗 Conectados en tiempo real</span>
-        </div>
-      </div>
-
-      {/* Ahorro con Animación de Dinero */}
-      <div className="bg-gradient-to-br from-green-800 via-green-700 to-emerald-800 rounded-xl p-6 border border-green-600 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden">
-        {/* Efecto de brillo */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 transform -skew-x-12 animate-pulse"></div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-green-100 text-sm font-medium">Ahorro Generado</p>
-              <p className="text-4xl font-bold text-white tracking-tight">
-                ${(animatedStats.despachosAsignados * 15000).toLocaleString()}
-              </p>
-            </div>
-            <div className="text-yellow-400 text-5xl animate-bounce">💰</div>
-          </div>
-          <div className="text-sm">
-            <span className="text-green-200 flex items-center">
-              <span className="mr-1">🎉</span> ROI inmediato con NODEXIA
-            </span>
-          </div>
         </div>
       </div>
 

@@ -1,0 +1,102 @@
+{
+  // ============================================
+  // CONFIGURACIONES DE OPTIMIZACIÓN VS CODE
+  // Basadas en la documentación oficial de Microsoft
+  // ============================================
+
+  // === RENDIMIENTO GENERAL ===
+  
+  // Deshabilitar características AI si no las usas (mejora significativa)
+  "chat.disableAIFeatures": false, // Cambia a true si no usas Copilot
+  
+  // Reducir uso de CPU en búsqueda de archivos
+  "search.followSymlinks": false,
+  "search.maxResults": 2000,
+  
+  // Optimizar File Watcher (reduce uso de CPU/memoria)
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.next/**": true,
+    "**/.cache/**": true,
+    "**/coverage/**": true,
+    "**/.vscode/**": false // Mantener .vscode visible
+  },
+  
+  // === EDITOR ===
+  
+  // Reducir longitud de líneas para tokenización (mejora rendimiento en archivos grandes)
+  "editor.maxTokenizationLineLength": 20000,
+  
+  // Limitar sugerencias automáticas
+  "editor.quickSuggestionsDelay": 100,
+  
+  // Optimizar renderizado
+  "editor.renderWhitespace": "selection", // En lugar de "all"
+  "editor.renderControlCharacters": false,
+  
+  // === TYPESCRIPT/JAVASCRIPT ===
+  
+  // Reducir carga del servidor de TypeScript
+  "typescript.tsserver.maxTsServerMemory": 4096, // Ajustar según tu RAM
+  "typescript.disableAutomaticTypeAcquisition": false,
+  
+  // === GIT ===
+  
+  // Optimizar operaciones Git
+  "git.autorefresh": true,
+  "git.autofetch": false, // Reducir operaciones en background
+  "git.enabled": true,
+  
+  // === TELEMETRÍA ===
+  
+  // Reducir telemetría (opcional, mejora menor)
+  "telemetry.telemetryLevel": "off",
+  
+  // === WORKSPACE ===
+  
+  // Excluir carpetas pesadas del explorador
+  "files.exclude": {
+    "**/.git": true,
+    "**/node_modules": false, // Mantener visible pero excluir del watcher arriba
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/.next": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  
+  // === EXPERIMENTAL ===
+  
+  // Deshabilitar experimentos si quieres máxima estabilidad
+  "workbench.enableExperiments": true,
+  
+  // === EXTENSIONES ===
+  
+  // Deshabilitar auto-actualización de extensiones (opcional)
+  "extensions.autoUpdate": true,
+  "extensions.autoCheckUpdates": true,
+  
+  // === TERMINAL ===
+  
+  // Limitar buffer del terminal
+  "terminal.integrated.scrollback": 1000, // Por defecto es 1000
+  
+  // === RENDIMIENTO DE BÚSQUEDA ===
+  
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/.git": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.next": true,
+    "**/coverage": true,
+    "**/.cache": true,
+    "**/pnpm-lock.yaml": true,
+    "**/package-lock.json": true
+  }
+}

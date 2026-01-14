@@ -528,54 +528,99 @@ export interface Incidencia {
 // =====================
 
 // =====================
-// Estados DUALES del Sistema (Nuevo - 21 Nov 2025)
+// Estados DUALES del Sistema (Migración 015 V2 - 10 Ene 2026)
 // =====================
 
 /**
- * Estados de la UNIDAD (Chofer + Camión)
- * Tracking logístico del vehículo
- */
-export type EstadoUnidadViaje = 
-  | 'pendiente'              // Viaje creado, sin transporte asignado
-  | 'asignado'               // Transporte asignado, esperando confirmación
-  | 'confirmado_chofer'      // Chofer confirmó el viaje
-  | 'en_transito_origen'     // En camino a planta de carga
-  | 'arribado_origen'        // Llegó a planta origen
-  | 'en_playa_espera'        // En playa esperando llamado
-  | 'llamado_carga'          // Supervisor llamó a carga
-  | 'posicionado_carga'      // En posición de carga
-  | 'carga_completada'       // Carga finalizada
-  | 'saliendo_origen'        // Saliendo de planta
-  | 'en_transito_destino'    // En camino a destino
-  | 'arribado_destino'       // Llegó a destino
-  | 'descarga_completada'    // Descarga finalizada
-  | 'viaje_completado'       // Viaje cerrado
-  | 'en_incidencia'          // Problema reportado
-  | 'cancelado';             // Viaje cancelado
-
-/**
- * Estados de la CARGA (Producto + Documentación)
- * Tracking operativo del producto
+ * Estados de la CARGA (Producto + Documentación) - 17 estados
+ * Refleja el ciclo de vida del producto desde planificación hasta entrega
+ * Basado en: Excel "Flujo de Estados" - 10 Ene 2026
+ * Patrón: Uber Freight / Amazon Relay
  */
 export type EstadoCargaViaje = 
-  | 'pendiente'                 // Viaje creado, sin planificación
-  | 'planificado'               // Producto y cantidades definidas
-  | 'documentacion_preparada'   // Remitos listos
-  | 'en_proceso_carga'          // Carga en progreso
-  | 'cargado'                   // Producto cargado
-  | 'documentacion_validada'    // Control Acceso validó docs
-  | 'en_transito'               // Producto en tránsito
-  | 'en_proceso_descarga'       // Descarga en progreso
-  | 'descargado'                // Producto entregado
-  | 'documentacion_cierre'      // Docs firmados
-  | 'completado'                // Viaje cerrado
-  | 'con_faltante'              // Entregado con faltante
-  | 'con_rechazo'               // Producto rechazado
-  | 'cancelado_sin_carga';      // Cancelado antes de cargar
+  // FASE 1: PLANIFICACIÓN
+  | 'pendiente_asignacion'      // Despacho creado, esperando asignación de transporte
+  | 'transporte_asignado'       // Transporte asignado por coordinador planta
+  
+  // FASE 2: ASIGNACIÓN RECURSOS
+  | 'camion_asignado'           // Camión y chofer asignados
+  
+  // FASE 3: TRÁNSITO A ORIGEN
+  | 'en_transito_origen'        // Chofer viajando hacia planta de carga
+  
+  // FASE 4: OPERACIÓN EN ORIGEN
+  | 'en_playa_origen'           // En planta esperando proceso de carga
+  | 'llamado_carga'             // Supervisor llamó al camión para cargar
+  | 'cargando'                  // Proceso de carga en progreso
+  | 'cargado'                   // Carga completada
+  
+  // FASE 5: EGRESO Y TRÁNSITO
+  | 'egresado_origen'           // Control acceso autorizó salida de planta
+  | 'en_transito_destino'       // Viajando hacia destino
+  
+  // FASE 6: OPERACIÓN EN DESTINO
+  | 'arribado_destino'          // Chofer arribó a destino
+  | 'llamado_descarga'          // Supervisor destino llamó a descarga
+  | 'descargando'               // Proceso de descarga en progreso
+  | 'entregado'                 // Producto entregado y documentado
+  
+  // FASE 7: FINALIZACIÓN
+  | 'disponible'                // Transición antes del cierre
+  
+  // ESTADOS FINALES
+  | 'completado'                // ✅ Viaje completado exitosamente (estado final)
+  | 'cancelado'                 // Viaje cancelado
+  | 'expirado';                 // Viaje expirado (sin recursos a tiempo)
 
-// DEPRECATED - Mantener por compatibilidad
+/**
+ * Estados de la UNIDAD (Chofer + Camión) - 17 estados
+ * Refleja la ubicación física y operación del vehículo
+ * Basado en: Excel "Flujo de Estados" - 10 Ene 2026
+ * 
+ * ⚠️ IMPORTANTE: La unidad termina en 'disponible' (estado final REUTILIZABLE).
+ * Cuando se asigna a un nuevo viaje, pasa de 'disponible' → 'camion_asignado' (nuevo ciclo).
+ * Los estados 'cancelado', 'expirado', 'incidencia' son finales NO reutilizables.
+ */
+export type EstadoUnidadViaje = 
+  // FASE 1: ASIGNACIÓN
+  | 'camion_asignado'           // Camión y chofer asignados
+  
+  // FASE 2: TRÁNSITO A ORIGEN
+  | 'en_transito_origen'        // Viajando hacia planta de carga
+  
+  // FASE 3: OPERACIÓN EN ORIGEN
+  | 'ingresado_origen'          // Control acceso registró ingreso
+  | 'en_playa_origen'           // En playa de espera
+  | 'llamado_carga'             // Llamado a posición de carga
+  | 'cargando'                  // En proceso de carga
+  
+  // FASE 4: EGRESO
+  | 'egreso_origen'             // Egresando de planta
+  
+  // FASE 5: TRÁNSITO A DESTINO
+  | 'en_transito_destino'       // Viajando a destino
+  
+  // FASE 6: OPERACIÓN EN DESTINO
+  | 'arribado_destino'          // Arribó a destino
+  | 'ingresado_destino'         // Control acceso destino registró ingreso
+  | 'llamado_descarga'          // Llamado a descarga
+  | 'descargando'               // En proceso de descarga
+  | 'vacio'                     // Camión vacío
+  
+  // FASE 7: FINALIZACIÓN (Estado final reutilizable)
+  | 'disponible'                // ✅ ESTADO FINAL: Disponible para reasignación a nuevo viaje
+  
+  // ESTADOS FINALES NO REUTILIZABLES
+  | 'cancelado'                 // Viaje cancelado (no reutilizable)
+  | 'expirado'                  // Viaje expirado (no reutilizable)
+  | 'incidencia';               // En resolución de incidencia (no reutilizable)
+
+// DEPRECATED - Mantener por compatibilidad temporal
 export type EstadoViajeDespacho = EstadoUnidadViaje;
 
+/**
+ * Interface base de viaje con estados duales (Migración 015 V2 - 10 Ene 2026)
+ */
 export interface ViajeDespacho {
   id: UUID;
   despacho_id: UUID;
@@ -584,7 +629,17 @@ export interface ViajeDespacho {
   camion_id?: UUID;
   acoplado_id?: UUID;
   chofer_id?: UUID;
-  estado: EstadoViajeDespacho;
+  
+  // ESTADOS DUALES (Migración 015 V2 - 10 Ene 2026)
+  estado_carga: EstadoCargaViaje;     // Estado del producto/documentación (17 estados)
+  estado_unidad?: EstadoUnidadViaje;  // Estado físico del camión/chofer (17 estados) - NULL si no hay unidad
+  estado?: EstadoViajeDespacho;       // DEPRECATED: usar estado_carga y estado_unidad
+  
+  // CAMPOS DE REPROGRAMACIÓN (Migración 016 - 10 Ene 2026)
+  fue_expirado?: boolean;                   // Si alguna vez estuvo en estado expirado
+  fecha_expiracion_original?: Timestamp;    // Primera fecha en que expiró
+  cantidad_reprogramaciones?: number;       // Contador de veces reprogramado
+  motivo_reprogramacion?: string;           // Razón de la última reprogramación
   
   // Tracking temporal
   fecha_creacion: Timestamp;
@@ -665,29 +720,65 @@ export interface RegistroControlAcceso {
   acoplado?: Acoplado;
 }
 
+/**
+ * Tipos de incidencia en viajes (Migración 015 V2 - 10 Ene 2026)
+ * Basado en: SQL migrations/015_sistema_estados_duales_v2.sql
+ */
 export type TipoIncidenciaViaje = 
-  | 'retraso'
-  | 'averia_camion'
-  | 'documentacion_faltante'
-  | 'producto_danado'
-  | 'accidente'
-  | 'otro';
+  | 'faltante_carga'           // Producto faltante en carga/descarga
+  | 'rechazo_carga'            // Carga rechazada por calidad
+  | 'demora_excesiva'          // Retraso significativo
+  | 'documentacion_incorrecta' // Problemas con remito/carta porte
+  | 'averia_camion'            // Problema mecánico
+  | 'accidente'                // Accidente de tránsito
+  | 'otro';                    // Otros casos
 
+/**
+ * Severidad de la incidencia
+ */
 export type SeveridadIncidencia = 'baja' | 'media' | 'alta' | 'critica';
 
+/**
+ * Estado de resolución de incidencia
+ */
+export type EstadoResolucionIncidencia = 
+  | 'reportada'      // Recién reportada
+  | 'en_revision'    // Siendo analizada
+  | 'en_resolucion'  // En proceso de resolución
+  | 'resuelta'       // Resuelta
+  | 'cerrada';       // Cerrada (viaje continúa o se cancela)
+
+/**
+ * Interface de incidencia en viaje (tabla: incidencias)
+ * Las incidencias NO son estados del viaje, son registros separados
+ */
 export interface IncidenciaViaje {
   id: UUID;
   viaje_id: UUID;
+  
+  // Clasificación
   tipo_incidencia: TipoIncidenciaViaje;
   severidad: SeveridadIncidencia;
-  estado: EstadoIncidencia; // Reutilizamos el tipo existente
-  descripcion: string;
+  estado_incidencia: EstadoResolucionIncidencia;
+  
+  // Descripción
+  titulo: string;
+  descripcion?: string;
+  
+  // Impacto
+  bloquea_viaje: boolean;
+  requiere_cancelacion: boolean;
+  
+  // Actor que reporta
+  reportado_por_user_id?: UUID;
+  reportado_por_rol?: string;  // 'chofer', 'supervisor', etc.
+  
+  // Resolución
+  resuelto_por_user_id?: UUID;
   resolucion?: string;
-  fecha_incidencia: Timestamp;
   fecha_resolucion?: Timestamp;
-  reportado_por: UUID;
-  resuelto_por?: UUID;
-  fotos_incidencia?: string[]; // Array de URLs
+  
+  // Timestamps
   created_at: Timestamp;
   updated_at?: Timestamp;
   

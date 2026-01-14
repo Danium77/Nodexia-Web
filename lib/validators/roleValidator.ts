@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../supabaseAdmin';
+import { ROLES_BY_TIPO, RolInterno, TipoEmpresa, getRolDisplayName } from '../types';
 
 /**
  * Resultado de la validación de un rol para una empresa
@@ -17,23 +18,23 @@ export interface RoleValidationResult {
 /**
  * Valida que un rol sea aplicable para un tipo de empresa específico
  * 
- * Esta función centraliza la lógica que antes estaba en el trigger de BD
- * trigger_validar_rol -> validar_rol_por_tipo_empresa()
+ * MIGRACIÓN 022 (20-12-25): Sistema nuevo con ROLES_BY_TIPO
+ * - Usa ROLES_BY_TIPO del sistema centralizado (lib/types.ts)
+ * - No depende de la tabla roles_empresa legacy
+ * - Validación basada en rol_interno + tipo_empresa
  * 
  * Reglas de validación:
- * 1. El rol debe existir en la tabla roles_empresa
- * 2. El rol debe estar activo (activo = true)
- * 3. El rol debe ser compatible con el tipo de empresa:
- *    - tipo_empresa = 'planta' -> rol con tipo_empresa = 'planta' o 'ambos'
- *    - tipo_empresa = 'transporte' -> rol con tipo_empresa = 'transporte' o 'ambos'
+ * 1. El tipo de empresa debe existir y ser válido
+ * 2. El rol debe estar en ROLES_BY_TIPO[tipo_empresa]
+ * 3. Se sigue creando roleId temporal para compatibilidad con usuarios_empresa
  * 
- * @param roleName - Nombre del rol a validar (ej: "Control de Acceso", "coordinador")
+ * @param rolInterno - Rol interno a validar (ej: "coordinador", "control_acceso")
  * @param companyId - UUID de la empresa
  * @returns Resultado de la validación con el ID del rol si es válido
  * 
  * @example
  * ```typescript
- * const result = await validateRoleForCompany('Control de Acceso', 'empresa-uuid');
+ * const result = await validateRoleForCompany('control_acceso', 'empresa-uuid');
  * if (!result.valid) {
  *   throw new Error(result.error);
  * }
@@ -41,7 +42,7 @@ export interface RoleValidationResult {
  * ```
  */
 export async function validateRoleForCompany(
-  roleName: string,
+  rolInterno: string,
   companyId: string
 ): Promise<RoleValidationResult> {
   try {
@@ -59,46 +60,39 @@ export async function validateRoleForCompany(
       };
     }
 
-    // 2. Mapear nombre interno a nombre de rol en BD
-    const roleNameMap: Record<string, string> = {
-      'control_acceso': 'Control de Acceso',
-      'coordinador': 'Coordinador de Planta',
-      'supervisor': 'Supervisor de Carga',
-      'administrativo': 'Administrativo Planta',
-      'chofer': 'Chofer',
-      'admin_nodexia': 'Administrador Nodexia',
-      'visor': 'Visor'
-    };
+    console.log('🔍 Validating role:', {
+      rolInterno,
+      tipoEmpresa: company.tipo_empresa,
+      availableRoles: ROLES_BY_TIPO[company.tipo_empresa as TipoEmpresa]
+    });
 
-    const dbRoleName = roleNameMap[roleName] || roleName;
-
-    // 3. Buscar el rol que coincida con el nombre y sea compatible con el tipo de empresa
-    const { data: role, error: roleError } = await supabaseAdmin
-      .from('roles_empresa')
-      .select('id, nombre_rol, tipo_empresa')
-      .eq('nombre_rol', dbRoleName)
-      .in('tipo_empresa', [company.tipo_empresa, 'ambos'])
-      .eq('activo', true)
-      .order('tipo_empresa', { ascending: false }) // Preferir tipo específico sobre 'ambos'
-      .limit(1)
-      .single();
-
-    if (roleError || !role) {
+    // 2. Validar que el rol está en ROLES_BY_TIPO para este tipo de empresa
+    const rolesPermitidos = ROLES_BY_TIPO[company.tipo_empresa as TipoEmpresa] || [];
+    
+    if (!rolesPermitidos.includes(rolInterno as RolInterno)) {
+      console.error('❌ Invalid role:', {
+        rolInterno,
+        tipoEmpresa: company.tipo_empresa,
+        rolesPermitidos
+      });
       return {
         valid: false,
-        error: `Role "${dbRoleName}" not valid for company type "${company.tipo_empresa}". ` +
-               `Available roles must match tipo_empresa="${company.tipo_empresa}" or tipo_empresa="ambos".`
+        error: `Role "${rolInterno}" not valid for company type "${company.tipo_empresa}". ` +
+               `Available roles: ${rolesPermitidos.join(', ')}`
       };
     }
 
-    // 4. Validación exitosa
+    console.log('✅ Role validation passed - using simplified validation (ROLES_BY_TIPO)');
+
+    // 3. Retornar validación exitosa sin depender de roles_empresa
+    // Se usa un ID temporal que luego el sistema reemplazará
     return {
       valid: true,
-      roleId: role.id,
+      roleId: `${company.tipo_empresa}-${rolInterno}`, // ID compuesto temporal
       roleData: {
-        id: role.id,
-        nombre_rol: role.nombre_rol,
-        tipo_empresa: role.tipo_empresa
+        id: `${company.tipo_empresa}-${rolInterno}`,
+        nombre_rol: getRolDisplayName(rolInterno as RolInterno, company.tipo_empresa as TipoEmpresa),
+        tipo_empresa: company.tipo_empresa
       }
     };
   } catch (error) {

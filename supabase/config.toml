@@ -1,0 +1,14 @@
+# Supabase Configuration
+# Para más info: https://supabase.com/docs/guides/functions
+
+[functions.expiracion-viajes]
+# Ejecutar cada 15 minutos
+cron = "*/15 * * * *"
+# Formato cron:
+# */15 * * * * = cada 15 minutos
+# 0 */1 * * * = cada hora
+# 0 0 * * * = diariamente a medianoche
+
+[functions]
+# Timeout para funciones (en segundos)
+timeout = 30

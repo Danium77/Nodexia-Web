@@ -1,11 +1,38 @@
 # PRÓXIMA SESIÓN - Pendientes y Tareas
 
-**Última actualización**: 26 de Diciembre 2025  
-**Última sesión**: Resolución de UUIDs en Control de Acceso (Ver [sesion-2025-12-26.md](.session/history/sesion-2025-12-26.md))
+**Última actualización**: 11 de Enero 2026  
+**Última sesión**: Sistema de Reprogramación de Viajes Expirados (Ver [SESION-11-ENE-2026-SISTEMA-REPROGRAMACION.md](docs/SESION-11-ENE-2026-SISTEMA-REPROGRAMACION.md))
 
 ---
 
-## 🔥 PRIORIDAD ALTA
+## ✅ COMPLETADO (11-Ene-2026) - Sistema de Reprogramación
+
+### Migración 016 - Sistema Completo Implementado
+**Archivos creados**:
+- `sql/migrations/016_sistema_reprogramacion.sql` (229 líneas)
+- `sql/migrations/016_fix_reprogramar_viaje.sql` (78 líneas)
+- `components/Modals/ReprogramarModal.tsx` (229 líneas)
+- `docs/ONBOARDING-DESARROLLADOR.md` (completo)
+- `docs/SESION-11-ENE-2026-SISTEMA-REPROGRAMACION.md` (documentación completa)
+
+**Funcionalidades**:
+- ✅ Tab "⚠️ Expirados" en página Despachos
+- ✅ Modal de reprogramación con fecha/hora/motivo
+- ✅ Función SQL `reprogramar_viaje()` que limpia transporte
+- ✅ Visual dimming en vistas de planificación
+- ✅ Vista KPIs `vista_kpis_expiracion`
+- ✅ Tracking histórico (fue_expirado, cantidad_reprogramaciones, motivo)
+
+**Flujo de Reprogramación**:
+1. Usuario ve despacho expirado
+2. Click "🔄 Reprogramar" → Modal abierto
+3. Ingresa nueva fecha/hora + motivo
+4. Sistema actualiza viajes y despacho
+5. Despacho vuelve a "Pendientes" sin transporte
+
+---
+
+## 🔥 PRIORIDAD ALTA (PRÓXIMA SESIÓN)
 
 ### 1. 🆕 Testing de Control de Acceso con Datos Completos ⭐ URGENTE
 **Estado**: BLOQUEADO - Solución implementada, pendiente validación
@@ -20,65 +47,77 @@
 - [ ] Si funciona: ✅ Feature Control de Acceso completa
 - [ ] Si falla: Debug con logs de consola y `sql/debug-control-acceso.sql`
 
-**Archivos relevantes**:
-- `pages/control-acceso.tsx` - Código actualizado con RPC
-- Función SQL: `get_viaje_con_detalles(p_despacho_id, p_empresa_id)` en Supabase
-- Debugging: `sql/debug-control-acceso.sql`
+### 1. Badge "⚠️ Reprogramado" en Tarjetas de Viajes
+**Estado**: PENDIENTE - Feature UX importante
+**Dificultad**: ⭐ Baja
+**Duración estimada**: 30 minutos
+**Tareas**:
+- [ ] Agregar badge en `components/Planning/PlanningGrid.tsx`
+- [ ] Agregar badge en `components/Planning/DayView.tsx`
+- [ ] Agregar badge en `components/Planning/MonthView.tsx`
+- [ ] Estilo: `absolute top-1 right-1 bg-amber-500/80 text-white px-1.5 py-0.5 text-[8px] rounded`
+- [ ] Condición: `{dispatch.cantidad_reprogramaciones > 0 && ...}`
+- [ ] Testing visual en todas las vistas
 
-**Próxima acción recomendada**: Migración de UUIDs para solución definitiva
+**Código sugerido**:
+```tsx
+{dispatch.cantidad_reprogramaciones > 0 && (
+  <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-amber-500/80 text-white rounded text-[8px] font-bold">
+    ⚠️ {dispatch.cantidad_reprogramaciones}x
+  </span>
+)}
+```
 
-### 2. 🆕 Migración de UUIDs en viajes_despacho
-**Estado**: RECOMENDADO - Solucionar problema de raíz
-**Dificultad**: ⭐⭐⭐ Alta (requiere backup y testing exhaustivo)
+### 2. Testing Filtro Recepciones en ViajesExpiradosModal
+**Estado**: IMPLEMENTADO - Pendiente validación con datos reales
+**Dificultad**: ⭐ Baja (solo testing)
+**Duración estimada**: 20 minutos
+**Tareas**:
+- [ ] Crear viaje con destino = ubicación de empresa receptora
+- [ ] Dejar expirar el viaje (o marcar manualmente)
+- [ ] Login como coordinador_planta de empresa receptora
+- [ ] Abrir ViajesExpiradosModal
+- [ ] Verificar que viaje aparece en lista
+- [ ] Revisar logs de consola: `"✅ Recepción encontrada"`
+
+### 3. Dashboard KPIs de Expiración
+**Estado**: PENDIENTE - Vista ya creada en DB
+**Dificultad**: ⭐⭐ Media
 **Duración estimada**: 1-2 horas
 **Tareas**:
-- [ ] Crear script `sql/migrations/fix-uuids-viajes-despacho.sql`
-- [ ] Backup completo de tabla `viajes_despacho`
-- [ ] Limpiar UUIDs (quitar carácter extra en `id_chofer` e `id_camion`)
-- [ ] Cambiar tipo de columna de TEXT a UUID nativo
-- [ ] Agregar constraints de validación
-- [ ] Actualizar código para usar relaciones nativas (eliminar LIKE)
-- [ ] Testing completo de todos los flujos que usan viajes
-
-### 3. Testing Supervisor de Carga
-**Estado**: PENDIENTE
-**Tareas**:
-- [ ] Probar flujo completo Supervisor de Carga
-  - Validación de carga
-  - Aprobación de descarga
-  - Estados permitidos
-
-### 2. 🆕 Validar Flujo Completo de Choferes
-**Estado**: CRÍTICO - Validar correcciones de hoy
-**Tareas**:
-- [ ] Crear chofer desde Admin Nodexia con DNI
-- [ ] Buscar chofer por DNI desde Transporte > Configuración > Choferes
-- [ ] Vincular chofer a flota (botón "Agregar a mi Lista")
-- [ ] Verificar que aparece en tabla de choferes
-- [ ] Asignar chofer a un viaje
-- [ ] Login como chofer y verificar acceso
-
-### 3. 🆕 Actualizar RoleContext con Nuevos Roles
-**Estado**: NECESARIO - Migración 022 completada
-**Archivos a modificar**:
-- [ ] `components/context/RoleContext.tsx`
-  - Importar `roleHelpers`
-  - Usar `getRolDisplayName()` para mostrar rol
-  - Usar `getDashboardRoute()` para redirección
-  - Implementar `puedeAccederRuta()` en guards
-
-**Ejemplo**:
-```typescript
-import { getRolDisplayName, getDashboardRoute, puedeAccederRuta } from '@/lib/utils/roleHelpers';
-
-// En el context
-const displayName = getRolDisplayName(userRole.rol_interno, empresa?.tipo_empresa);
-const dashboardUrl = getDashboardRoute(userRole.rol_interno, empresa?.tipo_empresa);
-```
+- [ ] Crear `pages/estadisticas-expiracion.tsx`
+- [ ] Query a `vista_kpis_expiracion`
+- [ ] Componentes de tarjetas para métricas:
+  - Tasa de recuperación %
+  - Total reprogramados
+  - Promedio reprogramaciones
+  - Sin recursos (chofer/camión)
+- [ ] Gráficos con Chart.js o Recharts
+- [ ] Agregar a menú de navegación
 
 ---
 
-## 🔄 PRIORIDAD MEDIA
+## 🔴 TAREAS PREVIAS (Diciembre 2025)
+**Estado**: RECOMENDADO - Solucionar problema de raíz
+---
+
+## 🔴 TAREAS PREVIAS (Diciembre 2025)
+
+### Testing de Control de Acceso con Datos Completos
+**Estado**: BLOQUEADO - Solución implementada, pendiente validación
+**Sesión anterior**: Implementada función SQL `get_viaje_con_detalles` para resolver problema de UUIDs
+**Issue crítico identificado**: UUIDs corruptos (37 chars) en `viajes_despacho.id_chofer` y `id_camion`
+**Archivos relevantes**:
+- `pages/control-acceso.tsx`
+- Función SQL: `get_viaje_con_detalles(p_despacho_id, p_empresa_id)`
+
+### Migración de UUIDs en viajes_despacho
+**Estado**: RECOMENDADO - Solucionar problema de raíz
+**Dificultad**: ⭐⭐⭐ Alta
+
+---
+
+## 🔄 PRIORIDAD MEDIA (Tareas Anteriores)
 
 ### 4. Actualizar Tests con Nuevos Roles
 **Estado**: NECESARIO
@@ -108,87 +147,71 @@ IF v_rol_usuario NOT IN ('coordinador', 'coordinador_transporte') THEN
 IF v_rol_usuario != 'coordinador' THEN
 ```
 
-### 6. Probar Creación de Roles Personalizados
-**Desde**: `/admin/roles`
-**Tareas**:
-- [ ] Crear rol `operador_logistica`
-- [ ] Asignar permisos
-- [ ] Verificar que aparece en WizardUsuario
-- [ ] Asignar a usuario de prueba
-- [ ] Verificar acceso
+### Actualizar RoleContext con Nuevos Roles
+**Estado**: NECESARIO - Migración 022 completada
+
+### Probar Creación de Roles Personalizados
+**Estado**: PENDIENTE
 
 ---
 
-## 📋 PRIORIDAD BAJA
+## 📊 MIGRACIONES EJECUTADAS
 
-### 7. Dashboards Específicos por Rol
-**Usando**: `getDashboardRoute(rol, tipo_empresa)`
-**Crear**:
-- [ ] `/chofer/viajes` - Dashboard de chofer
-- [ ] `/supervisor/carga` - Dashboard supervisor de carga
-- [ ] `/control-acceso` - Dashboard control de acceso
+### ✅ Enero 2026:
+- ✅ Migration 016: Sistema de reprogramación (11-Ene-2026)
+- ✅ Migration 016_fix: Fix reprogramar_viaje() (11-Ene-2026)
 
-### 8. Documentación de Usuario Final
-**Crear guías**:
-- [ ] Cómo crear usuarios (Admin Nodexia)
-- [ ] Cómo vincular choferes (Coordinador Transporte)
-- [ ] Cómo usar Control de Acceso
-- [ ] Cómo usar Supervisor de Carga
-
-### 9. Optimización de Performance
-- [ ] Agregar caché de roles en frontend
-- [ ] Lazy loading de componentes por rol
-- [ ] Preload de rutas según rol
-
----
-
-## 🐛 BUGS CONOCIDOS
-
-### 1. ⚠️ Página se recarga al cambiar entre apps
-**Estado**: PARCIALMENTE RESUELTO
-**Solución aplicada**: Desactivado `useAutoReload` en window focus
-**Pendiente**: Verificar si sigue ocurriendo después de cambios de hoy
-
-### 2. ⚠️ Errores TypeScript (104 errores)
-**Estado**: NO BLOQUEANTES
-**Acción**: Revisar y corregir gradualmente
-**Prioridad**: Baja (no afecta funcionalidad)
-
----
-
-## 📊 MIGRACIONES PENDIENTES DE EJECUTAR
-
-### ✅ Ejecutadas en esta sesión:
+### ✅ Diciembre 2025:
 - ✅ Migration 021: Agregar DNI a usuarios_empresa
 - ✅ Migration 022: Sistema de roles simplificados
 - ✅ Migration 022b: Limpiar roles duplicados
-
-### Anteriores (verificar si están ejecutadas):
-- Migration 017: Fix recursión RLS viajes_red_nodexia
-- Migration 018: Simplificar RLS con get_user_empresas()
-- Migration 019: Backfill viajes sin relaciones
-- Migration 020: Restaurar filtrado relaciones_empresas
-
-**Acción**: Verificar en Supabase cuáles están aplicadas
 
 ---
 
 ## 🎯 OBJETIVOS PRÓXIMA SESIÓN
 
 ### Sprint Goal
-**Completar testing de workflows operativos y validar sistema de roles**
+**Mejorar UX de reprogramación y crear dashboard de KPIs**
 
 ### Tareas principales:
-1. **Testing completo** (Control Acceso + Supervisor + Choferes)
-2. **Actualizar RoleContext** con helpers
-3. **Migrar funciones de estados** a nuevos roles
-4. **Crear dashboards específicos** por rol
+1. **Badge de reprogramación** en tarjetas de viajes
+2. **Dashboard KPIs** usando vista_kpis_expiracion
+3. **Testing de recepciones** en ViajesExpiradosModal
 
 ### Criterios de éxito:
-- ✅ Todos los workflows funcionan end-to-end
-- ✅ RoleContext usa roleHelpers
-- ✅ Funciones de estados actualizadas
-- ✅ Al menos 2 dashboards específicos creados
+- ✅ Badges visuales funcionando en las 3 vistas
+- ✅ Dashboard KPIs mostrando métricas
+- ✅ Recepciones validadas con datos reales
+
+---
+
+## 📚 Queries Útiles
+
+### Ver KPIs de Expiración:
+```sql
+SELECT * FROM vista_kpis_expiracion;
+```
+
+### Ver Viajes Reprogramados:
+```sql
+SELECT v.id, d.pedido_id, v.cantidad_reprogramaciones, 
+       v.motivo_reprogramacion, v.fecha_expiracion_original
+FROM viajes_despacho v
+JOIN despachos d ON v.despacho_id = d.id
+WHERE v.cantidad_reprogramaciones > 0
+ORDER BY v.cantidad_reprogramaciones DESC;
+```
+
+### Ver Despachos Expirados:
+```sql
+SELECT d.pedido_id, d.scheduled_local_date, d.scheduled_local_time,
+       d.estado, COUNT(v.id) as viajes_expirados
+FROM despachos d
+JOIN viajes_despacho v ON v.despacho_id = d.id
+WHERE v.estado_carga = 'expirado'
+GROUP BY d.id
+ORDER BY d.scheduled_local_date DESC;
+```
 
 ---
 
@@ -224,51 +247,36 @@ IF v_rol_usuario != 'coordinador' THEN
 
 ### Sobre Migraciones
 - Todas las migraciones son **no destructivas**
-- Datos antiguos se **desactivan**, no se eliminan
-- Siempre verificar con queries de validación
-- Mantener documentación actualizada
+### Sistema de Reprogramación
+- [ ] Notificaciones de viajes próximos a expirar (24h antes)
+- [ ] Analytics de causas de expiración
+- [ ] Exportar KPIs a Excel/PDF
+- [ ] Alertas automáticas cuando tasa de recuperación < 70%
 
-### Sobre Testing
-- Tests deben actualizarse con nuevos roles
-- Agregar tests para `roleHelpers.ts`
-- Validar interpretación contextual
-- Probar permisos por rol
+### UX/UI General
+- [ ] Wizard de onboarding por rol
+- [ ] Tour guiado para nuevos usuarios
+- [ ] Modo offline para choferes
+- [ ] Animaciones de transición entre estados
 
 ---
 
-## 🔍 QUERIES ÚTILES
+## 📝 NOTAS DE LA SESIÓN
 
-### Verificar roles activos:
-```sql
-SELECT nombre_rol, tipo_empresa, activo, es_sistema, descripcion
-FROM roles_empresa
-WHERE activo = true
-ORDER BY es_sistema DESC, nombre_rol;
-```
+### Lecciones Aprendidas (11-Ene-2026):
+1. **Dictionary Pattern** es más eficiente que JOINs complejos en Supabase
+2. **Actualización dual** (SQL + cliente) garantiza consistencia
+3. **Estados derivados** mejor que duplicar información
+4. **Logs de depuración** críticos para diagnosticar filtros complejos
 
-### Verificar usuarios por rol:
-```sql
-SELECT 
-  ue.nombre_completo,
-  ue.rol_interno,
-  e.tipo_empresa,
-  e.nombre as empresa,
-  get_rol_display_name(ue.rol_interno, e.tipo_empresa) as display_name
-FROM usuarios_empresa ue
-JOIN empresas e ON e.id = ue.empresa_id
-WHERE ue.activo = true
-ORDER BY e.tipo_empresa, ue.rol_interno;
-```
-
-### Auditoría de cambios de roles:
-```sql
-SELECT * FROM auditoria_roles 
-ORDER BY created_at DESC 
-LIMIT 20;
-```
+### Convenciones del Proyecto:
+- Migraciones SQL siempre versionadas (`016_nombre.sql`)
+- Funciones SQL con prefijo `p_` para parámetros
+- Modales en `components/Modals/` con sufijo `Modal.tsx`
+- Documentación de sesión en `docs/SESION-DD-MMM-YYYY-*.md`
 
 ---
 
 **Preparado por**: GitHub Copilot  
-**Fecha**: 20 de Diciembre 2025  
+**Fecha**: 11 de Enero 2026  
 **Próxima revisión**: Inicio de próxima sesión

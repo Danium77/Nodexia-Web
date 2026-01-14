@@ -10,6 +10,7 @@ import ExportButton from '../components/Planning/ExportButton';
 import PlanningAlerts from '../components/Planning/PlanningAlerts';
 import DayView from '../components/Planning/DayView';
 import MonthView from '../components/Planning/MonthView';
+import ViajesExpiradosModal from '../components/Modals/ViajesExpiradosModal';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 type TabType = 'planning' | 'tracking';
@@ -110,6 +111,30 @@ const PlanificacionPage = () => {
         setLoading(true);
         console.log('📊 Cargando datos de planificación para usuario:', user.id);
 
+        // 0. Obtener la empresa del usuario actual y su CUIT
+        const { data: usuarioEmpresa, error: empresaError } = await supabase
+          .from('usuarios_empresa')
+          .select(`
+            empresa_id,
+            empresa:empresas!inner(
+              id,
+              nombre,
+              cuit,
+              tipo_empresa
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('activo', true)
+          .single();
+
+        if (empresaError) {
+          console.error('❌ Error al obtener empresa del usuario:', empresaError);
+        }
+
+        const empresaActual = usuarioEmpresa?.empresa as any;
+        const cuitEmpresa = empresaActual?.cuit as string;
+        console.log('🏢 Empresa del usuario:', empresaActual?.nombre, '- CUIT:', cuitEmpresa);
+
         // 1. Cargar DESPACHOS creados por el usuario CON sus relaciones
         const { data: despachosData, error: despachosError } = await supabase
           .from('despachos')
@@ -123,17 +148,85 @@ const PlanificacionPage = () => {
           console.error('❌ Error al cargar despachos:', despachosError);
         }
 
-        console.log('📦 Despachos cargados:', despachosData?.length || 0);
+        console.log('📦 Despachos creados por el usuario:', despachosData?.length || 0);
+
+        // 1.5. Cargar RECEPCIONES - despachos donde esta empresa es el destino
+        let recepcionesData: any[] = [];
+        if (cuitEmpresa) {
+          console.log('🔍 Buscando ubicaciones con CUIT:', cuitEmpresa);
+          // Buscar ubicaciones que pertenezcan a esta empresa por CUIT
+          const { data: ubicaciones, error: ubicacionesError } = await supabase
+            .from('ubicaciones')
+            .select('id, nombre, cuit, provincia, ciudad')
+            .eq('cuit', cuitEmpresa)
+            .eq('activo', true);
+
+          console.log('📍 Resultado búsqueda ubicaciones:', {
+            count: ubicaciones?.length || 0,
+            ubicaciones: ubicaciones,
+            error: ubicacionesError
+          });
+
+          if (ubicacionesError) {
+            console.error('❌ Error al buscar ubicaciones por CUIT:', ubicacionesError);
+          } else if (ubicaciones && ubicaciones.length > 0) {
+            const ubicacionIds = ubicaciones.map(u => u.id);
+            const nombresUbicaciones = ubicaciones.map(u => u.nombre);
+            console.log('📍 IDs de ubicaciones encontradas:', ubicacionIds);
+            console.log('📍 Nombres de ubicaciones:', nombresUbicaciones);
+
+            // Buscar despachos que tengan como destino alguna de estas ubicaciones
+            // MÉTODO 1: Por destino_id (si la columna existe después de migración 023)
+            // MÉTODO 2: Por nombre del destino (texto) como fallback
+            const { data: despachosRecepcion, error: recepcionError } = await supabase
+              .from('despachos')
+              .select('*')
+              .or([
+                `destino_id.in.(${ubicacionIds.join(',')})`,
+                ...nombresUbicaciones.map(nombre => `destino.ilike.%${nombre}%`)
+              ].join(','))
+              .neq('created_by', user.id) // Excluir los propios
+              .order('created_at', { ascending: true });
+
+            console.log('📥 Resultado búsqueda recepciones:', {
+              count: despachosRecepcion?.length || 0,
+              despachos: despachosRecepcion,
+              error: recepcionError
+            });
+
+            if (recepcionError) {
+              console.error('❌ Error al cargar recepciones:', recepcionError);
+            } else {
+              recepcionesData = despachosRecepcion || [];
+              console.log('📥 Recepciones encontradas:', recepcionesData.length);
+              if (recepcionesData.length > 0) {
+                console.log('📦 Primera recepción:', recepcionesData[0]);
+              }
+            }
+          } else {
+            console.warn('⚠️ No se encontraron ubicaciones con CUIT:', cuitEmpresa);
+          }
+        } else {
+          console.warn('⚠️ No hay CUIT de empresa para buscar recepciones');
+        }
+
+        // Combinar despachos propios + recepciones
+        const todosLosDespachos = [
+          ...(despachosData || []),
+          ...(recepcionesData || [])
+        ];
+
+        console.log('📦 Total despachos (propios + recepciones):', todosLosDespachos.length);
         console.log('👤 User ID:', user.id);
 
         // 1.5. Cargar datos de transportes, choferes y camiones de los despachos
-        const transporteIds = (despachosData || [])
+        const transporteIds = todosLosDespachos
           .filter(d => d.transport_id)
           .map(d => d.transport_id);
-        const choferIds = (despachosData || [])
+        const choferIds = todosLosDespachos
           .filter(d => d.driver_id)
           .map(d => d.driver_id);
-        const camionIds = (despachosData || [])
+        const camionIds = todosLosDespachos
           .filter(d => d.truck_id)
           .map(d => d.truck_id);
         // Cargar datos relacionados en paralelo
@@ -173,9 +266,9 @@ const PlanificacionPage = () => {
         console.log('🚗 Camiones cargados:', Object.keys(camionesMap).length);
 
         // 2. Cargar VIAJES para mapear en la grilla
-        // Primero obtener IDs de despachos del usuario
-        const despachoIds = (despachosData || []).map(d => d.id);
-        console.log('📋 IDs de despachos del usuario:', despachoIds);
+        // Primero obtener IDs de todos los despachos (propios + recepciones)
+        const despachoIds = todosLosDespachos.map(d => d.id);
+        console.log('📋 IDs de despachos del usuario (propios + recepciones):', despachoIds);
 
         let viajesData: any[] = [];
         let viajesError = null;
@@ -265,20 +358,51 @@ const PlanificacionPage = () => {
         console.log('👤 Total choferes en mapa:', Object.keys(choferesMap).length);
         console.log('🚗 Total camiones en mapa:', Object.keys(camionesMap).length);
 
+        // 🔥 NUEVO: Cargar ubicaciones de origen y destino para obtener provincias
+        const origenIds = todosLosDespachos
+          .filter(d => d.origen_id)
+          .map(d => d.origen_id);
+        const destinoIds = todosLosDespachos
+          .filter(d => d.destino_id)
+          .map(d => d.destino_id);
+        const todasUbicacionIds = [...new Set([...origenIds, ...destinoIds])];
+
+        let ubicacionesMap: Record<string, any> = {};
+        if (todasUbicacionIds.length > 0) {
+          const { data: ubicacionesData, error: ubicacionesError } = await supabase
+            .from('ubicaciones')
+            .select('id, nombre, provincia, ciudad')
+            .in('id', todasUbicacionIds);
+
+          if (ubicacionesError) {
+            console.error('❌ Error cargando ubicaciones:', ubicacionesError);
+          } else {
+            ubicacionesData?.forEach(u => { ubicacionesMap[u.id] = u; });
+            console.log('📍 Ubicaciones cargadas:', Object.keys(ubicacionesMap).length);
+          }
+        }
+
         // 3. Mapear DESPACHOS directamente (para mostrar los que aún no tienen viajes)
-        const despachosMapeados = (despachosData || [])
+        const despachosMapeados = todosLosDespachos
           .filter(d => d.scheduled_local_date && d.scheduled_local_time) // Solo los que tienen fecha/hora
           .map((despacho: any) => {
+            // Determinar si es una recepción (no fue creado por este usuario)
+            const esRecepcion = despacho.created_by !== user.id;
+            const ubicacionOrigen = despacho.origen_id ? ubicacionesMap[despacho.origen_id] : null;
+            const ubicacionDestino = despacho.destino_id ? ubicacionesMap[despacho.destino_id] : null;
+            
             return {
               id: `despacho-${despacho.id}`, // ID único para diferenciar de viajes
               viaje_numero: 0, // Sin número de viaje
               pedido_id: despacho.pedido_id,
               origen: despacho.origen,
               destino: despacho.destino,
+              origen_provincia: ubicacionOrigen?.provincia || null,
+              destino_provincia: ubicacionDestino?.provincia || null,
               estado: despacho.estado || 'pendiente',
               scheduled_local_date: despacho.scheduled_local_date,
               scheduled_local_time: despacho.scheduled_local_time,
-              type: despacho.type || 'despacho',
+              type: esRecepcion ? 'recepcion' : (despacho.type || 'despacho'),
               prioridad: despacho.prioridad || 'Media',
               transport_id: despacho.transport_id,
               despacho_id: despacho.id,
@@ -295,8 +419,14 @@ const PlanificacionPage = () => {
         // 4. Mapear viajes a formato compatible con PlanningGrid
         const viajesMapeados = (viajesData || []).map((viaje: any) => {
           // Buscar el despacho padre
-          const despachoPadre = (despachosData || []).find((d: any) => d.id === viaje.despacho_id);
-          const tipo = despachoPadre?.type || 'despacho';
+          const despachoPadre = todosLosDespachos.find((d: any) => d.id === viaje.despacho_id);
+          // Determinar si es recepción (el despacho no fue creado por este usuario)
+          const esRecepcion = despachoPadre && despachoPadre.created_by !== user.id;
+          const tipo = esRecepcion ? 'recepcion' : (despachoPadre?.type || 'despacho');
+          
+          // Obtener ubicaciones de origen y destino
+          const ubicacionOrigen = despachoPadre?.origen_id ? ubicacionesMap[despachoPadre.origen_id] : null;
+          const ubicacionDestino = despachoPadre?.destino_id ? ubicacionesMap[despachoPadre.destino_id] : null;
           
           // Obtener datos del viaje (prioridad 1)
           const transporteViaje = viaje.id_transporte ? transportesMap[viaje.id_transporte] : null;
@@ -324,6 +454,8 @@ const PlanificacionPage = () => {
             pedido_id: `${despachoPadre?.pedido_id || 'N/A'} - Viaje ${viaje.numero_viaje}`,
             origen: despachoPadre?.origen || 'N/A',
             destino: despachoPadre?.destino || 'N/A',
+            origen_provincia: ubicacionOrigen?.provincia || null,
+            destino_provincia: ubicacionDestino?.provincia || null,
             estado: viaje.estado || 'pendiente',
             scheduled_local_date: despachoPadre?.scheduled_local_date,
             scheduled_local_time: despachoPadre?.scheduled_local_time,
@@ -353,8 +485,13 @@ const PlanificacionPage = () => {
         setDispatches(todosLosItems.filter(v => v.type !== 'recepcion'));
         setRecepciones(todosLosItems.filter(v => v.type === 'recepcion'));
         
-        // 7. Guardar despachos originales para el TrackingView
-        setDespachosOriginales(despachosData || []);
+        // 7. Guardar despachos originales para el TrackingView (con provincia)
+        const despachosConProvincia = todosLosDespachos.map(d => ({
+          ...d,
+          origen_provincia: ubicacionesMap[d.origen_id]?.provincia || null,
+          destino_provincia: ubicacionesMap[d.destino_id]?.provincia || null
+        }));
+        setDespachosOriginales(despachosConProvincia);
 
         // 8. Cargar lista de transportes para filtros
         const { data: transportesData } = await supabase
@@ -367,7 +504,18 @@ const PlanificacionPage = () => {
           setTransportes(transportesData);
         }
 
-        console.log('📋 Despachos completos para tracking:', despachosData?.length || 0);
+        // 🔥 NUEVO: Cargar métricas de expiración
+        const { data: metricas, error: metricasError } = await supabase
+          .rpc('get_metricas_expiracion');
+        
+        if (metricasError) {
+          console.error('❌ Error al cargar métricas de expiración:', metricasError);
+        } else {
+          setMetricasExpiracion(metricas?.[0] || null);
+          console.log('📊 Métricas de expiración:', metricas?.[0]);
+        }
+
+        console.log('📋 Despachos completos para tracking:', todosLosDespachos.length);
 
       } catch (error) {
         console.error('💥 Error al cargar datos:', error);
@@ -385,6 +533,10 @@ const PlanificacionPage = () => {
   const filteredDispatches = applyFilters(dispatches);
   const filteredRecepciones = applyFilters(recepciones);
 
+  // Estado para métricas de expiración
+  const [metricasExpiracion, setMetricasExpiracion] = useState<any>(null);
+  const [showExpiradosModal, setShowExpiradosModal] = useState(false);
+
   // Calcular métricas para resumen ejecutivo
   const getMetrics = () => {
     const today = new Date();
@@ -394,12 +546,29 @@ const PlanificacionPage = () => {
     const viajesHoy = filteredDispatches.filter(v => v.scheduled_local_date === todayStr).length;
     const viajesUrgentes = filteredDispatches.filter(v => v.prioridad === 'Urgente' || v.prioridad === 'Alta').length;
     const viajesSinAsignar = filteredDispatches.filter(v => !v.transport_id && (v.estado === 'pendiente' || v.estado === 'transporte_asignado')).length;
+    const viajesExpirados = filteredDispatches.filter(v => v.estado === 'expirado').length;
+
+    // Contar despachos/viajes por provincia
+    const provinciaCount: Record<string, number> = {};
+    filteredDispatches.forEach(dispatch => {
+      const provincia = (dispatch as any).destino_provincia || (dispatch as any).origen_provincia;
+      if (provincia) {
+        provinciaCount[provincia] = (provinciaCount[provincia] || 0) + 1;
+      }
+    });
+
+    // Ordenar por cantidad descendente y tomar top 5
+    const topProvincias = Object.entries(provinciaCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
 
     return {
       hoy: viajesHoy,
       urgentes: viajesUrgentes,
       semana: filteredDispatches.length,
-      sinAsignar: viajesSinAsignar
+      sinAsignar: viajesSinAsignar,
+      expirados: viajesExpirados,
+      provincias: topProvincias
     };
   };
 
@@ -443,43 +612,115 @@ const PlanificacionPage = () => {
 
       {/* 🔥 NUEVO: Resumen Ejecutivo */}
       {!loading && activeTab === 'planning' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2 mb-2">
           {/* Hoy */}
-          <div className="bg-[#1b273b] rounded p-1.5 border border-gray-800 flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-[9px]">Hoy</p>
-              <p className="text-sm font-bold text-white">{metrics.hoy}</p>
+          <div className="bg-gradient-to-br from-[#1b273b] to-[#0f1821] rounded-lg p-3 border border-cyan-500/20 hover:border-cyan-500/40 transition-all shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Hoy</p>
+                <p className="text-2xl font-bold text-white mt-1">{metrics.hoy}</p>
+              </div>
+              <div className="text-cyan-400 text-2xl bg-cyan-500/10 p-2 rounded-lg">📅</div>
             </div>
-            <div className="text-cyan-400 text-xl">📅</div>
           </div>
           
           {/* Urgentes */}
-          <div className="bg-[#1b273b] rounded p-1.5 border border-gray-800 flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-[9px]">Urgentes</p>
-              <p className="text-sm font-bold text-white">{metrics.urgentes}</p>
+          <div className="bg-gradient-to-br from-[#1b273b] to-[#0f1821] rounded-lg p-3 border border-orange-500/20 hover:border-orange-500/40 transition-all shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Urgentes</p>
+                <p className="text-2xl font-bold text-white mt-1">{metrics.urgentes}</p>
+              </div>
+              <div className="text-orange-400 text-2xl bg-orange-500/10 p-2 rounded-lg">⚠️</div>
             </div>
-            <div className="text-orange-400 text-xl">⚠️</div>
           </div>
           
-          {/* Esta Semana */}
-          <div className="bg-[#1b273b] rounded p-1.5 border border-gray-800 flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-[9px]">
-                {viewType === 'day' ? 'Hoy' : viewType === 'week' ? 'Esta Semana' : 'Este Mes'}
-              </p>
-              <p className="text-sm font-bold text-white">{metrics.semana}</p>
+          {/* Esta Semana/Mes */}
+          <div className="bg-gradient-to-br from-[#1b273b] to-[#0f1821] rounded-lg p-3 border border-emerald-500/20 hover:border-emerald-500/40 transition-all shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-[10px] uppercase tracking-wider truncate">
+                  {viewType === 'day' ? 'Hoy' : viewType === 'week' ? 'Esta Semana' : 'Este Mes'}
+                </p>
+                <p className="text-2xl font-bold text-white mt-1">{metrics.semana}</p>
+              </div>
+              <div className="text-emerald-400 text-2xl bg-emerald-500/10 p-2 rounded-lg">✅</div>
             </div>
-            <div className="text-green-400 text-xl">✅</div>
           </div>
           
           {/* Sin Asignar */}
-          <div className="bg-[#1b273b] rounded p-1.5 border border-gray-800 flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-[9px]">Sin Asignar</p>
-              <p className="text-sm font-bold text-white">{metrics.sinAsignar}</p>
+          <div className="bg-gradient-to-br from-[#1b273b] to-[#0f1821] rounded-lg p-3 border border-purple-500/20 hover:border-purple-500/40 transition-all shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Sin Asignar</p>
+                <p className="text-2xl font-bold text-white mt-1">{metrics.sinAsignar}</p>
+              </div>
+              <div className="text-purple-400 text-2xl bg-purple-500/10 p-2 rounded-lg">⏳</div>
             </div>
-            <div className="text-purple-400 text-xl">⏳</div>
+          </div>
+
+          {/* 🔥 NUEVO: Viajes Expirados */}
+          <div 
+            onClick={() => setShowExpiradosModal(true)}
+            className="bg-gradient-to-br from-[#2d1a1a] to-[#1a0f0f] rounded-lg p-3 border border-red-500/30 hover:border-red-500/50 transition-all shadow-lg cursor-pointer group"
+            title="Click para ver detalles de viajes expirados"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Expirados</p>
+                <p className="text-2xl font-bold text-red-400 mt-1 group-hover:scale-110 transition-transform">
+                  {metrics.expirados}
+                </p>
+                {metricasExpiracion && (
+                  <p className="text-[9px] text-gray-500 mt-1">
+                    Total: {metricasExpiracion.total_expirados || 0}
+                  </p>
+                )}
+              </div>
+              <div className="text-red-400 text-2xl bg-red-500/10 p-2 rounded-lg group-hover:bg-red-500/20 transition-colors">
+                ⚠️
+              </div>
+            </div>
+            
+            {/* Detalles al hacer hover */}
+            {metricasExpiracion && metricasExpiracion.total_expirados > 0 && (
+              <div className="mt-2 pt-2 border-t border-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[9px]">
+                    <span className="text-gray-400">Sin chofer:</span>
+                    <span className="text-red-300 font-semibold">{metricasExpiracion.por_falta_chofer}</span>
+                  </div>
+                  <div className="flex justify-between text-[9px]">
+                    <span className="text-gray-400">Sin camión:</span>
+                    <span className="text-red-300 font-semibold">{metricasExpiracion.por_falta_camion}</span>
+                  </div>
+                  <div className="flex justify-between text-[9px]">
+                    <span className="text-gray-400">Sin ambos:</span>
+                    <span className="text-red-300 font-semibold">{metricasExpiracion.por_falta_ambos}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 🌎 Provincias */}
+          <div className="bg-gradient-to-br from-[#1b273b] to-[#0f1821] rounded-lg p-3 border border-blue-500/20 hover:border-blue-500/40 transition-all shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-gray-400 text-[10px] uppercase tracking-wider">Por Provincia</p>
+              <div className="text-blue-400 text-lg bg-blue-500/10 p-1.5 rounded-lg">🌎</div>
+            </div>
+            <div className="space-y-1 max-h-16 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+              {metrics.provincias.length > 0 ? (
+                metrics.provincias.map(([provincia, count]) => (
+                  <div key={provincia} className="flex items-center justify-between text-[10px]">
+                    <span className="text-slate-300 truncate flex-1 font-medium">{provincia}</span>
+                    <span className="text-white font-bold bg-blue-500/20 px-1.5 py-0.5 rounded ml-1">{count}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[9px] text-gray-500 italic">Sin datos</p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -616,6 +857,12 @@ const PlanificacionPage = () => {
           )}
         </>
       )}
+
+      {/* 🔥 NUEVO: Modal de Viajes Expirados */}
+      <ViajesExpiradosModal 
+        isOpen={showExpiradosModal}
+        onClose={() => setShowExpiradosModal(false)}
+      />
     </MainLayout>
   );
 };

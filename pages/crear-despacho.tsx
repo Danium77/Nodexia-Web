@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import AssignTransportModal from '../components/Modals/AssignTransportModal';
+import ConfirmDeleteModal from '../components/Modals/ConfirmDeleteModal';
+import ReprogramarModal from '../components/Modals/ReprogramarModal';
 import UbicacionAutocompleteInput from '../components/forms/UbicacionAutocompleteInput';
 import { EstadoDualBadge } from '../components/ui/EstadoDualBadge';
 import { NodexiaLogoBadge } from '../components/ui/NodexiaLogo';
@@ -115,7 +117,11 @@ const CrearDespacho = () => {
   const [selectedViajeNumero, setSelectedViajeNumero] = useState<string>('');
 
   // Estados para tabs de despachos
-  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados'>('pendientes');
+  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'expirados'>('pendientes');
+
+  // Estados para modal de Reprogramar
+  const [isReprogramarModalOpen, setIsReprogramarModalOpen] = useState(false);
+  const [selectedDispatchForReprogram, setSelectedDispatchForReprogram] = useState<GeneratedDispatch | null>(null);
 
   // Estados para selección múltiple de despachos
   const [selectedDespachos, setSelectedDespachos] = useState<Set<string>>(new Set());
@@ -123,6 +129,8 @@ const CrearDespacho = () => {
   const [viajesDespacho, setViajesDespacho] = useState<Record<string, any[]>>({}); // 🔥 NUEVO: Cache de viajes por despacho
   const [selectAll, setSelectAll] = useState(false);
   const [deletingDespachos, setDeletingDespachos] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [despachosPendingDelete, setDespachosPendingDelete] = useState<Set<string>>(new Set());
   const [forceRefresh, setForceRefresh] = useState(0); // Para forzar re-renders
 
   // Cargar datos del usuario
@@ -247,11 +255,12 @@ const CrearDespacho = () => {
         let viajesAsignados = 0; // 🔥 NUEVO: Solo viajes realmente asignados
         let viajesSinAsignar = 0;
         let viajesCanceladosPorTransporte = 0;
+        let hasViajesExpirados = false; // 🆕 Para detectar si tiene viajes expirados
         let transportesUnicos: string[] = []; // 🔥 NUEVO: Para detectar múltiples transportes
         
         const { data: viajesData, error: viajesError } = await supabase
           .from('viajes_despacho')
-          .select('id, estado, id_transporte')
+          .select('id, estado, estado_carga, id_transporte')
           .eq('despacho_id', d.id);
         
         if (!viajesError && viajesData) {
@@ -296,6 +305,9 @@ const CrearDespacho = () => {
           viajesCanceladosPorTransporte = viajesData.filter(v => 
             v.estado === 'cancelado_por_transporte'
           ).length;
+          
+          // 🆕 Detectar si hay viajes expirados
+          hasViajesExpirados = viajesData.some(v => v.estado_carga === 'expirado');
           
           // 🔥 NUEVO: Obtener transportes únicos de los viajes
           transportesUnicos = [...new Set(
@@ -373,7 +385,7 @@ const CrearDespacho = () => {
           pedido_id: d.pedido_id,
           origen: d.origen,
           destino: d.destino,
-          estado: d.estado,
+          estado: hasViajesExpirados ? 'expirado' : d.estado, // 🆕 Cambiar estado si tiene viajes expirados
           fecha_despacho: d.scheduled_local_date || 'Sin fecha',
           hora_despacho: d.scheduled_local_time || '', // 🔥 NUEVO: hora
           tipo_carga: d.type || 'N/A',
@@ -1408,7 +1420,7 @@ const CrearDespacho = () => {
     }
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
     console.log('🚀 handleDeleteSelected iniciado');
     console.log('📊 Despachos seleccionados:', selectedDespachos.size);
     console.log('📋 IDs seleccionados:', Array.from(selectedDespachos));
@@ -1418,24 +1430,18 @@ const CrearDespacho = () => {
       return;
     }
 
-    const confirmed = window.confirm(
-      `¿Estás seguro de que deseas eliminar ${selectedDespachos.size} despacho(s)?\n\nEsta acción NO se puede deshacer.`
-    );
+    // Guardar los IDs a eliminar y mostrar modal
+    setDespachosPendingDelete(new Set(selectedDespachos));
+    setShowDeleteConfirm(true);
+  };
 
-    console.log('✅ Usuario confirmó eliminación:', confirmed);
-
-    if (!confirmed) {
-      console.log('❌ Usuario canceló eliminación');
-      return;
-    }
-
+  const executeDelete = async () => {
     console.log('🔄 Iniciando proceso de eliminación...');
-    setDeletingDespachos(true); // Iniciar loading
-    setErrorMsg(''); // Limpiar errores previos
+    setDeletingDespachos(true);
+    setErrorMsg('');
 
-    // GUARDAR referencias ANTES de cualquier operación
-    const idsToDelete = Array.from(selectedDespachos);
-    const countToDelete = selectedDespachos.size;
+    const idsToDelete = Array.from(despachosPendingDelete);
+    const countToDelete = despachosPendingDelete.size;
 
     try {
       console.log('🗑️ Eliminando despachos seleccionados:', idsToDelete);
@@ -1548,7 +1554,9 @@ const CrearDespacho = () => {
       const despachoData = {
         pedido_id: finalPedidoId,
         origen: rowToSave.origen,
+        origen_id: rowToSave.origen_id || null, // ID de ubicación origen
         destino: rowToSave.destino,
+        destino_id: rowToSave.destino_id || null, // ID de ubicación destino
         estado: 'pendiente_transporte',
         scheduled_at: scheduledAtISO,
         scheduled_local_date: rowToSave.fecha_despacho,
@@ -1562,6 +1570,13 @@ const CrearDespacho = () => {
         unidad_type: rowToSave.unidad_type || 'semi',
         cantidad_viajes_solicitados: rowToSave.cantidad_viajes_solicitados || 1, // NUEVO
       };
+
+      console.log('💾 Guardando despacho con ubicaciones:', {
+        origen: despachoData.origen,
+        origen_id: despachoData.origen_id,
+        destino: despachoData.destino,
+        destino_id: despachoData.destino_id
+      });
 
       const { data, error } = await supabase
         .from('despachos')
@@ -1608,7 +1623,9 @@ const CrearDespacho = () => {
             viajesData.push({
               despacho_id: despachoCreado.id,
               numero_viaje: i + 1, // Simple integer: 1, 2, 3...
-              estado: 'pendiente',
+              estado: 'pendiente', // Legacy
+              estado_carga: 'pendiente_asignacion', // 🔥 Sistema dual v2 - esperando asignación
+              estado_unidad: null, // 🔥 NULL cuando no hay camión/chofer asignado
               fecha_creacion: new Date().toISOString()
             });
           }
@@ -1681,9 +1698,14 @@ const CrearDespacho = () => {
     <div className="flex min-h-screen bg-[#0e1a2d]">
       <Sidebar userEmail={user.email} userName={userName} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header userEmail={user.email} userName={userName} pageTitle="Crear Despachos" />
+        <Header 
+          userEmail={user.email} 
+          userName={userName} 
+          pageTitle="Crear Despachos"
+          empresaNombre={empresaPlanta?.empresas?.nombre}
+        />
         <main className="flex-1 p-2 max-w-full overflow-hidden">
-          <h3 className="text-xl font-semibold mb-4 text-cyan-400">Cargar nuevos despachos</h3>
+          <h3 className="text-xl font-semibold mb-4 text-cyan-400">Crear nuevo despacho</h3>
 
           {errorMsg && <p className="text-red-400 mb-4">{errorMsg}</p>}
           {successMsg && <p className="text-green-400 mb-4">{successMsg}</p>}
@@ -1723,7 +1745,7 @@ const CrearDespacho = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
                       {/* Origen */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">
                           Origen <span className="text-red-400">*</span>
                         </label>
                         <UbicacionAutocompleteInput
@@ -1746,7 +1768,7 @@ const CrearDespacho = () => {
 
                       {/* Destino */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">
                           Destino <span className="text-red-400">*</span>
                         </label>
                         <UbicacionAutocompleteInput
@@ -1769,7 +1791,7 @@ const CrearDespacho = () => {
 
                       {/* Tipo Carga */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">Tipo de Carga</label>
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Tipo de Carga</label>
                         <select
                           value={row.tipo_carga}
                           onChange={(e) => handleRowChange(row.tempId, 'tipo_carga', e.target.value)}
@@ -1778,7 +1800,6 @@ const CrearDespacho = () => {
                           className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                         >
                           <option value="">Seleccionar...</option>
-                          <option value="despacho">Despacho</option>
                           <option value="paletizada">Paletizada</option>
                           <option value="granel">Granel</option>
                           <option value="contenedor">Contenedor</option>
@@ -1790,7 +1811,7 @@ const CrearDespacho = () => {
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
                       {/* Fecha */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">Fecha</label>
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Fecha</label>
                         <input
                           type="date"
                           value={row.fecha_despacho}
@@ -1803,7 +1824,7 @@ const CrearDespacho = () => {
 
                       {/* Hora */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">Hora</label>
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Hora</label>
                         <input
                           type="time"
                           value={row.hora_despacho}
@@ -1815,7 +1836,7 @@ const CrearDespacho = () => {
 
                       {/* Prioridad */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">Prioridad</label>
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Prioridad</label>
                         <select
                           value={row.prioridad === 'Medios de comunicación' ? 'Media' : (row.prioridad === 'Medios' ? 'Media' : (row.prioridad || 'Media'))}
                           onChange={(e) => {
@@ -1841,7 +1862,7 @@ const CrearDespacho = () => {
 
                       {/* Cantidad de Viajes - NUEVO */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">
                           Cant. Viajes 🚛
                         </label>
                         <input
@@ -1857,7 +1878,7 @@ const CrearDespacho = () => {
 
                       {/* Tipo Unidad */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">Tipo Unidad</label>
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Tipo Unidad</label>
                         <select
                           value={row.unidad_type}
                           onChange={(e) => handleRowChange(row.tempId, 'unidad_type', e.target.value)}
@@ -1875,7 +1896,7 @@ const CrearDespacho = () => {
 
                       {/* Observaciones */}
                       <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1.5">Observaciones</label>
+                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Observaciones</label>
                         <input
                           type="text"
                           value={row.observaciones}
@@ -1933,7 +1954,7 @@ const CrearDespacho = () => {
               <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
                 {generatedDispatches.filter(d => {
                   const cantidadAsignados = d.viajes_asignados || 0;
-                  return cantidadAsignados === 0;
+                  return cantidadAsignados === 0 && d.estado !== 'expirado';
                 }).length}
               </span>
             </button>
@@ -1951,7 +1972,7 @@ const CrearDespacho = () => {
                   const cantidadTotal = d.cantidad_viajes_solicitados || 1;
                   const cantidadAsignados = d.viajes_asignados || 0;
                   const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  return cantidadAsignados > 0 && viajesPendientes > 0;
+                  return cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado';
                 }).length}
               </span>
             </button>
@@ -1969,8 +1990,21 @@ const CrearDespacho = () => {
                   const cantidadTotal = d.cantidad_viajes_solicitados || 1;
                   const cantidadAsignados = d.viajes_asignados || 0;
                   const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  return cantidadAsignados > 0 && viajesPendientes === 0;
+                  return cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado';
                 }).length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('expirados')}
+              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                activeTab === 'expirados'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              ⚠️ Expirados
+              <span className="ml-2 px-2 py-0.5 bg-red-700 rounded text-xs">
+                {generatedDispatches.filter(d => d.estado === 'expirado').length}
               </span>
             </button>
           </div>
@@ -2015,17 +2049,21 @@ const CrearDespacho = () => {
                     let razon = '';
                     
                     if (activeTab === 'pendientes') {
-                      // Pendientes: NO tienen ningún viaje asignado
-                      pasaFiltro = cantidadAsignados === 0;
-                      razon = `cantidadAsignados (${cantidadAsignados}) === 0`;
+                      // Pendientes: NO tienen ningún viaje asignado Y no están expirados
+                      pasaFiltro = cantidadAsignados === 0 && d.estado !== 'expirado';
+                      razon = `cantidadAsignados (${cantidadAsignados}) === 0 && estado !== 'expirado'`;
                     } else if (activeTab === 'en_proceso') {
-                      // En proceso: tienen algunos viajes asignados pero no todos
-                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0;
-                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) > 0`;
+                      // En proceso: tienen algunos viajes asignados pero no todos Y no están expirados
+                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado';
+                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) > 0 && estado !== 'expirado'`;
+                    } else if (activeTab === 'expirados') {
+                      // Expirados: tienen estado expirado
+                      pasaFiltro = d.estado === 'expirado';
+                      razon = `estado === 'expirado'`;
                     } else {
-                      // Asignados: tienen TODOS los viajes asignados
-                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes === 0;
-                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) === 0`;
+                      // Asignados: tienen TODOS los viajes asignados Y no están expirados
+                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado';
+                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) === 0 && estado !== 'expirado'`;
                     }
                     
                     console.log(`🔍 Filtrado ${d.pedido_id}:`, {
@@ -2058,7 +2096,9 @@ const CrearDespacho = () => {
                               ? "No hay despachos pendientes de asignación"
                               : activeTab === 'en_proceso'
                                 ? "No hay despachos en proceso"
-                                : "No hay despachos con todos los viajes asignados"}
+                                : activeTab === 'expirados'
+                                  ? "No hay despachos expirados"
+                                  : "No hay despachos con todos los viajes asignados"}
                         </td>
                       </tr>
                     )
@@ -2192,7 +2232,23 @@ const CrearDespacho = () => {
                               {expandedDespachos.has(dispatch.id) ? '▼' : '▶'} Viajes
                             </button>
                           )}
-                          {(!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) ? (
+                          
+                          {/* 🆕 Botón REPROGRAMAR para tab Expirados */}
+                          {activeTab === 'expirados' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDispatchForReprogram(dispatch);
+                                setIsReprogramarModalOpen(true);
+                              }}
+                              className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
+                              title="Reprogramar despacho expirado"
+                            >
+                              🔄 Reprogramar
+                            </button>
+                          )}
+                          
+                          {activeTab !== 'expirados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
                             <>
                               <button
                                 type="button"
@@ -2224,7 +2280,7 @@ const CrearDespacho = () => {
                                 <span className="relative z-10 font-extrabold tracking-wide">RED</span>
                               </button>
                             </>
-                          ) : null}
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2476,6 +2532,38 @@ const CrearDespacho = () => {
           onAceptarOferta={handleAceptarOfertaDesdeModal}
         />
       )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDespachosPendingDelete(new Set());
+        }}
+        onConfirm={executeDelete}
+        message={`¿Estás seguro de que deseas eliminar ${despachosPendingDelete.size} despacho(s)?`}
+        itemCount={despachosPendingDelete.size}
+      />
+
+      {/* Modal Reprogramar */}
+      <ReprogramarModal
+        isOpen={isReprogramarModalOpen}
+        onClose={() => {
+          setIsReprogramarModalOpen(false);
+          setSelectedDispatchForReprogram(null);
+        }}
+        despacho={selectedDispatchForReprogram ? {
+          id: selectedDispatchForReprogram.id,
+          pedido_id: selectedDispatchForReprogram.pedido_id,
+          origen: selectedDispatchForReprogram.origen,
+          destino: selectedDispatchForReprogram.destino,
+          fecha_despacho: selectedDispatchForReprogram.fecha_despacho,
+          hora_despacho: selectedDispatchForReprogram.hora_despacho
+        } : null}
+        onSuccess={() => {
+          fetchGeneratedDispatches(user.id, true);
+        }}
+      />
     </div>
   );
 };

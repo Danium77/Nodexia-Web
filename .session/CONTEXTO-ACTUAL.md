@@ -1,7 +1,7 @@
 # 📖 CONTEXTO ACTUAL DEL PROYECTO
 
-**Última actualización:** 27 de Diciembre, 2025  
-**Versión:** MVP 0.9 (85% completado)  
+**Última actualización:** 05 de Enero, 2026  
+**Versión:** MVP 0.9 (88% completado)  
 **Sistema implementado:** Sesiones estructuradas para Copilot
 
 ---
@@ -105,16 +105,19 @@ Nodexia-Web/
 - ✅ Dashboard Cliente (visibilidad de sus operaciones)
 
 #### Operaciones de Transporte
-- ✅ CRUD completo de operaciones
+- ✅ CRUD completo de operaciones (despachos)
 - ✅ Asignación de transportes/choferes
 - ✅ Estados duales (origen/destino) para cross-border
 - ✅ Cambio de estados con validaciones
 - ✅ Historial de cambios
+- ✅ **Sistema de recepciones multi-empresa** (NUEVO - 05-Ene-2026)
+  - ✅ Migración 023: Agregadas columnas origen_id/destino_id UUID
+  - ✅ Detección automática de recepciones en planificación
+  - ✅ API endpoints con supabaseAdmin para ubicaciones
+  - ✅ UI distingue origen (recepciones) vs destino (despachos)
+  - ✅ Fallback a búsqueda por texto para datos antiguos
+  - 📄 Ver: [sesion-2026-01-05.md](.session/history/sesion-2026-01-05.md)
 - 🟡 Control de acceso (ingreso/egreso con QR) - 95% completo
-  - ⚠️ **Issue crítico:** UUIDs corruptos (37 chars) en `viajes_despacho.id_chofer` y `id_camion`
-  - ✅ **Workaround implementado:** Función SQL `get_viaje_con_detalles` con LIKE joins
-  - ⏳ **Pendiente:** Testing end-to-end y migración para solución definitiva
-  - 📄 Ver: [sesion-2025-12-26.md](.session/history/sesion-2025-12-26.md)
 
 #### GPS Tracking
 - ✅ Tracking en tiempo real (choferes)
@@ -373,7 +376,23 @@ incidencias                   # Incidencias en accesos
 
 ## 💡 DECISIONES TÉCNICAS RECIENTES
 
-### 1. Sistema de Sesiones Estructuradas (17-Dic-2025)
+### 1. Sistema de Recepciones Multi-Empresa (05-Ene-2026)
+
+**Decisión:** Implementar tracking bidireccional de despachos con origen_id/destino_id
+
+**Razón:** Empresas receptoras necesitan visibilidad de despachos que llegan a sus instalaciones, no solo los que generan.
+
+**Implementación:**
+- Migración 023: Agregadas columnas UUID origen_id/destino_id
+- API endpoints con supabaseAdmin para bypass de RLS en ubicaciones
+- Detección automática dual: por ID y por texto (fallback)
+- UI condicional: recepciones muestran origen, despachos muestran destino
+
+**Impacto:** Sistema ahora soporta flujos inter-empresas completos.
+
+---
+
+### 2. Sistema de Sesiones Estructuradas (17-Dic-2025)
 
 **Decisión:** Implementar protocolos de inicio/cierre de sesión para Copilot
 
@@ -386,7 +405,7 @@ incidencias                   # Incidencias en accesos
 
 ---
 
-### 2. Sistema de Testing (16-Dic-2025)
+### 3. Sistema de Testing (16-Dic-2025)
 
 **Decisión:** Implementar testing con Jest + Playwright
 

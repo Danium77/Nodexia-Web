@@ -301,7 +301,27 @@ Red Nodexia: sql/schema/red_nodexia.sql + componentes
 
 ---
 
-## 🔧 MANTENIMIENTO DE LA DOCUMENTACIÓN
+## �️ HERRAMIENTAS Y DESARROLLO
+
+### Optimización de VS Code
+
+| Documento | Propósito | Para quién |
+|-----------|-----------|-----------|
+| `docs/OPTIMIZACION-VSCODE.md` | Guía completa de optimización de rendimiento | 👤 Usuario / 🤖 Copilot |
+| `docs/ACCIONES-RAPIDAS-VSCODE.md` | Checklist de acciones rápidas para mejorar performance | 👤 Usuario |
+| `.vscode/settings-optimization.json` | Configuraciones optimizadas de referencia | 🤖 Copilot |
+| `scripts/clean-vscode-cache.ps1` | Script para limpiar cache de VS Code | 👤 Usuario |
+
+**Cuándo usar:**
+- VS Code funciona lento
+- Alto consumo de CPU/memoria
+- Inicio lento de VS Code
+- Lag al escribir o scrollear
+- Antes de reportar un bug de performance
+
+---
+
+## �🔧 MANTENIMIENTO DE LA DOCUMENTACIÓN
 
 ### Actualizar en cada sesión:
 - `.session/PROXIMA-SESION.md`

@@ -1,8 +1,8 @@
 # 🎯 PRÓXIMA SESIÓN - Nodexia
 
-**Última actualización:** 29-Dic-2025  
-**Estado del proyecto:** 87% completo  
-**Próxima prioridad:** Testing de Control de Acceso y optimización TypeScript
+**Última actualización:** 05-Ene-2026  
+**Estado del proyecto:** 88% completo  
+**Próxima prioridad:** Mejorar sistema de recepciones o nuevas features
 
 ---
 
@@ -13,93 +13,154 @@
 1. **Leer este archivo completo** para contexto inmediato
 2. **Leer `.session/CONTEXTO-ACTUAL.md`** para estado del proyecto
 3. **Leer `docs/PROBLEMAS-CONOCIDOS.md`** para issues activos
-4. **Revisar último archivo en `.session/history/`** para continuidad
+4. **Revisar último archivo en `.session/history/sesion-2026-01-05.md`** para continuidad
 5. **Esperar instrucciones del usuario** sobre objetivo de hoy
 
 ---
 
-## ✅ ÚLTIMA SESIÓN (29-Dic-2025)
+## ✅ ÚLTIMA SESIÓN (05-Ene-2026)
 
 ### Trabajo Completado
-- ✅ **Errores TypeScript reducidos 68 → 32** (53% de mejora)
-  - Corregido type-guards: removido rol 'visor' inválido
-  - Simplificado tsconfig.json: eliminados project references
-  - Corregido accesos a arrays de Supabase (asignar-viaje, chofer/viajes)
-  - Corregidos estados en control-acceso (egreso_planta → saliendo_origen, etc.)
-- ✅ **UUIDs verificados:** NO hay UUIDs corruptos en BD (todos 36 chars válidos)
-- ✅ **Control de Acceso optimizado:**
-  - Removido workaround RPC `get_viaje_con_detalles`
-  - Migrado a relaciones nativas de Supabase
-  - Código más simple y eficiente
-- ✅ Scripts SQL creados para análisis y migración de UUIDs (preventivo)
-- ✅ Documentación actualizada
+- ✅ **Sistema de recepciones implementado completamente**
+  - Migración 023: Agregadas columnas origen_id/destino_id UUID a despachos
+  - Detección automática de recepciones en planificación.tsx
+  - Fallback a búsqueda por texto para despachos antiguos
+  - API endpoints para ubicaciones (bypass RLS): crear.ts, actualizar.ts
+  
+- ✅ **Correcciones de transporte:**
+  - Fixed useTransports hook: tabla y columna correctas (relaciones_empresas.empresa_cliente_id)
+  - Fixed búsqueda por CUIT: removido .single() restrictivo
+  - Logística Express SRL encontrada y vinculada exitosamente
+  
+- ✅ **Mejora de UI:**
+  - PlanningGrid ahora muestra origen en recepciones, destino en despachos
+  - Usuario Walter Zayas creado en Manufacturas Sur con rol coordinador
+  - Despacho Manufacturas Sur → Aceitera San Miguel funciona correctamente
+  
+- ✅ **Validación completa del flujo:**
+  - Recepción aparece en vista de Aceitera San Miguel
+  - Transporte asignable a despachos
+  - Sistema multi-empresa validado
 
-### Commits de la Sesión
-```
-ac88b53 - fix(typescript): Resolver errores de tipos y configuración
-35fdd12 - refactor(control-acceso): Usar relaciones nativas de Supabase
-```
+### Archivos Modificados
+- pages/planificacion.tsx (detección de recepciones)
+- sql/migrations/023_agregar_destino_id_despachos.sql
+- pages/api/ubicaciones/crear.ts, actualizar.ts (nuevos)
+- components/Modals/CrearUbicacionModal.tsx
+- lib/hooks/useTransports.ts
+- pages/configuracion/transportes.tsx
+- components/Planning/PlanningGrid.tsx
+- pages/crear-despacho.tsx
+
+---
+
+## 🎯 OPCIONES PARA PRÓXIMA SESIÓN
+
+### Opción A: Mejorar sistema de recepciones ⭐ RECOMENDADO
+**Por qué es prioritario:** Sistema base funciona, pero hay mejoras valiosas
+
+**Qué hacer:**
+1. Crear script de migración masiva para vincular despachos antiguos
+2. Agregar notificaciones cuando llega nueva recepción
+3. Implementar estados de confirmación/rechazo de recepciones
+4. Dashboard específico para recepciones
+
+**Archivos a modificar:**
+- 🗄️ BD: Script SQL de actualización masiva
+- ⚙️ Backend: API de notificaciones
+- 🎨 Frontend: RecepcionesDashboard.tsx (nuevo)
+
+**Duración estimada:** 2-3 horas  
+**Dificultad:** ⭐⭐ (Media)  
+**Riesgo:** 🟢 Bajo
 
 ---
 
-## 🎯 PRÓXIMO OBJETIVO
+### Opción B: Continuar con otras features del roadmap
+**Por qué:** Recepciones funcionan, puede ser momento de avanzar en otros módulos
 
-**A DEFINIR POR USUARIO**
+**Qué hacer:**
+1. Red Nodexia: completar matching de ofertas
+2. Analytics: reportes básicos de operaciones
+3. Sistema de facturación inicial
 
-El usuario indicará el objetivo al inicio de la siguiente sesión.
-
-### Opciones Sugeridas
-
-#### 1. Testing de Control de Acceso (1-2h) - 🔴 ALTA PRIORIDAD
-**Prioridad:** Alta (completar feature)
-**Tareas:**
-1. Probar con datos reales en servidor de desarrollo
-2. Escanear QR de despacho existente (ej: DSP-20251219-002)
-3. Verificar flujo completo:
-   - Escanear → Ver información completa
-   - Confirmar ingreso → Estado actualizado
-   - Asignar playa → Mensaje de confirmación
-   - [Coordinador carga] → Ver estado cargado
-   - Validar documentación → Habilitar egreso
-   - Confirmar egreso → Completar ciclo
-4. Ajustes según feedback del usuario
-
-#### Posibles Mejoras Adicionales
-Si el usuario quiere continuar con Control de Acceso:
-1. **Lector QR con cámara** (2-3h)
-   - Integrar librería `react-qr-reader`
-   - Soporte para móvil y desktop
-2. **Timeline de estados** (1-2h)
-   - Visualización histórica del viaje
-   - Tiempos de permanencia
-3. **Impresión de comprobantes** (2h)
-   - Generar PDF de ingreso/egreso
-   - QR del comprobante
-
-### Otras Áreas de Trabajo
-
-#### 2. Resolver 32 Errores TypeScript Restantes (2-3h) - 🟡 MEDIA PRIORIDAD
-**Errores actuales:** 32 (reducidos desde 68)
-**Áreas principales:**
-- `components/Planning/TrackingView.tsx` - Tipos incompatibles en estado
-- `lib/firebase/messaging.ts` - Módulos firebase no instalados
-- `pages/api/admin/*` - Tipos 'never' en metadata de Supabase
-
-**Beneficio:** Código más robusto, mejor autocompletado, menos bugs
-
-#### 3. Completar Red Nodexia (3-4h) - 🟡 MEDIA PRIORIDAD
-**Estado actual:** 70% completado
-**Tareas pendientes:**
-1. Algoritmo de matching geográfico
-2. Notificaciones automáticas a transportes
-3. Testing E2E del flujo completo
-
-#### 4. Mejoras UX/UI (2-3h) - 🟢 BAJA PRIORIDAD
-1. Completar reemplazo de spinners en páginas restantes
-2. Animaciones y transiciones
-3. Modo oscuro/claro (opcional)
+**Duración estimada:** 3-4 horas  
+**Dificultad:** ⭐⭐⭐ (Alta)  
+**Riesgo:** 🟡 Medio
 
 ---
+
+### Opción C: Reducir errores TypeScript
+**Por qué:** Quedan errores TS pendientes de sesiones anteriores
+
+**Qué hacer:**
+1. Revisar y corregir errores restantes
+2. Mejorar tipos en hooks y componentes
+3. Habilitar modo strict en más archivos
+
+**Duración estimada:** 2-3 horas  
+**Dificultad:** ⭐⭐ (Media)  
+**Riesgo:** 🟢 Bajo
+
+---
+
+## 🐛 PROBLEMAS CONOCIDOS ACTIVOS
+
+### No críticos:
+- Despachos antiguos sin destino_id usan fallback de búsqueda por texto (funcional, pero menos eficiente)
+- Errores TypeScript pendientes de sesiones anteriores (~32 errores)
+
+---
+
+## 💡 NOTAS IMPORTANTES
+
+### Decisiones técnicas recientes:
+- **Migración 023:** Agregadas columnas origen_id/destino_id UUID para tracking preciso
+- **API con supabaseAdmin:** Se requiere bypass de RLS para operaciones de ubicaciones
+- **Dual detection:** Sistema usa tanto ID como texto para máxima compatibilidad
+
+### Recordatorios:
+- ⚠️ La migración 023 está ejecutada en producción
+- 💡 Sistema multi-empresa funciona correctamente para recepciones
+- 📝 Considerar script de actualización masiva para despachos antiguos
+
+---
+
+## 📚 CONTEXTO RÁPIDO DEL PROYECTO
+
+**Proyecto:** Nodexia - Plataforma logística SaaS B2B  
+**Stack:** Next.js 15, TypeScript, Supabase, Tailwind  
+**Roles:** Planta, Transporte, Cliente, Admin, SuperAdmin  
+
+**Features core:**
+- ✅ Autenticación multi-rol
+- ✅ Dashboards por rol
+- ✅ CRUD operaciones (despachos)
+- ✅ Sistema de recepciones multi-empresa (NUEVO)
+- ✅ GPS tracking (chofer)
+- ✅ QR access control
+- 🟡 Red Nodexia (70%)
+- ❌ CI/CD
+- ❌ Monitoring
+
+**Próximo milestone:** Mejorar recepciones o avanzar en Red Nodexia
+
+---
+
+## 🔗 DOCUMENTOS DE REFERENCIA
+
+**Leer antes de empezar:**
+1. Este documento (PROXIMA-SESION.md)
+2. `.session/CONTEXTO-ACTUAL.md`
+3. `.session/history/sesion-2026-01-05.md` - Última sesión completa
+4. `docs/PROBLEMAS-CONOCIDOS.md`
+5. `PROTOCOLO-INICIO-SESION-COPILOT.md`
+
+---
+
+**Preparado por:** GitHub Copilot  
+**Sesión anterior:** 05-Ene-2026  
+**Esta info está actualizada y lista para usar** ✅
 
 ## 📊 ESTADO ACTUAL DEL PROYECTO
 

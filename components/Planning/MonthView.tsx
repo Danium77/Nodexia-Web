@@ -193,12 +193,27 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                   <div
                     key={dispatch.id}
                     onClick={() => setSelectedDispatch(dispatch)}
-                    className="text-xs bg-gradient-to-r from-slate-800 to-slate-900 rounded p-1.5 cursor-pointer hover:shadow-lg hover:scale-105 transition-all border-l-2 border-cyan-500"
+                    className={`text-xs bg-gradient-to-r rounded p-1.5 cursor-pointer hover:shadow-lg hover:scale-105 transition-all border-l-2 ${
+                      dispatch.estado === 'expirado'
+                        ? 'from-gray-800/50 to-gray-700/50 border-gray-600 opacity-75'
+                        : 'from-slate-800 to-slate-900 border-cyan-500'
+                    }`}
                   >
-                    {/* Destino */}
-                    <div className="flex items-start gap-1 text-[9px] text-cyan-300 mb-0.5">
-                      <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0 mt-0.5" />
-                      <span className="font-semibold break-words">{dispatch.destino}</span>
+                    {/* Destino con Provincia */}
+                    <div className="flex flex-col gap-0.5 mb-0.5">
+                      {(dispatch as any).destino_provincia && (
+                        <div className={`text-[9px] font-bold uppercase tracking-wide ${
+                          dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-cyan-400'
+                        }`}>
+                          {(dispatch as any).destino_provincia}
+                        </div>
+                      )}
+                      <div className={`flex items-start gap-1 text-[9px] ${
+                        dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-slate-200'
+                      }`}>
+                        <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0 mt-0.5" />
+                        <span className="font-medium break-words">{dispatch.destino}</span>
+                      </div>
                     </div>
                     {/* Chofer */}
                     {dispatch.chofer && (
@@ -209,7 +224,9 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                     )}
                     {/* Camión */}
                     {dispatch.camion_data && (
-                      <div className="flex items-center gap-1 text-[9px] text-emerald-300">
+                      <div className={`flex items-center gap-1 text-[9px] ${
+                        dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-emerald-300'
+                      }`}>
                         <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
                         <span>{dispatch.camion_data.patente}</span>
                       </div>

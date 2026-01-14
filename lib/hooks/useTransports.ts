@@ -29,11 +29,10 @@ export function useTransports(empresaId: string | null) {
       
       // Obtener transportes vinculados desde la tabla correcta
       const { data: relaciones, error: relacionesError } = await supabase
-        .from('relaciones_empresa')
+        .from('relaciones_empresas')
         .select('id, empresa_transporte_id, estado')
-        .eq('empresa_coordinadora_id', empresaId)
-        .eq('estado', 'activa')
-        .eq('activo', true);
+        .eq('empresa_cliente_id', empresaId)
+        .eq('estado', 'activa');
 
       console.log('📋 Relaciones encontradas:', relaciones);
       if (relacionesError) {
