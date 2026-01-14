@@ -308,7 +308,7 @@ export default function SupervisorCarga() {
         console.log('✅ [supervisor-carga] Carga iniciada exitosamente');
         
         if (viaje && !viajeIdOpt) {
-          setViaje({ ...viaje, estado_carga: 'en_proceso_carga' });
+          setViaje({ ...viaje, estado_carga: 'cargando' });
         }
         cargarViajes();
       } else {
