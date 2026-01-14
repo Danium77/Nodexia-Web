@@ -750,7 +750,7 @@ export default function ControlAcceso() {
                 </div>
 
                 {/* Información contextual según estado */}
-                {viaje.estado_unidad === 'arribado_origen' && viaje.tipo_operacion === 'envio' && (
+                {viaje.estado_unidad === 'ingresado_origen' && viaje.tipo_operacion === 'envio' && (
                   <div className="mb-6 bg-blue-900/30 border border-blue-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-blue-600 rounded-lg">
@@ -766,7 +766,7 @@ export default function ControlAcceso() {
                   </div>
                 )}
 
-                {viaje.estado_unidad === 'en_playa_espera' && viaje.tipo_operacion === 'envio' && (
+                {viaje.estado_unidad === 'en_playa_origen' && viaje.tipo_operacion === 'envio' && (
                   <div className="mb-6 bg-yellow-900/30 border border-yellow-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-yellow-600 rounded-lg">
@@ -780,7 +780,7 @@ export default function ControlAcceso() {
                   </div>
                 )}
 
-                {viaje.estado_unidad === 'carga_completada' && viaje.tipo_operacion === 'envio' && !viaje.documentacion_validada && (
+                {viaje.estado_unidad === 'egreso_origen' && viaje.tipo_operacion === 'envio' && !viaje.documentacion_validada && (
                   <div className="mb-6 bg-purple-900/30 border border-purple-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-purple-600 rounded-lg">
