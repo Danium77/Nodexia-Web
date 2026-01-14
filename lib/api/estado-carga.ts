@@ -234,22 +234,22 @@ export async function iniciarDescarga(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'en_proceso_descarga',
+    nuevo_estado: 'descargando',
   });
 }
 
 /**
  * Registra progreso de descarga (DEPRECATED - usar iniciarDescarga)
- * El estado 'descargando' fue eliminado, solo existe 'en_proceso_descarga'
+ * Usa el estado 'descargando' estándar
  */
 export async function registrarDescargando(
   viaje_id: UUID,
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Mantener en estado en_proceso_descarga con observaciones actualizadas
+  // Mantener en estado descargando con observaciones actualizadas
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'en_proceso_descarga',
+    nuevo_estado: 'descargando',
     ...(observaciones && { observaciones }),
   });
 }
