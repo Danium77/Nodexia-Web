@@ -1240,16 +1240,16 @@ const CrearDespacho = () => {
           const [transportesResult, choferesResult, camionesResult, acopladosResult] = await Promise.all([
             transporteIds.length > 0
               ? supabase.from('empresas').select('id, nombre, cuit').in('id', transporteIds)
-              : Promise.resolve({ data: [] }),
+              : Promise.resolve({ data: [], error: null }),
             choferIds.length > 0
               ? supabase.from('choferes').select('id, nombre, apellido, telefono, dni').in('id', choferIds)
-              : Promise.resolve({ data: [] }),
+              : Promise.resolve({ data: [], error: null }),
             camionIds.length > 0
               ? supabase.from('camiones').select('id, patente, marca, modelo, anio').in('id', camionIds)
-              : Promise.resolve({ data: [] }),
+              : Promise.resolve({ data: [], error: null }),
             acopladoIds.length > 0
               ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopladoIds)
-              : Promise.resolve({ data: [] })
+              : Promise.resolve({ data: [], error: null })
           ]);
 
           // Crear mapas para acceso rápido
