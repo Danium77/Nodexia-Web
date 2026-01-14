@@ -267,7 +267,7 @@ export async function completarDescarga(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'descargado',
+    nuevo_estado: 'entregado',
     faltantes_rechazos: {
       tiene_faltante,
       tiene_rechazo,
