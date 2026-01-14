@@ -811,8 +811,8 @@ export default function ControlAcceso() {
                 {/* Acciones */}
                 <div className="border-t border-slate-700 pt-6">
                   <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Acciones Disponibles</p>
-                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó (arribado_origen o arribado_destino) */}
-                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'arribado_origen') ||
+                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó (en_transito_origen o arribado_destino) */}
+                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'en_transito_origen') ||
                       (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'arribado_destino')) && (
                       <button
                         onClick={confirmarIngreso}
@@ -825,19 +825,19 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Asignar Playa de Espera - Solo en origen después del ingreso */}
-                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'en_playa_espera' && (
+                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'en_playa_origen' && (
                       <button
                         onClick={() => {
                           const playa = prompt('Número de playa de espera:');
                           if (playa) {
                             actualizarEstadoUnidad({
                               viaje_id: viaje.id,
-                              nuevo_estado: 'en_playa_espera',
+                              nuevo_estado: 'en_playa_origen',
                               observaciones: `Asignado a playa ${playa}`,
                             }).then(result => {
                               if (result.success) {
                                 setMessage(`✅ Camión asignado a playa ${playa}`);
-                                setViaje({...viaje, estado_unidad: 'en_playa_espera'});
+                                setViaje({...viaje, estado_unidad: 'en_playa_origen'});
                               } else {
                                 setMessage(`❌ ${result.error}`);
                               }
@@ -853,7 +853,7 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Validar Documentación - Solo en origen después de carga completada */}
-                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'carga_completada' && (
+                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'egreso_origen' && (
                       <button
                         onClick={async () => {
                           setLoading(true);
@@ -883,7 +883,7 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Confirmar Egreso - Solo si documentación está validada o es en destino */}
-                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'carga_completada' && viaje.documentacion_validada) ||
+                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'egreso_origen' && viaje.documentacion_validada) ||
                       (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'descarga_completada')) && (
                       <button
                         onClick={confirmarEgreso}
