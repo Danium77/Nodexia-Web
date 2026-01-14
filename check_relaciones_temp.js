@@ -1,7 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
+// NOTA: Usar variables de entorno para credenciales
 const supabase = createClient(
-  'https://ngnaxqwxptccqvbpvwqm.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nbmF4cXd4cHRjY3F2YnB2d3FtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzA3NTU2MTIsImV4cCI6MjA0NjMzMTYxMn0.Ug2OBIXsz-_G9TGU8CoYv-r7_U1nUKJcx6cXy-pqMxw'
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
 async function checkRelaciones() {

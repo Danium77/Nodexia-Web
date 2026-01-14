@@ -329,7 +329,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_admin_timestamp ON logs_admin(timestamp);
                 Ver Script SQL
               </button>
               <a
-                href="https://supabase.com/dashboard/project/lkdcofsfjnltuzzzwoir/sql/new"
+                href={`https://supabase.com/dashboard`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 font-medium"

@@ -1,8 +1,9 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// NOTA: Usar variables de entorno para credenciales
 const supabase = createClient(
-  'https://eee27778-f8b4-4fec-b638-074e1f3e33e5.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlZTI3Nzc4LWY4YjQtNGZlYy1iNjM4LTA3NGUxZjNlMzNlNSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3Mjk0NTkzMTksImV4cCI6MjA0NTAzNTMxOX0.B5cBa2C3e48c_SCMKDF3gIIC_vWQ6FTBLcONTERT_Yo'
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
 async function checkViajes() {
