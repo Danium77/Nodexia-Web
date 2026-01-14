@@ -105,7 +105,8 @@ export const ESTADOS_CARGA_LABELS: Record<EstadoCargaViaje, string> = {
 export const ROLES_AUTORIZADOS_UNIDAD: Record<
   EstadoUnidadViaje,
   RolInterno[] | 'AUTOMATIC'
-> camion_asignado: ['coordinador'],
+> = {
+  camion_asignado: ['coordinador'],
   en_transito_origen: ['chofer'],
   ingresado_origen: ['control_acceso'],
   en_playa_origen: 'AUTOMATIC',
@@ -121,14 +122,17 @@ export const ROLES_AUTORIZADOS_UNIDAD: Record<
   disponible: ['coordinador'],
   cancelado: ['coordinador'],
   expirado: 'AUTOMATIC',
-  incidencia: ['chofer', a: ['chofer', 'coordinador'],
-  cancelado: ['coordinador'],
+  incidencia: ['chofer', 'coordinador'],
 };
 
 /**
  * Roles autorizados para actualizar cada estado de carga
  */
-export cons_asignacion: ['coordinador'],
+export const ROLES_AUTORIZADOS_CARGA: Record<
+  EstadoCargaViaje,
+  RolInterno[] | 'AUTOMATIC'
+> = {
+  pendiente_asignacion: ['coordinador'],
   transporte_asignado: ['coordinador'],
   camion_asignado: ['coordinador'],
   en_transito_origen: 'AUTOMATIC',
@@ -145,11 +149,7 @@ export cons_asignacion: ['coordinador'],
   disponible: 'AUTOMATIC',
   completado: ['supervisor', 'coordinador'],
   cancelado: ['coordinador'],
-  expirado: 'AUTOMATIC' 'control_acceso'],
-  completado: ['supervisor', 'coordinador'],
-  con_faltante: ['supervisor'],
-  con_rechazo: ['supervisor'],
-  cancelado_sin_carga: ['coordinador'],
+  expirado: 'AUTOMATIC',
 };
 
 // =====================================================
