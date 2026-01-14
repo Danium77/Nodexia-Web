@@ -73,6 +73,7 @@
     "docs",
     "scripts",
     "sql",
+    "supabase/functions",
     "GUIAS",
     "*.tsbuildinfo",
     ".tsbuildinfo",
