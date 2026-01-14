@@ -1151,6 +1151,24 @@ const CrearDespacho = () => {
               motivo_cancelacion,
               observaciones,
               created_at,
+              camiones (
+                patente,
+                marca,
+                modelo,
+                anio
+              ),
+              choferes (
+                nombre,
+                apellido,
+                telefono,
+                dni
+              ),
+              acoplados (
+                patente,
+                marca,
+                modelo,
+                anio
+              ),
               estado_carga_viaje (
                 estado_carga,
                 fecha_planificacion,
