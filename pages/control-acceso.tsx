@@ -884,7 +884,7 @@ export default function ControlAcceso() {
 
                     {/* Confirmar Egreso - Solo si documentación está validada o es en destino */}
                     {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'egreso_origen' && viaje.documentacion_validada) ||
-                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'descarga_completada')) && (
+                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'vacio')) && (
                       <button
                         onClick={confirmarEgreso}
                         disabled={loading}
