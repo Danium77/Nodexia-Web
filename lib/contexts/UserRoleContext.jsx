@@ -58,12 +58,7 @@ export function UserRoleProvider({ children }) {
     const initializedRef = useRef(false); // 🔥 Track si ya se inicializó
     // 🔥 OPTIMIZADO: useMemo para valores derivados
     const primaryRole = useMemo(() => {
-        const calculatedRole = roles.length > 0 ? getPrimaryRole(roles) : null;
-        console.log('🎯 [UserRoleContext] primaryRole calculado:', {
-            roles,
-            calculatedRole
-        });
-        return calculatedRole;
+        return roles.length > 0 ? getPrimaryRole(roles) : null;
     }, [roles]);
     // Derived values for backward compatibility
     const email = useMemo(() => user?.email || '', [user]);
