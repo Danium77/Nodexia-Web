@@ -105,7 +105,7 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
             const { data: chofer } = await supabase
               .from('choferes')
               .select('nombre')
-              .eq('id', viajeActivo.id_chofer)
+              .eq('id', viajeActivo.chofer_id)
               .single();
 
             if (ubicacion) {
