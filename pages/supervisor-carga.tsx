@@ -367,7 +367,7 @@ export default function SupervisorCarga() {
     try {
       await iniciarDescarga(viaje.id);
       setMessage(`âœ… Descarga iniciada para ${viaje.numero_viaje}`);
-      setViaje({ ...viaje, estado_carga: 'en_proceso_descarga' });
+      setViaje({ ...viaje, estado_carga: 'descargando' });
     } catch (error) {
       setMessage('âŒ Error al iniciar descarga');
       console.error(error);
