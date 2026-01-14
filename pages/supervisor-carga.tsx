@@ -381,7 +381,7 @@ export default function SupervisorCarga() {
     try {
       await registrarDescargando(viaje.id, observaciones || undefined);
       setMessage(`âœ… Progreso de descarga registrado`);
-      setViaje({ ...viaje, estado_carga: 'en_proceso_descarga' });
+      setViaje({ ...viaje, estado_carga: 'descargando' });
     } catch (error) {
       setMessage('âŒ Error al registrar progreso');
       console.error(error);
