@@ -377,7 +377,7 @@ export default function ControlAcceso() {
 
       // Determinar el nuevo estado según el tipo de operación
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'en_playa_espera' : 'arribado_destino';
+        viaje.tipo_operacion === 'envio' ? 'en_playa_origen' : 'arribado_destino';
       
       console.log('🔄 [control-acceso] Actualizando estado a:', nuevoEstado);
 
