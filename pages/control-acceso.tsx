@@ -445,10 +445,10 @@ export default function ControlAcceso() {
       }
 
       // Determinar el nuevo estado según el tipo de operación
-      // Origen: saliendo_origen (que automáticamente dispara en_transito_destino)
-      // Destino: descarga_completada (viaje completado)
+      // Origen: egreso_origen (que automáticamente dispara en_transito_destino)
+      // Destino: vacio (camión vacío después de descarga)
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'saliendo_origen' : 'descarga_completada';
+        viaje.tipo_operacion === 'envio' ? 'egreso_origen' : 'vacio';
       
       console.log('🔄 [control-acceso] Actualizando estado a:', nuevoEstado);
 
