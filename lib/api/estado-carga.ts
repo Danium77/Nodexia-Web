@@ -139,7 +139,7 @@ export async function registrarLlamadoCarga(
 
 /**
  * Registra posicionamiento en bay de carga (DEPRECATED - usar iniciarCarga)
- * Este estado se fusiona con en_proceso_carga
+ * Este estado se fusiona con cargando
  */
 export async function registrarPosicionadoCarga(
   viaje_id: UUID
@@ -147,7 +147,7 @@ export async function registrarPosicionadoCarga(
   // Simplemente inicia el proceso de carga
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'en_proceso_carga',
+    nuevo_estado: 'cargando',
     observaciones: 'Vehículo posicionado en bay de carga'
   });
 }
@@ -162,7 +162,7 @@ export async function iniciarCarga(
 ): Promise<{ success: boolean; error?: string }> {
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'en_proceso_carga',
+    nuevo_estado: 'cargando',
     datos_carga: {
       producto,
       ...(peso_estimado_kg !== undefined && { peso_estimado_kg }),
@@ -172,16 +172,16 @@ export async function iniciarCarga(
 
 /**
  * Registra progreso de carga (DEPRECATED - usar iniciarCarga)
- * El estado 'cargando' fue eliminado, solo existe 'en_proceso_carga'
+ * Usa el estado 'cargando' estándar
  */
 export async function registrarCargando(
   viaje_id: UUID,
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Mantener en estado en_proceso_carga con observaciones actualizadas
+  // Mantener en estado cargando con observaciones actualizadas
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'en_proceso_carga',
+    nuevo_estado: 'cargando',
     ...(observaciones && { observaciones }),
   });
 }
