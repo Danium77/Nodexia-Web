@@ -1151,7 +1151,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
                   <div>
                     <p className="text-sm text-gray-400">Rol:</p>
                     <p className="text-white font-medium">
-                      {rolesDisponibles.find(r => r.id === formData.rol)?.nombre_rol}
+                      {formData.rol ? ROL_INTERNO_LABELS[formData.rol as RolInterno] || formData.rol : 'No seleccionado'}
                     </p>
                   </div>
                   <div>
