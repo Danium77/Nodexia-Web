@@ -395,7 +395,7 @@ export default function SupervisorCarga() {
     try {
       await completarDescarga(viaje.id);
       setMessage(`âœ… Descarga completada para ${viaje.numero_viaje}`);
-      setViaje({ ...viaje, estado_carga: 'descargado' });
+      setViaje({ ...viaje, estado_carga: 'entregado' });
 
       setTimeout(() => {
         setViaje(null);
