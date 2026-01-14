@@ -112,7 +112,12 @@ const ChoferViajesPage = () => {
               nombre
             )
           ),
-          camion_id
+          camion_id,
+          camiones(
+            patente,
+            marca,
+            modelo
+          )
         `)
         .eq('chofer_id', choferData.id)
         .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino'])
