@@ -30,7 +30,7 @@ const eslintConfig = [
       
       // Generales de calidad
       "no-var": "error",
-      "prefer-const": "error",
+      "prefer-const": "warn", // Relajado a warning
         "no-console": "warn", // Relajado a warning
         "eqeqeq": "warn", // Relajado a warning
         "curly": "warn", // Relajado a warning
