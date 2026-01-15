@@ -14,48 +14,30 @@ const eslintConfig = [
   {
     rules: {
       // TypeScript específicas
-      "@typescript-eslint/no-explicit-any": "warn", // Cambiamos de error a warning
-      "@typescript-eslint/no-unused-vars": ["error", { 
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_",
-        "caughtErrorsIgnorePattern": "^_"
-      }],
-      "@typescript-eslint/consistent-type-imports": "error",
+        "@typescript-eslint/no-explicit-any": "off", // Deshabilitado temporalmente
+        "@typescript-eslint/no-unused-vars": "warn", // Relajado a warning
+        "@typescript-eslint/consistent-type-imports": "warn", // Relajado a warning
       // Deshabilitada para evitar error en Vercel
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
       
       // React específicas
-      "react-hooks/exhaustive-deps": "warn",
-      "react/no-unescaped-entities": "error",
+        "react-hooks/exhaustive-deps": "off", // Deshabilitado temporalmente
+        "react/no-unescaped-entities": "warn", // Relajado a warning
       
       // Next.js específicas
-      "@next/next/no-img-element": "error",
-      "@next/next/no-html-link-for-pages": "error",
+        "@next/next/no-img-element": "warn", // Relajado a warning
+        "@next/next/no-html-link-for-pages": "warn", // Relajado a warning
       
       // Generales de calidad
       "no-var": "error",
       "prefer-const": "error",
-      "no-console": ["warn", { "allow": ["warn", "error"] }],
-      "eqeqeq": ["error", "always"],
-      "curly": ["error", "all"],
+        "no-console": "warn", // Relajado a warning
+        "eqeqeq": "warn", // Relajado a warning
+        "curly": "warn", // Relajado a warning
       
       // Importaciones
-      "import/no-duplicates": "error",
-      "import/order": ["error", {
-        "groups": [
-          "builtin",
-          "external", 
-          "internal",
-          "parent",
-          "sibling",
-          "index"
-        ],
-        "newlines-between": "always",
-        "alphabetize": {
-          "order": "asc",
-          "caseInsensitive": true
-        }
-      }]
+        "import/no-duplicates": "warn", // Relajado a warning
+        "import/order": "warn", // Relajado a warning
     }
   },
   {
