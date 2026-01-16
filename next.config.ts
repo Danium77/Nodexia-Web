@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+    turbopack: {},
   // Mejorar estabilidad de Fast Refresh
   onDemandEntries: {
     // Período en ms para que una página permanezca en memoria sin ser utilizada
