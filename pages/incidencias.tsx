@@ -5,6 +5,7 @@ import Link from 'next/link';
 import useIncidencias from '../lib/hooks/useIncidencias';
 import { supabase } from '../lib/supabaseClient';
 import { useRouter } from 'next/router';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const IncidenciasPage: React.FC = () => {
   const router = useRouter();
@@ -30,7 +31,11 @@ const IncidenciasPage: React.FC = () => {
     checkUser();
   }, [router]);
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center bg-[#0e1a2d] text-slate-100">Cargando...</div>;
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0e1a2d]">
+      <LoadingSpinner size="xl" text="Verificando sesión..." fullScreen />
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen bg-[#0e1a2d]">
@@ -41,7 +46,11 @@ const IncidenciasPage: React.FC = () => {
           <div className="max-w-4xl">
             <h2 className="text-white text-xl mb-4">Últimas Incidencias</h2>
 
-            {loading && <div className="text-slate-300">Cargando incidencias...</div>}
+            {loading && (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" text="Cargando incidencias..." />
+              </div>
+            )}
             {error && <div className="text-red-400">{error}</div>}
 
             <ul className="space-y-3">

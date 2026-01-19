@@ -31,13 +31,22 @@
     "**/.cache": true,
     "**/docs/archive": false
   },
-  "typescript.tsserver.maxTsServerMemory": 1024,
+  "typescript.tsserver.maxTsServerMemory": 4096,
   "typescript.disableAutomaticTypeAcquisition": true,
   "typescript.tsserver.watchOptions": {
     "excludeDirectories": ["**"]
   },
   "typescript.tsserver.experimental.enableProjectDiagnostics": false,
   "typescript.tsserver.pluginPaths": [],
+  // Optimización de rendimiento VS Code
+  "telemetry.enableTelemetry": false,
+  "telemetry.enableCrashReporter": false,
+  "workbench.tree.indent": 8,
+  "editor.cursorBlinking": "solid",
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "none",
+  "editor.renderControlCharacters": false,
+  "files.maxMemoryForLargeFilesMB": 8192,
   "typescript.validate.enable": false,
   "typescript.suggest.enabled": false,
   "typescript.surveys.enabled": false,
@@ -65,12 +74,19 @@
   "editor.formatOnType": false,
   "javascript.updateImportsOnFileMove.enabled": "never",
   "typescript.updateImportsOnFileMove.enabled": "never",
+  // Copilot: Solo Chat habilitado (sin autocompletions para mejor performance)
   "github.copilot.editor.enableAutoCompletions": false,
   "github.copilot.enable": {
-    "*": false,
-    "plaintext": false,
-    "markdown": false
+    "*": true,
+    "plaintext": true,
+    "markdown": true,
+    "yaml": true,
+    "typescript": true,
+    "javascript": true,
+    "typescriptreact": true,
+    "javascriptreact": true
   },
+  "github.copilot.advanced": {},
   "extensions.autoUpdate": false,
   "extensions.autoCheckUpdates": false,
   "files.trimTrailingWhitespace": false,

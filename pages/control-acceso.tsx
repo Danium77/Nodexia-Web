@@ -947,7 +947,7 @@ export default function ControlAcceso() {
                   disabled={loadingHistorial}
                   className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
                 >
-                  {loadingHistorial ? 'Cargando...' : 'Actualizar'}
+                  {loadingHistorial ? 'Actualizando...' : 'Actualizar'}
                 </button>
               </div>
             </div>

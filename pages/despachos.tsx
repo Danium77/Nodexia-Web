@@ -5,6 +5,7 @@ import useDispatches from '../lib/hooks/useDispatches';
 import Link from 'next/link';
 import { supabase } from '../lib/supabaseClient';
 import { useRouter } from 'next/router';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const DespachosPage: React.FC = () => {
   const router = useRouter();
@@ -29,7 +30,11 @@ const DespachosPage: React.FC = () => {
     checkUser();
   }, [router]);
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center bg-[#0e1a2d] text-slate-100">Cargando...</div>;
+  if (!user) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0e1a2d]">
+      <LoadingSpinner size="xl" text="Verificando sesión..." variant="logo" fullScreen />
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen bg-[#0e1a2d]">
@@ -48,7 +53,11 @@ const DespachosPage: React.FC = () => {
               </button>
             </div>
 
-            {loading && <div className="text-slate-300">Cargando despachos...</div>}
+            {loading && (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" text="Cargando despachos..." variant="logo" />
+              </div>
+            )}
             {error && <div className="text-red-400">{error}</div>}
 
             <div className="space-y-3">

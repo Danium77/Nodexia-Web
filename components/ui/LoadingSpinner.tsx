@@ -31,7 +31,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   color = 'primary',
   text,
   fullScreen = false,
-  variant = 'logo',
+  variant = 'circle',
   className = ''
 }) => {
   const spinnerClasses = [
@@ -47,7 +47,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         // Logo de Nodexia con animación
         <div className={`relative ${sizeClasses[size]}`}>
           {/* Logo con efecto de pulso y rotación */}
-          <div className="absolute inset-0 animate-spin">
+          <div className="absolute inset-0 animate-spin" style={{ animationDuration: '3s' }}>
             <Image
               src="/logo-nodexia.png"
               alt="Loading"
@@ -55,6 +55,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
               height={96}
               className="w-full h-full object-contain opacity-90"
               priority
+              unoptimized
             />
           </div>
           {/* Anillo de carga alrededor */}
