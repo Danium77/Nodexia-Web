@@ -33,7 +33,7 @@ const IncidenciasPage: React.FC = () => {
 
   if (!user) return (
     <div className="min-h-screen flex items-center justify-center bg-[#0e1a2d]">
-      <LoadingSpinner size="xl" text="Verificando sesión..." fullScreen />
+      <LoadingSpinner size="xl" text="Verificando sesión..." variant="logo" color="primary" fullScreen />
     </div>
   );
 
@@ -48,7 +48,7 @@ const IncidenciasPage: React.FC = () => {
 
             {loading && (
               <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" text="Cargando incidencias..." />
+                <LoadingSpinner size="lg" text="Cargando incidencias..." variant="logo" color="primary" />
               </div>
             )}
             {error && <div className="text-red-400">{error}</div>}

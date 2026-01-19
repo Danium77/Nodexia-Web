@@ -44,47 +44,20 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   const spinner = (
     <div className="flex flex-col items-center justify-center gap-3">
       {variant === 'logo' ? (
-        // Logo de Nodexia con animación
+        // Logo Neon Nodexia con animación fade
         <div className={`relative ${sizeClasses[size]}`}>
-          {/* Logo con efecto de pulso y rotación */}
-          <div className="absolute inset-0 animate-spin" style={{ animationDuration: '3s' }}>
+          {/* Logo con efecto de fade (pulso suave) */}
+          <div className="absolute inset-0 animate-pulse">
             <Image
-              src="/logo-nodexia.png"
+              src="/logo-spinner.png"
               alt="Loading"
               width={96}
               height={96}
-              className="w-full h-full object-contain opacity-90"
+              className="w-full h-full object-contain"
               priority
               unoptimized
             />
           </div>
-          {/* Anillo de carga alrededor */}
-          <svg 
-            className={`absolute inset-0 ${sizeClasses[size]} animate-spin`}
-            style={{ animationDuration: '2s' }}
-            viewBox="0 0 50 50"
-          >
-            <circle
-              className="opacity-20"
-              cx="25"
-              cy="25"
-              r="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-            />
-            <circle
-              className={colorClasses[color]}
-              cx="25"
-              cy="25"
-              r="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeDasharray="80 120"
-              strokeLinecap="round"
-            />
-          </svg>
         </div>
       ) : (
         // Spinner circular clásico (fallback)
