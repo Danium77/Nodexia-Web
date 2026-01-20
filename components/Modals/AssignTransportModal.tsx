@@ -210,7 +210,7 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
           viajesData.push({
             despacho_id: dispatch.id,
             numero_viaje: ultimoNumeroViaje + i + 1,
-            id_transporte: selectedTransport,
+            transport_id: selectedTransport,
             estado: 'transporte_asignado',
             observaciones: assignmentNotes || `Viaje ${ultimoNumeroViaje + i + 1} - Asignado a transporte`
           });
@@ -295,7 +295,7 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
           console.log('📝 Insertando viaje:', {
             despacho_id: dispatch.id,
             numero_viaje: 1,
-            id_transporte: selectedTransport,
+            transport_id: selectedTransport,
             estado: 'transporte_asignado'
           });
 
@@ -304,7 +304,7 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
             .insert({
               despacho_id: dispatch.id,
               numero_viaje: 1,
-              id_transporte: selectedTransport,
+              transport_id: selectedTransport,
               estado: 'transporte_asignado',
               observaciones: assignmentNotes || `Viaje único - Asignado a transporte`
             })
@@ -320,17 +320,13 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
         } else {
           console.log('ℹ️ Ya existe un viaje para este despacho, actualizándolo...');
           
-          // Actualizar el viaje existente (limpiar datos de cancelación si existían)
+          // Actualizar el viaje existente (solo campos que existen)
           const { error: updateViajeError } = await supabase
             .from('viajes_despacho')
             .update({
-              id_transporte: selectedTransport,
+              transport_id: selectedTransport,
               estado: 'transporte_asignado',
-              observaciones: assignmentNotes || `Viaje único - Asignado a transporte`,
-              motivo_cancelacion: null,
-              fecha_cancelacion: null,
-              cancelado_por: null,
-              id_transporte_cancelado: null
+              observaciones: assignmentNotes || `Viaje único - Asignado a transporte`
             })
             .eq('id', viajeExistente.id);
 

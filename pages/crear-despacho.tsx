@@ -1353,7 +1353,6 @@ const CrearDespacho = () => {
           chofer_id: null,
           camion_id: null,
           fecha_cancelacion: new Date().toISOString(),
-          cancelado_por: user?.id,
           motivo_cancelacion: motivo,
           observaciones: `CANCELADO POR COORDINADOR: ${motivo}${advertencia} (${new Date().toLocaleString('es-AR')})`
         })
