@@ -14,10 +14,10 @@ interface LoadingSpinnerProps extends ComponentProps {
 }
 
 const sizeClasses = {
-  sm: 'w-8 h-8',
-  md: 'w-12 h-12',
-  lg: 'w-16 h-16',
-  xl: 'w-24 h-24'
+  sm: 'w-12 h-12',    // 48px - Pequeño inline
+  md: 'w-20 h-20',    // 80px - Medio inline
+  lg: 'w-32 h-32',    // 128px - Grande (estándar Netflix/YouTube)
+  xl: 'w-40 h-40'     // 160px - Extra grande fullscreen
 };
 
 const colorClasses = {
@@ -51,9 +51,9 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
             <Image
               src="/logo-spinner.png"
               alt="Loading"
-              width={96}
-              height={96}
-              className="w-full h-full object-contain"
+              width={160}
+              height={160}
+              className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(6,182,212,0.5)]"
               priority
               unoptimized
             />
@@ -84,7 +84,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
       )}
       
       {text && (
-        <p className="mt-1 text-sm text-slate-400 animate-pulse">
+        <p className="mt-4 text-base text-slate-300 animate-pulse font-medium">
           {text}
         </p>
       )}
