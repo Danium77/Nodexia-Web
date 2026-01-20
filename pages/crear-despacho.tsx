@@ -1004,15 +1004,6 @@ const CrearDespacho = () => {
                   nombre,
                   apellido,
                   dni
-                ),
-                estado_carga_viaje (
-                  estado_carga,
-                  fecha_planificacion,
-                  fecha_documentacion_preparada,
-                  fecha_cargando,
-                  fecha_carga_completada,
-                  peso_real_kg,
-                  cantidad_bultos
                 )
               `)
               .eq('despacho_id', despachoId)
@@ -1168,15 +1159,6 @@ const CrearDespacho = () => {
                 marca,
                 modelo,
                 anio
-              ),
-              estado_carga_viaje (
-                estado_carga,
-                fecha_planificacion,
-                fecha_documentacion_preparada,
-                fecha_cargando,
-                fecha_carga_completada,
-                peso_real_kg,
-                cantidad_bultos
               )
             `)
             .eq('despacho_id', despachoId)
