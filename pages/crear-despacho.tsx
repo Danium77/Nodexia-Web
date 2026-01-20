@@ -260,7 +260,7 @@ const CrearDespacho = () => {
         
         const { data: viajesData, error: viajesError } = await supabase
           .from('viajes_despacho')
-          .select('id, estado, estado_carga, transport_id')
+          .select('id, estado, estado_carga, id_transporte')
           .eq('despacho_id', d.id);
         
         if (!viajesError && viajesData) {
@@ -270,16 +270,16 @@ const CrearDespacho = () => {
           console.log(`🔍 DEBUG - Viajes del despacho ${d.pedido_id}:`, viajesData.map(v => ({
             id: v.id,
             estado: v.estado,
-            transport_id: v.transport_id
+            id_transporte: v.id_transporte
           })));
           
           // 🔥 MOSTRAR TODOS LOS ESTADOS ÚNICOS ENCONTRADOS
           const estadosUnicos = [...new Set(viajesData.map(v => v.estado))];
           console.log(`⚠️ ESTADOS ÚNICOS EN ESTE DESPACHO:`, estadosUnicos);
           
-          // 🔥 NUEVO: Contar solo viajes con transport_id (sin importar el estado por ahora)
-          const viajesConTransporte = viajesData.filter(v => v.transport_id).length;
-          console.log(`🚛 Viajes CON transport_id: ${viajesConTransporte} de ${viajesData.length}`);
+          // 🔥 NUEVO: Contar solo viajes con id_transporte (sin importar el estado por ahora)
+          const viajesConTransporte = viajesData.filter(v => v.id_transporte).length;
+          console.log(`🚛 Viajes CON id_transporte: ${viajesConTransporte} de ${viajesData.length}`);
           
           // 🔥 NUEVO: Contar solo viajes con estado asignado o estados superiores
           viajesAsignados = viajesData.filter(v => 
@@ -312,8 +312,8 @@ const CrearDespacho = () => {
           // 🔥 NUEVO: Obtener transportes únicos de los viajes
           transportesUnicos = [...new Set(
             viajesData
-              .filter(v => v.transport_id) // Solo viajes con transporte asignado
-              .map(v => v.transport_id)
+              .filter(v => v.id_transporte) // Solo viajes con transporte asignado
+              .map(v => v.id_transporte)
           )];
           
           console.log(`📊 Despacho ${d.pedido_id}:`, {
@@ -856,7 +856,7 @@ const CrearDespacho = () => {
       const { error: updateViajeError } = await supabase
         .from('viajes_despacho')
         .update({
-          transport_id: transporteId, // UUID de empresa
+          id_transporte: transporteId, // UUID de empresa
           estado: 'transporte_asignado',
           fecha_asignacion_transporte: new Date().toISOString(),
           origen_asignacion: 'red_nodexia'
@@ -990,7 +990,7 @@ const CrearDespacho = () => {
                 id,
                 numero_viaje,
                 estado,
-                transport_id,
+                id_transporte,
                 camion_id,
                 chofer_id,
                 observaciones,
@@ -1004,6 +1004,15 @@ const CrearDespacho = () => {
                   nombre,
                   apellido,
                   dni
+                ),
+                estado_carga_viaje (
+                  estado_carga,
+                  fecha_planificacion,
+                  fecha_documentacion_preparada,
+                  fecha_cargando,
+                  fecha_carga_completada,
+                  peso_real_kg,
+                  cantidad_bultos
                 )
               `)
               .eq('despacho_id', despachoId)
@@ -1012,8 +1021,8 @@ const CrearDespacho = () => {
             if (!error && viajes) {
               // Obtener información de transportes
               const transporteIds = viajes
-                .filter(v => v.transport_id)
-                .map(v => v.transport_id)
+                .filter(v => v.id_transporte)
+                .map(v => v.id_transporte)
                 .filter((id, index, self) => self.indexOf(id) === index);
 
               let transportesData: Record<string, any> = {};
@@ -1037,12 +1046,14 @@ const CrearDespacho = () => {
                 console.log('🔍 [handleAssignSuccess] Viaje:', v.id);
                 console.log('  - camiones (join):', v.camiones);
                 console.log('  - choferes (join):', v.choferes);
+                console.log('  - estado_carga_viaje:', v.estado_carga_viaje);
                 
                 return {
                   ...v,
-                  transporte: v.transport_id ? transportesData[v.transport_id] : null,
+                  transporte: v.id_transporte ? transportesData[v.id_transporte] : null,
                   camion: v.camiones || null, // 🔥 NUEVO: datos de camión
-                  chofer: v.choferes || null  // 🔥 NUEVO: datos de chofer
+                  chofer: v.choferes || null,  // 🔥 NUEVO: datos de chofer
+                  estado_carga_viaje: v.estado_carga_viaje || null // 🔥 NUEVO: Estado dual de carga
                 };
               });
 
@@ -1132,7 +1143,7 @@ const CrearDespacho = () => {
               id,
               numero_viaje,
               estado,
-              transport_id,
+              id_transporte,
               chofer_id,
               camion_id,
               acoplado_id,
@@ -1157,6 +1168,15 @@ const CrearDespacho = () => {
                 marca,
                 modelo,
                 anio
+              ),
+              estado_carga_viaje (
+                estado_carga,
+                fecha_planificacion,
+                fecha_documentacion_preparada,
+                fecha_cargando,
+                fecha_carga_completada,
+                peso_real_kg,
+                cantidad_bultos
               )
             `)
             .eq('despacho_id', despachoId)
@@ -1215,8 +1235,8 @@ const CrearDespacho = () => {
 
           // Obtener IDs únicos de transportes, choferes y camiones
           const transporteIds = viajes
-            ?.filter(v => v.transport_id || v.id_transporte_cancelado)
-            .map(v => v.transport_id || v.id_transporte_cancelado)
+            ?.filter(v => v.id_transporte || v.id_transporte_cancelado)
+            .map(v => v.id_transporte || v.id_transporte_cancelado)
             .filter((id, index, self) => id && self.indexOf(id) === index) || [];
 
           const choferIds = viajes
@@ -1283,11 +1303,12 @@ const CrearDespacho = () => {
             
             return {
               ...v,
-              transporte: v.transport_id ? transportesData[v.transport_id] : null,
+              transporte: v.id_transporte ? transportesData[v.id_transporte] : null,
               transporte_cancelado: v.id_transporte_cancelado ? transportesData[v.id_transporte_cancelado] : null,
               chofer: v.choferes || (v.chofer_id ? choferesData[v.chofer_id] : null), // 🔥 Priorizar join
               camion: v.camiones || (v.camion_id ? camionesData[v.camion_id] : null),  // 🔥 Priorizar join
-              acoplado: v.acoplados || (v.acoplado_id ? acopladosData[v.acoplado_id] : null) // 🔥 NUEVO: Acoplado
+              acoplado: v.acoplados || (v.acoplado_id ? acopladosData[v.acoplado_id] : null), // 🔥 NUEVO: Acoplado
+              estado_carga_viaje: v.estado_carga_viaje || null // 🔥 NUEVO: Estado dual de carga
             };
           }) || [];
 
@@ -1349,10 +1370,11 @@ const CrearDespacho = () => {
         .from('viajes_despacho')
         .update({ 
           estado: 'cancelado',
-          transport_id: null,
+          id_transporte: null,
           chofer_id: null,
           camion_id: null,
           fecha_cancelacion: new Date().toISOString(),
+          cancelado_por: user?.id,
           motivo_cancelacion: motivo,
           observaciones: `CANCELADO POR COORDINADOR: ${motivo}${advertencia} (${new Date().toLocaleString('es-AR')})`
         })
