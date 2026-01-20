@@ -1005,7 +1005,7 @@ const CrearDespacho = () => {
                   apellido,
                   dni
                 ),
-                estado_carga_viaje (
+                estado_carga_viaje!viaje_id (
                   estado_carga,
                   peso_real_kg,
                   cantidad_bultos
@@ -1165,7 +1165,7 @@ const CrearDespacho = () => {
                 modelo,
                 anio
               ),
-              estado_carga_viaje (
+              estado_carga_viaje!viaje_id (
                 estado_carga,
                 peso_real_kg,
                 cantidad_bultos,
