@@ -1004,17 +1004,24 @@ const CrearDespacho = () => {
                   nombre,
                   apellido,
                   dni
-                ),
-                estado_carga_viaje!viaje_id (
-                  estado_carga,
-                  peso_real_kg,
-                  cantidad_bultos
                 )
               `)
               .eq('despacho_id', despachoId)
               .order('numero_viaje', { ascending: true });
 
             if (!error && viajes) {
+              // Traer estados de carga con query separada
+              const viajeIds = viajes.map(v => v.id);
+              const { data: estadosCarga } = await supabase
+                .from('estado_carga_viaje')
+                .select('viaje_id, estado_carga, peso_real_kg, cantidad_bultos')
+                .in('viaje_id', viajeIds);
+              
+              // Crear mapa de estados por viaje_id
+              const estadosMap = (estadosCarga || []).reduce((acc, estado) => {
+                acc[estado.viaje_id] = estado;
+                return acc;
+              }, {} as Record<string, any>);
               // Obtener información de transportes
               const transporteIds = viajes
                 .filter(v => v.id_transporte)
@@ -1042,14 +1049,14 @@ const CrearDespacho = () => {
                 console.log('🔍 [handleAssignSuccess] Viaje:', v.id);
                 console.log('  - camiones (join):', v.camiones);
                 console.log('  - choferes (join):', v.choferes);
-                console.log('  - estado_carga_viaje:', v.estado_carga_viaje);
+                console.log('  - estado_carga_viaje:', estadosMap[v.id]);
                 
                 return {
                   ...v,
                   transporte: v.id_transporte ? transportesData[v.id_transporte] : null,
                   camion: v.camiones || null, // 🔥 NUEVO: datos de camión
                   chofer: v.choferes || null,  // 🔥 NUEVO: datos de chofer
-                  estado_carga_viaje: v.estado_carga_viaje || null // 🔥 NUEVO: Estado dual de carga
+                  estado_carga_viaje: estadosMap[v.id] || null // 🔥 NUEVO: Estado dual de carga (query separada)
                 };
               });
 
@@ -1164,13 +1171,6 @@ const CrearDespacho = () => {
                 marca,
                 modelo,
                 anio
-              ),
-              estado_carga_viaje!viaje_id (
-                estado_carga,
-                peso_real_kg,
-                cantidad_bultos,
-                fecha_cargando,
-                fecha_carga_completada
               )
             `)
             .eq('despacho_id', despachoId)
@@ -1191,6 +1191,21 @@ const CrearDespacho = () => {
             console.warn(`⚠️ No se encontraron viajes para despacho ${despachoId}`);
             return;
           }
+
+          // Traer estados de carga con query separada
+          const viajeIds = viajes.map(v => v.id);
+          const { data: estadosCarga } = await supabase
+            .from('estado_carga_viaje')
+            .select('viaje_id, estado_carga, peso_real_kg, cantidad_bultos, fecha_cargando, fecha_carga_completada')
+            .in('viaje_id', viajeIds);
+          
+          console.log(`📊 Estados de carga encontrados: ${estadosCarga?.length || 0}`);
+          
+          // Crear mapa de estados por viaje_id
+          const estadosMap = (estadosCarga || []).reduce((acc, estado) => {
+            acc[estado.viaje_id] = estado;
+            return acc;
+          }, {} as Record<string, any>);
 
           // 🔥 Verificar cuáles viajes están en Red Nodexia y su estado
           const viajesIds = viajes.map(v => v.id);
@@ -1293,7 +1308,7 @@ const CrearDespacho = () => {
             console.log('  - choferes (join):', v.choferes);
             console.log('  - camion_id:', v.camion_id);
             console.log('  - chofer_id:', v.chofer_id);
-            console.log('  - estado_carga_viaje:', v.estado_carga_viaje);
+            console.log('  - estado_carga_viaje:', estadosMap[v.id]);
             
             return {
               ...v,
@@ -1302,7 +1317,7 @@ const CrearDespacho = () => {
               chofer: v.choferes || (v.chofer_id ? choferesData[v.chofer_id] : null), // 🔥 Priorizar join
               camion: v.camiones || (v.camion_id ? camionesData[v.camion_id] : null),  // 🔥 Priorizar join
               acoplado: v.acoplados || (v.acoplado_id ? acopladosData[v.acoplado_id] : null), // 🔥 NUEVO: Acoplado
-              estado_carga_viaje: v.estado_carga_viaje || null // 🔥 NUEVO: Estado dual de carga
+              estado_carga_viaje: estadosMap[v.id] || null // 🔥 NUEVO: Estado dual de carga (query separada)
             };
           }) || [];
 
