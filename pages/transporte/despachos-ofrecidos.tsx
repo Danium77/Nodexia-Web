@@ -165,12 +165,23 @@ const DespachosOfrecidos = () => {
           : Promise.resolve({ data: [] })
       ]);
 
+      // Obtener IDs de ubicaciones (origen y destino) de los despachos
+      const ubicacionIds = [...new Set(
+        despachosData.data?.flatMap((d: any) => [d.origen, d.destino]).filter(Boolean) || []
+      )];
+
+      // Traer nombres de ubicaciones
+      const { data: ubicacionesData } = ubicacionIds.length > 0
+        ? await supabase.from('ubicaciones').select('id, nombre').in('id', ubicacionIds)
+        : { data: [] };
+
       // Crear mapas para acceso rápido
       const despachosMap = new Map((despachosData.data || []).map((d: any) => [d.id, d]));
       const estadosUnidadMap = new Map((estadosUnidadData.data || []).map((e: any) => [e.viaje_id, e]));
       const choferesMap = new Map((choferesData.data || []).map((ch: any) => [ch.id, ch]));
       const camionesMap = new Map((camionesData.data || []).map((ca: any) => [ca.id, ca]));
       const usuariosMap = new Map((usuariosData.data || []).map((u: any) => [u.id, u]));
+      const ubicacionesMap = new Map((ubicacionesData || []).map((ub: any) => [ub.id, ub.nombre]));
 
       // Mapear viajes a formato de despacho para compatibilidad con el UI
       const despachosFormateados = (viajesData || []).map((viaje: any) => {
@@ -180,13 +191,17 @@ const DespachosOfrecidos = () => {
         const camion = viaje.camion_id ? camionesMap.get(viaje.camion_id) : null;
         const canceladoPor = viaje.cancelado_por ? usuariosMap.get(viaje.cancelado_por) : null;
         
+        // Obtener nombres de ubicaciones
+        const origenNombre = despacho?.origen ? ubicacionesMap.get(despacho.origen) : null;
+        const destinoNombre = despacho?.destino ? ubicacionesMap.get(despacho.destino) : null;
+        
         const despachoFormateado: Despacho = {
           id: viaje.id,
           viaje_numero: viaje.numero_viaje,
           despacho_id: despacho?.id,
           pedido_id: `${despacho?.pedido_id || 'N/A'} - Viaje #${viaje.numero_viaje}`,
-          origen: despacho?.origen || 'N/A',
-          destino: despacho?.destino || 'N/A',
+          origen: origenNombre || 'N/A',
+          destino: destinoNombre || 'N/A',
           scheduled_local_date: despacho?.scheduled_local_date,
           scheduled_local_time: despacho?.scheduled_local_time,
           producto: viaje.observaciones || 'Carga general',
