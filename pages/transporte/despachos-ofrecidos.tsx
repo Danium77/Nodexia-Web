@@ -147,33 +147,55 @@ const DespachosOfrecidos = () => {
       const canceladoPorIds = [...new Set(viajesData?.map((v: any) => v.cancelado_por).filter(Boolean))];
 
       // Cargar todos los datos relacionados en paralelo
-      const [despachosData, estadosUnidadData, choferesData, camionesData, usuariosData] = await Promise.all([
+      // Nota: despachos se obtienen via API para bypasear RLS
+      const [despachosResponse, estadosUnidadData, choferesData, camionesData, usuariosData] = await Promise.all([
         despachoIds.length > 0
-          ? supabase.from('despachos').select('id, pedido_id, origen, destino, scheduled_local_date, scheduled_local_time, prioridad, created_at').in('id', despachoIds)
+          ? fetch('/api/transporte/despachos-info', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ despacho_ids: despachoIds })
+            }).then(r => r.json())
           : Promise.resolve({ data: [] }),
         viajeIds.length > 0
           ? supabase.from('estado_unidad_viaje').select('viaje_id, estado_unidad, fecha_confirmacion_chofer, fecha_inicio_transito_origen, fecha_arribo_origen, fecha_inicio_transito_destino, fecha_arribo_destino').in('viaje_id', viajeIds)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
         choferIds.length > 0
           ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
         camionIds.length > 0
           ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
-          : Promise.resolve({ data: [] }),
+          : Promise.resolve({ data: [], error: null }),
         canceladoPorIds.length > 0
           ? supabase.from('usuarios').select('id, nombre_completo').in('id', canceladoPorIds)
-          : Promise.resolve({ data: [] })
+          : Promise.resolve({ data: [], error: null })
       ]);
+
+      const despachosData = despachosResponse; // Ya tiene formato { data: [...] }
+
+      console.log('🔍 Resultado query despachos:', { 
+        ids_buscados: despachoIds, 
+        encontrados: despachosData.data?.length || 0,
+        error: despachosData.error 
+      });
 
       // Obtener IDs de ubicaciones (origen y destino) de los despachos
       const ubicacionIds = [...new Set(
         despachosData.data?.flatMap((d: any) => [d.origen, d.destino]).filter(Boolean) || []
       )];
 
+      console.log('📍 IDs de ubicaciones a buscar:', ubicacionIds);
+      console.log('📦 Despachos data:', despachosData.data);
+
       // Traer nombres de ubicaciones
-      const { data: ubicacionesData } = ubicacionIds.length > 0
+      const { data: ubicacionesData, error: ubicacionesError } = ubicacionIds.length > 0
         ? await supabase.from('ubicaciones').select('id, nombre').in('id', ubicacionIds)
-        : { data: [] };
+        : { data: [], error: null };
+
+      if (ubicacionesError) {
+        console.error('❌ Error cargando ubicaciones:', ubicacionesError);
+      } else {
+        console.log('📍 Ubicaciones cargadas:', ubicacionesData);
+      }
 
       // Crear mapas para acceso rápido
       const despachosMap = new Map((despachosData.data || []).map((d: any) => [d.id, d]));
@@ -194,6 +216,17 @@ const DespachosOfrecidos = () => {
         // Obtener nombres de ubicaciones
         const origenNombre = despacho?.origen ? ubicacionesMap.get(despacho.origen) : null;
         const destinoNombre = despacho?.destino ? ubicacionesMap.get(despacho.destino) : null;
+        
+        console.log(`🔍 Procesando viaje #${viaje.numero_viaje}:`, {
+          viaje_id: viaje.id,
+          despacho_id: viaje.despacho_id,
+          despacho_encontrado: !!despacho,
+          origen_id: despacho?.origen,
+          destino_id: despacho?.destino,
+          origenNombre,
+          destinoNombre,
+          pedido_id: despacho?.pedido_id
+        });
         
         const despachoFormateado: Despacho = {
           id: viaje.id,
