@@ -4,7 +4,7 @@
  */
 export type UUID = string;
 export type Timestamp = string;
-export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'admin';
+export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'admin' | 'sistema';
 /**
  * Roles internos simplificados - Sistema unificado
  * Los roles se interpretan contextualmente según el tipo de empresa

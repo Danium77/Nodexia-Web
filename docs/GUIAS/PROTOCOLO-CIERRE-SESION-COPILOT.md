@@ -2,7 +2,72 @@
 
 **Para:** GitHub Copilot  
 **Objetivo:** Cerrar sesión de forma estructurada y preparar la siguiente  
-**Última actualización:** 22-Dic-2025
+**Última actualización:** 17-Ene-2026
+
+---
+
+## 📋 CHECKLIST RÁPIDO DE CIERRE
+
+**⚠️ OBLIGATORIO antes de cerrar - verifica cada punto:**
+
+### ✅ Documentación a ACTUALIZAR siempre:
+- [ ] `.session/PROXIMA-SESION.md` → Estado actual y tareas para siguiente sesión
+- [ ] `.session/CONTEXTO-ACTUAL.md` → Solo si hubo cambios arquitectónicos importantes
+
+### ✅ Documentación a CREAR:
+- [ ] `.session/history/sesion-YYYY-MM-DD.md` → Registro de la sesión actual
+
+### ✅ Documentación a REVISAR y actualizar si aplica:
+- [ ] `docs/PROBLEMAS-CONOCIDOS.md` → Si encontraste bugs nuevos
+- [ ] `docs/ESTRUCTURA-BD-RECURSOS-TRANSPORTE.md` → Si trabajaste con BD de transporte
+- [ ] `NODEXIA-ROADMAP.md` → Si completaste milestones
+
+### ✅ Código:
+- [ ] Commitear todos los cambios con mensajes claros
+- [ ] Verificar que tests pasen
+- [ ] Verificar que servidor funciona
+
+---
+
+## 🌐 MODALIDAD DE TRABAJO: PRODUCCIÓN vs DESARROLLO
+
+### Los dos entornos:
+
+| 🖥️ **DESARROLLO (Dev)** | 🌐 **PRODUCCIÓN (Prod)** |
+|--------------------------|--------------------------|
+| `localhost:3000` | `www.nodexiaweb.com` |
+| Tu computadora | Vercel |
+| Para probar cambios | Usuarios reales |
+| Puedes experimentar | Debe funcionar perfecto |
+
+### Flujo de trabajo:
+
+```
+1️⃣ Hacer cambios en DEV (tu computadora)
+         ↓
+2️⃣ Probar que funcione localmente
+         ↓
+3️⃣ Commitear y push a GitHub
+         ↓
+4️⃣ Vercel despliega automáticamente a PROD
+         ↓
+5️⃣ Verificar que funcione en www.nodexiaweb.com
+```
+
+### Reglas importantes:
+
+| ✅ HACER | ❌ NO HACER |
+|----------|-------------|
+| Siempre probar en dev primero | Cambiar directo en producción |
+| Cambios pequeños y frecuentes | Cambios masivos sin probar |
+| Verificar prod después del deploy | Asumir que si funciona en dev, funciona en prod |
+| Documentar variables de entorno | Subir credenciales al código |
+
+### Si algo se rompe en producción:
+1. **No entrar en pánico** - podemos volver atrás
+2. Verificar qué commit causó el problema
+3. Hacer rollback en Vercel si es urgente
+4. O corregir en dev y hacer nuevo deploy
 
 ---
 

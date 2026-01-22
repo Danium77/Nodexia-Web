@@ -115,7 +115,7 @@ const TransporteDashboard = () => {
           chofer_id,
           camion_id
         `)
-        .eq('id_transporte', empresaId)
+        .eq('transport_id', empresaId)
         .in('estado', ['pendiente', 'transporte_asignado', 'cargando', 'en_camino', 'descargando'])
         .order('despachos(scheduled_local_date)', { ascending: true });
 
@@ -152,7 +152,7 @@ const TransporteDashboard = () => {
       const { count: completadosHoy } = await supabase
         .from('viajes_despacho')
         .select('id', { count: 'exact', head: true })
-        .eq('id_transporte', empresaId)
+        .eq('transport_id', empresaId)
         .eq('estado', 'completado')
         .gte('updated_at', `${hoy}T00:00:00`)
         .lte('updated_at', `${hoy}T23:59:59`);

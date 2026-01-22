@@ -110,7 +110,7 @@ const ViajesActivos = () => {
             fecha_arribo_destino
           )
         `)
-        .eq('id_transporte', empresaId)
+        .eq('transport_id', empresaId)
         .in('estado', ['transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
         .not('despacho_id', 'is', null)
         .order('created_at', { ascending: false });

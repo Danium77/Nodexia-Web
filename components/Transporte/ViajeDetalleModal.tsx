@@ -109,7 +109,7 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
           chofer_id,
           camion_id,
           acoplado_id,
-          id_transporte,
+          transport_id,
           created_at,
           updated_at,
           despachos!inner(
@@ -142,8 +142,8 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
         viajeData.acoplado_id
           ? supabase.from('acoplados').select('patente, marca, modelo, anio').eq('id', viajeData.acoplado_id).single()
           : Promise.resolve({ data: null }),
-        viajeData.id_transporte
-          ? supabase.from('empresas').select('nombre').eq('id', viajeData.id_transporte).single()
+        viajeData.transport_id
+          ? supabase.from('empresas').select('nombre').eq('id', viajeData.transport_id).single()
           : Promise.resolve({ data: null })
       ]);
 

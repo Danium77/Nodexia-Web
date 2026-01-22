@@ -20,7 +20,7 @@ interface Viaje {
   id: string;
   numero_viaje: number;
   estado: string;
-  id_transporte: string | null;
+  transport_id: string | null;
   chofer_id?: string | null;
   camion_id?: string | null;
   acoplado_id?: string | null;
@@ -167,7 +167,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           id, 
           numero_viaje, 
           estado, 
-          id_transporte, 
+          transport_id, 
           chofer_id, 
           camion_id, 
           acoplado_id, 
@@ -208,7 +208,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       }
 
       // Obtener IDs únicos
-      const transporteIds = viajes.filter(v => v.id_transporte).map(v => v.id_transporte).filter((id, index, self) => self.indexOf(id) === index);
+      const transporteIds = viajes.filter(v => v.transport_id).map(v => v.transport_id).filter((id, index, self) => self.indexOf(id) === index);
       const choferIds = viajes.filter(v => v.chofer_id).map(v => v.chofer_id).filter((id, index, self) => self.indexOf(id) === index);
       const camionIds = viajes.filter(v => v.camion_id).map(v => v.camion_id).filter((id, index, self) => self.indexOf(id) === index);
       const acopadoIds = viajes.filter(v => v.acoplado_id).map(v => v.acoplado_id).filter((id, index, self) => self.indexOf(id) === index);
@@ -250,7 +250,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           
         return {
           ...v,
-          transporte: v.id_transporte ? transportesMap[v.id_transporte] : undefined,
+          transporte: v.transport_id ? transportesMap[v.transport_id] : undefined,
           chofer: choferData,
           camion: v.camion_id ? camionesMap[v.camion_id] : undefined,
           acoplado: v.acoplado_id ? acopadosMap[v.acoplado_id] : undefined,

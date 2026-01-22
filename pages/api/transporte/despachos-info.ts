@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Obtener información de despachos con supabaseAdmin (bypasea RLS)
     const { data, error } = await supabaseAdmin
       .from('despachos')
-      .select('id, pedido_id, origen, destino, scheduled_local_date, scheduled_local_time, prioridad, created_at')
+      .select('id, pedido_id, origen_id, destino_id, scheduled_local_date, scheduled_local_time, prioridad, created_at')
       .in('id', despacho_ids);
 
     if (error) {

@@ -180,7 +180,7 @@ const DespachosOfrecidos = () => {
 
       // Obtener IDs de ubicaciones (origen y destino) de los despachos
       const ubicacionIds = [...new Set(
-        despachosData.data?.flatMap((d: any) => [d.origen, d.destino]).filter(Boolean) || []
+        despachosData.data?.flatMap((d: any) => [d.origen_id, d.destino_id]).filter(Boolean) || []
       )];
 
       console.log('📍 IDs de ubicaciones a buscar:', ubicacionIds);
@@ -213,16 +213,16 @@ const DespachosOfrecidos = () => {
         const camion = viaje.camion_id ? camionesMap.get(viaje.camion_id) : null;
         const canceladoPor = viaje.cancelado_por ? usuariosMap.get(viaje.cancelado_por) : null;
         
-        // Obtener nombres de ubicaciones
-        const origenNombre = despacho?.origen ? ubicacionesMap.get(despacho.origen) : null;
-        const destinoNombre = despacho?.destino ? ubicacionesMap.get(despacho.destino) : null;
+        // Obtener nombres de ubicaciones usando origen_id y destino_id
+        const origenNombre = despacho?.origen_id ? ubicacionesMap.get(despacho.origen_id) : null;
+        const destinoNombre = despacho?.destino_id ? ubicacionesMap.get(despacho.destino_id) : null;
         
         console.log(`🔍 Procesando viaje #${viaje.numero_viaje}:`, {
           viaje_id: viaje.id,
           despacho_id: viaje.despacho_id,
           despacho_encontrado: !!despacho,
-          origen_id: despacho?.origen,
-          destino_id: despacho?.destino,
+          origen_id: despacho?.origen_id,
+          destino_id: despacho?.destino_id,
           origenNombre,
           destinoNombre,
           pedido_id: despacho?.pedido_id
