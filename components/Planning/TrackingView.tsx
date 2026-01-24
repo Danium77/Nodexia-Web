@@ -20,7 +20,7 @@ interface Viaje {
   id: string;
   numero_viaje: number;
   estado: string;
-  transport_id: string | null;
+  id_transporte: string | null;
   chofer_id?: string | null;
   camion_id?: string | null;
   acoplado_id?: string | null;
@@ -106,8 +106,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
         .select('despacho_id')
         .in('despacho_id', despachosIds)
         .not('chofer_id', 'is', null)
-        .not('camion_id', 'is', null)
-        .is('deleted_at', null);
+        .not('camion_id', 'is', null);
       
       if (viajes) {
         const despachoIdsConRecursos = new Set(viajes.map(v => v.despacho_id));
@@ -168,7 +167,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           id, 
           numero_viaje, 
           estado, 
-          transport_id, 
+          id_transporte, 
           chofer_id, 
           camion_id, 
           acoplado_id, 
@@ -186,7 +185,6 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           )
         `)
         .eq('despacho_id', despachoId)
-        .is('deleted_at', null)
         .order('numero_viaje', { ascending: true });
 
       console.log(`🔎 TrackingView - Query result:`, {
@@ -210,7 +208,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       }
 
       // Obtener IDs únicos
-      const transporteIds = viajes.filter(v => v.transport_id).map(v => v.transport_id).filter((id, index, self) => self.indexOf(id) === index);
+      const transporteIds = viajes.filter(v => v.id_transporte).map(v => v.id_transporte).filter((id, index, self) => self.indexOf(id) === index);
       const choferIds = viajes.filter(v => v.chofer_id).map(v => v.chofer_id).filter((id, index, self) => self.indexOf(id) === index);
       const camionIds = viajes.filter(v => v.camion_id).map(v => v.camion_id).filter((id, index, self) => self.indexOf(id) === index);
       const acopadoIds = viajes.filter(v => v.acoplado_id).map(v => v.acoplado_id).filter((id, index, self) => self.indexOf(id) === index);
@@ -218,16 +216,16 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       // Cargar datos relacionados en paralelo
       const [transportesData, choferesData, camionesData, acopadosData] = await Promise.all([
         transporteIds.length > 0 
-          ? supabase.from('empresas').select('id, nombre, cuit').in('id', transporteIds).is('deleted_at', null)
+          ? supabase.from('empresas').select('id, nombre, cuit').in('id', transporteIds)
           : Promise.resolve({ data: [] }),
         choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono, email').in('id', choferIds).is('deleted_at', null)
+          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono, email').in('id', choferIds)
           : Promise.resolve({ data: [] }),
         camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, modelo, marca, anio').in('id', camionIds).is('deleted_at', null)
+          ? supabase.from('camiones').select('id, patente, modelo, marca, anio').in('id', camionIds)
           : Promise.resolve({ data: [] }),
         acopadoIds.length > 0
-          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopadoIds).is('deleted_at', null)
+          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopadoIds)
           : Promise.resolve({ data: [] })
       ]);
 
@@ -252,7 +250,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           
         return {
           ...v,
-          transporte: v.transport_id ? transportesMap[v.transport_id] : undefined,
+          transporte: v.id_transporte ? transportesMap[v.id_transporte] : undefined,
           chofer: choferData,
           camion: v.camion_id ? camionesMap[v.camion_id] : undefined,
           acoplado: v.acoplado_id ? acopadosMap[v.acoplado_id] : undefined,

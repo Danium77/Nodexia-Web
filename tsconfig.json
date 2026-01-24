@@ -23,7 +23,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     // OPTIMIZACIONES DE PERFORMANCE - Reglas estrictas DESACTIVADAS
     "noUnusedLocals": false,
     "noUnusedParameters": false,
@@ -41,24 +41,12 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@/components/*": [
-        "./components/*"
-      ],
-      "@/lib/*": [
-        "./lib/*"
-      ],
-      "@/pages/*": [
-        "./pages/*"
-      ],
-      "@/types/*": [
-        "./types/*"
-      ],
-      "@/styles/*": [
-        "./styles/*"
-      ]
+      "@/*": ["./*"],
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/pages/*": ["./pages/*"],
+      "@/types/*": ["./types/*"],
+      "@/styles/*": ["./styles/*"]
     }
   },
   "include": [

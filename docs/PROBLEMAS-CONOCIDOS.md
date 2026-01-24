@@ -1,7 +1,7 @@
 # Problemas Conocidos y Soluciones
 
 > **Total de problemas:** 32 (TypeScript) + ~10 (Funcionales)  
-> **Última revisión:** 21 de Enero de 2026  
+> **Última revisión:** 29 de Diciembre de 2025  
 > **Prioridad:** 🔴 Alta | 🟡 Media | 🟢 Baja
 
 ---
@@ -17,59 +17,9 @@
 
 ---
 
-## ✅ PROBLEMAS RESUELTOS
+## ✅ PROBLEMAS RESUELTOS (29-Dic-2025)
 
-### ~~0. Error 42703 - JOINs con estado_carga_viaje~~ ✅ RESUELTO (21-Ene-2026)
-**Problema:** Al intentar hacer JOIN con `estado_carga_viaje` usando sintaxis `estado_carga_viaje!viaje_id (...)`, Supabase JS client retornaba error 42703: "column estado_carga_viaje_1.peso_real_kg does not exist"
-
-**Contexto:**
-- La tabla existe y todas las columnas están verificadas en BD
-- El trigger funciona correctamente
-- Producción funcionaba con queries separadas
-- Dev fallaba con JOINs
-
-**Causa raíz:**  
-La sintaxis de JOIN de Supabase tiene problemas cuando la foreign key no es `id`. Este es un patrón conocido en el proyecto.
-
-**Solución aplicada:**  
-Usar **queries separadas** en lugar de JOINs, siguiendo el patrón de `pages/control-acceso.tsx`:
-
-```typescript
-// ❌ ANTES (fallaba)
-.select(`
-  ...,
-  estado_carga_viaje!viaje_id (
-    estado_carga,
-    peso_real_kg,
-    cantidad_bultos
-  )
-`)
-
-// ✅ DESPUÉS (funciona)
-// 1. Query principal sin JOIN
-.select('...')
-
-// 2. Query separada para estados
-const { data: estadosCarga } = await supabase
-  .from('estado_carga_viaje')
-  .select('viaje_id, estado_carga, peso_real_kg, cantidad_bultos')
-  .in('viaje_id', viajeIds);
-
-// 3. Combinar en frontend
-const estadosMap = estadosCarga.reduce((acc, estado) => {
-  acc[estado.viaje_id] = estado;
-  return acc;
-}, {});
-```
-
-**Resultado:** Viajes ahora se visualizan correctamente con sus estados de carga en crear-despacho.tsx
-
-**Archivos modificados:** `pages/crear-despacho.tsx` (líneas ~1007, ~1152)  
-**Sesión:** 21-Ene-2026
-
----
-
-### ~~1. UUIDs Corruptos en viajes_despacho~~ ✅ RESUELTO (29-Dic-2025)
+### ~~0. UUIDs Corruptos en viajes_despacho~~ ✅ RESUELTO
 **Estado anterior:** UUIDs con 37 caracteres causaban fallos en relaciones  
 **Verificación:** Análisis SQL confirmó que TODOS los UUIDs son válidos (36 chars)  
 **Solución aplicada:** 
@@ -81,7 +31,7 @@ const estadosMap = estadosCarga.reduce((acc, estado) => {
 
 ---
 
-### ~~2. Errores TypeScript de configuración~~ ✅ RESUELTO
+### ~~1. Errores TypeScript de configuración~~ ✅ RESUELTO
 **Problema:** Project references en tsconfig.json causaban errores  
 **Solución:** Simplificado tsconfig.json, removidos project references  
 **Resultado:** Reducción de 68 → 32 errores TypeScript (53% de mejora)
@@ -90,7 +40,7 @@ const estadosMap = estadosCarga.reduce((acc, estado) => {
 
 ---
 
-### ~~3. Estados incorrectos en Control de Acceso~~ ✅ RESUELTO
+### ~~2. Estados incorrectos en Control de Acceso~~ ✅ RESUELTO
 **Problema:** Estados que no existen en `EstadoUnidadViaje`  
 **Solución aplicada:**
 - `egreso_planta` → `saliendo_origen`

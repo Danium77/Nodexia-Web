@@ -6,28 +6,8 @@
 > **📖 Incluido en:** [PROTOCOLO-INICIO-SESION-COPILOT.md](./GUIAS/PROTOCOLO-INICIO-SESION-COPILOT.md)  
 > **📝 Actualizar según:** [PROTOCOLO-CIERRE-SESION-COPILOT.md](./GUIAS/PROTOCOLO-CIERRE-SESION-COPILOT.md)
 
-**Fecha:** 18 de Enero 2026  
-**Última actualización:** Unificación de columnas de recursos  
-**Propósito:** Consolidar la estructura oficial de tablas de recursos de transporte y evitar inconsistencias.
-
----
-
-## ⚠️ IMPORTANTE: CONVENCIÓN UNIFICADA DE COLUMNAS
-
-### Columnas OFICIALES en `viajes_despacho`:
-
-| ✅ USAR SIEMPRE | ❌ DEPRECADO (no usar) |
-|-----------------|------------------------|
-| `transport_id` | ~~id_transporte~~ |
-| `camion_id` | ~~id_camion~~ |
-| `acoplado_id` | ~~id_acoplado~~ |
-| `chofer_id` | ~~id_chofer~~ |
-
-**EXCEPCIÓN:** `id_transporte_cancelado` es un campo DIFERENTE (guarda el histórico del transporte que canceló) y NO debe cambiarse.
-
-### Convención de nombres:
-- **Sufijo `_id`** para FKs: `transport_id`, `camion_id`, `chofer_id`, `acoplado_id`, `despacho_id`
-- **Prefijo `id_`** solo en tablas de recursos propios: `choferes.id_transporte` (el transporte dueño del chofer)
+**Fecha:** 01 de Enero 2026  
+**Propósito:** Consolidar la estructura oficial de tablas de recursos de transporte y evitar inconsistencias que rompan la comunicación entre módulos.
 
 ---
 
@@ -222,34 +202,20 @@ const viajesMapeados = viajes.map(viaje => ({
 
 ## 🚫 ERRORES COMUNES A EVITAR
 
-### ❌ Error 1: Usar columnas deprecadas en viajes_despacho
+### ❌ Error 1: Usar nombres antiguos de columnas
 ```typescript
-// ❌ INCORRECTO (columnas deprecadas - NO USAR)
-viaje.id_transporte    // ❌
-viaje.id_camion        // ❌
-viaje.id_acoplado      // ❌
-viaje.id_chofer        // ❌
+// ❌ INCORRECTO
+viaje.id_chofer
+viaje.id_camion
+viaje.id_acoplado
 
-// ✅ CORRECTO (columnas oficiales)
-viaje.transport_id     // ✅ UUID de empresa de transporte
-viaje.camion_id        // ✅ UUID de camión
-viaje.acoplado_id      // ✅ UUID de acoplado
-viaje.chofer_id        // ✅ UUID de chofer
+// ✅ CORRECTO
+viaje.chofer_id
+viaje.camion_id
+viaje.acoplado_id
 ```
 
-### ❌ Error 2: Confundir columnas entre tablas
-```typescript
-// En CHOFERES, CAMIONES, ACOPLADOS: usar id_transporte (dueño)
-// Esto está BIEN porque refiere al transporte propietario:
-chofer.id_transporte    // ✅ El transporte dueño del chofer
-camion.id_transporte    // ✅ El transporte dueño del camión
-
-// En VIAJES_DESPACHO: usar transport_id (asignación)
-// Porque refiere al transporte asignado al viaje:
-viaje.transport_id      // ✅ El transporte asignado al viaje
-```
-
-### ❌ Error 3: Usar campos inexistentes en choferes
+### ❌ Error 2: Usar campos inexistentes en choferes
 ```typescript
 // ❌ INCORRECTO
 .select('id, nombre, apellido, documento, telefono')
@@ -258,7 +224,7 @@ viaje.transport_id      // ✅ El transporte asignado al viaje
 .select('id, nombre, apellido, dni, telefono')
 ```
 
-### ❌ Error 4: Usar campos inexistentes en camiones
+### ❌ Error 3: Usar campos inexistentes en camiones
 ```typescript
 // ❌ INCORRECTO
 .select('id, patente, marca, modelo, tipo')
@@ -267,7 +233,7 @@ viaje.transport_id      // ✅ El transporte asignado al viaje
 .select('id, patente, marca, modelo, anio')
 ```
 
-### ❌ Error 5: JOINs en SELECT (causa HTTP 400)
+### ❌ Error 4: JOINs en SELECT (causa HTTP 400)
 ```typescript
 // ❌ INCORRECTO (evitar JOINs directos)
 .select(`

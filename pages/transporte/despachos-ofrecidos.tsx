@@ -105,7 +105,15 @@ const DespachosOfrecidos = () => {
       console.log('🔍 Buscando viajes para empresa:', empresaId);
       console.log('🔍 EmpresaId completo:', empresaId);
       
-      // � CORREGIDO: Query sin JOIN problemático, traer despachos por separado
+      // 🐛 DEBUG: Query sin JOIN para ver TODOS los viajes
+      const { data: viajesDebug } = await supabase
+        .from('viajes_despacho')
+        .select('id, numero_viaje, estado, despacho_id, id_transporte')
+        .eq('id_transporte', empresaId)
+        .limit(10);
+      
+      console.log('🐛 DEBUG - Viajes sin JOIN:', viajesDebug?.length || 0, viajesDebug);
+      
       const { data: viajesData, error: viajesError } = await supabase
         .from('viajes_despacho')
         .select(`
@@ -115,20 +123,37 @@ const DespachosOfrecidos = () => {
           chofer_id,
           camion_id,
           despacho_id,
-          transport_id,
+          id_transporte,
           observaciones,
           motivo_cancelacion,
           fecha_cancelacion,
           cancelado_por,
-          origen_asignacion
+          origen_asignacion,
+          despachos!inner (
+            id,
+            pedido_id,
+            origen,
+            destino,
+            scheduled_local_date,
+            scheduled_local_time,
+            prioridad,
+            created_at
+          ),
+          estado_unidad_viaje (
+            estado_unidad,
+            fecha_confirmacion_chofer,
+            fecha_inicio_transito_origen,
+            fecha_arribo_origen,
+            fecha_inicio_transito_destino,
+            fecha_arribo_destino
+          )
         `)
-        .or(`transport_id.eq.${empresaId},id_transporte_cancelado.eq.${empresaId}`)
+        .or(`id_transporte.eq.${empresaId},id_transporte_cancelado.eq.${empresaId}`)
         .in('estado', ['pendiente', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'cancelado', 'cancelado_por_transporte'])
-        .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
       console.log('📊 Query ejecutado con filtros:', {
-        transport_id: empresaId,
+        id_transporte: empresaId,
         estados: ['pendiente', 'transporte_asignado', 'camion_asignado', 'cancelado']
       });
 
@@ -139,110 +164,55 @@ const DespachosOfrecidos = () => {
 
       console.log('📦 Viajes asignados cargados:', viajesData?.length || 0);
       console.log('📦 Primer viaje:', viajesData?.[0]);
+      console.log('📦 Todos los viajes:', viajesData?.map(v => ({
+        numero_viaje: v.numero_viaje,
+        pedido_id: (v.despachos as any)?.pedido_id,
+        estado: v.estado,
+        id_transporte: v.id_transporte
+      })));
 
-      // Obtener IDs únicos para queries separadas
-      const despachoIds = [...new Set(viajesData?.map((v: any) => v.despacho_id).filter(Boolean))];
-      const viajeIds = viajesData?.map((v: any) => v.id) || [];
+      // Obtener IDs únicos de choferes, camiones y usuarios que cancelaron
       const choferIds = [...new Set(viajesData?.map((v: any) => v.chofer_id).filter(Boolean))];
       const camionIds = [...new Set(viajesData?.map((v: any) => v.camion_id).filter(Boolean))];
       const canceladoPorIds = [...new Set(viajesData?.map((v: any) => v.cancelado_por).filter(Boolean))];
 
-      // Cargar todos los datos relacionados en paralelo
-      // NOTA: Ahora despachos usa RLS (políticas permiten cross-tenant access)
-      const [despachosData, estadosUnidadData, choferesData, camionesData, usuariosData] = await Promise.all([
-        despachoIds.length > 0
-          ? supabase.from('despachos').select('id, pedido_id, origen_id, destino_id, scheduled_local_date, scheduled_local_time, prioridad, created_at').in('id', despachoIds).is('deleted_at', null)
-          : Promise.resolve({ data: [], error: null }),
-        viajeIds.length > 0
-          ? supabase.from('estado_unidad_viaje').select('viaje_id, estado_unidad, fecha_confirmacion_chofer, fecha_inicio_transito_origen, fecha_arribo_origen, fecha_inicio_transito_destino, fecha_arribo_destino').in('viaje_id', viajeIds)
-          : Promise.resolve({ data: [], error: null }),
+      // Cargar datos de choferes, camiones y usuarios en paralelo
+      const [choferesData, camionesData, usuariosData] = await Promise.all([
         choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds).is('deleted_at', null)
-          : Promise.resolve({ data: [], error: null }),
+          ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds)
+          : Promise.resolve({ data: [] }),
         camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds).is('deleted_at', null)
-          : Promise.resolve({ data: [], error: null }),
+          ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
+          : Promise.resolve({ data: [] }),
         canceladoPorIds.length > 0
-          ? supabase.from('usuarios').select('id, nombre_completo').in('id', canceladoPorIds).is('deleted_at', null)
-          : Promise.resolve({ data: [], error: null })
+          ? supabase.from('usuarios').select('id, nombre_completo').in('id', canceladoPorIds)
+          : Promise.resolve({ data: [] })
       ]);
 
-      console.log('🔍 Resultado query despachos:', { 
-        ids_buscados: despachoIds, 
-        encontrados: despachosData.data?.length || 0,
-        error: despachosData.error 
-      });
-
-      if (despachosData.error) {
-        throw new Error('Error en despachos: ' + despachosData.error.message);
-      }
-      if (!despachosData.data || despachosData.data.length === 0) {
-        throw new Error('No se encontraron despachos');
-      }
-
-      // Obtener IDs de ubicaciones (origen y destino) de los despachos
-      const ubicacionIds = [...new Set(
-        despachosData.data?.flatMap((d: any) => [d.origen_id, d.destino_id]).filter(Boolean) || []
-      )];
-
-      console.log('📍 IDs de ubicaciones a buscar:', ubicacionIds);
-      console.log('📦 Despachos data:', despachosData.data);
-
-      // Traer nombres de ubicaciones
-      const { data: ubicacionesData, error: ubicacionesError } = ubicacionIds.length > 0
-        ? await supabase.from('ubicaciones').select('id, nombre').in('id', ubicacionIds)
-        : { data: [], error: null };
-
-      if (ubicacionesError) {
-        console.error('❌ Error cargando ubicaciones:', ubicacionesError);
-      } else {
-        console.log('📍 Ubicaciones cargadas:', ubicacionesData);
-      }
-
       // Crear mapas para acceso rápido
-      const despachosMap = new Map((despachosData.data || []).map((d: any) => [d.id, d]));
-      const estadosUnidadMap = new Map((estadosUnidadData.data || []).map((e: any) => [e.viaje_id, e]));
       const choferesMap = new Map((choferesData.data || []).map((ch: any) => [ch.id, ch]));
       const camionesMap = new Map((camionesData.data || []).map((ca: any) => [ca.id, ca]));
       const usuariosMap = new Map((usuariosData.data || []).map((u: any) => [u.id, u]));
-      const ubicacionesMap = new Map((ubicacionesData || []).map((ub: any) => [ub.id, ub.nombre]));
 
       // Mapear viajes a formato de despacho para compatibilidad con el UI
       const despachosFormateados = (viajesData || []).map((viaje: any) => {
-        const despacho = viaje.despacho_id ? despachosMap.get(viaje.despacho_id) : null;
-        const estadoUnidad = estadosUnidadMap.get(viaje.id);
         const chofer = viaje.chofer_id ? choferesMap.get(viaje.chofer_id) : null;
         const camion = viaje.camion_id ? camionesMap.get(viaje.camion_id) : null;
         const canceladoPor = viaje.cancelado_por ? usuariosMap.get(viaje.cancelado_por) : null;
         
-        // Obtener nombres de ubicaciones usando origen_id y destino_id
-        const origenNombre = despacho?.origen_id ? ubicacionesMap.get(despacho.origen_id) : null;
-        const destinoNombre = despacho?.destino_id ? ubicacionesMap.get(despacho.destino_id) : null;
-        
-        console.log(`🔍 Procesando viaje #${viaje.numero_viaje}:`, {
-          viaje_id: viaje.id,
-          despacho_id: viaje.despacho_id,
-          despacho_encontrado: !!despacho,
-          origen_id: despacho?.origen_id,
-          destino_id: despacho?.destino_id,
-          origenNombre,
-          destinoNombre,
-          pedido_id: despacho?.pedido_id
-        });
-        
-        const despachoFormateado: Despacho = {
+        const despacho: Despacho = {
           id: viaje.id,
           viaje_numero: viaje.numero_viaje,
-          despacho_id: despacho?.id,
-          pedido_id: `${despacho?.pedido_id || 'N/A'} - Viaje #${viaje.numero_viaje}`,
-          origen: origenNombre || 'N/A',
-          destino: destinoNombre || 'N/A',
-          scheduled_local_date: despacho?.scheduled_local_date,
-          scheduled_local_time: despacho?.scheduled_local_time,
+          despacho_id: viaje.despachos?.id,
+          pedido_id: `${viaje.despachos?.pedido_id || 'N/A'} - Viaje #${viaje.numero_viaje}`,
+          origen: viaje.despachos?.origen || 'N/A',
+          destino: viaje.despachos?.destino || 'N/A',
+          scheduled_local_date: viaje.despachos?.scheduled_local_date,
+          scheduled_local_time: viaje.despachos?.scheduled_local_time,
           producto: viaje.observaciones || 'Carga general',
           observaciones: viaje.observaciones,
-          prioridad: despacho?.prioridad,
-          created_at: despacho?.created_at,
+          prioridad: viaje.despachos?.prioridad,
+          created_at: viaje.despachos?.created_at,
           estado_viaje: viaje.estado,
           tiene_chofer: !!viaje.chofer_id,
           tiene_camion: !!viaje.camion_id,
@@ -257,7 +227,7 @@ const DespachosOfrecidos = () => {
           cancelado_por_nombre: canceladoPor?.nombre_completo,
           origen_asignacion: viaje.origen_asignacion
         };
-        return despachoFormateado;
+        return despacho;
       });
 
       console.log('📋 Despachos formateados:', despachosFormateados.length);
@@ -380,8 +350,8 @@ const DespachosOfrecidos = () => {
       // Actualizar viaje a estado 'cancelado_por_transporte'
       const updateData = {
         estado: 'cancelado_por_transporte',
-        id_transporte_cancelado: viajeActual.transport_id,
-        transport_id: null,
+        id_transporte_cancelado: viajeActual.id_transporte,
+        id_transporte: null,
         chofer_id: null,
         camion_id: null,
         fecha_cancelacion: new Date().toISOString(),

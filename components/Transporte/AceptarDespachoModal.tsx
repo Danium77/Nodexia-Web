@@ -106,18 +106,15 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
         supabase
           .from('choferes')
           .select('*')
-          .eq('id_transporte', empId)
-          .is('deleted_at', null),
+          .eq('id_transporte', empId),
         supabase
           .from('camiones')
           .select('*')
-          .eq('id_transporte', empId)
-          .is('deleted_at', null),
+          .eq('id_transporte', empId),
         supabase
           .from('acoplados')
           .select('*')
           .eq('id_transporte', empId)
-          .is('deleted_at', null)
       ]);
 
       if (choferesRes.error) throw choferesRes.error;
@@ -153,87 +150,64 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
       setError('');
 
       // 🔍 VALIDACIÓN: Verificar que el chofer no tenga otro viaje en la misma fecha
-      // Primero obtener todos los viajes del chofer en estados activos
       const { data: viajesChofer, error: errorChofer } = await supabase
         .from('viajes_despacho')
-        .select('id, despacho_id')
-        .eq('chofer_id', choferId)
+        .select(`
+          id,
+          despachos!inner (scheduled_local_date)
+        `)
+        .eq('id_chofer', choferId)
+        .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
         .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
-        .is('deleted_at', null)
-        .neq('id', despacho.id);
+        .neq('id', despacho.id); // Excluir el viaje actual
 
       if (errorChofer) throw errorChofer;
       
       if (viajesChofer && viajesChofer.length > 0) {
-        // Obtener fechas de los despachos
-        const despachoIds = viajesChofer.map(v => v.despacho_id).filter(Boolean);
-        const { data: despachosChofer } = await supabase
-          .from('despachos')
-          .select('id, scheduled_local_date')
-          .in('id', despachoIds)
-          .is('deleted_at', null)
-          .eq('scheduled_local_date', despacho.scheduled_local_date);
-        
-        if (despachosChofer && despachosChofer.length > 0) {
-          setError(`El chofer seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro chofer.`);
-          setLoading(false);
-          return;
-        }
+        setError(`El chofer seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro chofer.`);
+        setLoading(false);
+        return;
       }
 
       // 🔍 VALIDACIÓN: Verificar que el camión no tenga otro viaje en la misma fecha
       const { data: viajesCamion, error: errorCamion } = await supabase
         .from('viajes_despacho')
-        .select('id, despacho_id')
+        .select(`
+          id,
+          despachos!inner (scheduled_local_date)
+        `)
         .eq('camion_id', camionId)
+        .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
         .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
-        .is('deleted_at', null)
         .neq('id', despacho.id);
 
       if (errorCamion) throw errorCamion;
       
       if (viajesCamion && viajesCamion.length > 0) {
-        const despachoIds = viajesCamion.map(v => v.despacho_id).filter(Boolean);
-        const { data: despachosCamion } = await supabase
-          .from('despachos')
-          .select('id, scheduled_local_date')
-          .in('id', despachoIds)
-          .is('deleted_at', null)
-          .eq('scheduled_local_date', despacho.scheduled_local_date);
-        
-        if (despachosCamion && despachosCamion.length > 0) {
-          setError(`El camión seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro camión.`);
-          setLoading(false);
-          return;
-        }
+        setError(`El camión seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro camión.`);
+        setLoading(false);
+        return;
       }
 
       // 🔍 VALIDACIÓN: Verificar que el acoplado (si fue seleccionado) no tenga otro viaje en la misma fecha
       if (acopladoId) {
         const { data: viajesAcoplado, error: errorAcoplado } = await supabase
           .from('viajes_despacho')
-          .select('id, despacho_id')
-          .eq('acoplado_id', acopladoId)
+          .select(`
+            id,
+            despachos!inner (scheduled_local_date)
+          `)
+          .eq('id_acoplado', acopladoId)
+          .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
           .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
-          .is('deleted_at', null)
           .neq('id', despacho.id);
 
         if (errorAcoplado) throw errorAcoplado;
         
         if (viajesAcoplado && viajesAcoplado.length > 0) {
-          const despachoIds = viajesAcoplado.map(v => v.despacho_id).filter(Boolean);
-          const { data: despachosAcoplado } = await supabase
-            .from('despachos')
-            .select('id, scheduled_local_date')
-            .in('id', despachoIds)
-            .is('deleted_at', null)
-            .eq('scheduled_local_date', despacho.scheduled_local_date);
-          
-          if (despachosAcoplado && despachosAcoplado.length > 0) {
-            setError(`El acoplado seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro acoplado o continúa sin acoplado.`);
-            setLoading(false);
-            return;
-          }
+          setError(`El acoplado seleccionado ya tiene un viaje asignado para la fecha ${new Date(despacho.scheduled_local_date).toLocaleDateString('es-AR')}. Por favor selecciona otro acoplado o continúa sin acoplado.`);
+          setLoading(false);
+          return;
         }
       }
 

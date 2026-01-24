@@ -109,7 +109,7 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
           chofer_id,
           camion_id,
           acoplado_id,
-          transport_id,
+          id_transporte,
           created_at,
           updated_at,
           despachos!inner(
@@ -127,7 +127,6 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
           )
         `)
         .eq('id', viajeId)
-        .is('deleted_at', null)
         .single();
 
       if (viajeError) throw viajeError;
@@ -135,16 +134,16 @@ const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
       // Cargar datos relacionados en paralelo
       const [choferRes, camionRes, acopladoRes, transporteRes] = await Promise.all([
         viajeData.chofer_id
-          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono').eq('id', viajeData.chofer_id).is('deleted_at', null).single()
+          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono').eq('id', viajeData.chofer_id).single()
           : Promise.resolve({ data: null }),
         viajeData.camion_id
-          ? supabase.from('camiones').select('id, patente, marca, modelo, anio').eq('id', viajeData.camion_id).is('deleted_at', null).single()
+          ? supabase.from('camiones').select('id, patente, marca, modelo, anio').eq('id', viajeData.camion_id).single()
           : Promise.resolve({ data: null }),
         viajeData.acoplado_id
-          ? supabase.from('acoplados').select('patente, marca, modelo, anio').eq('id', viajeData.acoplado_id).is('deleted_at', null).single()
+          ? supabase.from('acoplados').select('patente, marca, modelo, anio').eq('id', viajeData.acoplado_id).single()
           : Promise.resolve({ data: null }),
-        viajeData.transport_id
-          ? supabase.from('empresas').select('nombre').eq('id', viajeData.transport_id).is('deleted_at', null).single()
+        viajeData.id_transporte
+          ? supabase.from('empresas').select('nombre').eq('id', viajeData.id_transporte).single()
           : Promise.resolve({ data: null })
       ]);
 

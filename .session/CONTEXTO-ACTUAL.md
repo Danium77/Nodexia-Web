@@ -1,20 +1,8 @@
 # 📖 CONTEXTO ACTUAL DEL PROYECTO
 
-**Última actualización:** 17 de Enero, 2026  
+**Última actualización:** 05 de Enero, 2026  
 **Versión:** MVP 0.9 (88% completado)  
-**Sistema implementado:** Sesiones estructuradas para Copilot  
-**Producción:** ✅ ACTIVA en www.nodexiaweb.com
-
----
-
-## 🌐 ENTORNOS
-
-| Entorno | URL | Hosting |
-|---------|-----|---------|
-| Desarrollo | `localhost:3000` | Tu computadora |
-| Producción | `www.nodexiaweb.com` | Vercel |
-
-**Flujo:** DEV → GitHub → Vercel (auto-deploy) → PROD
+**Sistema implementado:** Sesiones estructuradas para Copilot
 
 ---
 
