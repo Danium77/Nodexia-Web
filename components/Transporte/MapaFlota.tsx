@@ -71,7 +71,8 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
         const { data: camionesData, error: camionesError } = await supabase
           .from('camiones')
           .select('id, patente, marca, modelo')
-          .eq('empresa_id', empresaId);
+          .eq('empresa_id', empresaId)
+          .is('deleted_at', null);
 
         if (camionesError) throw camionesError;
 
@@ -89,6 +90,7 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
             `)
             .eq('camion_id', camion.id)
             .in('estado', ['transporte_asignado', 'cargando', 'en_camino', 'descargando'])
+            .is('deleted_at', null)
             .single();
 
           if (viajeActivo) {
@@ -106,6 +108,7 @@ const MapaFlota: React.FC<MapaFlotaProps> = ({ empresaId }) => {
               .from('choferes')
               .select('nombre')
               .eq('id', viajeActivo.chofer_id)
+              .is('deleted_at', null)
               .single();
 
             if (ubicacion) {

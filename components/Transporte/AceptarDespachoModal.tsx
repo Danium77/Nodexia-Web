@@ -106,15 +106,18 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
         supabase
           .from('choferes')
           .select('*')
-          .eq('id_transporte', empId),
+          .eq('id_transporte', empId)
+          .is('deleted_at', null),
         supabase
           .from('camiones')
           .select('*')
-          .eq('id_transporte', empId),
+          .eq('id_transporte', empId)
+          .is('deleted_at', null),
         supabase
           .from('acoplados')
           .select('*')
           .eq('id_transporte', empId)
+          .is('deleted_at', null)
       ]);
 
       if (choferesRes.error) throw choferesRes.error;
@@ -156,6 +159,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
         .select('id, despacho_id')
         .eq('chofer_id', choferId)
         .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
+        .is('deleted_at', null)
         .neq('id', despacho.id);
 
       if (errorChofer) throw errorChofer;
@@ -167,6 +171,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
           .from('despachos')
           .select('id, scheduled_local_date')
           .in('id', despachoIds)
+          .is('deleted_at', null)
           .eq('scheduled_local_date', despacho.scheduled_local_date);
         
         if (despachosChofer && despachosChofer.length > 0) {
@@ -182,6 +187,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
         .select('id, despacho_id')
         .eq('camion_id', camionId)
         .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
+        .is('deleted_at', null)
         .neq('id', despacho.id);
 
       if (errorCamion) throw errorCamion;
@@ -192,6 +198,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
           .from('despachos')
           .select('id, scheduled_local_date')
           .in('id', despachoIds)
+          .is('deleted_at', null)
           .eq('scheduled_local_date', despacho.scheduled_local_date);
         
         if (despachosCamion && despachosCamion.length > 0) {
@@ -208,6 +215,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
           .select('id, despacho_id')
           .eq('acoplado_id', acopladoId)
           .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
+          .is('deleted_at', null)
           .neq('id', despacho.id);
 
         if (errorAcoplado) throw errorAcoplado;
@@ -218,6 +226,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
             .from('despachos')
             .select('id, scheduled_local_date')
             .in('id', despachoIds)
+            .is('deleted_at', null)
             .eq('scheduled_local_date', despacho.scheduled_local_date);
           
           if (despachosAcoplado && despachosAcoplado.length > 0) {

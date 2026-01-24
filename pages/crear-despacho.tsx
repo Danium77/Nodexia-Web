@@ -204,6 +204,7 @@ const CrearDespacho = () => {
         .from('despachos')
         .select('id, pedido_id, estado, transport_id')
         .eq('created_by', userId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(5);
       
@@ -229,6 +230,7 @@ const CrearDespacho = () => {
           created_by
         `)
         .eq('created_by', userId)
+        .is('deleted_at', null)
         .order('scheduled_local_date', { ascending: false })
         .order('scheduled_local_time', { ascending: false });
 
@@ -261,7 +263,8 @@ const CrearDespacho = () => {
         const { data: viajesData, error: viajesError } = await supabase
           .from('viajes_despacho')
           .select('id, estado, estado_carga, id_transporte')
-          .eq('despacho_id', d.id);
+          .eq('despacho_id', d.id)
+          .is('deleted_at', null);
         
         if (!viajesError && viajesData) {
           viajesGenerados = viajesData.length;

@@ -113,6 +113,7 @@ const ViajesActivos = () => {
         .eq('transport_id', empresaId)
         .in('estado', ['transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
         .not('despacho_id', 'is', null)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (viajesError) throw viajesError;
@@ -124,7 +125,8 @@ const ViajesActivos = () => {
       const { data: despachosData, error: despachosError } = await supabase
         .from('despachos')
         .select('id, pedido_id, origen, destino, scheduled_local_date, scheduled_local_time, prioridad')
-        .in('id', despachoIds);
+        .in('id', despachoIds)
+        .is('deleted_at', null);
 
       console.log('📦 Despachos cargados:', despachosData);
       if (despachosError) console.error('❌ Error cargando despachos:', despachosError);
@@ -145,13 +147,13 @@ const ViajesActivos = () => {
       // Cargar datos de recursos y ubicaciones GPS en paralelo
       const [choferesData, camionesData, acopladosData, ubicacionesData] = await Promise.all([
         choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono').in('id', choferIds)
+          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono').in('id', choferIds).is('deleted_at', null)
           : Promise.resolve({ data: [] }),
         camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, marca, modelo, anio').in('id', camionIds)
+          ? supabase.from('camiones').select('id, patente, marca, modelo, anio').in('id', camionIds).is('deleted_at', null)
           : Promise.resolve({ data: [] }),
         acopladoIds.length > 0
-          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopladoIds)
+          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopladoIds).is('deleted_at', null)
           : Promise.resolve({ data: [] }),
         // Obtener última ubicación GPS de cada viaje
         viajeIds.length > 0

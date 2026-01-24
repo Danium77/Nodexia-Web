@@ -106,7 +106,8 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
         .select('despacho_id')
         .in('despacho_id', despachosIds)
         .not('chofer_id', 'is', null)
-        .not('camion_id', 'is', null);
+        .not('camion_id', 'is', null)
+        .is('deleted_at', null);
       
       if (viajes) {
         const despachoIdsConRecursos = new Set(viajes.map(v => v.despacho_id));
@@ -185,6 +186,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
           )
         `)
         .eq('despacho_id', despachoId)
+        .is('deleted_at', null)
         .order('numero_viaje', { ascending: true });
 
       console.log(`🔎 TrackingView - Query result:`, {
@@ -216,16 +218,16 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       // Cargar datos relacionados en paralelo
       const [transportesData, choferesData, camionesData, acopadosData] = await Promise.all([
         transporteIds.length > 0 
-          ? supabase.from('empresas').select('id, nombre, cuit').in('id', transporteIds)
+          ? supabase.from('empresas').select('id, nombre, cuit').in('id', transporteIds).is('deleted_at', null)
           : Promise.resolve({ data: [] }),
         choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono, email').in('id', choferIds)
+          ? supabase.from('choferes').select('id, nombre, apellido, dni, telefono, email').in('id', choferIds).is('deleted_at', null)
           : Promise.resolve({ data: [] }),
         camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, modelo, marca, anio').in('id', camionIds)
+          ? supabase.from('camiones').select('id, patente, modelo, marca, anio').in('id', camionIds).is('deleted_at', null)
           : Promise.resolve({ data: [] }),
         acopadoIds.length > 0
-          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopadoIds)
+          ? supabase.from('acoplados').select('id, patente, marca, modelo, anio').in('id', acopadoIds).is('deleted_at', null)
           : Promise.resolve({ data: [] })
       ]);
 

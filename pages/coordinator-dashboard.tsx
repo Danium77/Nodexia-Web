@@ -120,6 +120,7 @@ const CoordinatorDashboard = () => {
           despachos!inner(scheduled_at, created_by)
         `)
         .eq('despachos.created_by', userId)
+        .is('deleted_at', null)
         .gte('despachos.scheduled_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
       if (!viajes || viajes.length === 0) return 0;
@@ -166,7 +167,8 @@ const CoordinatorDashboard = () => {
           despacho_id,
           despachos!inner(created_by)
         `)
-        .eq('despachos.created_by', userId);
+        .eq('despachos.created_by', userId)
+        .is('deleted_at', null);
 
       if (!viajes || viajes.length === 0) return 0;
 
@@ -245,7 +247,8 @@ const CoordinatorDashboard = () => {
       const { data: despachos } = await supabase
         .from('despachos')
         .select('id')
-        .in('destino_id', ubicacionIds);
+        .in('destino_id', ubicacionIds)
+        .is('deleted_at', null);
 
       if (!despachos || despachos.length === 0) return 0;
 
@@ -256,7 +259,8 @@ const CoordinatorDashboard = () => {
         .from('viajes_despacho')
         .select('id', { count: 'exact', head: true })
         .in('despacho_id', despachoIds)
-        .in('estado_carga', ['en_transito_destino', 'arribo_destino']);
+        .in('estado_carga', ['en_transito_destino', 'arribo_destino'])
+        .is('deleted_at', null);
 
       return count || 0;
     } catch (error) {
@@ -289,7 +293,8 @@ const CoordinatorDashboard = () => {
       const { data: despachos, error } = await supabase
         .from('despachos')
         .select('estado, transport_id')
-        .eq('created_by', userId);
+        .eq('created_by', userId)
+        .is('deleted_at', null);
 
       if (error) throw error;
 
@@ -358,6 +363,7 @@ const CoordinatorDashboard = () => {
           )
         `)
         .eq('created_by', userId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -395,6 +401,7 @@ const CoordinatorDashboard = () => {
         .select('id, nombre')
         .eq('tipo_empresa', 'transporte')
         .eq('activo', true)
+        .is('deleted_at', null)
         .limit(5);
 
       if (error) throw error;
@@ -405,7 +412,8 @@ const CoordinatorDashboard = () => {
           const { data: despachos } = await supabase
             .from('despachos')
             .select('id')
-            .eq('transport_id', transport.id);
+            .eq('transport_id', transport.id)
+            .is('deleted_at', null);
 
           return {
             id: transport.id,

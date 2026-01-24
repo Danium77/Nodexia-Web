@@ -184,6 +184,7 @@ export function useRedNodexia() {
               .from('despachos')
               .select('origen, destino, scheduled_local_date, scheduled_local_time, type')
               .eq('id', viajeRed.viaje.despacho_id)
+              .is('deleted_at', null)
               .single();
             
             if (despacho) {
@@ -196,6 +197,7 @@ export function useRedNodexia() {
                 .from('camiones')
                 .select('id, patente, marca, modelo, tipo')
                 .eq('id', viajeRed.viaje.id_camion)
+                .is('deleted_at', null)
                 .single();
               
               if (camion) {
@@ -209,6 +211,7 @@ export function useRedNodexia() {
                 .from('choferes')
                 .select('id, nombre, apellido, dni, telefono')
                 .eq('id', viajeRed.viaje.chofer_id)
+                .is('deleted_at', null)
                 .single();
               
               if (chofer) {

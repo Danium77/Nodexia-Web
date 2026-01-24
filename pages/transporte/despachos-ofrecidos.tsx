@@ -124,6 +124,7 @@ const DespachosOfrecidos = () => {
         `)
         .or(`transport_id.eq.${empresaId},id_transporte_cancelado.eq.${empresaId}`)
         .in('estado', ['pendiente', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'cancelado', 'cancelado_por_transporte'])
+        .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
       console.log('📊 Query ejecutado con filtros:', {
@@ -147,36 +148,37 @@ const DespachosOfrecidos = () => {
       const canceladoPorIds = [...new Set(viajesData?.map((v: any) => v.cancelado_por).filter(Boolean))];
 
       // Cargar todos los datos relacionados en paralelo
-      // Nota: despachos se obtienen via API para bypasear RLS
-      const [despachosResponse, estadosUnidadData, choferesData, camionesData, usuariosData] = await Promise.all([
+      // NOTA: Ahora despachos usa RLS (políticas permiten cross-tenant access)
+      const [despachosData, estadosUnidadData, choferesData, camionesData, usuariosData] = await Promise.all([
         despachoIds.length > 0
-          ? fetch('/api/transporte/despachos-info', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ despacho_ids: despachoIds })
-            }).then(r => r.json())
-          : Promise.resolve({ data: [] }),
+          ? supabase.from('despachos').select('id, pedido_id, origen_id, destino_id, scheduled_local_date, scheduled_local_time, prioridad, created_at').in('id', despachoIds).is('deleted_at', null)
+          : Promise.resolve({ data: [], error: null }),
         viajeIds.length > 0
           ? supabase.from('estado_unidad_viaje').select('viaje_id, estado_unidad, fecha_confirmacion_chofer, fecha_inicio_transito_origen, fecha_arribo_origen, fecha_inicio_transito_destino, fecha_arribo_destino').in('viaje_id', viajeIds)
           : Promise.resolve({ data: [], error: null }),
         choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds)
+          ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds).is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
+          ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds).is('deleted_at', null)
           : Promise.resolve({ data: [], error: null }),
         canceladoPorIds.length > 0
-          ? supabase.from('usuarios').select('id, nombre_completo').in('id', canceladoPorIds)
+          ? supabase.from('usuarios').select('id, nombre_completo').in('id', canceladoPorIds).is('deleted_at', null)
           : Promise.resolve({ data: [], error: null })
       ]);
-
-      const despachosData = despachosResponse; // Ya tiene formato { data: [...] }
 
       console.log('🔍 Resultado query despachos:', { 
         ids_buscados: despachoIds, 
         encontrados: despachosData.data?.length || 0,
         error: despachosData.error 
       });
+
+      if (despachosData.error) {
+        throw new Error('Error en despachos: ' + despachosData.error.message);
+      }
+      if (!despachosData.data || despachosData.data.length === 0) {
+        throw new Error('No se encontraron despachos');
+      }
 
       // Obtener IDs de ubicaciones (origen y destino) de los despachos
       const ubicacionIds = [...new Set(

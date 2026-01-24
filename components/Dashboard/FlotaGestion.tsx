@@ -65,6 +65,7 @@ export default function FlotaGestion() {
       .from('camiones')
       .select('*')
       .eq('id_transporte', userEmpresa.empresa_id)
+      .is('deleted_at', null)
       .order('fecha_alta', { ascending: false });
       
     if (!error) setCamiones(data || []);
@@ -87,6 +88,7 @@ export default function FlotaGestion() {
       .from('acoplados')
       .select('*')
       .eq('id_transporte', userEmpresa.empresa_id)
+      .is('deleted_at', null)
       .order('fecha_alta', { ascending: false });
       
     if (!error) setAcoplados(data || []);

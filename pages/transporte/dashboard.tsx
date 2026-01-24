@@ -117,6 +117,7 @@ const TransporteDashboard = () => {
         `)
         .eq('transport_id', empresaId)
         .in('estado', ['pendiente', 'transporte_asignado', 'cargando', 'en_camino', 'descargando'])
+        .is('deleted_at', null)
         .order('despachos(scheduled_local_date)', { ascending: true });
 
       if (viajesError) throw viajesError;
@@ -154,6 +155,7 @@ const TransporteDashboard = () => {
         .select('id', { count: 'exact', head: true })
         .eq('transport_id', empresaId)
         .eq('estado', 'completado')
+        .is('deleted_at', null)
         .gte('updated_at', `${hoy}T00:00:00`)
         .lte('updated_at', `${hoy}T23:59:59`);
 
