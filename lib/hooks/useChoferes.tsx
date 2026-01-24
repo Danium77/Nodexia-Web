@@ -56,6 +56,7 @@ export function useChoferes() {
       .from('choferes')
       .select('*')
       .eq('id_transporte', empresaId)
+      .is('deleted_at', null)
       .order('apellido', { ascending: true });
       
     if (fetchError) {
@@ -150,7 +151,7 @@ export function useChoferes() {
   async function deleteChofer(id: string) {
     const { error: deleteError } = await supabase
       .from('choferes')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
     if (deleteError) throw deleteError;
     setChoferes((prev) => prev.filter((c) => c.id !== id));

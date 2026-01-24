@@ -81,13 +81,13 @@ export class ChoferesData {
   }
 
   /**
-   * Delete driver
+   * Soft delete driver (marca como eliminado)
    */
   static async delete(id: string): Promise<DataResult<null>> {
     return BaseQuery.execute(async () => {
       return await supabase
         .from('choferes')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
     });
   }

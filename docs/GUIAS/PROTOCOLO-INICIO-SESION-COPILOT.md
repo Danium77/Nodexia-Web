@@ -2,7 +2,19 @@
 
 **Para:** GitHub Copilot  
 **Objetivo:** Arrancar cada sesión de trabajo de forma autónoma y estructurada  
-**Última actualización:** 17-Dic-2025
+**Última actualización:** 17-Ene-2026
+
+---
+
+## 🌐 ENTORNOS DE TRABAJO
+
+| 🖥️ **DESARROLLO (Dev)** | 🌐 **PRODUCCIÓN (Prod)** |
+|--------------------------|--------------------------|
+| `localhost:3000` | `www.nodexiaweb.com` |
+| Tu computadora | Vercel |
+| Para probar cambios | Usuarios reales |
+
+**Regla:** Siempre trabajar en DEV → Probar → Subir a PROD
 
 ---
 

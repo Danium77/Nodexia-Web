@@ -14,7 +14,7 @@ export type Timestamp = string; // ISO string
 // Company & Role types (MIGRACIÓN COMPLETADA)
 // =====================
 
-export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'admin';
+export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'admin' | 'sistema';
 
 /**
  * Roles internos simplificados - Sistema unificado
@@ -47,6 +47,7 @@ export const ROLES_BY_TIPO: Record<TipoEmpresa, RolInterno[]> = {
   transporte: ['coordinador', 'chofer', 'supervisor', 'administrativo'],
   cliente: ['visor'],
   admin: ['admin_nodexia'],
+  sistema: ['admin_nodexia', 'coordinador', 'supervisor', 'administrativo'],
 };
 
 /**
@@ -57,6 +58,7 @@ export const TIPO_EMPRESA_LABELS: Record<TipoEmpresa, string> = {
   transporte: 'Empresa de Transporte',
   cliente: 'Cliente',
   admin: 'Administración',
+  sistema: 'Sistema (Nodexia)',
 };
 
 /**
@@ -65,18 +67,20 @@ export const TIPO_EMPRESA_LABELS: Record<TipoEmpresa, string> = {
  */
 export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): string {
   const contextualLabels: Record<RolInterno, Partial<Record<TipoEmpresa, string>>> = {
-    admin_nodexia: { admin: 'Administrador Nodexia' },
+    admin_nodexia: { admin: 'Administrador Nodexia', sistema: 'Administrador Nodexia' },
     coordinador: { 
       planta: 'Coordinador de Planta', 
       transporte: 'Coordinador de Transporte',
       cliente: 'Coordinador',
-      admin: 'Coordinador'
+      admin: 'Coordinador',
+      sistema: 'Coordinador General'
     },
     supervisor: { 
       planta: 'Supervisor de Carga', 
       transporte: 'Supervisor de Flota',
       cliente: 'Supervisor',
-      admin: 'Supervisor'
+      admin: 'Supervisor',
+      sistema: 'Supervisor General'
     },
     control_acceso: { planta: 'Control de Acceso' },
     chofer: { transporte: 'Chofer' },
@@ -84,7 +88,8 @@ export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): st
       planta: 'Administrativo Planta', 
       transporte: 'Administrativo Transporte',
       cliente: 'Administrativo',
-      admin: 'Administrativo'
+      admin: 'Administrativo',
+      sistema: 'Administrativo Nodexia'
     },
     visor: { cliente: 'Visor' },
   };

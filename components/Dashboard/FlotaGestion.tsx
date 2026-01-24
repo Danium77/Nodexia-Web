@@ -48,6 +48,44 @@ export default function FlotaGestion() {
     if (tab === 'acoplado') fetchAcoplados();
   }, [tab]);
 
+  // Handler soft delete para camiones
+  async function handleEliminarCamion(id: string, patente: string) {
+    if (!window.confirm(`¿Estás seguro de eliminar el camión ${patente}?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('camiones')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      // Actualizar lista local
+      setCamiones(prev => prev.filter(c => c.id !== id));
+    } catch (err: any) {
+      setError('Error al eliminar camión: ' + err.message);
+    }
+  }
+
+  // Handler soft delete para acoplados
+  async function handleEliminarAcoplado(id: string, patente: string) {
+    if (!window.confirm(`¿Estás seguro de eliminar el acoplado ${patente}?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('acoplados')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      // Actualizar lista local
+      setAcoplados(prev => prev.filter(a => a.id !== id));
+    } catch (err: any) {
+      setErrorA('Error al eliminar acoplado: ' + err.message);
+    }
+  }
+
   async function fetchCamiones() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -65,6 +103,7 @@ export default function FlotaGestion() {
       .from('camiones')
       .select('*')
       .eq('id_transporte', userEmpresa.empresa_id)
+      .is('deleted_at', null)
       .order('fecha_alta', { ascending: false });
       
     if (!error) setCamiones(data || []);
@@ -87,6 +126,7 @@ export default function FlotaGestion() {
       .from('acoplados')
       .select('*')
       .eq('id_transporte', userEmpresa.empresa_id)
+      .is('deleted_at', null)
       .order('fecha_alta', { ascending: false });
       
     if (!error) setAcoplados(data || []);
@@ -103,6 +143,42 @@ export default function FlotaGestion() {
       return;
     }
     
+    // Obtener empresa del usuario
+    const { data: userEmpresa } = await supabase
+      .from('usuarios_empresa')
+      .select('empresa_id')
+      .eq('user_id', user.id)
+      .eq('activo', true)
+      .single();
+
+    if (!userEmpresa) {
+      setError('No se encontró empresa asociada');
+      setLoading(false);
+      return;
+    }
+
+    // 🔍 PILAR 2: Verificar si la patente ya existe en otra empresa
+    const { data: camionExistente } = await supabase
+      .from('camiones')
+      .select('id, patente, marca, modelo, anio, id_transporte')
+      .eq('patente', patente.toUpperCase().trim())
+      .is('deleted_at', null)
+      .single();
+
+    // Si existe en otra empresa, preguntar si quiere vincularlo
+    if (camionExistente && camionExistente.id_transporte !== userEmpresa.empresa_id) {
+      const confirmar = window.confirm(
+        `La patente ${patente} ya existe en el sistema (${camionExistente.marca} ${camionExistente.modelo}).\n\n` +
+        `¿Desea vincular este camión a su empresa?\n\n` +
+        `Esto creará un nuevo registro con la misma patente para su flota.`
+      );
+      
+      if (!confirmar) {
+        setLoading(false);
+        return;
+      }
+    }
+    
     let foto_url = null;
     try {
       if (foto) {
@@ -111,18 +187,6 @@ export default function FlotaGestion() {
         const { error: uploadError } = await supabase.storage.from('flota').upload(fileName, foto);
         if (uploadError) throw uploadError;
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
-      }
-      
-      // Obtener empresa del usuario
-      const { data: userEmpresa } = await supabase
-        .from('usuarios_empresa')
-        .select('empresa_id')
-        .eq('user_id', user.id)
-        .eq('activo', true)
-        .single();
-
-      if (!userEmpresa) {
-        throw new Error('No se encontró empresa asociada');
       }
       
       const { error: insertError } = await supabase.from('camiones').insert([
@@ -165,6 +229,42 @@ export default function FlotaGestion() {
       return;
     }
     
+    // Obtener empresa del usuario
+    const { data: userEmpresa } = await supabase
+      .from('usuarios_empresa')
+      .select('empresa_id')
+      .eq('user_id', user.id)
+      .eq('activo', true)
+      .single();
+
+    if (!userEmpresa) {
+      setErrorA('No se encontró empresa asociada');
+      setLoadingA(false);
+      return;
+    }
+
+    // 🔍 PILAR 2: Verificar si la patente ya existe en otra empresa
+    const { data: acopadoExistente } = await supabase
+      .from('acoplados')
+      .select('id, patente, marca, modelo, anio, id_transporte')
+      .eq('patente', patenteA.toUpperCase().trim())
+      .is('deleted_at', null)
+      .single();
+
+    // Si existe en otra empresa, preguntar si quiere vincularlo
+    if (acopadoExistente && acopadoExistente.id_transporte !== userEmpresa.empresa_id) {
+      const confirmar = window.confirm(
+        `La patente ${patenteA} ya existe en el sistema (${acopadoExistente.marca} ${acopadoExistente.modelo}).\n\n` +
+        `¿Desea vincular este acoplado a su empresa?\n\n` +
+        `Esto creará un nuevo registro con la misma patente para su flota.`
+      );
+      
+      if (!confirmar) {
+        setLoadingA(false);
+        return;
+      }
+    }
+    
     let foto_url = null;
     try {
       if (fotoA) {
@@ -173,18 +273,6 @@ export default function FlotaGestion() {
         const { error: uploadError } = await supabase.storage.from('flota').upload(fileName, fotoA);
         if (uploadError) throw uploadError;
         foto_url = supabase.storage.from('flota').getPublicUrl(fileName).data.publicUrl;
-      }
-      
-      // Obtener empresa del usuario
-      const { data: userEmpresa } = await supabase
-        .from('usuarios_empresa')
-        .select('empresa_id')
-        .eq('user_id', user.id)
-        .eq('activo', true)
-        .single();
-
-      if (!userEmpresa) {
-        throw new Error('No se encontró empresa asociada');
       }
       
       const { error: insertError } = await supabase.from('acoplados').insert([
@@ -300,7 +388,7 @@ export default function FlotaGestion() {
                         <td className="p-3">{v.anio}</td>
                         <td className="p-3 flex gap-2">
                           <button className="text-green-400 underline hover:text-green-300" onClick={() => router.push(`/camiones/${v.id}`)}>Ver detalle</button>
-                          <button className="text-red-400 hover:text-red-300">Eliminar</button>
+                          <button className="text-red-400 hover:text-red-300" onClick={() => handleEliminarCamion(v.id!, v.patente!)}>Eliminar</button>
                         </td>
                       </tr>
                     ))
@@ -374,7 +462,7 @@ export default function FlotaGestion() {
                       <td className="p-3">{v.anio}</td>
                       <td className="p-3 flex gap-2">
                         <button className="text-green-400 underline hover:text-green-300" onClick={() => router.push(`/acoplados/${v.id}`)}>Ver detalle</button>
-                        <button className="text-red-400 hover:text-red-300">Eliminar</button>
+                        <button className="text-red-400 hover:text-red-300" onClick={() => handleEliminarAcoplado(v.id!, v.patente!)}>Eliminar</button>
                       </td>
                     </tr>
                   ))

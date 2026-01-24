@@ -31,19 +31,25 @@
     "**/.cache": true,
     "**/docs/archive": false
   },
-  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.tsserver.maxTsServerMemory": 512,
   "typescript.disableAutomaticTypeAcquisition": true,
   "typescript.tsserver.watchOptions": {
     "excludeDirectories": ["**"]
   },
   "typescript.tsserver.experimental.enableProjectDiagnostics": false,
   "typescript.tsserver.pluginPaths": [],
+  "typescript.tsserver.experimental.useVsCodeWatcher": false,
+  "typescript.tsserver.useSeparateSyntaxServer": false,
+  "typescript.tsserver.trace": "off",
+  "extensions.experimental.affinity": {
+    "vscodevim.vim": 1
+  },
   // Optimización de rendimiento VS Code
   "telemetry.enableTelemetry": false,
   "telemetry.enableCrashReporter": false,
   "workbench.tree.indent": 8,
   "editor.cursorBlinking": "solid",
-  "editor.minimap.enabled": false,
+  "editor.minimap.enabled": false,51
   "editor.renderWhitespace": "none",
   "editor.renderControlCharacters": false,
   "files.maxMemoryForLargeFilesMB": 8192,
@@ -53,6 +59,8 @@
   "typescript.tsserver.useSyntaxServer": "never",
   "typescript.enablePromptUseWorkspaceTsdk": false,
   "typescript.tsserver.log": "off",
+  "typescript.tsserver.nodePath": "",
+  "typescript.tsc.autoDetect": "off",
   "javascript.validate.enable": false,
   "javascript.suggest.enabled": false,
   "editor.quickSuggestions": {
@@ -77,16 +85,24 @@
   // Copilot: Solo Chat habilitado (sin autocompletions para mejor performance)
   "github.copilot.editor.enableAutoCompletions": false,
   "github.copilot.enable": {
-    "*": true,
-    "plaintext": true,
-    "markdown": true,
-    "yaml": true,
-    "typescript": true,
-    "javascript": true,
-    "typescriptreact": true,
-    "javascriptreact": true
+    "*": false,
+    "plaintext": false,
+    "markdown": false,
+    "yaml": false,
+    "typescript": false,
+    "javascript": false,
+    "typescriptreact": false,
+    "javascriptreact": false
   },
-  "github.copilot.advanced": {},
+  "github.copilot.advanced": {
+    "debug.overrideEngine": "gpt-4",
+    "length": 500,
+    "inlineSuggestCount": 1
+  },
+  "github.copilot.chat.localeOverride": "en",
+  "github.copilot.chat.runCommand.enabled": false,
+  "github.copilot.chat.terminalChatLocation": "terminal",
+  "github.copilot.renameSuggestions.triggerAutomatically": false,
   "extensions.autoUpdate": false,
   "extensions.autoCheckUpdates": false,
   "files.trimTrailingWhitespace": false,
@@ -170,5 +186,26 @@
   "terminal.integrated.smoothScrolling": false,
   "editor.cursorBlinking": "solid",
   "editor.cursorSmoothCaretAnimation": "off",
-  "window.newWindowDimensions": "maximized"
+  "window.newWindowDimensions": "maximized",
+  // Optimizaciones adicionales para sesión
+  "workbench.editor.closeEmptyGroups": true,
+  "workbench.editor.untitled.hint": "hidden",
+  "terminal.integrated.gpuAcceleration": "off",
+  "debug.console.wordWrap": false,
+  "workbench.activityBar.location": "top",
+  "editor.unicodeHighlight.ambiguousCharacters": false,
+  "editor.unicodeHighlight.invisibleCharacters": false,
+  "workbench.editor.decorations.badges": false,
+  "workbench.editor.decorations.colors": false,
+  "markdown.preview.scrollPreviewWithEditor": false,
+  "markdown.preview.scrollEditorWithPreview": false,
+  "problems.showCurrentInStatus": false,
+  "scm.alwaysShowActions": false,
+  "scm.alwaysShowRepositories": false,
+  "scm.diffDecorationsGutterVisibility": "hover",
+  "git.openRepositoryInParentFolders": "never",
+  "git.scanRepositories": [],
+  "workbench.settings.enableNaturalLanguageSearch": false,
+  "search.searchOnType": false,
+  "search.collapseResults": "alwaysCollapse"
 }

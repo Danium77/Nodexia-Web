@@ -142,6 +142,7 @@ const PlanificacionPage = () => {
             *
           `)
           .eq('created_by', user.id)
+          .is('deleted_at', null)
           .order('created_at', { ascending: true });
 
         if (despachosError) {
@@ -185,8 +186,7 @@ const PlanificacionPage = () => {
                 `destino_id.in.(${ubicacionIds.join(',')})`,
                 ...nombresUbicaciones.map(nombre => `destino.ilike.%${nombre}%`)
               ].join(','))
-              .neq('created_by', user.id) // Excluir los propios
-              .order('created_at', { ascending: true });
+              .neq('created_by', user.id) // Excluir los propios              .is('deleted_at', null)              .order('created_at', { ascending: true });
 
             console.log('📥 Resultado búsqueda recepciones:', {
               count: despachosRecepcion?.length || 0,
@@ -232,13 +232,13 @@ const PlanificacionPage = () => {
         // Cargar datos relacionados en paralelo
         const [transportesResult, choferesResult, camionesResult] = await Promise.all([
           transporteIds.length > 0
-            ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', transporteIds)
+            ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', transporteIds).is('deleted_at', null)
             : Promise.resolve({ data: [], error: null }),
           choferIds.length > 0
-            ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds)
+            ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds).is('deleted_at', null)
             : Promise.resolve({ data: [], error: null }),
           camionIds.length > 0
-            ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
+            ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds).is('deleted_at', null)
             : Promise.resolve({ data: [], error: null })
         ]);
 
@@ -288,6 +288,7 @@ const PlanificacionPage = () => {
               despacho_id
             `)
             .in('despacho_id', despachoIds)
+            .is('deleted_at', null)
             .order('created_at', { ascending: true });
           
           viajesData = data || [];
@@ -329,13 +330,13 @@ const PlanificacionPage = () => {
         // Cargar datos adicionales para viajes
         const [moreTransportesResult, moreChoferesResult, moreCamionesResult] = await Promise.all([
           viajeTransporteIds.length > 0
-            ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', viajeTransporteIds)
+            ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', viajeTransporteIds).is('deleted_at', null)
             : Promise.resolve({ data: [], error: null }),
           viajeChoferIds.length > 0
-            ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', viajeChoferIds)
+            ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', viajeChoferIds).is('deleted_at', null)
             : Promise.resolve({ data: [], error: null }),
           viajeCamionIds.length > 0
-            ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', viajeCamionIds)
+            ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', viajeCamionIds).is('deleted_at', null)
             : Promise.resolve({ data: [], error: null })
         ]);
 

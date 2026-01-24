@@ -29,6 +29,7 @@ export class DespachosData {
           acoplado:acoplados(id, numero_acoplado, patente, marca, modelo),
           cliente:clientes(id, razon_social, cuit)
         `, { count: 'exact' })
+        .is('deleted_at', null)
         .order('fecha_creacion', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -73,6 +74,7 @@ export class DespachosData {
           cliente:clientes(*)
         `)
         .eq('id', id)
+        .is('deleted_at', null)
         .single();
     });
   }
