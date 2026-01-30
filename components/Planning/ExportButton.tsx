@@ -149,9 +149,9 @@ const ExportButton: React.FC<ExportButtonProps> = ({ dispatches, title: _title }
       <button
         onClick={() => setShowMenu(!showMenu)}
         disabled={isExporting || dispatches.length === 0}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-1.5 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <ArrowDownTrayIcon className="h-3 w-3" />
+        <ArrowDownTrayIcon className="h-4 w-4" />
         {isExporting ? 'Exportando...' : 'Exportar'}
       </button>
 
@@ -164,17 +164,17 @@ const ExportButton: React.FC<ExportButtonProps> = ({ dispatches, title: _title }
           />
           
           {/* Menú desplegable */}
-          <div className="absolute right-0 mt-1 w-40 bg-[#1b273b] rounded shadow-xl border border-gray-600 z-20 overflow-hidden">
+          <div className="absolute right-0 mt-1 w-44 bg-[#1b273b] rounded-lg shadow-xl border border-gray-600 z-20 overflow-hidden">
             <button
               onClick={exportToCSV}
-              className="w-full text-left px-2 py-1.5 text-[10px] text-white hover:bg-cyan-600 transition-colors flex items-center gap-1"
+              className="w-full text-left px-3 py-2 text-sm text-white hover:bg-cyan-600 transition-colors flex items-center gap-2"
             >
               <span>📊</span>
               <span>Exportar CSV</span>
             </button>
             <button
               onClick={exportToExcel}
-              className="w-full text-left px-2 py-1.5 text-[10px] text-white hover:bg-cyan-600 transition-colors flex items-center gap-1 border-t border-gray-700"
+              className="w-full text-left px-3 py-2 text-sm text-white hover:bg-cyan-600 transition-colors flex items-center gap-2 border-t border-gray-700"
             >
               <span>📗</span>
               <span>Exportar Excel</span>

@@ -91,7 +91,7 @@ export default function ViajesExpiradosModal({ isOpen, onClose, onRefresh }: Pro
           updated_at,
           despacho_id
         `)
-        .eq('estado_carga', 'expirado')
+        .eq('estado_unidad', 'expirado')
         .order('updated_at', { ascending: false })
         .limit(200); // 🔥 Aumentado límite para capturar más recepciones
 
@@ -120,13 +120,19 @@ export default function ViajesExpiradosModal({ isOpen, onClose, onRefresh }: Pro
 
       // 📋 Obtener despachos relacionados (incluir destino_id para recepciones)
       const despachoIds = [...new Set(viajesData.map(v => v.despacho_id))];
-      const { data: despachosData } = await supabase
+      const { data: despachosData, error: despachosError } = await supabase
         .from('despachos')
-        .select('id, pedido_id, origen, destino, destino_id, scheduled_at, created_by, transport_id')
+        .select('id, pedido_id, origen, destino, destino_id, scheduled_local_date, scheduled_local_time, created_by, transport_id')
         .in('id', despachoIds);
+      
+      if (despachosError) {
+        console.error('❌ Error al cargar despachos:', despachosError);
+      }
       
       const despachosDict: Record<string, any> = {};
       despachosData?.forEach(d => { despachosDict[d.id] = d; });
+      
+      console.log('📦 Despachos cargados para viajes expirados:', despachosData?.length || 0);
 
       // 🚛 Obtener choferes, camiones y transportes únicos
       const choferIds = [...new Set(viajesData.filter(v => v.chofer_id).map(v => v.chofer_id!))];
@@ -187,9 +193,14 @@ export default function ViajesExpiradosModal({ isOpen, onClose, onRefresh }: Pro
         const despacho = despachosDict[v.despacho_id];
         if (!despacho) return false;
         
-        // Si NO hay empresa, mostrar viajes creados por el usuario
+        // ✅ SIEMPRE mostrar viajes de despachos creados directamente por este usuario
+        if (despacho.created_by === user.id) {
+          return true;
+        }
+        
+        // Si NO hay empresa, solo mostrar lo del usuario (ya retornado arriba)
         if (!empresaId) {
-          return despacho.created_by === user.id;
+          return false;
         }
         
         // Si es transporte asignado, mostrar
@@ -239,7 +250,9 @@ export default function ViajesExpiradosModal({ isOpen, onClose, onRefresh }: Pro
           pedido_id: despacho?.pedido_id || 'N/A',
           origen: despacho?.origen || 'N/A',
           destino: despacho?.destino || 'N/A',
-          fecha_programada: despacho?.scheduled_at || '',
+          fecha_programada: despacho?.scheduled_local_date && despacho?.scheduled_local_time 
+            ? `${despacho.scheduled_local_date} ${despacho.scheduled_local_time}` 
+            : '',
           transporte_nombre: transporte?.nombre || 'Sin asignar',
           chofer_nombre: chofer ? `${chofer.nombre} ${chofer.apellido || ''}`.trim() : 'Sin asignar',
           camion_patente: camion?.patente || 'Sin asignar',

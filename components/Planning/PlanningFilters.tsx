@@ -47,7 +47,7 @@ const PlanningFilters: React.FC<PlanningFiltersProps> = ({
         {/* Buscador */}
         <div className="flex-1 min-w-[250px] relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-3 w-3 text-gray-400" />
+            <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
           </div>
           <input
             type="text"
@@ -55,7 +55,7 @@ const PlanningFilters: React.FC<PlanningFiltersProps> = ({
             value={filters.searchText}
             onChange={(e) => handleInputChange('searchText', e.target.value)}
             autoComplete="off"
-            className="block w-full pl-8 pr-2 py-1 text-[10px] border border-gray-600 rounded bg-[#0a0e1a] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+            className="block w-full pl-9 pr-3 py-2 text-sm border border-gray-600 rounded-lg bg-[#0a0e1a] text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
           />
           {filters.searchText && (
             <button

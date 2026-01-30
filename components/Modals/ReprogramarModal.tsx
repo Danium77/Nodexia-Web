@@ -19,6 +19,7 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
   const [nuevaFecha, setNuevaFecha] = useState('');
   const [nuevaHora, setNuevaHora] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [mantenerRecursos, setMantenerRecursos] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,65 +41,68 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
         return;
       }
 
-      // Obtener viajes expirados del despacho
+      // Obtener todos los viajes del despacho (sin filtrar por estado_unidad)
       const { data: viajesExpirados, error: viajesError } = await supabase
         .from('viajes_despacho')
-        .select('id')
-        .eq('despacho_id', despacho.id)
-        .eq('estado_carga', 'expirado');
+        .select('id, chofer_id, camion_id, acoplado_id, id_transporte, estado_unidad')
+        .eq('despacho_id', despacho.id);
 
       if (viajesError) throw viajesError;
 
       if (!viajesExpirados || viajesExpirados.length === 0) {
-        setError('No se encontraron viajes expirados para este despacho');
+        setError('No se encontraron viajes para este despacho');
         setLoading(false);
         return;
       }
 
-      // Reprogramar cada viaje usando la función SQL
       console.log('🔄 Reprogramando', viajesExpirados.length, 'viajes...');
-      
-      const resultados = await Promise.all(
-        viajesExpirados.map(async (viaje) => {
-          console.log('🔄 Llamando reprogramar_viaje para:', viaje.id);
-          
-          const { data, error } = await supabase
-            .rpc('reprogramar_viaje', {
-              p_viaje_id: viaje.id,
-              p_nueva_fecha_hora: fechaHoraNueva.toISOString(),
-              p_motivo: motivo || 'Reprogramación manual'
-            });
+      console.log('📦 Mantener recursos:', mantenerRecursos);
 
-          if (error) {
-            console.error('❌ Error reprogramando viaje:', viaje.id, error);
-            return { success: false, viaje_id: viaje.id, error };
-          }
+      // Actualizar cada viaje
+      for (const viaje of viajesExpirados) {
+        const updateData: any = {
+          scheduled_at: fechaHoraNueva.toISOString(),
+          estado_unidad: mantenerRecursos && (viaje.chofer_id || viaje.camion_id) ? 'camion_asignado' : null,
+          estado: mantenerRecursos && (viaje.chofer_id || viaje.camion_id) ? 'transporte_asignado' : 'pendiente',
+          updated_at: new Date().toISOString()
+        };
 
-          console.log('✅ Viaje reprogramado:', viaje.id, data);
-          return { success: true, viaje_id: viaje.id, data };
-        })
-      );
-      
-      console.log('📊 Resultados de reprogramación:', resultados);
+        // Si NO mantener recursos, limpiar asignaciones
+        if (!mantenerRecursos) {
+          updateData.chofer_id = null;
+          updateData.camion_id = null;
+          updateData.acoplado_id = null;
+          updateData.id_transporte = null;
+          updateData.fecha_asignacion_transporte = null;
+        }
 
-      // Verificar si hubo errores
-      const errores = resultados.filter(r => !r.success);
-      if (errores.length > 0) {
-        setError(`Error al reprogramar ${errores.length} viaje(s)`);
-        setLoading(false);
-        return;
+        const { error: updateError } = await supabase
+          .from('viajes_despacho')
+          .update(updateData)
+          .eq('id', viaje.id);
+
+        if (updateError) {
+          console.error('❌ Error actualizando viaje:', viaje.id, updateError);
+          throw updateError;
+        }
       }
 
-      // 🔄 Actualizar manualmente el despacho para asegurar fecha/hora y limpieza de transporte
+      // Actualizar despacho (solo columnas que existen)
+      const despachoUpdate: any = {
+        scheduled_local_date: nuevaFecha,
+        scheduled_local_time: nuevaHora,
+        estado: mantenerRecursos ? 'asignado' : 'pendiente',
+        updated_at: new Date().toISOString()
+      };
+
+      // Si no mantener recursos, limpiar transport_id
+      if (!mantenerRecursos) {
+        despachoUpdate.transport_id = null;
+      }
+
       const { error: despachoError } = await supabase
         .from('despachos')
-        .update({
-          scheduled_at: fechaHoraNueva.toISOString(),
-          scheduled_local_date: nuevaFecha,
-          scheduled_local_time: nuevaHora,
-          transport_id: null,
-          estado: 'pendiente_transporte'
-        })
+        .update(despachoUpdate)
         .eq('id', despacho.id);
 
       if (despachoError) {
@@ -128,6 +132,7 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
     setNuevaFecha('');
     setNuevaHora('');
     setMotivo('');
+    setMantenerRecursos(false);
     setError('');
     onClose();
   };
@@ -211,13 +216,39 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
               Motivo de Reprogramación
               <span className="text-slate-500 ml-1">(opcional)</span>
             </label>
-            <textarea
+            <select
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ej: Falta de recursos, cliente solicitó cambio, etc."
-              rows={3}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
-            />
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            >
+              <option value="">Seleccionar motivo...</option>
+              <option value="Demora en ruta">Demora en ruta</option>
+              <option value="Problema mecánico resuelto">Problema mecánico resuelto</option>
+              <option value="Cambio horario cliente">Cambio de horario cliente</option>
+              <option value="Incidencia reportada">Incidencia reportada</option>
+              <option value="Falta de recursos">Falta de recursos</option>
+              <option value="Otros">Otros</option>
+            </select>
+          </div>
+
+          {/* Mantener recursos */}
+          <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={mantenerRecursos}
+                onChange={(e) => setMantenerRecursos(e.target.checked)}
+                className="mt-1 w-5 h-5 rounded border-slate-500 text-amber-600 focus:ring-amber-500 focus:ring-offset-slate-800"
+              />
+              <div className="flex-1">
+                <div className="text-white font-medium">
+                  Mantener recursos actuales
+                </div>
+                <div className="text-slate-400 text-sm mt-1">
+                  Mantiene el transporte, chofer y camión ya asignados. Si no se marca, se limpiarán las asignaciones y el despacho volverá a estado pendiente.
+                </div>
+              </div>
+            </label>
           </div>
 
           {/* Error message */}
@@ -229,7 +260,10 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
 
           {/* Info message */}
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-blue-300 text-sm">
-            ℹ️ Los viajes expirados volverán al estado "Pendiente de Asignación" con la nueva fecha programada.
+            {mantenerRecursos 
+              ? '✅ Los viajes mantendrán su transporte, chofer y camión asignados con la nueva fecha.'
+              : '🔄 Los viajes volverán a estado "Pendiente" y deberán ser asignados nuevamente.'
+            }
           </div>
 
           {/* Actions */}

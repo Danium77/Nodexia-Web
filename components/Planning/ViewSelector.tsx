@@ -11,40 +11,40 @@ interface ViewSelectorProps {
 
 const ViewSelector: React.FC<ViewSelectorProps> = ({ currentView, onViewChange }) => {
   return (
-    <div className="flex gap-1 bg-[#0a0e1a] rounded p-0.5">
+    <div className="flex gap-1.5 bg-[#0a0e1a] rounded-lg p-1">
       <button
         onClick={() => onViewChange('day')}
-        className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg font-semibold transition-all ${
           currentView === 'day'
             ? 'bg-cyan-600 text-white shadow-lg'
             : 'text-gray-400 hover:text-white hover:bg-gray-700'
         }`}
       >
-        <CalendarIcon className="h-3 w-3" />
+        <CalendarIcon className="h-4 w-4" />
         <span className="hidden sm:inline">Día</span>
       </button>
       
       <button
         onClick={() => onViewChange('week')}
-        className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg font-semibold transition-all ${
           currentView === 'week'
             ? 'bg-cyan-600 text-white shadow-lg'
             : 'text-gray-400 hover:text-white hover:bg-gray-700'
         }`}
       >
-        <CalendarDaysIcon className="h-3 w-3" />
+        <CalendarDaysIcon className="h-4 w-4" />
         <span className="hidden sm:inline">Semana</span>
       </button>
       
       <button
         onClick={() => onViewChange('month')}
-        className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded font-medium transition-all ${
+        className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg font-semibold transition-all ${
           currentView === 'month'
             ? 'bg-cyan-600 text-white shadow-lg'
             : 'text-gray-400 hover:text-white hover:bg-gray-700'
         }`}
       >
-        <Squares2X2Icon className="h-3 w-3" />
+        <Squares2X2Icon className="h-4 w-4" />
         <span className="hidden sm:inline">Mes</span>
       </button>
     </div>

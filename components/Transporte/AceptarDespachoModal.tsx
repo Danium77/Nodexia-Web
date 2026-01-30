@@ -106,15 +106,15 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
         supabase
           .from('choferes')
           .select('*')
-          .eq('id_transporte', empId),
+          .eq('empresa_id', empId),
         supabase
           .from('camiones')
           .select('*')
-          .eq('id_transporte', empId),
+          .eq('empresa_id', empId),
         supabase
           .from('acoplados')
           .select('*')
-          .eq('id_transporte', empId)
+          .eq('empresa_id', empId)
       ]);
 
       if (choferesRes.error) throw choferesRes.error;

@@ -562,9 +562,9 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                       }
                                     }}
                                     className={`group relative p-1.5 rounded mb-1 last:mb-0 transition-all duration-200 border select-none
-                                      ${dispatch.estado === 'expirado' ? 'border-gray-600' : getPriorityBorderColor(dispatch.prioridad)}
-                                      bg-gradient-to-br ${dispatch.estado === 'expirado' ? 'from-gray-800/50 to-gray-700/50' : getPriorityGradient(dispatch.prioridad)}
-                                      ${dispatch.estado === 'expirado' ? 'opacity-75' : ''}
+                                      ${(dispatch as any).estado_unidad === 'expirado' ? 'border-gray-600' : getPriorityBorderColor(dispatch.prioridad)}
+                                      bg-gradient-to-br ${(dispatch as any).estado_unidad === 'expirado' ? 'from-gray-800/50 to-gray-700/50' : getPriorityGradient(dispatch.prioridad)}
+                                      ${(dispatch as any).estado_unidad === 'expirado' ? 'opacity-75' : ''}
                                       ${isDraggable
                                         ? 'cursor-grab hover:cursor-grab active:cursor-grabbing hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1' 
                                         : 'cursor-not-allowed opacity-75'
@@ -596,7 +596,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     {((type === 'recepciones' && (dispatch as any).origen_provincia) || 
                                       (type === 'despachos' && (dispatch as any).destino_provincia)) && (
                                       <div className={`text-[9px] font-bold uppercase tracking-wide truncate ${
-                                        dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-cyan-400'
+                                        (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-cyan-400'
                                       }`}>
                                         {type === 'recepciones' 
                                           ? (dispatch as any).origen_provincia
@@ -606,7 +606,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     )}
                                     {/* Cliente/Ubicación ABAJO */}
                                     <div className={`flex items-center gap-0.5 text-[9px] truncate ${
-                                      dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-slate-200'
+                                      (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-slate-200'
                                     }`}>
                                       <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
                                       <span className="truncate font-medium">
@@ -621,7 +621,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                   {/* Transporte */}
                                   {dispatch.transporte_data && (
                                     <div className={`flex items-center gap-0.5 text-[9px] truncate ${
-                                      dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-emerald-300'
+                                      (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-emerald-300'
                                     }`}>
                                       <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
                                       <span className="truncate">{dispatch.transporte_data.nombre}</span>
@@ -631,7 +631,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                   {/* Chofer y Camión */}
                                   {(dispatch.chofer || dispatch.camion_data) && (
                                     <div className={`text-[9px] truncate ${
-                                      dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-blue-300'
+                                      (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-blue-300'
                                     }`}>
                                       <span className="truncate">
                                         {dispatch.chofer?.nombre_completo?.split(' ')[0] || ''}
@@ -643,8 +643,8 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
                                   {/* Estado */}
                                   <div className="mt-0.5">
-                                    <span className={`text-[8px] px-1 py-0.5 rounded ${getStatusColor(dispatch.estado)} text-white font-semibold block text-center`}>
-                                      {getStatusLabel(dispatch.estado)}
+                                    <span className={`text-[8px] px-1 py-0.5 rounded ${(dispatch as any).estado_unidad === 'expirado' ? 'bg-gray-600' : getStatusColor(dispatch.estado)} text-white font-semibold block text-center`}>
+                                      {(dispatch as any).estado_unidad === 'expirado' ? 'EXPIRADO' : getStatusLabel(dispatch.estado)}
                                     </span>
                                   </div>
 

@@ -280,6 +280,7 @@ const PlanificacionPage = () => {
               id,
               numero_viaje,
               estado,
+              estado_unidad,
               transport_id,
               camion_id,
               chofer_id,
@@ -428,7 +429,7 @@ const PlanificacionPage = () => {
           const ubicacionOrigen = despachoPadre?.origen_id ? ubicacionesMap[despachoPadre.origen_id] : null;
           const ubicacionDestino = despachoPadre?.destino_id ? ubicacionesMap[despachoPadre.destino_id] : null;
           
-          // Obtener datos del viaje (prioridad 1)
+          // Obtener datos del viaje (prioridad 1) desde los maps cargados al inicio
           const transporteViaje = viaje.transport_id ? transportesMap[viaje.transport_id] : null;
           const camionViaje = viaje.camion_id ? camionesMap[viaje.camion_id] : null;
           const choferViaje = viaje.chofer_id ? choferesMap[viaje.chofer_id] : null;
@@ -457,6 +458,7 @@ const PlanificacionPage = () => {
             origen_provincia: ubicacionOrigen?.provincia || null,
             destino_provincia: ubicacionDestino?.provincia || null,
             estado: viaje.estado || 'pendiente',
+            estado_unidad: viaje.estado_unidad,
             scheduled_local_date: despachoPadre?.scheduled_local_date,
             scheduled_local_time: despachoPadre?.scheduled_local_time,
             type: tipo,
@@ -537,20 +539,69 @@ const PlanificacionPage = () => {
   const [metricasExpiracion, setMetricasExpiracion] = useState<any>(null);
   const [showExpiradosModal, setShowExpiradosModal] = useState(false);
 
-  // Calcular métricas para resumen ejecutivo
+  // Calcular métricas para resumen ejecutivo - FILTRADO POR VISTA (DÍA/SEMANA/MES)
   const getMetrics = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
+    
+    // Determinar rango de fechas según viewType
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (viewType === 'day') {
+      // Solo hoy
+      startDate = new Date(today);
+      endDate = new Date(today);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (viewType === 'week') {
+      // Esta semana (lunes a domingo)
+      const dayOfWeek = today.getDay();
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() + diffToMonday);
+      startDate.setHours(0, 0, 0, 0);
+      
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      // Este mes
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      endDate.setHours(23, 59, 59, 999);
+    }
+    
+    // Filtrar despachos por rango de fechas
+    const dispatchesInRange = filteredDispatches.filter(v => {
+      if (!v.scheduled_local_date) return false;
+      const viajeDate = new Date(v.scheduled_local_date + 'T00:00:00');
+      return viajeDate >= startDate && viajeDate <= endDate;
+    });
 
-    const viajesHoy = filteredDispatches.filter(v => v.scheduled_local_date === todayStr).length;
-    const viajesUrgentes = filteredDispatches.filter(v => v.prioridad === 'Urgente' || v.prioridad === 'Alta').length;
-    const viajesSinAsignar = filteredDispatches.filter(v => !v.transport_id && (v.estado === 'pendiente' || v.estado === 'transporte_asignado')).length;
-    const viajesExpirados = filteredDispatches.filter(v => v.estado === 'expirado').length;
+    const viajesHoy = dispatchesInRange.filter(v => {
+      const todayStr = today.toISOString().split('T')[0];
+      return v.scheduled_local_date === todayStr;
+    }).length;
+    
+    const viajesUrgentes = dispatchesInRange.filter(v => 
+      v.prioridad === 'Urgente' || v.prioridad === 'Alta'
+    ).length;
+    
+    const viajesSinAsignar = dispatchesInRange.filter(v => 
+      !v.transport_id && (v.estado === 'pendiente' || v.estado === 'transporte_asignado')
+    ).length;
+    
+    const viajesExpirados = dispatchesInRange.filter(v => 
+      (v as any).estado_unidad === 'expirado'
+    ).length;
+    
+    const viajesFueraHorario = dispatchesInRange.filter(v => 
+      (v as any).estado_unidad === 'fuera_de_horario'
+    ).length;
 
-    // Contar despachos/viajes por provincia
+    // Contar despachos/viajes por provincia EN EL RANGO
     const provinciaCount: Record<string, number> = {};
-    filteredDispatches.forEach(dispatch => {
+    dispatchesInRange.forEach(dispatch => {
       const provincia = (dispatch as any).destino_provincia || (dispatch as any).origen_provincia;
       if (provincia) {
         provinciaCount[provincia] = (provinciaCount[provincia] || 0) + 1;
@@ -565,8 +616,9 @@ const PlanificacionPage = () => {
     return {
       hoy: viajesHoy,
       urgentes: viajesUrgentes,
-      semana: filteredDispatches.length,
+      semana: dispatchesInRange.length, // Total en el rango
       sinAsignar: viajesSinAsignar,
+      fuera_horario: viajesFueraHorario,
       expirados: viajesExpirados,
       provincias: topProvincias
     };
@@ -598,32 +650,9 @@ const PlanificacionPage = () => {
         />
       )}
 
-      {/* Alertas */}
-      {!loading && (
-        <PlanningAlerts
-          dispatches={applyFilters(dispatches)}
-          onDismiss={(alertId) => {
-            const newDismissed = new Set(dismissedAlerts);
-            newDismissed.add(alertId);
-            setDismissedAlerts(newDismissed);
-          }}
-        />
-      )}
-
-      {/* 🔥 NUEVO: Resumen Ejecutivo */}
+      {/* 🔥 Resumen Ejecutivo - BADGES PRIMERO */}
       {!loading && activeTab === 'planning' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2 mb-2">
-          {/* Hoy */}
-          <div className="bg-gradient-to-br from-[#1b273b] to-[#0f1821] rounded-lg p-3 border border-cyan-500/20 hover:border-cyan-500/40 transition-all shadow-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Hoy</p>
-                <p className="text-2xl font-bold text-white mt-1">{metrics.hoy}</p>
-              </div>
-              <div className="text-cyan-400 text-2xl bg-cyan-500/10 p-2 rounded-lg">📅</div>
-            </div>
-          </div>
-          
+        <div className="grid grid-cols-6 gap-2 mb-3">
           {/* Urgentes */}
           <div className="bg-gradient-to-br from-[#1b273b] to-[#0f1821] rounded-lg p-3 border border-orange-500/20 hover:border-orange-500/40 transition-all shadow-lg">
             <div className="flex items-center justify-between">
@@ -656,6 +685,24 @@ const PlanificacionPage = () => {
                 <p className="text-2xl font-bold text-white mt-1">{metrics.sinAsignar}</p>
               </div>
               <div className="text-purple-400 text-2xl bg-purple-500/10 p-2 rounded-lg">⏳</div>
+            </div>
+          </div>
+
+          {/* 🔥 Viajes Fuera de Horario */}
+          <div 
+            className="bg-gradient-to-br from-[#2d2a1a] to-[#1a180f] rounded-lg p-3 border border-amber-500/30 hover:border-amber-500/50 transition-all shadow-lg group"
+            title="Viajes fuera de horario programado"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Fuera de Horario</p>
+                <p className="text-2xl font-bold text-amber-400 mt-1 group-hover:scale-110 transition-transform">
+                  {metrics.fuera_horario || 0}
+                </p>
+              </div>
+              <div className="text-amber-400 text-2xl bg-amber-500/10 p-2 rounded-lg group-hover:bg-amber-500/20 transition-colors">
+                ⏰
+              </div>
             </div>
           </div>
 
@@ -725,12 +772,12 @@ const PlanificacionPage = () => {
         </div>
       )}
 
-      {/* 🔥 NUEVO: Tabs */}
-      <div className="mb-2">
-        <div className="flex gap-1 border-b border-gray-700">
+      {/* 🔥 Tabs Planificación/Seguimiento - AGRANDADOS */}
+      <div className="mb-3">
+        <div className="flex gap-2 border-b border-gray-700">
           <button
             onClick={() => setActiveTab('planning')}
-            className={`px-2 py-1 text-[10px] font-semibold transition-all ${
+            className={`px-4 py-2 text-sm font-semibold transition-all ${
               activeTab === 'planning'
                 ? 'border-b-2 border-cyan-500 text-cyan-400'
                 : 'text-gray-400 hover:text-gray-300'
@@ -740,7 +787,7 @@ const PlanificacionPage = () => {
           </button>
           <button
             onClick={() => setActiveTab('tracking')}
-            className={`px-2 py-1 text-[10px] font-semibold transition-all ${
+            className={`px-4 py-2 text-sm font-semibold transition-all ${
               activeTab === 'tracking'
                 ? 'border-b-2 border-cyan-500 text-cyan-400'
                 : 'text-gray-400 hover:text-gray-300'

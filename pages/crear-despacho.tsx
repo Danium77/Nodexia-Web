@@ -117,7 +117,7 @@ const CrearDespacho = () => {
   const [selectedViajeNumero, setSelectedViajeNumero] = useState<string>('');
 
   // Estados para tabs de despachos
-  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'expirados'>('pendientes');
+  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'fuera_de_horario' | 'expirados'>('pendientes');
 
   // Estados para modal de Reprogramar
   const [isReprogramarModalOpen, setIsReprogramarModalOpen] = useState(false);
@@ -1175,7 +1175,7 @@ const CrearDespacho = () => {
                 fecha_documentacion_preparada,
                 fecha_cargando,
                 fecha_carga_completada,
-                peso_real_kg,
+                peso_real,
                 cantidad_bultos
               )
             `)
@@ -1575,10 +1575,6 @@ const CrearDespacho = () => {
       
       console.log('📝 Guardando despacho con código:', finalPedidoId);
 
-      // Construir la fecha/hora local y guardarla como ISO UTC
-      const localScheduled = new Date(`${rowToSave.fecha_despacho}T${rowToSave.hora_despacho}:00`);
-      const scheduledAtISO = localScheduled.toISOString();
-
       const despachoData = {
         pedido_id: finalPedidoId,
         origen: rowToSave.origen,
@@ -1586,7 +1582,6 @@ const CrearDespacho = () => {
         destino: rowToSave.destino,
         destino_id: rowToSave.destino_id || null, // ID de ubicación destino
         estado: 'pendiente_transporte',
-        scheduled_at: scheduledAtISO,
         scheduled_local_date: rowToSave.fecha_despacho,
         scheduled_local_time: `${rowToSave.hora_despacho}:00`,
         created_by: user.id,
@@ -1646,6 +1641,13 @@ const CrearDespacho = () => {
         if (cantidadViajes > 0) {
           console.log(`🚛 Generando ${cantidadViajes} viajes para despacho ID: ${despachoCreado.id}...`);
           
+          // 🔥 Calcular scheduled_at si tenemos fecha y hora
+          let scheduledAt = null;
+          if (despachoCreado.scheduled_local_date && despachoCreado.scheduled_local_time) {
+            const fechaHora = `${despachoCreado.scheduled_local_date}T${despachoCreado.scheduled_local_time}`;
+            scheduledAt = new Date(fechaHora).toISOString();
+          }
+          
           const viajesData = [];
           for (let i = 0; i < cantidadViajes; i++) {
             viajesData.push({
@@ -1654,6 +1656,7 @@ const CrearDespacho = () => {
               estado: 'pendiente', // Legacy
               estado_carga: 'pendiente_asignacion', // 🔥 Sistema dual v2 - esperando asignación
               estado_unidad: null, // 🔥 NULL cuando no hay camión/chofer asignado
+              scheduled_at: scheduledAt, // 🔥 Fecha/hora programada para expiración
               fecha_creacion: new Date().toISOString()
             });
           }
@@ -1759,14 +1762,6 @@ const CrearDespacho = () => {
                           />
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveRow(row, index)}
-                        disabled={loading}
-                        className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-sm disabled:opacity-60 transition-colors"
-                      >
-                        {loading ? 'Guardando...' : 'Guardar'}
-                      </button>
                     </div>
 
                     {/* Fila 1: Origen, Destino, Tipo Carga */}
@@ -1935,6 +1930,18 @@ const CrearDespacho = () => {
                         />
                       </div>
                     </div>
+
+                    {/* Botón Guardar movido aquí - más cerca del formulario */}
+                    <div className="flex justify-end mt-4">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveRow(row, index)}
+                        disabled={loading}
+                        className="px-6 py-2.5 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white font-semibold disabled:opacity-60 transition-colors shadow-lg"
+                      >
+                        {loading ? 'Guardando...' : 'Guardar'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2018,8 +2025,24 @@ const CrearDespacho = () => {
                   const cantidadTotal = d.cantidad_viajes_solicitados || 1;
                   const cantidadAsignados = d.viajes_asignados || 0;
                   const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  return cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado';
+                  return (
+                    (cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario') ||
+                    d.estado === 'asignado'
+                  );
                 }).length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('fuera_de_horario')}
+              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                activeTab === 'fuera_de_horario'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              ⏰ Fuera de Horario
+              <span className="ml-2 px-2 py-0.5 bg-amber-700 rounded text-xs">
+                {generatedDispatches.filter(d => d.estado === 'fuera_de_horario').length}
               </span>
             </button>
             <button
@@ -2030,7 +2053,7 @@ const CrearDespacho = () => {
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              ⚠️ Expirados
+              ❌ Expirados
               <span className="ml-2 px-2 py-0.5 bg-red-700 rounded text-xs">
                 {generatedDispatches.filter(d => d.estado === 'expirado').length}
               </span>
@@ -2082,16 +2105,24 @@ const CrearDespacho = () => {
                       razon = `cantidadAsignados (${cantidadAsignados}) === 0 && estado !== 'expirado'`;
                     } else if (activeTab === 'en_proceso') {
                       // En proceso: tienen algunos viajes asignados pero no todos Y no están expirados
-                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado';
-                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) > 0 && estado !== 'expirado'`;
+                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario';
+                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) > 0 && estado !== 'expirado' && estado !== 'fuera_de_horario'`;
+                    } else if (activeTab === 'fuera_de_horario') {
+                      // Fuera de horario: tienen estado fuera_de_horario
+                      pasaFiltro = d.estado === 'fuera_de_horario';
+                      razon = `estado === 'fuera_de_horario'`;
                     } else if (activeTab === 'expirados') {
                       // Expirados: tienen estado expirado
                       pasaFiltro = d.estado === 'expirado';
                       razon = `estado === 'expirado'`;
                     } else {
-                      // Asignados: tienen TODOS los viajes asignados Y no están expirados
-                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado';
-                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) === 0 && estado !== 'expirado'`;
+                      // Asignados: tienen TODOS los viajes asignados Y no están expirados ni fuera de horario
+                      // TAMBIÉN incluir despachos con estado 'asignado' explícito
+                      pasaFiltro = (
+                        (cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario') ||
+                        d.estado === 'asignado'
+                      );
+                      razon = `(cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) === 0) || estado === 'asignado'`;
                     }
                     
                     console.log(`🔍 Filtrado ${d.pedido_id}:`, {
@@ -2261,22 +2292,32 @@ const CrearDespacho = () => {
                             </button>
                           )}
                           
-                          {/* 🆕 Botón REPROGRAMAR para tab Expirados */}
+                          {/* 🆕 Botones para tab Expirados */}
                           {activeTab === 'expirados' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedDispatchForReprogram(dispatch);
-                                setIsReprogramarModalOpen(true);
-                              }}
-                              className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                              title="Reprogramar despacho expirado"
-                            >
-                              🔄 Reprogramar
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDispatchForReprogram(dispatch);
+                                  setIsReprogramarModalOpen(true);
+                                }}
+                                className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
+                                title="Reprogramar despacho expirado"
+                              >
+                                🔄 Reprogramar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDispatch(dispatch.id)}
+                                className="px-3 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
+                                title="Cancelar despacho definitivamente"
+                              >
+                                ❌ Cancelar
+                              </button>
+                            </div>
                           )}
                           
-                          {activeTab !== 'expirados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
+                          {activeTab !== 'expirados' && activeTab !== 'fuera_de_horario' && activeTab !== 'asignados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
                             <>
                               <button
                                 type="button"
