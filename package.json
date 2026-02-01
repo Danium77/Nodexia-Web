@@ -30,6 +30,7 @@
     "@react-google-maps/api": "^2.20.7",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.75.1",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.555.0",

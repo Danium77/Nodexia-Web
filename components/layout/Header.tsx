@@ -1,6 +1,7 @@
 // components/Layout/Header.tsx
 import React from 'react';
-import { BellIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon } from '@heroicons/react/24/outline';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   userEmail: string;
@@ -11,11 +12,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle, empresaNombre }) => {
   
-  const handleNotificationsClick = () => {
-    // TODO: Implementar panel de notificaciones
-    console.log('📬 Abrir notificaciones');
-  };
-
   const handleProfileClick = () => {
     // TODO: Implementar menú de perfil
     console.log('👤 Abrir perfil');
@@ -27,13 +23,9 @@ const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle, empresa
         <h2 className="text-2xl font-bold text-white">{pageTitle}</h2>
       </div>
       <div className="flex items-center space-x-4">
-        <button 
-          onClick={handleNotificationsClick}
-          className="p-2 rounded-full hover:bg-[#0e1a2d] transition-colors"
-          title="Notificaciones"
-        >
-          <BellIcon className="h-7 w-7 text-cyan-400" /> 
-        </button>
+        {/* Campana de notificaciones con badge */}
+        <NotificationBell />
+        
         <button 
           onClick={handleProfileClick}
           className="flex flex-col items-center p-2 rounded-lg hover:bg-[#0e1a2d] transition-colors"
