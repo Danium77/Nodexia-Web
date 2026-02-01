@@ -2308,11 +2308,11 @@ const CrearDespacho = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleDeleteDispatch(dispatch.id)}
+                                onClick={() => handleSelectDespacho(dispatch.id)}
                                 className="px-3 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                                title="Cancelar despacho definitivamente"
+                                title="Ver detalles del despacho"
                               >
-                                ❌ Cancelar
+                                👁️ Ver
                               </button>
                             </div>
                           )}

@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AceptarDespachoModal from '../../components/Transporte/AceptarDespachoModal';
 import RechazarViajeModal from '../../components/Transporte/RechazarViajeModal';
+import AsignarUnidadModal from '../../components/Transporte/AsignarUnidadModal';
 
 interface Despacho {
   id: string;
@@ -21,7 +22,16 @@ interface Despacho {
   despacho_id?: string;
   pedido_id: string;
   origen: string;
+  origen_id?: string;
+  origen_ciudad?: string;
+  origen_provincia?: string;
   destino: string;
+  destino_id?: string;
+  destino_ciudad?: string;
+  destino_provincia?: string;
+  destino_latitud?: number;
+  destino_longitud?: number;
+  distancia_estimada_km?: number;
   scheduled_local_date: string;
   scheduled_local_time: string;
   producto?: string;
@@ -68,6 +78,7 @@ const DespachosOfrecidos = () => {
   const [showModal, setShowModal] = useState(false);
   const [showRechazarModal, setShowRechazarModal] = useState(false);
   const [viajeToReject, setViajeToReject] = useState<Despacho | null>(null);
+  const [showAsignarUnidadModal, setShowAsignarUnidadModal] = useState(false);
 
   // Listas para filtros
   const [origenes, setOrigenes] = useState<string[]>([]);
@@ -133,11 +144,15 @@ const DespachosOfrecidos = () => {
             id,
             pedido_id,
             origen,
+            origen_id,
             destino,
+            destino_id,
             scheduled_local_date,
             scheduled_local_time,
             prioridad,
-            created_at
+            created_at,
+            origen_ubicacion:ubicaciones!despachos_origen_id_fkey(ciudad, provincia),
+            destino_ubicacion:ubicaciones!despachos_destino_id_fkey(ciudad, provincia, latitud, longitud)
           ),
           estado_unidad_viaje (
             estado_unidad,
@@ -149,7 +164,7 @@ const DespachosOfrecidos = () => {
           )
         `)
         .or(`id_transporte.eq.${empresaId},id_transporte_cancelado.eq.${empresaId}`)
-        .in('estado', ['pendiente', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'cancelado', 'cancelado_por_transporte'])
+        .in('estado', ['pendiente', 'asignado', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'cancelado', 'cancelado_por_transporte'])
         .order('created_at', { ascending: true });
 
       console.log('📊 Query ejecutado con filtros:', {
@@ -200,13 +215,25 @@ const DespachosOfrecidos = () => {
         const camion = viaje.camion_id ? camionesMap.get(viaje.camion_id) : null;
         const canceladoPor = viaje.cancelado_por ? usuariosMap.get(viaje.cancelado_por) : null;
         
+        // Extraer datos de ubicaciones
+        const origenUbicacion = viaje.despachos?.origen_ubicacion;
+        const destinoUbicacion = viaje.despachos?.destino_ubicacion;
+        
         const despacho: Despacho = {
           id: viaje.id,
           viaje_numero: viaje.numero_viaje,
           despacho_id: viaje.despachos?.id,
           pedido_id: `${viaje.despachos?.pedido_id || 'N/A'} - Viaje #${viaje.numero_viaje}`,
           origen: viaje.despachos?.origen || 'N/A',
+          origen_id: viaje.despachos?.origen_id,
+          origen_ciudad: origenUbicacion?.ciudad,
+          origen_provincia: origenUbicacion?.provincia,
           destino: viaje.despachos?.destino || 'N/A',
+          destino_id: viaje.despachos?.destino_id,
+          destino_ciudad: destinoUbicacion?.ciudad,
+          destino_provincia: destinoUbicacion?.provincia,
+          destino_latitud: destinoUbicacion?.latitud,
+          destino_longitud: destinoUbicacion?.longitud,
           scheduled_local_date: viaje.despachos?.scheduled_local_date,
           scheduled_local_time: viaje.despachos?.scheduled_local_time,
           producto: viaje.observaciones || 'Carga general',
@@ -254,16 +281,15 @@ const DespachosOfrecidos = () => {
 
     // Filtro por estado/tab
     if (estadoTab === 'pendientes') {
-      // SOLO viajes pendientes sin recursos asignados
+      // Viajes sin recursos asignados completamente (falta chofer O camión)
       filtered = filtered.filter(d => 
-        (d.estado_viaje === 'pendiente' || d.estado_viaje === 'transporte_asignado') &&
+        (!d.tiene_chofer || !d.tiene_camion) &&
         (d.estado_viaje as string) !== 'cancelado' &&
         (d.estado_viaje as string) !== 'cancelado_por_transporte'
       );
     } else if (estadoTab === 'asignados') {
-      // Viajes con chofer Y camión asignados, pero NO cancelados
+      // ✅ FIX: Viajes con chofer Y camión asignados, independiente del estado específico
       filtered = filtered.filter(d => 
-        d.estado_viaje === 'camion_asignado' &&
         d.tiene_chofer && 
         d.tiene_camion && 
         (d.estado_viaje as string) !== 'cancelado' &&
@@ -308,9 +334,9 @@ const DespachosOfrecidos = () => {
   };
 
   const handleAceptarDespacho = (despacho: Despacho) => {
-    // Asignar recursos a un viaje ya existente
+    // Abrir modal de asignación inteligente de unidades
     setSelectedDespacho(despacho);
-    setShowModal(true);
+    setShowAsignarUnidadModal(true);
   };
 
   const handleRechazarDespacho = async (despacho: Despacho) => {
@@ -407,55 +433,102 @@ const DespachosOfrecidos = () => {
     );
   };
 
+  // Calcular métricas para badges de status
+  const sinAsignar = despachos.filter(d => 
+    (!d.tiene_chofer || !d.tiene_camion) && 
+    !['cancelado', 'cancelado_por_transporte'].includes(d.estado_viaje as string)
+  ).length;
+  
+  const enTransito = despachos.filter(d => 
+    ['en_transito_origen', 'en_transito_destino', 'arribo_origen', 'arribo_destino'].includes(d.estado_viaje as string)
+  ).length;
+  
+  const ahora = new Date();
+  const en4Horas = new Date(ahora.getTime() + 4 * 60 * 60 * 1000);
+  const viajesUrgentes = despachos.filter(d => {
+    if (!d.scheduled_local_date || !d.scheduled_local_time) return false;
+    const fechaViaje = new Date(`${d.scheduled_local_date}T${d.scheduled_local_time}`);
+    return fechaViaje >= ahora && fechaViaje <= en4Horas && (!d.tiene_chofer || !d.tiene_camion);
+  }).length;
+
   return (
     <AdminLayout pageTitle="Despachos Ofrecidos">
       <div className="w-full px-4">
-        {/* Stats ultra-compactos */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-1 mb-2">
-          <div className="bg-[#1b273b] rounded p-1.5 border border-gray-800 flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-[9px]">Disponibles</p>
-              <p className="text-sm font-bold text-white">{despachos.length}</p>
+        {/* Título más grande */}
+        <h1 className="text-3xl font-bold text-white mb-4">Despachos Ofrecidos</h1>
+        
+        {/* 🆕 Badges de Status de Flota - Inspirado en Uber Freight */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          {/* Total Disponibles */}
+          <div className="bg-[#1b273b] border border-cyan-800/50 rounded-lg p-3 hover:border-cyan-600 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-400 text-xs font-medium">📦 Total Viajes</span>
+              <TruckIcon className="h-5 w-5 text-cyan-400" />
             </div>
-            <TruckIcon className="h-4 w-4 text-cyan-400" />
+            <p className="text-3xl font-bold text-white">{despachos.length}</p>
+            <p className="text-[10px] text-gray-500 mt-1">disponibles</p>
           </div>
 
-          <div className="bg-[#1b273b] rounded p-1.5 border border-gray-800 flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-[9px]">Filtrados</p>
-              <p className="text-sm font-bold text-white">{filteredDespachos.length}</p>
+          {/* Sin Asignar - URGENTE */}
+          <div className="bg-[#1b273b] border border-orange-800/50 rounded-lg p-3 hover:border-orange-600 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-orange-400 text-xs font-medium">⚠️ Sin Asignar</span>
+              <ClockIcon className="h-5 w-5 text-orange-400" />
             </div>
-            <FunnelIcon className="h-4 w-4 text-blue-400" />
+            <p className="text-3xl font-bold text-white">{sinAsignar}</p>
+            <p className="text-[10px] text-orange-400 mt-1">necesitan recursos</p>
           </div>
 
-          <div className="bg-[#1b273b] rounded p-1.5 border border-gray-800 flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-[9px]">Alta prioridad</p>
-              <p className="text-sm font-bold text-white">
-                {despachos.filter(d => d.prioridad === 'alta').length}
-              </p>
+          {/* Urgentes (próximas 4h) */}
+          <div className="bg-[#1b273b] border border-red-800/50 rounded-lg p-3 hover:border-red-600 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-red-400 text-xs font-medium">🔥 Urgentes</span>
+              <ClockIcon className="h-5 w-5 text-red-400" />
             </div>
-            <ClockIcon className="h-4 w-4 text-red-400" />
+            <p className="text-3xl font-bold text-white">{viajesUrgentes}</p>
+            <p className="text-[10px] text-red-400 mt-1">próximas 4h</p>
+          </div>
+
+          {/* En Tránsito */}
+          <div className="bg-[#1b273b] border border-blue-800/50 rounded-lg p-3 hover:border-blue-600 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-blue-400 text-xs font-medium">🚛 En Tránsito</span>
+              <TruckIcon className="h-5 w-5 text-blue-400" />
+            </div>
+            <p className="text-3xl font-bold text-white">{enTransito}</p>
+            <p className="text-[10px] text-gray-500 mt-1">activos ahora</p>
+          </div>
+
+          {/* Alta Prioridad */}
+          <div className="bg-[#1b273b] border border-purple-800/50 rounded-lg p-3 hover:border-purple-600 transition-colors">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-purple-400 text-xs font-medium">⭐ Alta Prioridad</span>
+              <CheckCircleIcon className="h-5 w-5 text-purple-400" />
+            </div>
+            <p className="text-3xl font-bold text-white">
+              {despachos.filter(d => d.prioridad === 'alta').length}
+            </p>
+            <p className="text-[10px] text-gray-500 mt-1">prioritarios</p>
           </div>
         </div>
 
-        {/* Tabs de estado - ultra compactos */}
-        <div className="bg-[#1b273b] rounded p-1 mb-2 border border-gray-800 flex gap-1">
+        {/* 🆕 Tabs más grandes y legibles */}
+        <div className="bg-[#1b273b] rounded-lg p-2 mb-4 border border-gray-800 flex gap-2">
           <button
             onClick={() => setEstadoTab('pendientes')}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
               estadoTab === 'pendientes'
-                ? 'bg-cyan-600 text-white'
+                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20'
                 : 'bg-transparent text-gray-400 hover:text-white hover:bg-[#0a0e1a]'
             }`}
           >
-            <div className="flex items-center justify-center gap-1">
-              <ClockIcon className="h-3 w-3" />
+            <div className="flex items-center justify-center gap-2">
+              <ClockIcon className="h-4 w-4" />
               <span>Pendientes</span>
-              <span className="px-1 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[9px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold">
                 {despachos.filter(d => 
-                  (d.estado_viaje === 'pendiente' || d.estado_viaje === 'transporte_asignado') &&
-                  (d.estado_viaje as string) !== 'cancelado'
+                  (!d.tiene_chofer || !d.tiene_camion) &&
+                  !['cancelado', 'cancelado_por_transporte'].includes(d.estado_viaje as string)
                 ).length}
               </span>
             </div>
@@ -463,21 +536,20 @@ const DespachosOfrecidos = () => {
           
           <button
             onClick={() => setEstadoTab('asignados')}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
               estadoTab === 'asignados'
-                ? 'bg-green-600 text-white'
+                ? 'bg-green-600 text-white shadow-lg shadow-green-500/20'
                 : 'bg-transparent text-gray-400 hover:text-white hover:bg-[#0a0e1a]'
             }`}
           >
-            <div className="flex items-center justify-center gap-1">
-              <CheckCircleIcon className="h-3 w-3" />
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircleIcon className="h-4 w-4" />
               <span>Asignados</span>
-              <span className="px-1 py-0.5 rounded-full bg-green-500/20 text-green-400 text-[9px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
                 {despachos.filter(d => 
-                  d.estado_viaje === 'camion_asignado' &&
                   d.tiene_chofer && 
                   d.tiene_camion &&
-                  (d.estado_viaje as string) !== 'cancelado'
+                  !['cancelado', 'cancelado_por_transporte'].includes(d.estado_viaje as string)
                 ).length}
               </span>
             </div>
@@ -485,16 +557,16 @@ const DespachosOfrecidos = () => {
 
           <button
             onClick={() => setEstadoTab('rechazados')}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
               estadoTab === 'rechazados'
-                ? 'bg-red-600 text-white'
+                ? 'bg-red-600 text-white shadow-lg shadow-red-500/20'
                 : 'bg-transparent text-gray-400 hover:text-white hover:bg-[#0a0e1a]'
             }`}
           >
-            <div className="flex items-center justify-center gap-1">
-              <XCircleIcon className="h-3 w-3" />
+            <div className="flex items-center justify-center gap-2">
+              <XCircleIcon className="h-4 w-4" />
               <span>Rechazados</span>
-              <span className="px-1 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[9px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-bold">
                 {despachos.filter(d => d.estado_viaje === 'cancelado').length}
               </span>
             </div>
@@ -502,16 +574,16 @@ const DespachosOfrecidos = () => {
 
           <button
             onClick={() => setEstadoTab('cancelados')}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
               estadoTab === 'cancelados'
-                ? 'bg-orange-600 text-white'
+                ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/20'
                 : 'bg-transparent text-gray-400 hover:text-white hover:bg-[#0a0e1a]'
             }`}
           >
-            <div className="flex items-center justify-center gap-1">
-              <XCircleIcon className="h-3 w-3" />
+            <div className="flex items-center justify-center gap-2">
+              <XCircleIcon className="h-4 w-4" />
               <span>Cancelados</span>
-              <span className="px-1 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[9px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold">
                 {despachos.filter(d => d.estado_viaje === 'cancelado_por_transporte').length}
               </span>
             </div>
@@ -745,45 +817,64 @@ const DespachosOfrecidos = () => {
                   {/* Ruta */}
                   <div className="flex-1 flex items-center gap-2 text-xs text-gray-300 truncate">
                     <MapPinIcon className="h-3 w-3 text-green-400 flex-shrink-0" />
-                    <span className="truncate">{despacho.origen}</span>
-                    <span className="text-gray-600">→</span>
+                    <div className="flex flex-col">
+                      <span className="truncate font-medium text-white">{despacho.origen}</span>
+                      {(despacho.origen_ciudad || despacho.origen_provincia) && (
+                        <span className="text-[10px] text-gray-500">
+                          {despacho.origen_ciudad}{despacho.origen_ciudad && despacho.origen_provincia ? ', ' : ''}{despacho.origen_provincia}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-gray-600 mx-1">→</span>
                     <MapPinIcon className="h-3 w-3 text-orange-400 flex-shrink-0" />
-                    <span className="truncate">{despacho.destino}</span>
+                    <div className="flex flex-col">
+                      <span className="truncate font-medium text-white">{despacho.destino}</span>
+                      {(despacho.destino_ciudad || despacho.destino_provincia) && (
+                        <span className="text-[10px] text-gray-500">
+                          {despacho.destino_ciudad}{despacho.destino_ciudad && despacho.destino_provincia ? ', ' : ''}{despacho.destino_provincia}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Fecha */}
-                  <div className="flex items-center gap-1 text-xs text-gray-400 min-w-[130px]">
-                    <ClockIcon className="h-3 w-3 text-cyan-400" />
-                    {despacho.scheduled_local_date ? 
-                      new Date(despacho.scheduled_local_date + 'T00:00:00').toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit'}) :
-                      'Sin fecha'
-                    }
-                    <span className="text-gray-600">-</span>
-                    {despacho.scheduled_local_time}
+                  <div className="flex items-center gap-2 min-w-[150px]">
+                    <div className="flex items-center gap-1 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+                      <ClockIcon className="h-4 w-4 text-cyan-400" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-cyan-400">
+                          {despacho.scheduled_local_date ? 
+                            new Date(despacho.scheduled_local_date + 'T00:00:00').toLocaleDateString('es-AR', {day: '2-digit', month: '2-digit', year: '2-digit'}) :
+                            'Sin fecha'
+                          }
+                        </span>
+                        <span className="text-[10px] text-cyan-300/70">{despacho.scheduled_local_time || 'Sin hora'}</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Prioridad */}
                   {getPrioridadBadge(despacho.prioridad)}
 
-                  {/* Acciones */}
-                  <div className="flex items-center gap-1">
+                  {/* Acciones - Botones mejorados */}
+                  <div className="flex items-center gap-2">
                     {(!despacho.tiene_chofer || !despacho.tiene_camion) && 
                      despacho.estado_viaje !== 'cancelado' && 
                      despacho.estado_viaje !== 'cancelado_por_transporte' && (
                       <>
                         <button
                           onClick={() => handleAceptarDespacho(despacho)}
-                          className="px-2 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded text-[10px] font-medium transition-colors"
+                          className="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
                           title={despacho.tiene_chofer || despacho.tiene_camion ? 'Completar recursos' : 'Asignar recursos'}
                         >
-                          {despacho.tiene_chofer || despacho.tiene_camion ? 'Completar' : 'Asignar'}
+                          {despacho.tiene_chofer || despacho.tiene_camion ? '✅ Completar' : '🚛 Asignar'}
                         </button>
                         <button
                           onClick={() => handleRechazarDespacho(despacho)}
-                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-medium transition-colors"
+                          className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
                           title="Rechazar este viaje"
                         >
-                          Rechazar
+                          ❌ Rechazar
                         </button>
                       </>
                     )}
@@ -794,24 +885,24 @@ const DespachosOfrecidos = () => {
                       <>
                         <button
                           onClick={() => handleAceptarDespacho(despacho)}
-                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-medium transition-colors"
+                          className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
                           title="Modificar recursos asignados"
                         >
-                          Modificar
+                          ✏️ Modificar
                         </button>
                         <button
                           onClick={() => handleCancelarViaje(despacho)}
-                          className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-[10px] font-medium transition-colors"
+                          className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white rounded-lg text-xs font-semibold transition-all shadow-md hover:shadow-lg"
                           title="Cancelar viaje asignado"
                         >
-                          Cancelar
+                          🚫 Cancelar
                         </button>
                       </>
                     )}
 
                     {despacho.estado_viaje === 'cancelado' && (
-                      <span className="px-2 py-1 bg-red-900/30 border border-red-700 text-red-400 rounded text-[10px] font-medium">
-                        Rechazado
+                      <span className="px-3 py-1.5 bg-red-900/30 border border-red-700 text-red-400 rounded-lg text-xs font-semibold">
+                        ❌ Rechazado
                       </span>
                     )}
                   </div>
@@ -835,6 +926,39 @@ const DespachosOfrecidos = () => {
             setShowModal(false);
             setSelectedDespacho(null);
             // Pequeño delay para que el modal se cierre antes de recargar
+            setTimeout(() => {
+              loadDespachos();
+            }, 100);
+          }}
+        />
+      )}
+
+      {/* Modal de asignación inteligente de unidades */}
+      {showAsignarUnidadModal && selectedDespacho && (
+        <AsignarUnidadModal
+          isOpen={showAsignarUnidadModal}
+          onClose={() => {
+            setShowAsignarUnidadModal(false);
+            setSelectedDespacho(null);
+          }}
+          despacho={{
+            id: selectedDespacho.despacho_id || selectedDespacho.id,
+            viaje_id: selectedDespacho.id,
+            pedido_id: selectedDespacho.pedido_id,
+            origen: selectedDespacho.origen,
+            origen_id: selectedDespacho.origen_id,
+            origen_ciudad: selectedDespacho.origen_ciudad,
+            origen_provincia: selectedDespacho.origen_provincia,
+            destino: selectedDespacho.destino,
+            destino_id: selectedDespacho.destino_id,
+            destino_ciudad: selectedDespacho.destino_ciudad,
+            destino_provincia: selectedDespacho.destino_provincia,
+            scheduled_local_date: selectedDespacho.scheduled_local_date,
+            scheduled_local_time: selectedDespacho.scheduled_local_time
+          }}
+          onSuccess={() => {
+            setShowAsignarUnidadModal(false);
+            setSelectedDespacho(null);
             setTimeout(() => {
               loadDespachos();
             }, 100);

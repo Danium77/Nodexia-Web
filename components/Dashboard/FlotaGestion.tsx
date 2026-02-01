@@ -6,18 +6,20 @@ import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import FormCard from '../ui/FormCard';
 // import { useChoferes } from '../../lib/hooks/useChoferes';
 
-export default function FlotaGestion() {
+export default function FlotaGestion({ hideInternalTabs = false }: { hideInternalTabs?: boolean }) {
   const router = useRouter();
   const { user } = useUserRole();
-  const initialTab = typeof window !== 'undefined' && router.query.tab && ['camion','acoplado'].includes(router.query.tab as string)
-    ? router.query.tab as 'camion' | 'acoplado'
-    : 'camion';
-  const [tab, setTab] = useState<'camion' | 'acoplado'>(initialTab === 'acoplado' ? 'acoplado' : 'camion');
+  
+  // Determinar tab inicial basado en la URL: si activeTab es 'acoplados', mostrar acoplado
+  const initialTab = router.query.tab === 'acoplados' ? 'acoplado' : 'camion';
+  const [tab, setTab] = useState<'camion' | 'acoplado'>(initialTab);
 
-  // Sincronizar tab si cambia la query string
+  // Sincronizar tab cuando cambia la query string
   React.useEffect(() => {
-    if (router.query.tab && ['camion','acoplado'].includes(router.query.tab as string)) {
-      setTab(router.query.tab as 'camion' | 'acoplado');
+    if (router.query.tab === 'acoplados') {
+      setTab('acoplado');
+    } else if (router.query.tab === 'camiones') {
+      setTab('camion');
     }
   }, [router.query.tab]);
   // Estados para formulario camión
@@ -218,22 +220,26 @@ export default function FlotaGestion() {
 
     return (
     <div>
-      <h3 className="text-lg font-bold text-green-300 mb-4">Gestión de Camiones y Acoplados</h3>
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        <button
-          className={`px-4 py-2 rounded-t ${tab === 'camion' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200'}`}
-          onClick={() => setTab('camion')}
-        >
-          Camiones
-        </button>
-        <button
-          className={`px-4 py-2 rounded-t ${tab === 'acoplado' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200'}`}
-          onClick={() => setTab('acoplado')}
-        >
-          Acoplados
-        </button>
-      </div>
+      <h3 className="text-lg font-bold text-green-300 mb-4">
+        {tab === 'camion' ? 'Gestión de Camiones' : 'Gestión de Acoplados'}
+      </h3>
+      {/* Tabs - Solo mostrar si no están ocultos */}
+      {!hideInternalTabs && (
+        <div className="flex gap-2 mb-6">
+          <button
+            className={`px-4 py-2 rounded-t ${tab === 'camion' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200'}`}
+            onClick={() => setTab('camion')}
+          >
+            Camiones
+          </button>
+          <button
+            className={`px-4 py-2 rounded-t ${tab === 'acoplado' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200'}`}
+            onClick={() => setTab('acoplado')}
+          >
+            Acoplados
+          </button>
+        </div>
+      )}
       {/* Formulario y listado según tab */}
       {tab === 'camion' ? (
         <>

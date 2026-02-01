@@ -140,7 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
         { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
         { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota' },
-        { name: '👥 Choferes', icon: UserCircleIcon, href: '/transporte/choferes' },
+        { name: '🗺️ Tracking GPS', icon: ChartBarIcon, href: '/transporte/tracking-flota' },
         { name: '⚙️ Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
       ];
     } else {

@@ -1,7 +1,9 @@
 # PRÓXIMA SESIÓN - Pendientes y Tareas
 
-**Última actualización**: 11 de Enero 2026  
-**Última sesión**: Sistema de Reprogramación de Viajes Expirados (Ver [SESION-11-ENE-2026-SISTEMA-REPROGRAMACION.md](docs/SESION-11-ENE-2026-SISTEMA-REPROGRAMACION.md))
+**Última actualización**: 31 de Enero 2026  
+**Última sesión**: Sistema de Unidades Operativas - Coordinador de Transporte (Base implementada)
+
+> 📄 **Documentación completa**: Ver [31-ENE-2026-SESION-UNIDADES-OPERATIVAS.md](docs/31-ENE-2026-SESION-UNIDADES-OPERATIVAS.md)
 
 ---
 
@@ -32,20 +34,84 @@
 
 ---
 
+## ✅ COMPLETADO (31-Ene-2026) - Base de Unidades Operativas
+
+### Migración 017 - Sistema de Unidades Operativas
+**Archivos creados**:
+- `sql/migrations/017_unidades_operativas_completo.sql` (434 líneas)
+- `sql/migrations/018_agregar_coordenadas_ubicaciones.sql` (coordinadas principales)
+- `sql/migrations/019_crear_unidades_ejemplo.sql` (script para crear unidades)
+
+**Funcionalidades implementadas**:
+- ✅ Tabla `unidades_operativas` (chofer + camión + acoplado opcional)
+- ✅ Vista `vista_disponibilidad_unidades` (con cálculo de disponibilidad)
+- ✅ Función `calcular_disponibilidad_unidad()` (algoritmo de disponibilidad)
+- ✅ RLS Policies completas (seguridad por empresa)
+- ✅ Sistema de normativas de descanso (9h conducción = 12h descanso)
+- ✅ Triggers para updated_at automático
+
+**Estado actual**:
+- Tabla creada y funcional ✅
+- NO hay unidades creadas aún (requiere datos históricos o creación manual)
+- Ubicaciones SIN coordenadas (0 de 10) - Script 018 listo para ejecutar
+
+**Mejoras implementadas en despachos-ofrecidos.tsx**:
+- ✅ Badges de status de flota (5 métricas clave)
+- ✅ Fix bug tab "Asignados" (ahora filtra correctamente)
+- ✅ Títulos y tabs más grandes (mejor legibilidad)
+- ✅ Botones de acción mejorados (gradientes, iconos, shadows)
+
+---
+
 ## 🔥 PRIORIDAD ALTA (PRÓXIMA SESIÓN)
 
-### 1. 🆕 Testing de Control de Acceso con Datos Completos ⭐ URGENTE
-**Estado**: BLOQUEADO - Solución implementada, pendiente validación
-**Sesión anterior**: Implementada función SQL `get_viaje_con_detalles` para resolver problema de UUIDs
-**Issue crítico identificado**: UUIDs corruptos (37 chars) en `viajes_despacho.id_chofer` y `id_camion`
+### 1. 🚀 Completar Sistema de Unidades Operativas ⭐ URGENTE
+**Estado**: PENDIENTE - Base implementada, falta UI
+**Dificultad**: ⭐⭐⭐ Media-Alta
+**Duración estimada**: 3-4 horas
+**Archivos pendientes**:
+- [ ] Ejecutar `sql/migrations/018_agregar_coordenadas_ubicaciones.sql` (2 min)
+- [ ] Crear página `/pages/transporte/unidades.tsx` (gestión CRUD)
+- [ ] Crear componente `AsignarUnidadModal.tsx` (reemplazar AceptarDespachoModal)
+- [ ] Implementar algoritmo de scoring en frontend
+- [ ] Integrar vista `vista_disponibilidad_unidades`
+
+**Tareas específicas**:
+1. **Agregar coordenadas** (Script 018 listo)
+   -2. 📍 Mostrar Provincia/Localidad en Despachos
+**Estado**: PENDIENTE
+**Dificultad**: ⭐ Baja
+**Duración estimada**: 30 minutos
 **Tareas**:
-- [ ] **Testing end-to-end** - Validar que la solución funciona
-  - Escanear código: DSP-20251226-001
-  - Verificar que aparezca: "Walter Zayas - DNI: 30123456"
-  - Verificar que aparezca: "ABC123 - Mercedes Axor"
-  - Verificar ruta: "Rosario → Santa Rosa"
-- [ ] Si funciona: ✅ Feature Control de Acceso completa
-- [ ] Si falla: Debug con logs de consola y `sql/debug-control-acceso.sql`
+- [ ] Modificar `pages/transporte/despachos-ofrecidos.tsx`
+- [ ] Cambiar: "Aceitera San Miguel" → "Aceitera San Miguel - Rosario, Santa Fe"
+- [ ] Agregar queries para obtener ubicaciones con ciudad/provincia
+- [ ] Aplicar mismo patrón en planificación
+
+### 3Ejecutar en Supabase SQL Editor
+   - Verificar que ubicaciones principales tengan lat/lng
+   
+2. **Crear unidades manualmente** (Script 019 listo)
+   - Ver choferes y camiones disponibles
+   - Crear 2-3 unidades de ejemplo
+   
+3. **Página de gestión** 
+   - CRUD de unidades operativas
+   - Ver disponibilidad en tiempo real
+   - Editar jornadas laborales
+   
+4. **Nuevo modal de asignación**
+   - Lista de unidades con scoring
+   - Filtros: disponibles, ocupados, próximos libres
+   - Mostrar distancia, tiempo estimado, margen
+   
+5. **Algoritmo de scoring**
+   - Calcular disponibilidad (hora + descanso)
+   - Calcular distancia (Haversine)
+   - Score: 100 = óptimo, 0 = no viable
+   - Ordenar por score descendente
+
+**Resultado esperado**: Coordinador de transporte puede asignar unidades completas en 1 click con recomendaciones inteligentes
 
 ### 1. Badge "⚠️ Reprogramado" en Tarjetas de Viajes
 **Estado**: PENDIENTE - Feature UX importante
