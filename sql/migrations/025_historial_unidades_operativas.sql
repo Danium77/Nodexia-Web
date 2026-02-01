@@ -38,9 +38,9 @@ FOR SELECT
 USING (
   EXISTS (
     SELECT 1 FROM unidades_operativas uo
-    JOIN relaciones_empresas re ON uo.empresa_id = re.empresa_transporte_id
+    JOIN usuarios_empresa ue ON uo.empresa_id = ue.empresa_id
     WHERE uo.id = historial_unidades_operativas.unidad_operativa_id
-      AND re.user_id = auth.uid()
+      AND ue.user_id = auth.uid()
   )
 );
 
@@ -50,9 +50,9 @@ ON historial_unidades_operativas
 FOR INSERT
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM relaciones_empresas re
-    WHERE re.user_id = auth.uid()
-      AND re.role_type IN ('coordinador', 'admin', 'admin_nodexia', 'super_admin')
+    SELECT 1 FROM usuarios_empresa ue
+    WHERE ue.user_id = auth.uid()
+      AND ue.role_type IN ('coordinador', 'admin', 'admin_nodexia', 'super_admin')
   )
 );
 

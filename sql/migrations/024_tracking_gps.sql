@@ -40,17 +40,16 @@ COMMENT ON COLUMN tracking_gps.app_version IS 'Versión de la aplicación móvil
 -- RLS (Row Level Security)
 ALTER TABLE tracking_gps ENABLE ROW LEVEL SECURITY;
 
--- Policy: Los usuarios solo ven tracking de su empresa de transporte
+-- Policy: Los usuarios solo ven tracking de choferes de su empresa
 CREATE POLICY "Usuarios ven tracking de su empresa"
 ON tracking_gps
 FOR SELECT
 USING (
   EXISTS (
     SELECT 1 FROM choferes c
-    JOIN unidades_operativas uo ON c.id = uo.chofer_id
-    JOIN relaciones_empresas re ON uo.empresa_id = re.empresa_transporte_id
+    JOIN usuarios_empresa ue ON c.empresa_id = ue.empresa_id
     WHERE c.id = tracking_gps.chofer_id
-      AND re.user_id = auth.uid()
+      AND ue.user_id = auth.uid()
   )
 );
 
