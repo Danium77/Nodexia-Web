@@ -52,7 +52,7 @@ WITH CHECK (
   EXISTS (
     SELECT 1 FROM usuarios_empresa ue
     WHERE ue.user_id = auth.uid()
-      AND ue.role_type IN ('coordinador', 'admin', 'admin_nodexia', 'super_admin')
+      AND ue.rol_interno IN ('coordinador', 'admin', 'admin_nodexia', 'super_admin')
   )
 );
 
