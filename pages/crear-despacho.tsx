@@ -1089,6 +1089,36 @@ const CrearDespacho = () => {
     setSelectedDispatchForAssign(null);
   };
 
+  // Función para cancelar un despacho individual (expirados)
+  const handleCancelarDespacho = async (despachoId: string) => {
+    if (!confirm('¿Estás seguro de que deseas cancelar este despacho expirado?')) {
+      return;
+    }
+
+    try {
+      setDeletingDespachos(true);
+
+      const { error } = await supabase
+        .from('despachos')
+        .delete()
+        .eq('id', despachoId);
+
+      if (error) throw error;
+
+      setSuccessMsg('Despacho cancelado exitosamente');
+      
+      // Recargar lista
+      if (user?.id) {
+        await fetchGeneratedDispatches(user.id);
+      }
+    } catch (error: any) {
+      console.error('Error cancelando despacho:', error);
+      setErrorMsg(`Error al cancelar: ${error?.message || 'Error desconocido'}`);
+    } finally {
+      setDeletingDespachos(false);
+    }
+  };
+
   // Funciones para selección múltiple
   const handleSelectDespacho = (despachoId: string) => {
     const newSelected = new Set(selectedDespachos);
@@ -2308,11 +2338,11 @@ const CrearDespacho = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleSelectDespacho(dispatch.id)}
+                                onClick={() => handleCancelarDespacho(dispatch.id)}
                                 className="px-3 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                                title="Ver detalles del despacho"
+                                title="Cancelar despacho expirado"
                               >
-                                👁️ Ver
+                                ❌ Cancelar
                               </button>
                             </div>
                           )}
