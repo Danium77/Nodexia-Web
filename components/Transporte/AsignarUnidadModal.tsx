@@ -324,9 +324,25 @@ export default function AsignarUnidadModal({
           .maybeSingle();
         
         viajeId = viajeExistente?.id;
+        
+        // 🛡️ VALIDACIÓN: NO permitir asignar unidad a viajes expirados
+        if (viajeExistente && viajeExistente.estado === 'expirado') {
+          throw new Error('❌ No se puede asignar unidad a un viaje EXPIRADO. El viaje debe ser reprogramado primero.');
+        }
       }
 
       if (viajeId) {
+        // 🛡️ VALIDACIÓN ADICIONAL: Verificar estado antes de actualizar
+        const { data: viajeActual } = await supabase
+          .from('viajes_despacho')
+          .select('estado')
+          .eq('id', viajeId)
+          .single();
+        
+        if (viajeActual?.estado === 'expirado') {
+          throw new Error('❌ No se puede asignar unidad a un viaje EXPIRADO. El viaje debe ser reprogramado primero.');
+        }
+        
         // Actualizar viaje existente
         const updateData: any = {
           chofer_id: unidad.chofer_id,

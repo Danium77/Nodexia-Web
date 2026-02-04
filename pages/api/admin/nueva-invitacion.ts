@@ -235,6 +235,33 @@ export default async function handler(
 
     console.log('User successfully assigned to company');
 
+    // ✅ Si el rol es "chofer", crear registro en tabla choferes
+    if (rol_interno.toLowerCase() === 'chofer') {
+      console.log('Creating chofer record for user:', newUser.user.id);
+      
+      const { error: choferError } = await supabaseAdmin
+        .from('choferes')
+        .insert({
+          nombre,
+          apellido,
+          dni: dni || null,
+          telefono: telefono || null,
+          email: email,
+          empresa_id: empresa_id,
+          usuario_id: newUser.user.id, // ✅ Vinculación automática
+          fecha_alta: new Date().toISOString(),
+          usuario_alta: newUser.user.id
+        });
+
+      if (choferError) {
+        console.error('❌ Error creating chofer record:', choferError);
+        // No hacer rollback completo, solo advertir
+        console.warn('⚠️ Usuario creado pero sin registro en tabla choferes');
+      } else {
+        console.log('✅ Chofer record created successfully');
+      }
+    }
+
     // Respuesta diferente según si hay SMTP o no
     if (smtpConfigured) {
       // CON SMTP: Usuario recibirá email de activación

@@ -90,6 +90,41 @@ const DespachosOfrecidos = () => {
     }
   }, [user, userEmpresas]);
 
+  // 🔥 REALTIME: Escuchar cambios en viajes_despacho para actualizar automáticamente
+  useEffect(() => {
+    if (!user || !userEmpresas) return;
+
+    const empresaTransporte = userEmpresas.find(e => e.tipo === 'transporte');
+    if (!empresaTransporte) return;
+
+    const empresaId = empresaTransporte.empresa_id;
+
+    console.log('🔔 Suscripción realtime activada para viajes_despacho');
+    
+    const channel = supabase
+      .channel('viajes-despacho-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'viajes_despacho',
+          filter: `id_transporte=eq.${empresaId}`
+        },
+        (payload) => {
+          console.log('🔔 Cambio detectado en viaje:', payload);
+          // Recargar viajes cuando hay cambios
+          loadDespachos();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔕 Desuscribiendo de viajes_despacho');
+      supabase.removeChannel(channel);
+    };
+  }, [user, userEmpresas]);
+
   useEffect(() => {
     applyFilters();
   }, [searchTerm, fechaFilter, origenFilter, destinoFilter, estadoTab, despachos]);
@@ -164,7 +199,7 @@ const DespachosOfrecidos = () => {
           )
         `)
         .or(`id_transporte.eq.${empresaId},id_transporte_cancelado.eq.${empresaId}`)
-        .in('estado', ['pendiente', 'asignado', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'cancelado', 'cancelado_por_transporte'])
+        .in('estado', ['pendiente', 'asignado', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'pausado', 'cancelado', 'cancelado_por_transporte'])
         .order('created_at', { ascending: true });
 
       console.log('📊 Query ejecutado con filtros:', {
@@ -282,16 +317,22 @@ const DespachosOfrecidos = () => {
     // Filtro por estado/tab
     if (estadoTab === 'pendientes') {
       // Viajes sin recursos asignados completamente (falta chofer O camión)
+      // Y que NO estén en estados "avanzados" como pausado, confirmado, en_transito, etc
       filtered = filtered.filter(d => 
         (!d.tiene_chofer || !d.tiene_camion) &&
         (d.estado_viaje as string) !== 'cancelado' &&
-        (d.estado_viaje as string) !== 'cancelado_por_transporte'
+        (d.estado_viaje as string) !== 'cancelado_por_transporte' &&
+        (d.estado_viaje as string) !== 'pausado' &&  // Pausado es un estado avanzado
+        (d.estado_viaje as string) !== 'confirmado_chofer' &&
+        (d.estado_viaje as string) !== 'en_transito_origen' &&
+        (d.estado_viaje as string) !== 'en_transito_destino' &&
+        (d.estado_viaje as string) !== 'arribo_origen' &&
+        (d.estado_viaje as string) !== 'arribo_destino'
       );
     } else if (estadoTab === 'asignados') {
-      // ✅ FIX: Viajes con chofer Y camión asignados, independiente del estado específico
+      // ✅ Viajes con chofer Y camión asignados, o en estados avanzados
       filtered = filtered.filter(d => 
-        d.tiene_chofer && 
-        d.tiene_camion && 
+        (d.tiene_chofer && d.tiene_camion) && 
         (d.estado_viaje as string) !== 'cancelado' &&
         (d.estado_viaje as string) !== 'cancelado_por_transporte'
       );
@@ -855,6 +896,30 @@ const DespachosOfrecidos = () => {
 
                   {/* Prioridad */}
                   {getPrioridadBadge(despacho.prioridad)}
+
+                  {/* Estado del viaje */}
+                  <div className="flex items-center gap-1 min-w-[110px]">
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
+                      despacho.estado_viaje === 'pausado' ? 'bg-orange-600/20 text-orange-400 border border-orange-600/30' :
+                      despacho.estado_viaje === 'confirmado_chofer' ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30' :
+                      despacho.estado_viaje === 'en_transito_origen' || despacho.estado_viaje === 'en_transito_destino' ? 'bg-green-600/20 text-green-400 border border-green-600/30' :
+                      despacho.estado_viaje === 'arribo_origen' || despacho.estado_viaje === 'arribo_destino' ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30' :
+                      despacho.estado_viaje === 'entregado' ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30' :
+                      despacho.estado_viaje === 'cancelado' || despacho.estado_viaje === 'cancelado_por_transporte' ? 'bg-red-600/20 text-red-400 border border-red-600/30' :
+                      'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30'
+                    }`}>
+                      {despacho.estado_viaje === 'pausado' ? '⏸️ Pausado' :
+                       despacho.estado_viaje === 'transporte_asignado' ? '✅ Asignado' :
+                       despacho.estado_viaje === 'confirmado_chofer' ? '✓ Confirmado' :
+                       despacho.estado_viaje === 'en_transito_origen' ? '🚚 A Origen' :
+                       despacho.estado_viaje === 'en_transito_destino' ? '🚛 A Destino' :
+                       despacho.estado_viaje === 'arribo_origen' ? '📍 En Origen' :
+                       despacho.estado_viaje === 'arribo_destino' ? '📍 En Destino' :
+                       despacho.estado_viaje === 'entregado' ? '✅ Entregado' :
+                       despacho.estado_viaje === 'cancelado' ? '❌ Cancelado' :
+                       despacho.estado_viaje?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </div>
 
                   {/* Acciones - Botones mejorados */}
                   <div className="flex items-center gap-2">

@@ -8,8 +8,7 @@ interface Chofer {
   dni?: string;
   telefono?: string;
   foto_url?: string | null;
-  id_transporte?: string; // Mantener por compatibilidad
-  empresa_id?: string; // Nuevo campo para asociación con empresa
+  empresa_id?: string; // ID de la empresa de transporte
   usuario_alta?: string | null;
   usuario_id?: string | null; // Vinculación con usuario de Nodexia
 }
@@ -55,7 +54,7 @@ export function useChoferes() {
     const { data, error: fetchError } = await supabase
       .from('choferes')
       .select('*')
-      .eq('id_transporte', empresaId)
+      .eq('empresa_id', empresaId)
       .order('apellido', { ascending: true });
       
     if (fetchError) {
@@ -91,8 +90,8 @@ export function useChoferes() {
         throw new Error('No se encontró empresa asociada');
       }
 
-      // La tabla choferes usa id_transporte para asociar con la EMPRESA
-      chofer.id_transporte = userEmpresa.empresa_id;
+      // La tabla choferes usa empresa_id para asociar con la EMPRESA
+      chofer.empresa_id = userEmpresa.empresa_id;
       chofer.usuario_alta = user.id;
 
       const { data, error: insertError } = await supabase

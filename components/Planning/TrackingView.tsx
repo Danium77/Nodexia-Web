@@ -74,6 +74,7 @@ const ESTADOS_VIAJE = [
   { key: 'pendiente', label: 'Pendiente', icon: '⏳', color: 'bg-gray-600' },
   { key: 'camion_asignado', label: 'Recursos Asignados', icon: '🚛', color: 'bg-yellow-600' },
   { key: 'confirmado_chofer', label: 'Confirmado', icon: '✅', color: 'bg-blue-600' },
+  { key: 'pausado', label: 'Pausado (Incidencia)', icon: '⏸️', color: 'bg-orange-600' },
   { key: 'en_transito_origen', label: 'Hacia Origen', icon: '🚚', color: 'bg-purple-600' },
   { key: 'arribo_origen', label: 'En Origen', icon: '📍', color: 'bg-orange-600' },
   { key: 'en_transito_destino', label: 'Hacia Destino', icon: '🚛', color: 'bg-indigo-600' },
@@ -118,6 +119,57 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
       loadDespachosConRecursos();
     }
   }, [dispatches]);
+
+  // 🔥 REALTIME: Escuchar cambios en viajes_despacho para actualizar automáticamente
+  useEffect(() => {
+    const despachosIds = dispatches.map(d => d.id);
+    if (despachosIds.length === 0) return;
+
+    console.log('🔔 TrackingView - Suscripción realtime activada');
+    
+    const channel = supabase
+      .channel('tracking-viajes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'viajes_despacho'
+        },
+        (payload) => {
+          console.log('🔔 TrackingView - Cambio detectado:', payload);
+          
+          // Recargar despachosConRecursos
+          const loadDespachosConRecursos = async () => {
+            const { data: viajes } = await supabase
+              .from('viajes_despacho')
+              .select('despacho_id')
+              .in('despacho_id', despachosIds)
+              .not('chofer_id', 'is', null)
+              .not('camion_id', 'is', null);
+            
+            if (viajes) {
+              const despachoIdsConRecursos = new Set(viajes.map(v => v.despacho_id));
+              setDespachosConRecursos(despachoIdsConRecursos);
+            }
+          };
+          loadDespachosConRecursos();
+          
+          // Si el viaje está en un despacho expandido, recargar viajes
+          const viajeData = payload.new as any;
+          if (viajeData?.despacho_id && expandedDespachos.has(viajeData.despacho_id)) {
+            console.log('🔄 TrackingView - Recargando viajes para despacho:', viajeData.despacho_id);
+            loadViajes(viajeData.despacho_id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔕 TrackingView - Desuscribiendo');
+      supabase.removeChannel(channel);
+    };
+  }, [dispatches, expandedDespachos]);
 
   // Filtrar solo despachos en estados activos Y que tengan viajes con recursos
   const ESTADOS_INACTIVOS = ['expirado', 'viaje_completado', 'entregado', 'cancelado', 'descarga_completada'];

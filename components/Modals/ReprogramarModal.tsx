@@ -62,18 +62,30 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
       for (const viaje of viajesExpirados) {
         const updateData: any = {
           scheduled_at: fechaHoraNueva.toISOString(),
-          estado_unidad: mantenerRecursos && (viaje.chofer_id || viaje.camion_id) ? 'camion_asignado' : null,
-          estado: mantenerRecursos && (viaje.chofer_id || viaje.camion_id) ? 'transporte_asignado' : 'pendiente',
           updated_at: new Date().toISOString()
         };
 
-        // Si NO mantener recursos, limpiar asignaciones
-        if (!mantenerRecursos) {
+        // Si MANTENER recursos: mantener estado actual (o asignar si tiene recursos)
+        if (mantenerRecursos && (viaje.chofer_id || viaje.camion_id)) {
+          // Si el viaje tenía estado antes de expirar, mantenerlo
+          // Si estaba en tránsito, volver a estado confirmado para que el chofer pueda reiniciar
+          if (viaje.estado_unidad === 'en_transito_origen' || viaje.estado_unidad === 'en_transito_destino') {
+            updateData.estado_unidad = 'confirmado_chofer';
+            updateData.estado = 'confirmado_chofer';
+          } else {
+            // Mantener el estado que tenía (probablemente camion_asignado o confirmado_chofer)
+            updateData.estado_unidad = viaje.estado_unidad === 'expirado' ? 'camion_asignado' : viaje.estado_unidad;
+            updateData.estado = viaje.estado === 'expirado' ? 'transporte_asignado' : viaje.estado;
+          }
+        } else {
+          // Si NO mantener recursos, limpiar asignaciones y volver a pendiente
           updateData.chofer_id = null;
           updateData.camion_id = null;
           updateData.acoplado_id = null;
           updateData.id_transporte = null;
           updateData.fecha_asignacion_transporte = null;
+          updateData.estado_unidad = null;
+          updateData.estado = 'pendiente';
         }
 
         const { error: updateError } = await supabase
@@ -84,6 +96,70 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
         if (updateError) {
           console.error('❌ Error actualizando viaje:', viaje.id, updateError);
           throw updateError;
+        }
+
+        // 🔔 NOTIFICACIONES: Enviar notificación al chofer si tiene chofer asignado
+        if (viaje.chofer_id) {
+          // Obtener usuario_id del chofer
+          const { data: choferData } = await supabase
+            .from('choferes')
+            .select('usuario_id, nombre, apellido')
+            .eq('id', viaje.chofer_id)
+            .single();
+
+          if (choferData?.usuario_id) {
+            console.log('📧 Enviando notificación a chofer:', choferData.nombre);
+            
+            await supabase.from('notificaciones').insert({
+              usuario_id: choferData.usuario_id,
+              tipo_notificacion: 'estado_actualizado',
+              titulo: '🔄 Viaje Reprogramado',
+              mensaje: `El viaje ${despacho.pedido_id} ha sido reprogramado para ${nuevaFecha} a las ${nuevaHora}`,
+              viaje_id: viaje.id,
+              datos_extra: {
+                pedido_id: despacho.pedido_id,
+                fecha_original: despacho.fecha_despacho,
+                hora_original: despacho.hora_despacho,
+                nueva_fecha: nuevaFecha,
+                nueva_hora: nuevaHora
+              },
+              enviada: false,
+              leida: false
+            });
+          }
+        }
+
+        // 🔔 NOTIFICACIONES: Enviar notificación a la empresa de transporte
+        if (viaje.id_transporte) {
+          // Obtener usuarios de la empresa de transporte con rol coordinador
+          const { data: coordinadores } = await supabase
+            .from('usuarios_empresas')
+            .select('usuario_id')
+            .eq('empresa_id', viaje.id_transporte)
+            .eq('rol', 'coordinador_transporte');
+
+          if (coordinadores && coordinadores.length > 0) {
+            console.log('📧 Enviando notificaciones a empresa transporte:', coordinadores.length, 'coordinadores');
+            
+            for (const coordinador of coordinadores) {
+              await supabase.from('notificaciones').insert({
+                usuario_id: coordinador.usuario_id,
+                tipo_notificacion: 'estado_actualizado',
+                titulo: '🔄 Viaje Reprogramado',
+                mensaje: `El viaje ${despacho.pedido_id} ha sido reprogramado para ${nuevaFecha} a las ${nuevaHora}`,
+                viaje_id: viaje.id,
+                datos_extra: {
+                  pedido_id: despacho.pedido_id,
+                  fecha_original: despacho.fecha_despacho,
+                  hora_original: despacho.hora_despacho,
+                  nueva_fecha: nuevaFecha,
+                  nueva_hora: nuevaHora
+                },
+                enviada: false,
+                leida: false
+              });
+            }
+          }
         }
       }
 

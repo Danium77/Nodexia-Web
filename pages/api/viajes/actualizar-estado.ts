@@ -26,45 +26,63 @@ export default async function handler(
   try {
     const { viaje_id, nuevo_estado, user_id } = req.body;
 
+    console.log('📥 Request recibido:', { viaje_id, nuevo_estado, user_id });
+
     if (!viaje_id || !nuevo_estado || !user_id) {
       return res.status(400).json({ error: 'Faltan parámetros requeridos' });
     }
 
     // Verificar que el viaje está asignado a este chofer
-    const { data: chofer } = await supabase
+    const { data: chofer, error: choferError } = await supabase
       .from('choferes')
       .select('id')
-      .eq('user_id', user_id)
+      .eq('usuario_id', user_id)
       .single();
+
+    console.log('👤 Chofer encontrado:', chofer, 'Error:', choferError);
 
     if (!chofer) {
       return res.status(403).json({ error: 'Chofer no encontrado' });
     }
 
-    const { data: viaje } = await supabase
+    const { data: viaje, error: viajeError } = await supabase
       .from('viajes_despacho')
-      .select('id, id_chofer')
+      .select('id, chofer_id')
       .eq('id', viaje_id)
       .single();
 
-    if (!viaje || viaje.id_chofer !== chofer.id) {
-      return res.status(403).json({ error: 'No autorizado para actualizar este viaje' });
+    console.log('🚚 Viaje encontrado:', viaje, 'Error:', viajeError);
+
+    if (!viaje || viaje.chofer_id !== chofer.id) {
+      return res.status(403).json({ 
+        error: 'No autorizado para actualizar este viaje',
+        debug: { viaje_chofer_id: viaje?.chofer_id, chofer_id: chofer.id }
+      });
     }
 
-    // Usar el sistema de estados duales - actualizar estado_unidad_viaje
-    const { data, error } = await supabase
-      .rpc('actualizar_estado_unidad', {
-        p_viaje_id: viaje_id,
-        p_nuevo_estado: nuevo_estado,
-        p_user_id: user_id,
-        p_observaciones: null
-      });
+    // Actualizar estado directamente en la tabla viajes_despacho
+    console.log('🔄 Actualizando estado a:', nuevo_estado);
+    
+    const { data: updateData, error: updateError } = await supabase
+      .from('viajes_despacho')
+      .update({ 
+        estado: nuevo_estado,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', viaje_id)
+      .select()
+      .single();
 
-    if (error) throw error;
+    console.log('✅ Resultado UPDATE:', updateData, 'Error:', updateError);
+
+    if (updateError) throw updateError;
+
+    // Si es sistema dual, actualizar también estado_unidad_viaje
+    // TODO: Implementar lógica de sistema dual si es necesario
 
     return res.status(200).json({ 
       success: true, 
-      data,
+      data: updateData,
       message: `Estado actualizado a: ${nuevo_estado}` 
     });
 

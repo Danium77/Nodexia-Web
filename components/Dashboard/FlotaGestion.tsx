@@ -66,7 +66,7 @@ export default function FlotaGestion({ hideInternalTabs = false }: { hideInterna
     const { data, error } = await supabase
       .from('camiones')
       .select('*')
-      .eq('id_transporte', userEmpresa.empresa_id)
+      .eq('empresa_id', userEmpresa.empresa_id)
       .order('fecha_alta', { ascending: false });
       
     if (!error) setCamiones(data || []);
@@ -88,7 +88,7 @@ export default function FlotaGestion({ hideInternalTabs = false }: { hideInterna
     const { data, error } = await supabase
       .from('acoplados')
       .select('*')
-      .eq('id_transporte', userEmpresa.empresa_id)
+      .eq('empresa_id', userEmpresa.empresa_id)
       .order('fecha_alta', { ascending: false });
       
     if (!error) setAcoplados(data || []);
@@ -134,7 +134,7 @@ export default function FlotaGestion({ hideInternalTabs = false }: { hideInterna
           modelo,
           anio: anio ? parseInt(anio) : null,
           foto_url,
-          id_transporte: userEmpresa.empresa_id,
+          empresa_id: userEmpresa.empresa_id,
           usuario_alta: user.id
         }
       ]);
@@ -196,7 +196,7 @@ export default function FlotaGestion({ hideInternalTabs = false }: { hideInterna
           modelo: modeloA,
           anio: anioA ? parseInt(anioA) : null,
           foto_url,
-          id_transporte: userEmpresa.empresa_id,
+          empresa_id: userEmpresa.empresa_id,
           usuario_alta: user.id
         }
       ]);

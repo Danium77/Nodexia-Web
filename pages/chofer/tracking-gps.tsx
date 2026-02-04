@@ -88,27 +88,26 @@ export default function TrackingGPS() {
 
   const loadViajesActivos = async () => {
     try {
-      if (!user?.email) {
-        console.warn('⚠️ No hay email de usuario');
+      if (!user?.id) {
+        console.warn('⚠️ No hay ID de usuario');
         return;
       }
 
-      console.log('👤 Buscando chofer con email:', user.email, 'y user_id:', user.id);
+      console.log('👤 Buscando chofer con usuario_id:', user.id);
 
-      // Buscar chofer por email o user_id
+      // Buscar chofer por usuario_id
       const { data: choferData, error: choferError } = await supabase
         .from('choferes')
         .select('id, nombre, email')
-        .or(`email.eq.${user.email},user_id.eq.${user.id}`)
+        .eq('usuario_id', user.id)
         .single();
 
       if (choferError || !choferData) {
         console.error('❌ Chofer no encontrado en BD:', {
           error: choferError,
-          user_email: user.email,
           user_id: user.id
         });
-        setError(`No se encontró registro de chofer para: ${user.email}`);
+        setError(`No se encontró registro de chofer vinculado a tu usuario`);
         return;
       }
 

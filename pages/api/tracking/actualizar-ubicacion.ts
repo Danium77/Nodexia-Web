@@ -26,13 +26,22 @@ interface TrackingData {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('🚀 [Tracking API] Inicio de request');
+  
   // Solo permitir POST
   if (req.method !== 'POST') {
+    console.log('❌ [Tracking API] Método no permitido:', req.method);
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
     const data: TrackingData = req.body;
+    console.log('📦 [Tracking API] Data recibida:', {
+      chofer_id: data.chofer_id,
+      latitud: data.latitud,
+      longitud: data.longitud,
+      timestamp: data.timestamp
+    });
 
     // Validaciones básicas
     if (!data.chofer_id) {
@@ -59,17 +68,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Validar que el chofer exista
     const { data: chofer, error: choferError } = await supabaseAdmin
       .from('choferes')
-      .select('id, activo')
+      .select('id')
       .eq('id', data.chofer_id)
       .single();
 
     if (choferError || !chofer) {
+      console.error('❌ Chofer no encontrado:', data.chofer_id, choferError);
       return res.status(404).json({ error: 'Chofer no encontrado' });
     }
 
-    if (!chofer.activo) {
-      return res.status(403).json({ error: 'Chofer inactivo' });
-    }
+    console.log('✅ Chofer validado:', chofer.id);
 
     // Validaciones opcionales
     if (data.velocidad !== undefined) {

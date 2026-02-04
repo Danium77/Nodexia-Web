@@ -287,12 +287,19 @@ const CrearDespacho = () => {
           console.log(`🚛 Viajes CON id_transporte: ${viajesConTransporte} de ${viajesData.length}`);
           
           // 🔥 NUEVO: Contar solo viajes con estado asignado o estados superiores
+          // IMPORTANTE: Incluir TODOS los estados desde transporte_asignado en adelante
           viajesAsignados = viajesData.filter(v => 
             v.estado === 'asignado' || 
             v.estado === 'transporte_asignado' || 
             v.estado === 'camion_asignado' ||
+            v.estado === 'confirmado_chofer' ||  // ✅ INCLUIR estados de flujo chofer
+            v.estado === 'en_transito_origen' || // ✅ Chofer viajando a origen
+            v.estado === 'pausado' ||            // ✅ Viaje pausado por incidencia
+            v.estado === 'en_carga' ||
             v.estado === 'en_transito' ||
-            v.estado === 'entregado'
+            v.estado === 'en_descarga' ||
+            v.estado === 'entregado' ||
+            v.estado === 'completado'
           ).length;
           
           console.log(`🔍 DEBUG - Estados encontrados:`, {
@@ -1113,8 +1120,43 @@ const CrearDespacho = () => {
     try {
       setDeletingDespachos(true);
 
-      // Aquí podrías guardar el motivo en una tabla de auditoría si la tienes
-      // Por ahora solo eliminamos el despacho
+      // 1️⃣ GUARDAR EN TABLA DE AUDITORÍA antes de eliminar
+      const { data: viajesData } = await supabase
+        .from('viajes_despacho')
+        .select('id_chofer, id_camion, id_acoplado, cantidad_reprogramaciones')
+        .eq('despacho_id', selectedDispatchForCancel.id);
+
+      const tieneChofer = viajesData?.some(v => v.id_chofer) || false;
+      const tieneCamion = viajesData?.some(v => v.id_camion) || false;
+      const tieneAcoplado = viajesData?.some(v => v.id_acoplado) || false;
+      const cantidadReprog = viajesData?.[0]?.cantidad_reprogramaciones || 0;
+
+      const { error: auditError } = await supabase
+        .from('cancelaciones_despachos')
+        .insert({
+          despacho_id: selectedDispatchForCancel.id,
+          empresa_id: empresaPlanta?.empresa_id,
+          cancelado_por_user_id: user.id,
+          pedido_id: selectedDispatchForCancel.pedido_id,
+          origen_nombre: selectedDispatchForCancel.origen,
+          destino_nombre: selectedDispatchForCancel.destino,
+          scheduled_date: selectedDispatchForCancel.fecha_despacho,
+          scheduled_time: selectedDispatchForCancel.hora_despacho,
+          estado_al_cancelar: selectedDispatchForCancel.estado,
+          motivo_cancelacion: motivoCancelacion.trim(),
+          tenia_chofer_asignado: tieneChofer,
+          tenia_camion_asignado: tieneCamion,
+          tenia_acoplado_asignado: tieneAcoplado,
+          fue_reprogramado_previamente: cantidadReprog > 0,
+          cantidad_reprogramaciones_previas: cantidadReprog
+        });
+
+      if (auditError) {
+        console.error('⚠️ Error guardando auditoría:', auditError);
+        // Continuar con la cancelación aunque falle la auditoría
+      }
+
+      // 2️⃣ ELIMINAR EL DESPACHO
       const { error } = await supabase
         .from('despachos')
         .delete()
@@ -1122,7 +1164,7 @@ const CrearDespacho = () => {
 
       if (error) throw error;
 
-      setSuccessMsg(`Despacho ${selectedDispatchForCancel.pedido_id} cancelado exitosamente. Motivo: ${motivoCancelacion}`);
+      setSuccessMsg(`✅ Despacho ${selectedDispatchForCancel.pedido_id} cancelado. Motivo registrado: "${motivoCancelacion}"`);
       
       // Cerrar modal
       setIsCancelarModalOpen(false);
@@ -2520,6 +2562,8 @@ const CrearDespacho = () => {
                                             <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
                                               viaje.estado === 'cancelado_por_transporte' || viaje.estado === 'cancelado' 
                                                 ? 'bg-red-900 text-red-200'
+                                                : viaje.estado === 'pausado'
+                                                ? 'bg-orange-900 text-orange-200'
                                                 : viaje.estado === 'camion_asignado'
                                                 ? 'bg-yellow-900 text-yellow-200'
                                                 : viaje.estado === 'confirmado_chofer'
@@ -2536,6 +2580,8 @@ const CrearDespacho = () => {
                                                 ? '⚠️ Cancelado'
                                                 : viaje.estado === 'cancelado'
                                                 ? '❌ Cancelado'
+                                                : viaje.estado === 'pausado'
+                                                ? '⏸️ PAUSADO'
                                                 : viaje.estado === 'camion_asignado'
                                                 ? '🚛 Camión Asignado'
                                                 : viaje.estado === 'confirmado_chofer'

@@ -157,7 +157,7 @@ export default function ChoferesContent() {
         dni: usuarioEncontrado.dni || dniBusqueda,
         telefono: usuarioEncontrado.telefono || '',
         foto_url: usuarioEncontrado.foto_url || null,
-        id_transporte: currentUserId,
+        empresa_id: empresaId,  // ✅ Usar empresa_id, no id_transporte
         usuario_alta: currentUserId,
         usuario_id: usuarioEncontrado.id // ✅ Vinculación con usuario de Nodexia
       };

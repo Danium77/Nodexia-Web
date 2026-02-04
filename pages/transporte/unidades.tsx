@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import EditarUnidadModal from '../../components/Transporte/EditarUnidadModal';
 import {
   TruckIcon,
   PlusIcon,
@@ -43,6 +44,10 @@ const UnidadesOperativas = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todas' | 'disponibles' | 'descanso' | 'inactivas'>('todas');
+  
+  // Estados del modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUnidad, setSelectedUnidad] = useState<UnidadOperativa | null>(null);
 
   useEffect(() => {
     if (user && userEmpresas) {
@@ -95,6 +100,21 @@ const UnidadesOperativas = () => {
       console.error('Error al actualizar unidad:', err);
       alert('Error al actualizar unidad: ' + err.message);
     }
+  };
+
+  const handleEditarUnidad = (unidad: UnidadOperativa) => {
+    setSelectedUnidad(unidad);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false);
+    setSelectedUnidad(null);
+  };
+
+  const handleModalSuccess = () => {
+    loadUnidades();
+    handleCloseModal();
   };
 
   const getEstadoBadge = (unidad: UnidadOperativa) => {
@@ -331,7 +351,7 @@ const UnidadesOperativas = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => alert('Editar: ' + unidad.nombre)}
+                              onClick={() => handleEditarUnidad(unidad)}
                               className="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg hover:bg-indigo-600/30 transition-colors"
                               title="Editar"
                             >
@@ -378,6 +398,16 @@ const UnidadesOperativas = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Edición */}
+      {selectedUnidad && (
+        <EditarUnidadModal
+          isOpen={isEditModalOpen}
+          onClose={handleCloseModal}
+          unidad={selectedUnidad}
+          onSuccess={handleModalSuccess}
+        />
+      )}
     </AdminLayout>
   );
 };

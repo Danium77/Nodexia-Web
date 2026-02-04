@@ -8,6 +8,7 @@ import {
   CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
+import CrearUnidadModal from './CrearUnidadModal';
 
 interface UnidadOperativa {
   id: string;
@@ -35,6 +36,8 @@ export default function UnidadesContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todas' | 'disponibles' | 'descanso' | 'inactivas'>('todas');
+  const [showCrearModal, setShowCrearModal] = useState(false);
+  const [empresaId, setEmpresaId] = useState('');
 
   useEffect(() => {
     if (user && userEmpresas) {
@@ -55,6 +58,8 @@ export default function UnidadesContent() {
         setError('No tienes una empresa de transporte asignada');
         return;
       }
+
+      setEmpresaId(empresaTransporte.empresa_id);
 
       const { data, error: err } = await supabase
         .from('vista_disponibilidad_unidades')
@@ -174,25 +179,45 @@ export default function UnidadesContent() {
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="mb-6 flex gap-2 flex-wrap">
-        {(['todas', 'disponibles', 'descanso', 'inactivas'] as const).map(estado => (
-          <button
-            key={estado}
-            onClick={() => setFiltroEstado(estado)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filtroEstado === estado
-                ? 'bg-indigo-600 text-white shadow-lg'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            {estado === 'todas' && `Todas (${totalUnidades})`}
-            {estado === 'disponibles' && `Disponibles (${disponibles})`}
-            {estado === 'descanso' && `En Descanso (${enDescanso})`}
-            {estado === 'inactivas' && `Inactivas (${inactivas})`}
-          </button>
-        ))}
+      {/* Filtros y Botón Crear */}
+      <div className="mb-6 flex justify-between items-center gap-4 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          {(['todas', 'disponibles', 'descanso', 'inactivas'] as const).map(estado => (
+            <button
+              key={estado}
+              onClick={() => setFiltroEstado(estado)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filtroEstado === estado
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              {estado === 'todas' && `Todas (${totalUnidades})`}
+              {estado === 'disponibles' && `Disponibles (${disponibles})`}
+              {estado === 'descanso' && `En Descanso (${enDescanso})`}
+              {estado === 'inactivas' && `Inactivas (${inactivas})`}
+            </button>
+          ))}
+        </div>
+        
+        <button
+          onClick={() => setShowCrearModal(true)}
+          className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-medium hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Nueva Unidad
+        </button>
       </div>
+
+      {/* Modal Crear Unidad */}
+      <CrearUnidadModal
+        isOpen={showCrearModal}
+        onClose={() => setShowCrearModal(false)}
+        onSuccess={loadUnidades}
+        empresaId={empresaId}
+      />
 
       {/* Tabla */}
       {error && (

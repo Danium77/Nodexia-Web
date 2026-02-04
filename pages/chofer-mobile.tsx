@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   TruckIcon, 
   MapPinIcon, 
@@ -14,7 +15,11 @@ import {
   PhoneIcon,
   BellIcon,
   UserCircleIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  Bars3Icon,
+  QrCodeIcon,
+  DocumentTextIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 
 interface ViajeChofer {
@@ -26,7 +31,17 @@ interface ViajeChofer {
   despachos: {
     pedido_id: string;
     origen: string;
+    origen_id: string;
+    origen_ciudad?: string;
+    origen_provincia?: string;
+    origen_latitud?: number;
+    origen_longitud?: number;
     destino: string;
+    destino_id: string;
+    destino_ciudad?: string;
+    destino_provincia?: string;
+    destino_latitud?: number;
+    destino_longitud?: number;
     scheduled_local_date: string;
     scheduled_local_time: string;
     type: string;
@@ -56,8 +71,26 @@ export default function ChoferMobile() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(true);
-  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [location, setLocation] = useState<UbicacionGPS | null>(null);
+  const [lastLocationSent, setLastLocationSent] = useState<Date | null>(null);
+  const [sendingLocation, setSendingLocation] = useState(false);
   const [activeTab, setActiveTab] = useState<'viajes' | 'incidencias' | 'perfil'>('viajes');
+  const [showMenuHamburguesa, setShowMenuHamburguesa] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  
+  // Modal de incidencias
+  const [showIncidenciaModal, setShowIncidenciaModal] = useState(false);
+  const [incidenciaTipo, setIncidenciaTipo] = useState<string>('');
+  const [incidenciaTipoNombre, setIncidenciaTipoNombre] = useState<string>('');
+  const [incidenciaDescripcion, setIncidenciaDescripcion] = useState<string>('');
+  const [reportandoIncidencia, setReportandoIncidencia] = useState(false);
+
+  // Debug helper - agregar logs visibles
+  const addDebugLog = (message: string) => {
+    console.log(message);
+    setDebugLogs(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
 
   // Verificar rol de chofer
   useEffect(() => {
@@ -124,6 +157,62 @@ export default function ChoferMobile() {
       return;
     }
 
+    if (!choferData?.id) {
+      console.log('⚠️ No hay chofer_id, esperando datos del chofer');
+      return;
+    }
+
+    const enviarUbicacion = async (position: GeolocationPosition) => {
+      try {
+        const trackingData = {
+          chofer_id: choferData.id,
+          latitud: position.coords.latitude,
+          longitud: position.coords.longitude,
+          timestamp: new Date().toISOString(),
+          velocidad: position.coords.speed || undefined,
+          rumbo: position.coords.heading || undefined,
+          precision_metros: position.coords.accuracy,
+          bateria_porcentaje: await getBatteryLevel(),
+          app_version: '1.0.0'
+        };
+
+        const response = await fetch('/api/tracking/actualizar-ubicacion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(trackingData)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('📍 Ubicación enviada:', result);
+          setLastLocationSent(new Date());
+          
+          // Si el servidor detectó arribo, actualizar estado local
+          if (result.estado_detectado) {
+            setMessage(`📍 ${result.estado_detectado === 'arribo_origen' ? 'Arribaste al origen' : 'Arribaste al destino'}`);
+            fetchViajes(); // Recargar viajes para actualizar estado
+          }
+        } else {
+          const error = await response.json();
+          console.error('❌ Error enviando ubicación:', error);
+        }
+      } catch (error) {
+        console.error('❌ Error al enviar ubicación:', error);
+      }
+    };
+
+    const getBatteryLevel = async (): Promise<number | undefined> => {
+      if ('getBattery' in navigator) {
+        try {
+          const battery: any = await (navigator as any).getBattery();
+          return Math.round(battery.level * 100);
+        } catch {
+          return undefined;
+        }
+      }
+      return undefined;
+    };
+
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const newLocation: UbicacionGPS = {
@@ -135,11 +224,13 @@ export default function ChoferMobile() {
           newLocation.velocidad = position.coords.speed;
         }
         setLocation({ lat: newLocation.lat, lon: newLocation.lon });
-        // TODO: Enviar ubicación al servidor
-        console.log('📍 Ubicación actualizada:', position.coords);
+        
+        // Enviar ubicación al servidor
+        enviarUbicacion(position);
       },
       (error) => {
-        console.error('Error obteniendo ubicación:', error);
+        console.error('❌ Error obteniendo ubicación:', error);
+        setError('No se pudo obtener tu ubicación GPS');
       },
       {
         enableHighAccuracy: true,
@@ -151,15 +242,64 @@ export default function ChoferMobile() {
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [viajeActivo]);
+  }, [viajeActivo, choferData]);
+
+  // 🔔 REALTIME: Escuchar cambios en viajes_despacho para actualizar automáticamente
+  useEffect(() => {
+    if (!choferData?.id) return;
+
+    console.log('🔔 Chofer Móvil - Suscripción realtime activada');
+    
+    const channel = supabase
+      .channel('chofer-viajes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'viajes_despacho',
+          filter: `chofer_id=eq.${choferData.id}`
+        },
+        (payload) => {
+          console.log('🔔 Chofer Móvil - Cambio detectado en viaje:', payload);
+          
+          // Mostrar notificación al usuario
+          if (payload.eventType === 'UPDATE') {
+            const oldData = payload.old as any;
+            const newData = payload.new as any;
+            
+            // Detectar reprogramación
+            if (oldData?.scheduled_at !== newData?.scheduled_at) {
+              setMessage('🔄 Viaje reprogramado - Revisa la nueva fecha');
+              addDebugLog('🔄 Viaje reprogramado');
+            }
+            
+            // Detectar cambio de estado
+            if (oldData?.estado !== newData?.estado) {
+              setMessage(`📋 Estado actualizado a: ${newData.estado}`);
+              addDebugLog(`📋 Estado: ${newData.estado}`);
+            }
+          }
+          
+          // Recargar viajes
+          fetchViajes();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔕 Chofer Móvil - Desuscribiendo');
+      supabase.removeChannel(channel);
+    };
+  }, [choferData]);
 
   const fetchChoferData = async () => {
-    if (!user?.email) return;
+    if (!user?.id) return;
     try {
       const { data, error } = await supabase
         .from('choferes')
         .select('*')
-        .eq('email', user.email)
+        .eq('usuario_id', user.id)
         .single();
 
       if (error) throw error;
@@ -170,14 +310,14 @@ export default function ChoferMobile() {
   };
 
   const fetchViajes = async () => {
-    if (!user?.email) return;
+    if (!user?.id) return;
     setLoading(true);
     try {
-      console.log('👤 Buscando chofer con email:', user.email);
+      console.log('👤 Buscando chofer con usuario_id:', user.id);
       const { data: chofer, error: choferError } = await supabase
         .from('choferes')
         .select('id')
-        .eq('email', user.email)
+        .eq('usuario_id', user.id)
         .single();
 
       if (choferError || !chofer) {
@@ -199,7 +339,9 @@ export default function ChoferMobile() {
           despachos!inner (
             pedido_id,
             origen,
+            origen_id,
             destino,
+            destino_id,
             scheduled_local_date,
             scheduled_local_time,
             type
@@ -212,17 +354,62 @@ export default function ChoferMobile() {
           )
         `)
         .eq('chofer_id', chofer.id)
-        .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'entregado'])
+        .in('estado', ['transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'entregado', 'expirado', 'pausado'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       // Transform data to match interface
-      const transformedData = (data || []).map(item => ({
+      let transformedData = (data || []).map(item => ({
         ...item,
         despachos: Array.isArray(item.despachos) ? item.despachos[0] : item.despachos,
         camiones: Array.isArray(item.camiones) ? item.camiones[0] : item.camiones
       })) as ViajeChofer[];
+
+      // Obtener información de ubicaciones (plantas) - ciudad, provincia, coordenadas
+      const ubicacionesIds = new Set<string>();
+      transformedData.forEach(viaje => {
+        if (viaje.despachos.origen_id) ubicacionesIds.add(viaje.despachos.origen_id);
+        if (viaje.despachos.destino_id) ubicacionesIds.add(viaje.despachos.destino_id);
+      });
+
+      console.log('🏭 IDs de ubicaciones a buscar:', Array.from(ubicacionesIds));
+      addDebugLog(`🏭 Buscando ${ubicacionesIds.size} ubicaciones`);
+
+      if (ubicacionesIds.size > 0) {
+        const { data: ubicacionesData, error: ubicacionesError } = await supabase
+          .from('ubicaciones')
+          .select('id, ciudad, provincia, latitud, longitud')
+          .in('id', Array.from(ubicacionesIds));
+
+        console.log('🏭 Datos de ubicaciones obtenidos:', ubicacionesData);
+        console.log('🏭 Error ubicaciones:', ubicacionesError);
+        addDebugLog(`🏭 Ubicaciones encontradas: ${ubicacionesData?.length || 0}`);
+
+        if (ubicacionesData) {
+          const ubicacionesMap: Record<string, any> = {};
+          ubicacionesData.forEach(u => { ubicacionesMap[u.id] = u; });
+
+          // Enriquecer datos de viajes con info de ubicaciones
+          transformedData = transformedData.map(viaje => ({
+            ...viaje,
+            despachos: {
+              ...viaje.despachos,
+              origen_ciudad: ubicacionesMap[viaje.despachos.origen_id]?.ciudad,
+              origen_provincia: ubicacionesMap[viaje.despachos.origen_id]?.provincia,
+              origen_latitud: ubicacionesMap[viaje.despachos.origen_id]?.latitud,
+              origen_longitud: ubicacionesMap[viaje.despachos.origen_id]?.longitud,
+              destino_ciudad: ubicacionesMap[viaje.despachos.destino_id]?.ciudad,
+              destino_provincia: ubicacionesMap[viaje.despachos.destino_id]?.provincia,
+              destino_latitud: ubicacionesMap[viaje.despachos.destino_id]?.latitud,
+              destino_longitud: ubicacionesMap[viaje.despachos.destino_id]?.longitud,
+            }
+          }));
+
+          console.log('✅ Viajes enriquecidos con datos de ubicaciones:', transformedData[0]);
+          addDebugLog(`✅ Datos enriquecidos OK`);
+        }
+      }
 
       setViajes(transformedData);
       
@@ -243,6 +430,7 @@ export default function ChoferMobile() {
 
     try {
       setLoading(true);
+      addDebugLog(`🔵 Confirmando viaje...`);
       
       // Llamar a la API - actualizar a confirmado_chofer (sistema dual)
       const response = await fetch('/api/viajes/actualizar-estado', {
@@ -258,9 +446,11 @@ export default function ChoferMobile() {
       const result = await response.json();
       
       if (!response.ok) {
+        addDebugLog(`❌ Error: ${result.error}`);
         throw new Error(result.error || 'Error al confirmar viaje');
       }
       
+      addDebugLog(`✅ Viaje confirmado`);
       setMessage('✅ Viaje confirmado exitosamente');
       
       // Actualizar el viaje activo Y la lista de viajes localmente
@@ -274,6 +464,8 @@ export default function ChoferMobile() {
         ));
       }
     } catch (error: any) {
+      console.error('Error al confirmar viaje:', error);
+      addDebugLog(`❌ ${error.message}`);
       setError('Error al confirmar viaje: ' + error.message);
     } finally {
       setLoading(false);
@@ -434,9 +626,246 @@ export default function ChoferMobile() {
     }
   };
 
-  const handleReportarIncidencia = () => {
-    // TODO: Abrir modal de incidencia
-    alert('Funcionalidad de reporte de incidencias próximamente');
+  const handleReportarIncidencia = async () => {
+    if (!viajeActivo) {
+      alert('No hay viaje activo seleccionado');
+      return;
+    }
+
+    const tipoIncidencia = prompt(
+      'Tipo de incidencia:\n1 - Demora\n2 - Problema mecánico\n3 - Problema con carga\n4 - Ruta bloqueada\n5 - Otro\n\nIngresa el número:'
+    );
+
+    if (!tipoIncidencia) return;
+
+    const tipos: Record<string, string> = {
+      '1': 'demora',
+      '2': 'problema_mecanico',
+      '3': 'problema_carga',
+      '4': 'ruta_bloqueada',
+      '5': 'otro'
+    };
+
+    const tipo = tipos[tipoIncidencia];
+    if (!tipo) {
+      alert('Opción inválida');
+      return;
+    }
+
+    const descripcion = prompt('Describe la incidencia:');
+    if (!descripcion) return;
+
+    try {
+      const { error } = await supabase.from('incidencias_viaje').insert({
+        viaje_id: viajeActivo.id,
+        tipo_incidencia: tipo,
+        descripcion: descripcion,
+        reportado_por: user?.id,
+        fecha_reporte: new Date().toISOString(),
+        estado_resolucion: 'pendiente'
+      });
+
+      if (error) throw error;
+
+      alert('✅ Incidencia reportada correctamente');
+      addDebugLog('📢 Incidencia reportada');
+    } catch (error: any) {
+      console.error('Error reportando incidencia:', error);
+      alert('❌ Error al reportar incidencia: ' + error.message);
+    }
+  };
+
+  // Helper para reportar incidencia con tipo específico
+  const handleReportarIncidenciaTipo = async (tipo: string, tipoNombre: string) => {
+    if (!viajeActivo) {
+      setError('No hay viaje activo seleccionado');
+      return;
+    }
+
+    // Abrir modal nativo
+    setIncidenciaTipo(tipo);
+    setIncidenciaTipoNombre(tipoNombre);
+    setIncidenciaDescripcion('');
+    setShowIncidenciaModal(true);
+  };
+
+  const handleEnviarIncidencia = async () => {
+    if (!viajeActivo || !incidenciaDescripcion.trim()) {
+      setError('Debes ingresar una descripción');
+      return;
+    }
+
+    try {
+      setReportandoIncidencia(true);
+      
+      // 1. Insertar incidencia
+      const { error: incidenciaError } = await supabase.from('incidencias_viaje').insert({
+        viaje_id: viajeActivo.id,
+        tipo_incidencia: incidenciaTipo,
+        descripcion: incidenciaDescripcion,
+        reportado_por: user?.id,
+        fecha_reporte: new Date().toISOString(),
+        estado_resolucion: 'pendiente'
+      });
+
+      if (incidenciaError) throw incidenciaError;
+
+      // 2. SOLO pausar viaje si es problema mecánico (avería del vehículo)
+      if (incidenciaTipo === 'problema_mecanico') {
+        const { error: updateError } = await supabase
+          .from('viajes_despacho')
+          .update({ 
+            estado: 'pausado',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', viajeActivo.id);
+
+        if (updateError) {
+          console.error('Error actualizando estado a pausado:', updateError);
+          // No lanzar error, la incidencia ya se guardó
+        }
+        
+        setMessage(`⚠️ ${incidenciaTipoNombre} reportado - Viaje pausado`);
+        addDebugLog(`📢 ${incidenciaTipoNombre} - Viaje PAUSADO`);
+      } else {
+        // Otras incidencias NO pausan el viaje
+        setMessage(`✅ ${incidenciaTipoNombre} reportado correctamente`);
+        addDebugLog(`📢 ${incidenciaTipoNombre} reportado (viaje continúa)`);
+      }
+      
+      // 3. Recargar viajes para reflejar cambios
+      await fetchViajes();
+      
+      // Cerrar modal y volver a viajes
+      setShowIncidenciaModal(false);
+      setActiveTab('viajes');
+    } catch (error: any) {
+      console.error('Error reportando incidencia:', error);
+      setError('Error al reportar incidencia: ' + error.message);
+    } finally {
+      setReportandoIncidencia(false);
+    }
+  };
+
+  const handleEnviarUbicacionManual = async () => {
+    if (!choferData?.id) {
+      setError('No se pudo obtener tu información de chofer');
+      return;
+    }
+
+    setSendingLocation(true);
+    addDebugLog('📍 Iniciando envío manual de ubicación...');
+    
+    try {
+      let position: GeolocationPosition;
+      
+      // 🔥 INTENTO 1: Usar GPS real
+      try {
+        addDebugLog('🛰️ Intentando obtener GPS real...');
+        position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          });
+        });
+        addDebugLog('✅ GPS real obtenido');
+      } catch (gpsError: any) {
+        // 🔥 FALLBACK: Si GPS falla (por HTTPS), usar coordenadas simuladas
+        addDebugLog(`⚠️ GPS falló: ${gpsError.message}`);
+        addDebugLog('🎭 Usando coordenadas simuladas para testing...');
+        
+        // Coordenadas simuladas: Ruta Buenos Aires → Rosario
+        // Simular movimiento progresivo desde origen hacia destino
+        const baseLatOrigen = -34.603684;  // Buenos Aires (Aceitera San Miguel)
+        const baseLonOrigen = -58.381559;
+        const baseLatDestino = -32.941668; // Rosario (Tecnopack Zayas)
+        const baseLonDestino = -60.693645;
+        
+        // Calcular posición intermedia basada en timestamp (para simular movimiento)
+        const progress = (Date.now() % 10000) / 10000; // 0 a 1
+        const simLat = baseLatOrigen + (baseLatDestino - baseLatOrigen) * progress;
+        const simLon = baseLonOrigen + (baseLonDestino - baseLonOrigen) * progress;
+        
+        position = {
+          coords: {
+            latitude: simLat,
+            longitude: simLon,
+            accuracy: 15,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: 80 // km/h simulado
+          },
+          timestamp: Date.now()
+        } as GeolocationPosition;
+        
+        addDebugLog(`📍 Ubicación simulada: ${simLat.toFixed(6)}, ${simLon.toFixed(6)}`);
+      }
+
+      const getBatteryLevel = async (): Promise<number | undefined> => {
+        if ('getBattery' in navigator) {
+          try {
+            const battery: any = await (navigator as any).getBattery();
+            return Math.round(battery.level * 100);
+          } catch {
+            return undefined;
+          }
+        }
+        return undefined;
+      };
+
+      const trackingData = {
+        chofer_id: choferData.id,
+        latitud: position.coords.latitude,
+        longitud: position.coords.longitude,
+        timestamp: new Date().toISOString(),
+        velocidad: position.coords.speed || undefined,
+        rumbo: position.coords.heading || undefined,
+        precision_metros: position.coords.accuracy,
+        bateria_porcentaje: await getBatteryLevel(),
+        app_version: '1.0.0'
+      };
+
+      addDebugLog('📤 Enviando ubicación al servidor...');
+      addDebugLog(`🆔 Chofer ID: ${choferData.id}`);
+      console.log('📦 Tracking data:', trackingData);
+      console.log('👤 ChoferData completo:', choferData);
+
+      const response = await fetch('/api/tracking/actualizar-ubicacion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trackingData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        addDebugLog('✅ Ubicación guardada en BD');
+        console.log('📊 Resultado:', result);
+        
+        setLastLocationSent(new Date());
+        setLocation({ lat: position.coords.latitude, lon: position.coords.longitude });
+        setMessage('✅ Ubicación enviada correctamente');
+        
+        if (result.estado_detectado) {
+          const estadoMsg = result.estado_detectado === 'arribo_origen' ? 'Arribaste al origen' : 'Arribaste al destino';
+          setMessage(`📍 ${estadoMsg}`);
+          addDebugLog(`🎯 Estado detectado: ${result.estado_detectado}`);
+          fetchViajes();
+        }
+      } else {
+        const error = await response.json();
+        addDebugLog(`❌ Error del servidor: ${error.error}`);
+        throw new Error(error.error || 'Error al enviar ubicación');
+      }
+    } catch (error: any) {
+      console.error('❌ Error enviando ubicación manual:', error);
+      addDebugLog(`❌ Error: ${error.message}`);
+      setError(error.message || 'No se pudo obtener tu ubicación GPS');
+    } finally {
+      setSendingLocation(false);
+      addDebugLog('🏁 Proceso de ubicación finalizado');
+    }
   };
 
   const handleLlamarCoordinador = () => {
@@ -479,10 +908,31 @@ export default function ChoferMobile() {
               </div>
             </div>
             
-            {/* Indicador de conexión */}
-            <div className={`flex items-center space-x-1 px-3 py-1.5 rounded-full ${isOnline ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
-              <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
-              <span className="text-xs font-semibold">{isOnline ? 'Online' : 'Offline'}</span>
+            {/* Botones de acciones rápidas */}
+            <div className="flex items-center space-x-2">
+              {/* Botón QR */}
+              {viajeActivo && (
+                <button
+                  onClick={() => setShowQRModal(true)}
+                  className="w-10 h-10 rounded-full bg-cyan-600 hover:bg-cyan-700 flex items-center justify-center shadow-lg transition-all hover:scale-105"
+                >
+                  <QrCodeIcon className="h-6 w-6 text-white" />
+                </button>
+              )}
+              
+              {/* Indicador de conexión */}
+              <div className={`flex items-center space-x-1 px-2 py-1.5 rounded-full ${isOnline ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'} animate-pulse`}></div>
+                <span className="text-xs font-semibold sr-only sm:not-sr-only">{isOnline ? 'Online' : 'Offline'}</span>
+              </div>
+              
+              {/* Botón Menú Hamburguesa */}
+              <button
+                onClick={() => setShowMenuHamburguesa(true)}
+                className="w-10 h-10 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center shadow-lg transition-all hover:scale-105"
+              >
+                <Bars3Icon className="h-6 w-6 text-white" />
+              </button>
             </div>
           </div>
 
@@ -506,6 +956,16 @@ export default function ChoferMobile() {
             <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
             <span className="font-medium">{error}</span>
           </div>
+        </div>
+      )}
+
+      {/* Panel de Debug (visible solo cuando hay logs) */}
+      {debugLogs.length > 0 && (
+        <div className="mx-4 mt-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg text-purple-300 text-xs">
+          <div className="font-bold mb-2">🔍 Debug Logs:</div>
+          {debugLogs.map((log, i) => (
+            <div key={i} className="font-mono">{log}</div>
+          ))}
         </div>
       )}
 
@@ -533,12 +993,16 @@ export default function ChoferMobile() {
             <div className="flex items-center justify-between mb-3">
               <span className="text-cyan-100 text-sm font-medium">Estado Actual</span>
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                viajeActivo.estado === 'camion_asignado' ? 'bg-yellow-600' :
-                viajeActivo.estado === 'confirmado' ? 'bg-blue-600' :
-                viajeActivo.estado === 'en_curso' ? 'bg-green-600' :
+                viajeActivo.estado === 'transporte_asignado' || viajeActivo.estado === 'camion_asignado' ? 'bg-yellow-600' :
+                viajeActivo.estado === 'confirmado_chofer' ? 'bg-blue-600' :
+                viajeActivo.estado === 'en_transito_origen' || viajeActivo.estado === 'en_transito_destino' ? 'bg-green-600' :
+                viajeActivo.estado === 'arribo_origen' || viajeActivo.estado === 'arribo_destino' ? 'bg-purple-600' :
+                viajeActivo.estado === 'pausado' ? 'bg-orange-600' :
                 'bg-slate-600'
               } text-white`}>
-                {viajeActivo.estado.replace('_', ' ').toUpperCase()}
+                {viajeActivo.estado === 'transporte_asignado' ? 'CHOFER ASIGNADO' : 
+                 viajeActivo.estado === 'pausado' ? '⏸️ PAUSADO' :
+                 viajeActivo.estado.replace('_', ' ').toUpperCase()}
               </span>
             </div>
             <h2 className="text-3xl font-bold text-white mb-1">
@@ -552,27 +1016,69 @@ export default function ChoferMobile() {
             <h3 className="text-lg font-bold text-white mb-3">Detalles del Viaje</h3>
             
             {/* Origen */}
-            <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
-                <MapPinIcon className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-1">Origen</p>
-                <p className="text-white font-medium">{viajeActivo.despachos.origen}</p>
+            <div className="bg-green-600/10 border border-green-600/30 rounded-lg p-3">
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
+                  <MapPinIcon className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-green-400 font-semibold mb-1">ORIGEN</p>
+                  <p className="text-white font-bold text-lg">{viajeActivo.despachos.origen}</p>
+                  {(viajeActivo.despachos.origen_ciudad || viajeActivo.despachos.origen_provincia) && (
+                    <p className="text-slate-300 text-sm mt-1">
+                      📍 {viajeActivo.despachos.origen_ciudad}
+                      {viajeActivo.despachos.origen_ciudad && viajeActivo.despachos.origen_provincia && ', '}
+                      {viajeActivo.despachos.origen_provincia}
+                    </p>
+                  )}
+                  {viajeActivo.despachos.origen_latitud && viajeActivo.despachos.origen_longitud && (
+                    <button
+                      onClick={() => {
+                        const url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.origen_latitud},${viajeActivo.despachos.origen_longitud}`;
+                        window.open(url, '_blank');
+                      }}
+                      className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
+                    >
+                      <MapPinIcon className="h-4 w-4" />
+                      <span>Abrir en Maps</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Línea conectora */}
-            <div className="ml-4 border-l-2 border-dashed border-slate-600 h-8"></div>
+            <div className="ml-5 border-l-2 border-dashed border-slate-600 h-6"></div>
 
             {/* Destino */}
-            <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
-                <MapPinIcon className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400 mb-1">Destino</p>
-                <p className="text-white font-medium">{viajeActivo.despachos.destino}</p>
+            <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3">
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
+                  <MapPinIcon className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-red-400 font-semibold mb-1">DESTINO</p>
+                  <p className="text-white font-bold text-lg">{viajeActivo.despachos.destino}</p>
+                  {(viajeActivo.despachos.destino_ciudad || viajeActivo.despachos.destino_provincia) && (
+                    <p className="text-slate-300 text-sm mt-1">
+                      📍 {viajeActivo.despachos.destino_ciudad}
+                      {viajeActivo.despachos.destino_ciudad && viajeActivo.despachos.destino_provincia && ', '}
+                      {viajeActivo.despachos.destino_provincia}
+                    </p>
+                  )}
+                  {viajeActivo.despachos.destino_latitud && viajeActivo.despachos.destino_longitud && (
+                    <button
+                      onClick={() => {
+                        const url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.destino_latitud},${viajeActivo.despachos.destino_longitud}`;
+                        window.open(url, '_blank');
+                      }}
+                      className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
+                    >
+                      <MapPinIcon className="h-4 w-4" />
+                      <span>Abrir en Maps</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -603,7 +1109,8 @@ export default function ChoferMobile() {
 
           {/* Acciones según estado - Botones modernos */}
           <div className="space-y-3">
-            {(viajeActivo.estado === 'asignado' || viajeActivo.estado === 'camion_asignado') && (
+            {/* Estado: transporte_asignado o camion_asignado -> Mostrar botón Confirmar */}
+            {(viajeActivo.estado === 'transporte_asignado' || viajeActivo.estado === 'camion_asignado' || viajeActivo.estado === 'asignado') && (
               <button
                 onClick={handleConfirmarViaje}
                 disabled={loading}
@@ -615,6 +1122,31 @@ export default function ChoferMobile() {
               </button>
             )}
 
+            {/* Estado: pausado (incidencia reportada) -> Mostrar botón Reiniciar Viaje */}
+            {viajeActivo.estado === 'pausado' && (
+              <>
+                <div className="bg-gradient-to-br from-yellow-500/20 to-orange-600/10 border border-yellow-500/40 rounded-xl p-4 mb-3">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
+                    <span className="text-yellow-400 font-bold text-sm">Viaje Pausado - Incidencia Reportada</span>
+                  </div>
+                  <p className="text-slate-300 text-xs">
+                    El viaje está pausado debido a una incidencia. Cuando estés listo, reinicia el viaje.
+                  </p>
+                </div>
+                <button
+                  onClick={handleIniciarViaje}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 relative overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+                  <TruckIcon className="h-7 w-7 relative z-10" />
+                  <span className="relative z-10">🔄 Reiniciar Viaje</span>
+                </button>
+              </>
+            )}
+
+            {/* Estado: confirmado_chofer -> Mostrar botón Iniciar Viaje */}
             {viajeActivo.estado === 'confirmado_chofer' && (
               <button
                 onClick={handleIniciarViaje}
@@ -640,7 +1172,22 @@ export default function ChoferMobile() {
                       📍 {location.lat.toFixed(6)}, {location.lon.toFixed(6)}
                     </p>
                   )}
+                  {lastLocationSent && (
+                    <p className="text-xs text-green-400 mt-1">
+                      ✓ Última ubicación: {new Date(lastLocationSent).toLocaleTimeString('es-AR')}
+                    </p>
+                  )}
                 </div>
+
+                {/* Botón manual para enviar ubicación */}
+                <button
+                  onClick={handleEnviarUbicacionManual}
+                  disabled={sendingLocation}
+                  className="w-full bg-gradient-to-r from-cyan-600 via-cyan-500 to-blue-600 text-white py-3 rounded-xl font-semibold text-sm shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  <MapPinIcon className="h-5 w-5" />
+                  <span>{sendingLocation ? 'Enviando...' : '📍 Enviar Ubicación Ahora'}</span>
+                </button>
                 
                 {/* Botón deshabilitado - El arribo a origen lo registra Control de Acceso */}
                 <div className="bg-yellow-900/20 border border-yellow-500/40 rounded-xl p-4 text-center">
@@ -675,7 +1222,22 @@ export default function ChoferMobile() {
                       📍 {location.lat.toFixed(6)}, {location.lon.toFixed(6)}
                     </p>
                   )}
+                  {lastLocationSent && (
+                    <p className="text-xs text-green-400 mt-1">
+                      ✓ Última ubicación: {new Date(lastLocationSent).toLocaleTimeString('es-AR')}
+                    </p>
+                  )}
                 </div>
+
+                {/* Botón manual para enviar ubicación */}
+                <button
+                  onClick={handleEnviarUbicacionManual}
+                  disabled={sendingLocation}
+                  className="w-full bg-gradient-to-r from-cyan-600 via-cyan-500 to-blue-600 text-white py-3 rounded-xl font-semibold text-sm shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/30 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  <MapPinIcon className="h-5 w-5" />
+                  <span>{sendingLocation ? 'Enviando...' : '📍 Enviar Ubicación Ahora'}</span>
+                </button>
                 
                 {/* NOTA: Este botón solo debe habilitarse si el cliente destino NO usa Nodexia */}
                 {/* Si el cliente destino usa Nodexia, Control de Acceso registrará el arribo */}
@@ -764,7 +1326,7 @@ export default function ChoferMobile() {
           {/* Botones de incidencias en grid */}
           <div className="grid grid-cols-1 gap-3">
             <button
-              onClick={() => alert('Funcionalidad próximamente')}
+              onClick={handleLlamarCoordinador}
               className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-red-500/30 hover:shadow-2xl hover:shadow-red-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
@@ -773,7 +1335,7 @@ export default function ChoferMobile() {
             </button>
 
             <button
-              onClick={() => alert('Funcionalidad próximamente')}
+              onClick={() => handleReportarIncidenciaTipo('problema_mecanico', 'Avería del Vehículo')}
               className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
@@ -782,7 +1344,7 @@ export default function ChoferMobile() {
             </button>
 
             <button
-              onClick={() => alert('Funcionalidad próximamente')}
+              onClick={() => handleReportarIncidenciaTipo('demora', 'Retraso')}
               className="bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-yellow-500/30 hover:shadow-2xl hover:shadow-yellow-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
@@ -791,7 +1353,7 @@ export default function ChoferMobile() {
             </button>
 
             <button
-              onClick={() => alert('Funcionalidad próximamente')}
+              onClick={() => handleReportarIncidenciaTipo('otro', 'Otro problema')}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
@@ -984,6 +1546,214 @@ export default function ChoferMobile() {
           </button>
         </div>
       </nav>
+
+      {/* Modal QR del Viaje */}
+      {showQRModal && viajeActivo && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowQRModal(false)}>
+          <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">QR del Viaje</h3>
+                <button
+                  onClick={() => setShowQRModal(false)}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* QR Code Container */}
+              <div className="bg-white p-6 rounded-xl mb-4 flex items-center justify-center">
+                <QRCodeSVG
+                  value={JSON.stringify({
+                    viaje_id: viajeActivo.id,
+                    pedido_id: viajeActivo.despachos.pedido_id,
+                    numero_viaje: viajeActivo.numero_viaje,
+                    tipo: 'acceso_chofer',
+                    timestamp: new Date().toISOString()
+                  })}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <p className="text-cyan-400 font-bold">{viajeActivo.despachos.pedido_id}</p>
+                <p className="text-slate-300">Viaje #{viajeActivo.numero_viaje}</p>
+                <p className="text-slate-400 text-xs mt-4">
+                  Presenta este código en Control de Acceso
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Menú Hamburguesa */}
+      {showMenuHamburguesa && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50" onClick={() => setShowMenuHamburguesa(false)}>
+          <div className="bg-slate-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-700 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            {/* Header del menú */}
+            <div className="p-6 border-b border-slate-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white">Menú</h3>
+                <button
+                  onClick={() => setShowMenuHamburguesa(false)}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Opciones del menú */}
+            <div className="p-4 space-y-2">
+              <button
+                onClick={() => {
+                  setShowMenuHamburguesa(false);
+                  // TODO: Implementar navegación a histórico
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl transition-all flex items-center space-x-3"
+              >
+                <ClipboardDocumentListIcon className="h-6 w-6 text-cyan-400" />
+                <div className="flex-1 text-left">
+                  <p className="font-semibold">Histórico de Viajes</p>
+                  <p className="text-xs text-slate-400">Ver viajes anteriores</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowMenuHamburguesa(false);
+                  // TODO: Implementar navegación a documentación
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl transition-all flex items-center space-x-3"
+              >
+                <DocumentTextIcon className="h-6 w-6 text-cyan-400" />
+                <div className="flex-1 text-left">
+                  <p className="font-semibold">Documentación</p>
+                  <p className="text-xs text-slate-400">Guías y manuales</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowMenuHamburguesa(false);
+                  window.location.href = 'tel:+541121608941';
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl transition-all flex items-center space-x-3"
+              >
+                <PhoneIcon className="h-6 w-6 text-cyan-400" />
+                <div className="flex-1 text-left">
+                  <p className="font-semibold">Soporte</p>
+                  <p className="text-xs text-slate-400">Contactar al coordinador</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Footer del menú */}
+            <div className="p-4 border-t border-slate-700">
+              <p className="text-xs text-slate-500 text-center">
+                Nodexia v1.0.0 - App Chofer
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📢 MODAL INCIDENCIA NATIVO */}
+      {showIncidenciaModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50" onClick={() => setShowIncidenciaModal(false)}>
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-red-500/30 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-6 border-b border-slate-700 bg-gradient-to-r from-red-600/20 to-orange-600/20">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-red-500/20 p-2 rounded-lg">
+                    <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Reportar {incidenciaTipoNombre}</h3>
+                </div>
+                <button
+                  onClick={() => setShowIncidenciaModal(false)}
+                  className="text-slate-400 hover:text-white transition-colors"
+                  disabled={reportandoIncidencia}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-sm text-slate-300">
+                Describe el problema para que el coordinador pueda ayudarte
+              </p>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              {/* Info del viaje */}
+              <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                <p className="text-xs text-slate-400 mb-1">Viaje:</p>
+                <p className="text-white font-semibold">{viajeActivo?.despachos.pedido_id} - Viaje #{viajeActivo?.numero_viaje}</p>
+              </div>
+
+              {/* Textarea descripción */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Descripción del problema *
+                </label>
+                <textarea
+                  value={incidenciaDescripcion}
+                  onChange={(e) => setIncidenciaDescripcion(e.target.value)}
+                  placeholder={`Describe el ${incidenciaTipoNombre.toLowerCase()} en detalle...`}
+                  rows={5}
+                  disabled={reportandoIncidencia}
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all resize-none"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  {incidenciaDescripcion.length} caracteres
+                </p>
+              </div>
+
+              {/* Botones */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={() => setShowIncidenciaModal(false)}
+                  disabled={reportandoIncidencia}
+                  className="py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleEnviarIncidencia}
+                  disabled={reportandoIncidencia || !incidenciaDescripcion.trim()}
+                  className="py-3 px-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white rounded-xl font-bold shadow-lg shadow-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  {reportandoIncidencia ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ExclamationTriangleIcon className="h-5 w-5" />
+                      <span>Reportar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -246,6 +246,17 @@ export function useRedNodexia() {
         usuarioId
       });
 
+      // 0. Verificar si el viaje ya está publicado en la red
+      const { data: viajeExistente, error: checkError } = await supabase
+        .from('viajes_red_nodexia')
+        .select('id, estado_red')
+        .eq('viaje_id', dto.viaje_id)
+        .single();
+
+      if (viajeExistente) {
+        throw new Error(`Este viaje ya está publicado en Red Nodexia (Estado: ${viajeExistente.estado_red})`);
+      }
+
       // 1. Crear el viaje en red
       const viajeRedData = {
         viaje_id: dto.viaje_id,
