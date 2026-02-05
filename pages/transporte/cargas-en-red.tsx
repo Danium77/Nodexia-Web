@@ -441,7 +441,7 @@ export default function CargasEnRed() {
                         <p className="text-sm text-gray-400 mb-1">Tarifa acordada</p>
                         <p className="text-2xl font-bold text-green-400">{formatMonto(viaje.tarifa_ofrecida, viaje.moneda)}</p>
                       </div>
-                      {(!viaje.viaje?.id_camion || !viaje.viaje?.id_chofer) ? (
+                      {(!viaje.viaje?.camion_id || !viaje.viaje?.chofer_id) ? (
                         <button onClick={() => alert('TODO: Modal asignación')} className="px-6 py-3 bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-700 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2">
                           <TruckIcon className="h-5 w-5" />Asignar Recursos
                         </button>

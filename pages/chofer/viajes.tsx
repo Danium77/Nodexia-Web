@@ -94,7 +94,7 @@ const ChoferViajesPage = () => {
 
       console.log('✅ Chofer encontrado:', choferData.id);
 
-      // Buscar viajes desde viajes_despacho usando id_chofer (no chofer_id)
+      // Buscar viajes desde viajes_despacho usando chofer_id
       const { data: viajesData, error } = await supabase
         .from('viajes_despacho')
         .select(`

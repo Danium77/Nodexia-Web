@@ -117,6 +117,10 @@ const ViajesActivos = () => {
 
       if (viajesError) throw viajesError;
 
+      // 🔥 DEBUG: Ver qué trae estado_unidad_viaje
+      console.log('📊 Viajes cargados:', viajesData?.length);
+      console.log('📊 Primer viaje completo:', JSON.stringify(viajesData?.[0], null, 2));
+
       // Cargar despachos por separado para evitar problemas de alias
       const despachoIds = [...new Set(viajesData?.map((v: any) => v.despacho_id).filter(Boolean))];
       console.log('📦 Despacho IDs a cargar:', despachoIds);
@@ -307,6 +311,9 @@ const ViajesActivos = () => {
   };
 
   const handleVerDetalle = (viaje: ViajeActivo) => {
+    console.log('🔍 Viaje seleccionado:', viaje);
+    console.log('🔍 Estado unidad:', viaje.estado_unidad);
+    console.log('🔍 Estado unidad viaje completo:', viaje);
     setViajeDetalle(viaje);
   };
 
@@ -369,57 +376,71 @@ const ViajesActivos = () => {
           </select>
         </div>
 
-        {/* Layout: Lista Izquierda + Mapa Derecho */}
+        {/* Layout: Lista Izquierda + Mapa Centro + Indicadores Derecha */}
         <div className="flex-1 grid grid-cols-12 gap-2 min-h-0">
-          {/* COLUMNA IZQUIERDA: Lista de Viajes (25%) */}
-          <div className="col-span-3 bg-[#1b273b] rounded border border-gray-800 overflow-hidden flex flex-col">
-            <div className="px-1.5 py-0.5 bg-[#0a0e1a]">
-              <h3 className="text-white font-semibold text-[9px]">Activos ({viajesFiltrados.length})</h3>
+          {/* COLUMNA IZQUIERDA: Lista de viajes (20%) */}
+          <div className="col-span-2 bg-[#1b273b] rounded border border-gray-800 overflow-hidden flex flex-col">
+            <div className="p-1.5 border-b border-gray-800">
+              <h3 className="text-white font-semibold text-xs">
+                {selectedEstado === 'todos' ? 'Todos' : getEstadoBadge(selectedEstado).label}
+                <span className="text-cyan-400 ml-1 text-[10px]">({viajesFiltrados.length})</span>
+              </h3>
             </div>
 
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
-                <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-cyan-500 border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400"></div>
               </div>
             ) : error ? (
               <div className="flex-1 flex items-center justify-center p-2">
-                <p className="text-red-400 text-[10px]">{error}</p>
+                <p className="text-red-400 text-[10px] text-center">{error}</p>
               </div>
             ) : viajesFiltrados.length === 0 ? (
               <div className="flex-1 flex items-center justify-center p-2">
-                <p className="text-gray-400 text-[10px]">Sin viajes</p>
+                <p className="text-gray-500 text-[10px] text-center">No hay viajes activos</p>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto">
-                <div className="divide-y divide-gray-800">
+                <div className="p-1 space-y-1">
                   {viajesFiltrados.map((viaje) => (
                     <div
                       key={viaje.id}
-                      onClick={() => handleVerDetalle(viaje)}
-                      className={`px-1 py-0.5 hover:bg-gray-800/50 transition-colors cursor-pointer ${
-                        selectedViajes.has(viaje.id) ? 'bg-cyan-900/20' : ''
+                      className={`p-1.5 rounded border transition-all cursor-pointer ${
+                        selectedViajes.has(viaje.id)
+                          ? 'bg-cyan-900/30 border-cyan-600'
+                          : 'bg-gray-800 border-gray-700 hover:bg-gray-750 hover:border-gray-600'
                       }`}
+                      onClick={() => handleToggleViaje(viaje.id)}
                     >
-                      <div className="flex items-center gap-1">
-                        {/* Checkbox */}
+                      <div className="flex items-center gap-1 mb-0.5">
                         <input
                           type="checkbox"
                           checked={selectedViajes.has(viaje.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleToggleViaje(viaje.id);
-                          }}
-                          className="w-3 h-3 rounded border-gray-600 text-cyan-600 focus:ring-0 focus:ring-offset-0 bg-gray-700 flex-shrink-0"
+                          onChange={() => {}}
+                          className="w-3 h-3 text-cyan-600 rounded focus:ring-0"
                         />
-
-                        {/* Info Ultra-Compacta - una sola línea */}
-                        <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                          <TruckIcon className="h-3 w-3 text-cyan-400 flex-shrink-0" />
-                          <span className="text-white font-semibold text-[10px] truncate">
-                            {viaje.camion_patente}
-                          </span>
-                          <span className="text-gray-600">-</span>
+                        <TruckIcon className="h-3 w-3 text-cyan-400 flex-shrink-0" />
+                        <span className="text-white font-medium text-[10px] truncate flex-1">
+                          {viaje.camion_patente || 'S/P'}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleVerDetalle(viaje);
+                          }}
+                          className="text-gray-400 hover:text-cyan-400 transition-colors"
+                          title="Ver detalle"
+                        >
+                          <EyeIcon className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <div className="ml-4 text-[9px]">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <MapPinIcon className="h-2.5 w-2.5 text-gray-500 flex-shrink-0" />
+                          <span className="text-gray-400 truncate flex-1">{viaje.origen}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <UserIcon className="h-2.5 w-2.5 text-gray-500 flex-shrink-0" />
                           <span className="text-gray-400 text-[9px] truncate flex-1">
                             {viaje.chofer_nombre} {viaje.chofer_apellido}
                           </span>
@@ -432,8 +453,8 @@ const ViajesActivos = () => {
             )}
           </div>
 
-          {/* COLUMNA DERECHA: Mapa (75%) */}
-          <div className="col-span-9 bg-[#1b273b] rounded border border-gray-800 overflow-hidden flex flex-col">
+          {/* COLUMNA CENTRO: Mapa (70%) */}
+          <div className="col-span-8 bg-[#1b273b] rounded border border-gray-800 overflow-hidden flex flex-col">
             <div className="p-1.5 border-b border-gray-800">
               <h3 className="text-white font-semibold text-xs">
                 Seguimiento en Tiempo Real
@@ -478,12 +499,112 @@ const ViajesActivos = () => {
                     autoRefresh={true}
                     refreshInterval={30000}
                     showHistorico={true}
-                    showEstadisticas={true}
+                    showEstadisticas={false}
                     onUbicacionesActualizadas={handleActualizarUbicaciones}
                     className="h-full"
                   />
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* COLUMNA DERECHA: Indicadores de Estado (10%) */}
+          <div className="col-span-2 bg-[#1b273b] rounded border border-gray-800 overflow-hidden flex flex-col">
+            <div className="p-2 border-b border-gray-800">
+              <h3 className="font-semibold text-white text-sm">Estados</h3>
+              <p className="text-gray-400 text-[9px] mt-0.5">En tiempo real</p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="space-y-2">
+                {(() => {
+                  // Solo mostrar estados de viajes SELECCIONADOS (los que están en el mapa)
+                  const estadosActivos = viajesParaMapa.map(v => v.estado_unidad_viaje).filter(Boolean);
+                  const tieneEstado = (estados: string[]) => estadosActivos.some(e => estados.includes(e));
+                  
+                  const indicadores = [
+                    { estados: ['asignado'], label: 'Asignado', color: 'blue', pulso: false },
+                    { estados: ['confirmado'], label: 'Confirmado', color: 'green', pulso: false },
+                    { estados: ['en_ruta_origen', 'en_transito_origen'], label: 'En Ruta', color: 'purple', pulso: true },
+                    { estados: ['arribo_origen', 'en_planta'], label: 'En Planta', color: 'cyan', pulso: false },
+                    { estados: ['en_ruta_destino', 'en_transito_destino'], label: 'A Destino', color: 'orange', pulso: true },
+                    { estados: ['arribo_destino'], label: 'En Destino', color: 'teal', pulso: false },
+                    { estados: ['completado'], label: 'Completado', color: 'green', pulso: false, icon: 'check' },
+                    { estados: ['cancelado'], label: 'Cancelado', color: 'red', pulso: false, icon: 'x' }
+                  ];
+
+                  const colorConfig: Record<string, { bg: string, glow: string, border: string }> = {
+                    blue: { bg: 'bg-gradient-to-br from-blue-400 to-blue-600', glow: 'shadow-[0_0_16px_rgba(59,130,246,0.9)]', border: 'border-blue-300' },
+                    green: { bg: 'bg-gradient-to-br from-green-400 to-green-600', glow: 'shadow-[0_0_16px_rgba(34,197,94,0.9)]', border: 'border-green-300' },
+                    purple: { bg: 'bg-gradient-to-br from-purple-400 to-purple-600', glow: 'shadow-[0_0_16px_rgba(168,85,247,0.9)]', border: 'border-purple-300' },
+                    cyan: { bg: 'bg-gradient-to-br from-cyan-400 to-cyan-600', glow: 'shadow-[0_0_16px_rgba(6,182,212,0.9)]', border: 'border-cyan-300' },
+                    orange: { bg: 'bg-gradient-to-br from-orange-400 to-orange-600', glow: 'shadow-[0_0_16px_rgba(251,146,60,0.9)]', border: 'border-orange-300' },
+                    teal: { bg: 'bg-gradient-to-br from-teal-400 to-teal-600', glow: 'shadow-[0_0_16px_rgba(20,184,166,0.9)]', border: 'border-teal-300' },
+                    red: { bg: 'bg-gradient-to-br from-red-400 to-red-600', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.9)]', border: 'border-red-300' }
+                  };
+
+                  return indicadores.map((ind, idx) => {
+                    const activo = tieneEstado(ind.estados);
+                    const colors = colorConfig[ind.color];
+
+                    return (
+                      <div 
+                        key={idx}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all duration-300 ${
+                          activo ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-800/30 border-gray-700/50'
+                        }`}
+                      >
+                        {/* Bombita LED */}
+                        <div className="relative flex items-center justify-center flex-shrink-0">
+                          <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                            activo 
+                              ? `${colors.bg} ${colors.glow} border ${colors.border}` 
+                              : 'bg-gray-600 border border-gray-700 shadow-inner'
+                          } ${activo && ind.pulso ? 'animate-pulse' : ''}`}>
+                            {ind.icon === 'check' && activo && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                            {ind.icon === 'x' && activo && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            )}
+                          </div>
+                          {/* Halo de luz cuando está activo */}
+                          {activo && (
+                            <div className={`absolute inset-0 rounded-full ${colors.bg} opacity-30 blur-md`}></div>
+                          )}
+                        </div>
+                        <span className={`text-xs font-medium transition-colors flex-1 ${activo ? 'text-white' : 'text-gray-500'}`}>
+                          {ind.label}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Info adicional */}
+              <div className="mt-3 pt-3 border-t border-gray-700">
+                <div className="space-y-2 text-[10px]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-gray-400">Movimiento</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    <span className="text-gray-400">Histórico</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-gray-500">Auto-refresh</span>
+                    <span className="text-cyan-400 font-medium">30s</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -509,20 +630,32 @@ const ViajesActivos = () => {
 
               <div className="p-2 space-y-2">
                 {/* Estado */}
-                {viajeDetalle.estado_unidad && (
-                  <div>
-                    <h3 className="text-white font-semibold mb-3">Estado del Viaje</h3>
-                    <EstadoDualBadge
-                      tipo="unidad"
-                      estado={viajeDetalle.estado_unidad}
-                      timestamp={viajeDetalle.fecha_confirmacion_chofer || null}
-                      size="md"
-                    />
-                    <div className="mt-3">
-                      <EstadosProgressBar estadoUnidad={viajeDetalle.estado_unidad} />
+                <div>
+                  <h3 className="text-white font-semibold mb-3">Estado del Viaje</h3>
+                  {console.log('🎯 Renderizando panel - estado_unidad:', viajeDetalle.estado_unidad)}
+                  {viajeDetalle.estado_unidad ? (
+                    <>
+                      <EstadoDualBadge
+                        tipo="unidad"
+                        estado={viajeDetalle.estado_unidad}
+                        timestamp={viajeDetalle.fecha_confirmacion_chofer || null}
+                        size="md"
+                      />
+                      <div className="mt-3">
+                        <EstadosProgressBar estadoUnidad={viajeDetalle.estado_unidad} />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="bg-gray-700 rounded-lg p-3">
+                      <p className="text-gray-300 text-sm">
+                        Estado actual: <span className="text-white font-semibold">{viajeDetalle.estado}</span>
+                      </p>
+                      <p className="text-yellow-400 text-xs mt-2">
+                        ⚠️ No hay registro de estados detallados para este viaje
+                      </p>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Ruta */}
                 <div>

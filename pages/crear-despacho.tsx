@@ -11,6 +11,7 @@ import { EstadoDualBadge } from '../components/ui/EstadoDualBadge';
 import { NodexiaLogoBadge } from '../components/ui/NodexiaLogo';
 import AbrirRedNodexiaModal from '../components/Transporte/AbrirRedNodexiaModal';
 import VerEstadoRedNodexiaModal from '../components/Transporte/VerEstadoRedNodexiaModal';
+import { calcularEstadoOperativo } from '../lib/estadosHelper';
 
 interface EmpresaOption {
   id: string;
@@ -117,7 +118,7 @@ const CrearDespacho = () => {
   const [selectedViajeNumero, setSelectedViajeNumero] = useState<string>('');
 
   // Estados para tabs de despachos
-  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'fuera_de_horario' | 'expirados'>('pendientes');
+  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'demorados' | 'expirados'>('pendientes');
 
   // Estados para modal de Reprogramar
   const [isReprogramarModalOpen, setIsReprogramarModalOpen] = useState(false);
@@ -262,10 +263,16 @@ const CrearDespacho = () => {
         let viajesCanceladosPorTransporte = 0;
         let hasViajesExpirados = false; // 🆕 Para detectar si tiene viajes expirados
         let transportesUnicos: string[] = []; // 🔥 NUEVO: Para detectar múltiples transportes
+        let viajesConEstadoOperativo: any[] = []; // 🔥 Declarar aquí para scope global
+        
+        // 🔥 CONSTRUIR scheduled_at a partir de fecha y hora local
+        const scheduledAtFinal = d.scheduled_local_date 
+          ? `${d.scheduled_local_date}T${d.scheduled_local_time || '00:00:00'}`
+          : null;
         
         const { data: viajesData, error: viajesError } = await supabase
           .from('viajes_despacho')
-          .select('id, estado, estado_carga, id_transporte')
+          .select('id, estado, estado_carga, id_transporte, chofer_id, camion_id')
           .eq('despacho_id', d.id);
         
         if (!viajesError && viajesData) {
@@ -320,6 +327,32 @@ const CrearDespacho = () => {
           
           // 🆕 Detectar si hay viajes expirados
           hasViajesExpirados = viajesData.some(v => v.estado_carga === 'expirado');
+          
+          // 🔥 NUEVO: Calcular estado operativo de cada viaje para categorización correcta
+          viajesConEstadoOperativo = viajesData.map(v => {
+            const estadoOp = calcularEstadoOperativo({
+              estado_carga: v.estado || 'pendiente',
+              estado_unidad: v.estado,
+              chofer_id: v.chofer_id,
+              camion_id: v.camion_id,
+              scheduled_local_date: d.scheduled_local_date,
+              scheduled_local_time: d.scheduled_local_time,
+              scheduled_at: scheduledAtFinal
+            });
+            return { ...v, estado_operativo: estadoOp };
+          });
+          
+          // Detectar si TODOS los viajes están realmente expirados (sin recursos)
+          hasViajesExpirados = viajesConEstadoOperativo.some(v => 
+            v.estado_operativo.estadoOperativo === 'expirado'
+          );
+          
+          console.log(`📊 Estados operativos de viajes en ${d.pedido_id}:`, {
+            total: viajesConEstadoOperativo.length,
+            expirados: viajesConEstadoOperativo.filter(v => v.estado_operativo.estadoOperativo === 'expirado').length,
+            demorados: viajesConEstadoOperativo.filter(v => v.estado_operativo.estadoOperativo === 'demorado').length,
+            activos: viajesConEstadoOperativo.filter(v => v.estado_operativo.estadoOperativo === 'activo').length
+          });
           
           // 🔥 NUEVO: Obtener transportes únicos de los viajes
           transportesUnicos = [...new Set(
@@ -392,14 +425,35 @@ const CrearDespacho = () => {
           }
         }
         
+        // 🔥 Calcular estado operativo del despacho basado en los viajes
+        let estadoOperativoDespacho: 'activo' | 'demorado' | 'expirado' = 'activo';
+        let tieneViajesDemorados = false;
+        let tieneViajesExpirados = false;
+        
+        if (viajesConEstadoOperativo && viajesConEstadoOperativo.length > 0) {
+          tieneViajesDemorados = viajesConEstadoOperativo.some(v => v.estado_operativo.estadoOperativo === 'demorado');
+          tieneViajesExpirados = viajesConEstadoOperativo.some(v => v.estado_operativo.estadoOperativo === 'expirado');
+          
+          // Prioridad: expirado > demorado > activo
+          if (tieneViajesExpirados) {
+            estadoOperativoDespacho = 'expirado';
+          } else if (tieneViajesDemorados) {
+            estadoOperativoDespacho = 'demorado';
+          }
+        }
+
         return {
           id: d.id,
           pedido_id: d.pedido_id,
           origen: d.origen,
           destino: d.destino,
-          estado: hasViajesExpirados ? 'expirado' : d.estado, // 🆕 Cambiar estado si tiene viajes expirados
+          estado: hasViajesExpirados ? 'expirado' : d.estado, // 🆕 Campo BD (legacy)
+          estado_operativo: estadoOperativoDespacho, // 🔥 Estado operativo calculado
+          tiene_viajes_demorados: tieneViajesDemorados, // 🔥 Flag para filtrado
+          tiene_viajes_expirados: tieneViajesExpirados, // 🔥 Flag para filtrado
           fecha_despacho: d.scheduled_local_date || 'Sin fecha',
           hora_despacho: d.scheduled_local_time || '', // 🔥 NUEVO: hora
+          scheduled_at: scheduledAtFinal, // 🔥 NUEVO: timestamp combinado para cálculo de estado operativo
           tipo_carga: d.type || 'N/A',
           prioridad: (['Baja', 'Media', 'Alta', 'Urgente'].includes(d.prioridad)) ? d.prioridad : 'Media',
           unidad_type: d.unidad_type || 'N/A',
@@ -1123,12 +1177,12 @@ const CrearDespacho = () => {
       // 1️⃣ GUARDAR EN TABLA DE AUDITORÍA antes de eliminar
       const { data: viajesData } = await supabase
         .from('viajes_despacho')
-        .select('id_chofer, id_camion, id_acoplado, cantidad_reprogramaciones')
+        .select('chofer_id, camion_id, acoplado_id, cantidad_reprogramaciones')
         .eq('despacho_id', selectedDispatchForCancel.id);
 
-      const tieneChofer = viajesData?.some(v => v.id_chofer) || false;
-      const tieneCamion = viajesData?.some(v => v.id_camion) || false;
-      const tieneAcoplado = viajesData?.some(v => v.id_acoplado) || false;
+      const tieneChofer = viajesData?.some(v => v.chofer_id) || false;
+      const tieneCamion = viajesData?.some(v => v.camion_id) || false;
+      const tieneAcoplado = viajesData?.some(v => v.acoplado_id) || false;
       const cantidadReprog = viajesData?.[0]?.cantidad_reprogramaciones || 0;
 
       const { error: auditError } = await supabase
@@ -2127,16 +2181,16 @@ const CrearDespacho = () => {
               </span>
             </button>
             <button
-              onClick={() => setActiveTab('fuera_de_horario')}
+              onClick={() => setActiveTab('demorados')}
               className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                activeTab === 'fuera_de_horario'
-                  ? 'bg-amber-600 text-white'
+                activeTab === 'demorados'
+                  ? 'bg-orange-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              ⏰ Fuera de Horario
-              <span className="ml-2 px-2 py-0.5 bg-amber-700 rounded text-xs">
-                {generatedDispatches.filter(d => d.estado === 'fuera_de_horario').length}
+              ⏰ Demorados
+              <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
+                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true).length}
               </span>
             </button>
             <button
@@ -2149,7 +2203,7 @@ const CrearDespacho = () => {
             >
               ❌ Expirados
               <span className="ml-2 px-2 py-0.5 bg-red-700 rounded text-xs">
-                {generatedDispatches.filter(d => d.estado === 'expirado').length}
+                {generatedDispatches.filter(d => (d as any).tiene_viajes_expirados === true).length}
               </span>
             </button>
           </div>
@@ -2201,16 +2255,16 @@ const CrearDespacho = () => {
                       // En proceso: tienen algunos viajes asignados pero no todos Y no están expirados
                       pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario';
                       razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) > 0 && estado !== 'expirado' && estado !== 'fuera_de_horario'`;
-                    } else if (activeTab === 'fuera_de_horario') {
-                      // Fuera de horario: tienen estado fuera_de_horario
-                      pasaFiltro = d.estado === 'fuera_de_horario';
-                      razon = `estado === 'fuera_de_horario'`;
+                    } else if (activeTab === 'demorados') {
+                      // 🔥 Demorados = usan estado_operativo calculado
+                      pasaFiltro = (d as any).tiene_viajes_demorados === true;
+                      razon = `tiene_viajes_demorados === true (calculado en runtime)`;
                     } else if (activeTab === 'expirados') {
-                      // Expirados: tienen estado expirado
-                      pasaFiltro = d.estado === 'expirado';
-                      razon = `estado === 'expirado'`;
+                      // 🔥 Expirados = usan estado_operativo calculado (viajes sin recursos)
+                      pasaFiltro = (d as any).tiene_viajes_expirados === true;
+                      razon = `tiene_viajes_expirados === true (viajes sin recursos, calculado en runtime)`;
                     } else {
-                      // Asignados: tienen TODOS los viajes asignados Y no están expirados ni fuera de horario
+                      // Asignados: tienen TODOS los viajes asignados Y no están expirados ni demorados
                       // TAMBIÉN incluir despachos con estado 'asignado' explícito
                       pasaFiltro = (
                         (cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario') ||
@@ -2249,9 +2303,11 @@ const CrearDespacho = () => {
                               ? "No hay despachos pendientes de asignación"
                               : activeTab === 'en_proceso'
                                 ? "No hay despachos en proceso"
-                                : activeTab === 'expirados'
-                                  ? "No hay despachos expirados"
-                                  : "No hay despachos con todos los viajes asignados"}
+                                : activeTab === 'demorados'
+                                  ? "No hay viajes demorados (con recursos pero fuera de horario)"
+                                  : activeTab === 'expirados'
+                                    ? "No hay despachos expirados"
+                                    : "No hay despachos con todos los viajes asignados"}
                         </td>
                       </tr>
                     )
@@ -2360,17 +2416,40 @@ const CrearDespacho = () => {
                         )}
                       </td>
                       <td className="px-2 py-3 text-sm w-20">
-                        <span className={`px-1 py-0.5 rounded text-xs whitespace-nowrap ${
-                          (dispatch.estado === 'Generado' || dispatch.estado === 'planificado' || dispatch.estado === 'pendiente_transporte') ? 'bg-orange-600 text-orange-100' :
-                          dispatch.estado === 'Ofrecido' ? 'bg-blue-600 text-blue-100' :
-                          (dispatch.estado === 'Asignado' || dispatch.estado === 'transporte_asignado') ? 'bg-green-600 text-green-100' :
-                          'bg-gray-600 text-gray-100'
-                        }`}>
-                          {dispatch.estado === 'planificado' ? 'Generado' : 
-                           dispatch.estado === 'pendiente_transporte' ? 'Pendiente Transporte' : 
-                           dispatch.estado === 'transporte_asignado' ? 'Transporte Asignado' :
-                           dispatch.estado}
-                        </span>
+                        {(() => {
+                          const tieneDemorados = (dispatch as any).tiene_viajes_demorados;
+                          const tieneExpirados = (dispatch as any).tiene_viajes_expirados;
+                          
+                          // Priorizar estado operativo calculado
+                          if (tieneDemorados) {
+                            return (
+                              <span className="px-1 py-0.5 rounded text-xs whitespace-nowrap bg-orange-600 text-white">
+                                ⏰ Demorado
+                              </span>
+                            );
+                          } else if (tieneExpirados) {
+                            return (
+                              <span className="px-1 py-0.5 rounded text-xs whitespace-nowrap bg-red-600 text-white">
+                                ❌ Expirado
+                              </span>
+                            );
+                          }
+                          
+                          // Fallback a estado de BD
+                          return (
+                            <span className={`px-1 py-0.5 rounded text-xs whitespace-nowrap ${
+                              (dispatch.estado === 'Generado' || dispatch.estado === 'planificado' || dispatch.estado === 'pendiente_transporte') ? 'bg-orange-600 text-orange-100' :
+                              dispatch.estado === 'Ofrecido' ? 'bg-blue-600 text-blue-100' :
+                              (dispatch.estado === 'Asignado' || dispatch.estado === 'transporte_asignado') ? 'bg-green-600 text-green-100' :
+                              'bg-gray-600 text-gray-100'
+                            }`}>
+                              {dispatch.estado === 'planificado' ? 'Generado' : 
+                               dispatch.estado === 'pendiente_transporte' ? 'Pendiente Transporte' : 
+                               dispatch.estado === 'transporte_asignado' ? 'Transporte Asignado' :
+                               dispatch.estado}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-2 py-3 text-sm text-center w-40">
                         <div className="flex gap-1 justify-center items-center">
@@ -2411,7 +2490,7 @@ const CrearDespacho = () => {
                             </div>
                           )}
                           
-                          {activeTab !== 'expirados' && activeTab !== 'fuera_de_horario' && activeTab !== 'asignados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
+                          {activeTab !== 'expirados' && activeTab !== 'asignados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
                             <>
                               <button
                                 type="button"

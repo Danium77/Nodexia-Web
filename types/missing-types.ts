@@ -95,9 +95,9 @@ export interface Viaje {
   estado: string;
   fecha_despacho?: string;
   id_transporte?: string;
-  id_chofer?: string;
-  id_camion?: string;
-  id_acoplado?: string;
+  chofer_id?: string;
+  camion_id?: string;
+  acoplado_id?: string;
   observaciones?: string;
   created_at?: string;
   updated_at?: string;

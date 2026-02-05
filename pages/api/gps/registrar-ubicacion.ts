@@ -84,7 +84,7 @@ export default async function handler(
     console.log('🔍 Buscando viaje:', viaje_id);
     const { data: viajeData, error: viajeError } = await supabaseAdmin
       .from('viajes_despacho')
-      .select('id_chofer, numero_viaje, estado')
+      .select('chofer_id, numero_viaje, estado')
       .eq('id', viaje_id)
       .single();
 
@@ -99,7 +99,7 @@ export default async function handler(
 
     console.log('✅ Viaje encontrado:', viajeData);
 
-    const chofer_id = viajeData.id_chofer;
+    const chofer_id = viajeData.chofer_id;
 
     if (!chofer_id) {
       console.error('Viaje sin chofer asignado:', viaje_id);

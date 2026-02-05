@@ -12,6 +12,7 @@ import DayView from '../components/Planning/DayView';
 import MonthView from '../components/Planning/MonthView';
 import ViajesExpiradosModal from '../components/Modals/ViajesExpiradosModal';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { calcularEstadoOperativo } from '../lib/estadosHelper';
 
 type TabType = 'planning' | 'tracking';
 
@@ -280,6 +281,7 @@ const PlanificacionPage = () => {
               id,
               numero_viaje,
               estado,
+              estado_carga,
               estado_unidad,
               transport_id,
               camion_id,
@@ -449,6 +451,55 @@ const PlanificacionPage = () => {
           console.log('  - despacho: transport:', despachoPadre?.transport_id, 'truck:', despachoPadre?.truck_id, 'driver:', despachoPadre?.driver_id);
           console.log('  - FINAL: transport:', transporteFinal?.nombre, 'camion:', camionFinal?.patente, 'chofer:', choferFinal?.nombre_completo);
           
+          // 🔥 NUEVO: Calcular estado operativo en tiempo real
+          // Priorizar recursos del viaje, si no existen usar los del despacho padre
+          const choferIdFinal = viaje.chofer_id || despachoPadre?.driver_id;
+          const camionIdFinal = viaje.camion_id || despachoPadre?.truck_id;
+          
+          // 🔥 CRÍTICO: Construir scheduled_at si no existe (combinar date + time)
+          let scheduledAtFinal = despachoPadre?.scheduled_at;
+          if (!scheduledAtFinal && despachoPadre?.scheduled_local_date) {
+            const timeStr = despachoPadre.scheduled_local_time || '00:00:00';
+            scheduledAtFinal = `${despachoPadre.scheduled_local_date}T${timeStr}`;
+          }
+          
+          // 🔥 IMPORTANTE: Usar 'estado' (más confiable) en lugar de 'estado_carga'
+          // porque estado_carga puede quedar desactualizado
+          const estadoParaCalculo = viaje.estado || viaje.estado_carga || 'pendiente';
+          
+          const estadoOperativoInfo = calcularEstadoOperativo({
+            estado_carga: estadoParaCalculo,
+            estado_unidad: viaje.estado_unidad,
+            chofer_id: choferIdFinal,
+            camion_id: camionIdFinal,
+            scheduled_local_date: despachoPadre?.scheduled_local_date,
+            scheduled_local_time: despachoPadre?.scheduled_local_time,
+            scheduled_at: scheduledAtFinal
+          });
+          
+          console.log(`📊 [VIAJE ${viaje.numero_viaje}] Estado operativo:`, {
+            // Datos de entrada
+            estado: viaje.estado,
+            estado_carga: viaje.estado_carga,
+            estado_usado_para_calculo: estadoParaCalculo,
+            chofer_id_viaje: viaje.chofer_id,
+            camion_id_viaje: viaje.camion_id,
+            chofer_id_despacho: despachoPadre?.driver_id,
+            camion_id_despacho: despachoPadre?.truck_id,
+            chofer_id_final: choferIdFinal,
+            camion_id_final: camionIdFinal,
+            scheduled_at_original: despachoPadre?.scheduled_at,
+            scheduled_at_construido: scheduledAtFinal,
+            scheduled_local_date: despachoPadre?.scheduled_local_date,
+            scheduled_local_time: despachoPadre?.scheduled_local_time,
+            // Resultado
+            estado_operativo: estadoOperativoInfo.estadoOperativo,
+            razon: estadoOperativoInfo.razon,
+            tiene_recursos: estadoOperativoInfo.tieneRecursos,
+            esta_demorado: estadoOperativoInfo.estaDemorado,
+            minutos_retraso: estadoOperativoInfo.minutosRetraso
+          });
+
           return {
             id: viaje.id,
             viaje_numero: viaje.numero_viaje,
@@ -459,6 +510,12 @@ const PlanificacionPage = () => {
             destino_provincia: ubicacionDestino?.provincia || null,
             estado: viaje.estado || 'pendiente',
             estado_unidad: viaje.estado_unidad,
+            // 🔥 NUEVO: Estado operativo calculado
+            estado_operativo: estadoOperativoInfo.estadoOperativo,
+            estado_operativo_razon: estadoOperativoInfo.razon,
+            tiene_recursos: estadoOperativoInfo.tieneRecursos,
+            esta_demorado: estadoOperativoInfo.estaDemorado,
+            minutos_retraso: estadoOperativoInfo.minutosRetraso,
             scheduled_local_date: despachoPadre?.scheduled_local_date,
             scheduled_local_time: despachoPadre?.scheduled_local_time,
             type: tipo,
@@ -591,10 +648,16 @@ const PlanificacionPage = () => {
       !v.transport_id && (v.estado === 'pendiente' || v.estado === 'transporte_asignado')
     ).length;
     
+    // 🔥 NUEVO: Filtrar por estado_operativo calculado
     const viajesExpirados = dispatchesInRange.filter(v => 
-      (v as any).estado_unidad === 'expirado'
+      (v as any).estado_operativo === 'expirado'
     ).length;
     
+    const viajesDemorados = dispatchesInRange.filter(v => 
+      (v as any).estado_operativo === 'demorado'
+    ).length;
+    
+    // Mantener fuera_horario para compatibilidad (deprecated)
     const viajesFueraHorario = dispatchesInRange.filter(v => 
       (v as any).estado_unidad === 'fuera_de_horario'
     ).length;
@@ -618,7 +681,8 @@ const PlanificacionPage = () => {
       urgentes: viajesUrgentes,
       semana: dispatchesInRange.length, // Total en el rango
       sinAsignar: viajesSinAsignar,
-      fuera_horario: viajesFueraHorario,
+      fuera_horario: viajesFueraHorario, // Deprecated
+      demorados: viajesDemorados, // 🔥 NUEVO
       expirados: viajesExpirados,
       provincias: topProvincias
     };
@@ -688,25 +752,26 @@ const PlanificacionPage = () => {
             </div>
           </div>
 
-          {/* 🔥 Viajes Fuera de Horario */}
+          {/* 🔥 NUEVO: Viajes Demorados (en curso pero fuera de horario) */}
           <div 
-            className="bg-gradient-to-br from-[#2d2a1a] to-[#1a180f] rounded-lg p-3 border border-amber-500/30 hover:border-amber-500/50 transition-all shadow-lg group"
-            title="Viajes fuera de horario programado"
+            className="bg-gradient-to-br from-[#2d2a1a] to-[#1a180f] rounded-lg p-3 border border-orange-500/30 hover:border-orange-500/50 transition-all shadow-lg group"
+            title="Viajes en curso pero demorados (fuera de ventana de 2h)"
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Fuera de Horario</p>
-                <p className="text-2xl font-bold text-amber-400 mt-1 group-hover:scale-110 transition-transform">
-                  {metrics.fuera_horario || 0}
+                <p className="text-gray-400 text-[10px] uppercase tracking-wider">Demorados</p>
+                <p className="text-2xl font-bold text-orange-400 mt-1 group-hover:scale-110 transition-transform">
+                  {metrics.demorados || 0}
                 </p>
+                <p className="text-[9px] text-gray-500 mt-0.5">Con recursos asignados</p>
               </div>
-              <div className="text-amber-400 text-2xl bg-amber-500/10 p-2 rounded-lg group-hover:bg-amber-500/20 transition-colors">
+              <div className="text-orange-400 text-2xl bg-orange-500/10 p-2 rounded-lg group-hover:bg-orange-500/20 transition-colors">
                 ⏰
               </div>
             </div>
           </div>
 
-          {/* 🔥 NUEVO: Viajes Expirados */}
+          {/* 🔥 NUEVO: Viajes Expirados (sin recursos) */}
           <div 
             onClick={() => setShowExpiradosModal(true)}
             className="bg-gradient-to-br from-[#2d1a1a] to-[#1a0f0f] rounded-lg p-3 border border-red-500/30 hover:border-red-500/50 transition-all shadow-lg cursor-pointer group"

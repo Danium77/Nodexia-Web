@@ -1,7 +1,7 @@
 # Problemas Conocidos y Soluciones
 
-> **Total de problemas:** 32 (TypeScript) + ~10 (Funcionales)  
-> **Última revisión:** 29 de Diciembre de 2025  
+> **Total de problemas:** 26 (TypeScript) + ~5 (Funcionales)  
+> **Última revisión:** 05 de Febrero de 2026  
 > **Prioridad:** 🔴 Alta | 🟡 Media | 🟢 Baja
 
 ---
@@ -10,16 +10,94 @@
 
 | Categoría | Cantidad | Prioridad | Estado |
 |-----------|----------|-----------|--------|
-| Errores TypeScript | 32 | 🟡 Media | En progreso |
-| Variables no usadas | ~15 | 🟢 Baja | Refactorización |
+| Errores TypeScript | 26 | 🟡 Media | En progreso |
+| Variables no usadas | ~10 | 🟢 Baja | Refactorización |
 | Imports faltantes (firebase) | 2 | 🟢 Baja | No crítico |
 | APIs no usadas | 3 | 🟢 Baja | Limpieza |
 
 ---
 
-## ✅ PROBLEMAS RESUELTOS (29-Dic-2025)
+## ✅ PROBLEMAS RESUELTOS
 
-### ~~0. UUIDs Corruptos en viajes_despacho~~ ✅ RESUELTO
+### ~~5. Nomenclatura inconsistente en Base de Datos~~ ✅ RESUELTO (05-Feb-2026)
+**Problema:** Convención mezclada entre `id_chofer` vs `chofer_id` causaba que pantallas mostraran "Sin asignar" en lugar de datos reales
+**Impacto:** 🔴 Crítico - Datos de choferes, camiones y acoplados no se mostraban en múltiples pantallas
+
+**Causa raíz:**  
+- BD usaba convención `chofer_id`, `camion_id`, `acoplado_id` (correcta)
+- Código viejo usaba `id_chofer`, `id_camion`, `id_acoplado` (incorrecta)
+- Inconsistencia rompía queries y tipos TypeScript
+
+**Solución aplicada:**
+1. **Migración completa de nomenclatura** en 7 archivos:
+   - `types/red-nodexia.ts` - Tipos corregidos
+   - `types/missing-types.ts` - Interface Viaje actualizada  
+   - `lib/hooks/useRedNodexia.tsx` - Query de camiones
+   - `pages/transporte/cargas-en-red.tsx` - Validación de recursos
+   - `pages/crear-despacho.tsx` - Select y verificaciones
+   - `pages/chofer/viajes.tsx` - Comentario actualizado
+   - `components/Transporte/AceptarDespachoModal.tsx` - Queries de asignación
+
+2. **Scripts SQL de migración completa**:
+   - Views temporales para compatibilidad durante migración
+   - Migración de datos históricos tracking_gps → ubicaciones_choferes  
+   - Fix estados faltantes en estado_unidad_viaje
+   - Scripts de rollback para emergencias
+
+3. **Documentación completa**:
+   - `docs/PLAN-MIGRACION-BD.md` - Estrategia detallada
+   - `sql/migracion/` - 6 scripts SQL organizados por fases
+
+**Resultado:**
+- ✅ Nomenclatura 100% unificada: `chofer_id`, `camion_id`, `acoplado_id`
+- ✅ Todas las pantallas muestran datos correctamente
+- ✅ 0 referencias a convención vieja en código TypeScript
+- ✅ Sistema GPS consolidado en tabla única
+
+**Archivos modificados:** 7 archivos TS + 6 scripts SQL + documentación
+
+### ~~4. Viajes activos marcados como "expirados" incorrectamente~~ ✅ RESUELTO (04-Feb-2026)
+**Problema:** Viajes con recursos asignados y en curso (ej: DSP-20260203-001) se marcaban como "expirados" y se ocultaban del tracking
+**Impacto:** 🔴 Crítico - No se podía hacer seguimiento de viajes en curso
+
+**Causa raíz:**  
+- El sistema no diferenciaba entre:
+  - Viajes **expirados** (sin recursos asignados)
+  - Viajes **demorados** (con recursos pero fuera de horario)
+- Función SQL `actualizar_estados_viajes()` marcaba ambos como "expirado"
+
+**Solución aplicada:**
+1. **Nuevo sistema de estados operativos** (`lib/estadosHelper.ts`):
+   - ✅ **ACTIVO**: En curso dentro de ventana de 2h
+   - ⏰ **DEMORADO**: Con recursos pero fuera de ventana (>2h)
+   - ❌ **EXPIRADO**: Sin recursos y fuera de ventana
+
+2. **Visualización mejorada**:
+   - Badge naranja "⏰ DEMORADO" en tarjetas
+   - Ícono flotante de reloj en esquina superior derecha
+   - Métricas separadas en dashboard
+
+3. **Nuevo tab "Demorados"** en crear-despacho.tsx:
+   - Separa viajes con recursos tarde de viajes sin recursos
+   - Facilita gestión operativa diferenciada
+
+**Archivos modificados:**
+- `lib/estadosHelper.ts` (nuevo - 398 líneas)
+- `pages/planificacion.tsx`
+- `components/Planning/PlanningGrid.tsx`
+- `pages/crear-despacho.tsx`
+
+**Resultado:**
+- ✅ Viajes demorados visibles en tracking
+- ✅ Diferenciación clara entre demorados y expirados
+- ✅ Mejor toma de decisiones operativas
+
+**Fecha:** 04-Feb-2026  
+**Sesión:** SESION-04-FEB-2026
+
+---
+
+### ~~0. UUIDs Corruptos en viajes_despacho~~ ✅ RESUELTO (29-Dic-2025)
 **Estado anterior:** UUIDs con 37 caracteres causaban fallos en relaciones  
 **Verificación:** Análisis SQL confirmó que TODOS los UUIDs son válidos (36 chars)  
 **Solución aplicada:** 

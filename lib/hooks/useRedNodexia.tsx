@@ -191,11 +191,11 @@ export function useRedNodexia() {
             }
 
             // Obtener camión si existe
-            if (viajeRed.viaje.id_camion) {
+            if (viajeRed.viaje.camion_id) {
               const { data: camion } = await supabase
                 .from('camiones')
                 .select('id, patente, marca, modelo, tipo')
-                .eq('id', viajeRed.viaje.id_camion)
+                .eq('id', viajeRed.viaje.camion_id)
                 .single();
               
               if (camion) {

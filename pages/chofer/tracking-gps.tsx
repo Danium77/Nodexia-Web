@@ -42,6 +42,7 @@ interface GPSData {
 export default function TrackingGPS() {
   const router = useRouter();
   const { user, loading: userLoading } = useUserRole();
+  const [choferId, setChoferId] = useState<string | null>(null); // 🔥 NUEVO
   const [viajesActivos, setViajesActivos] = useState<ViajeActivo[]>([]);
   const [viajeSeleccionado, setViajeSeleccionado] = useState<string | null>(null);
   const [tracking, setTracking] = useState(false);
@@ -113,6 +114,9 @@ export default function TrackingGPS() {
 
       console.log('✅ Chofer encontrado:', choferData);
 
+      // 🔥 NUEVO: Guardar chofer_id en estado
+      setChoferId(choferData.id);
+
       // Buscar viajes activos asignados al chofer
       console.log('🔍 Buscando viajes activos para chofer:', choferData.id);
       const { data: viajesData, error: viajesError } = await supabase
@@ -122,36 +126,53 @@ export default function TrackingGPS() {
           numero_viaje,
           estado,
           despacho_id,
-          id_camion,
-          despachos!inner (
-            origen,
-            destino,
-            pedido_id
-          ),
-          camiones!inner (
-            patente
-          )
+          camion_id,
+          chofer_id
         `)
-        .eq('id_chofer', choferData.id)
+        .eq('chofer_id', choferData.id)
         .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'en_transito_destino', 'arribo_origen', 'arribo_destino'])
         .order('created_at', { ascending: false });
 
       console.log('📦 Viajes encontrados:', viajesData?.length || 0, viajesData);
 
-      if (viajesError) throw viajesError;
+      if (viajesError) {
+        console.error('❌ Error buscando viajes:', viajesError);
+        throw viajesError;
+      }
 
-      const viajesFormateados = (viajesData || []).map((v: any) => ({
-        id: v.id,
-        numero_viaje: v.numero_viaje,
-        despacho: {
-          origen: v.despachos?.origen || 'N/A',
-          destino: v.despachos?.destino || 'N/A',
-          pedido_id: v.despachos?.pedido_id || 'N/A'
-        },
-        camion: {
-          patente: v.camiones?.patente || 'N/A'
-        }
-      }));
+      // Cargar despachos y camiones por separado para evitar problemas con joins
+      const despachoIds = [...new Set(viajesData?.map(v => v.despacho_id).filter(Boolean))];
+      const camionIds = [...new Set(viajesData?.map(v => v.camion_id).filter(Boolean))];
+
+      const [despachosData, camionesData] = await Promise.all([
+        despachoIds.length > 0
+          ? supabase.from('despachos').select('id, origen, destino, pedido_id').in('id', despachoIds)
+          : Promise.resolve({ data: [], error: null }),
+        camionIds.length > 0
+          ? supabase.from('camiones').select('id, patente').in('id', camionIds)
+          : Promise.resolve({ data: [], error: null })
+      ]);
+
+      const despachosMap = new Map((despachosData.data || []).map((d: any) => [d.id, d]));
+      const camionesMap = new Map((camionesData.data || []).map((c: any) => [c.id, c]));
+
+      const viajesFormateados = (viajesData || []).map((v: any) => {
+        const despacho = despachosMap.get(v.despacho_id);
+        const camion = camionesMap.get(v.camion_id);
+        
+        return {
+          id: v.id,
+          numero_viaje: v.numero_viaje,
+          despacho: {
+            origen: despacho?.origen || 'N/A',
+            destino: despacho?.destino || 'N/A',
+            pedido_id: despacho?.pedido_id || 'N/A'
+          },
+          camion: {
+            patente: camion?.patente || 'N/A'
+          }
+        };
+      });
 
       setViajesActivos(viajesFormateados);
 
@@ -199,6 +220,7 @@ export default function TrackingGPS() {
 
         console.log('📍 Enviando ubicación:', {
           viaje_id: viajeSeleccionado,
+          chofer_id: choferId,
           lat: gpsData.latitude,
           lng: gpsData.longitude,
           velocidad: gpsData.velocidad,
@@ -212,6 +234,7 @@ export default function TrackingGPS() {
           },
           body: JSON.stringify({
             viaje_id: viajeSeleccionado,
+            chofer_id: choferId, // 🔥 NUEVO: Enviar chofer_id
             latitude: gpsData.latitude,
             longitude: gpsData.longitude,
             accuracy: gpsData.accuracy,

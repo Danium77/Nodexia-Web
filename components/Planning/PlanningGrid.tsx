@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useReducer } from 'react';
 import { MapPinIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../../lib/supabaseClient';
+import { getColorEstadoOperativo, getIconoEstadoOperativo, getLabelEstadoOperativo } from '../../lib/estadosHelper';
 
 interface Dispatch {
   id: string;
@@ -531,9 +532,20 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                 const isBeingDragged = draggedDispatch?.id === dispatch.id;
                                 const isDraggable = canBeDragged(dispatch);
                                 
+                                // 🔥 NUEVO: Calcular estado operativo para styling
+                                const estadoOp = (dispatch as any).estado_operativo;
+                                const estaExpirado = estadoOp === 'expirado';
+                                const estaDemorado = estadoOp === 'demorado';
+                                
                                 // Log solo UNA VEZ al renderizar
                                 if (!(window as any)[`logged_${dispatch.id}`]) {
-                                  console.log(`🎯 RENDER card ${dispatch.pedido_id}: isDraggable=${isDraggable}, HTML draggable="${isDraggable}", pedido_id: ${dispatch.pedido_id}, id: ${dispatch.id}`);
+                                  console.log(`🎯 RENDER card ${dispatch.pedido_id}:`, {
+                                    isDraggable,
+                                    estadoOp,
+                                    estaExpirado,
+                                    estaDemorado,
+                                    mostrarIconoReloj: estaDemorado
+                                  });
                                   (window as any)[`logged_${dispatch.id}`] = true;
                                 }
                                 
@@ -562,9 +574,9 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                       }
                                     }}
                                     className={`group relative p-1.5 rounded mb-1 last:mb-0 transition-all duration-200 border select-none
-                                      ${(dispatch as any).estado_unidad === 'expirado' ? 'border-gray-600' : getPriorityBorderColor(dispatch.prioridad)}
-                                      bg-gradient-to-br ${(dispatch as any).estado_unidad === 'expirado' ? 'from-gray-800/50 to-gray-700/50' : getPriorityGradient(dispatch.prioridad)}
-                                      ${(dispatch as any).estado_unidad === 'expirado' ? 'opacity-75' : ''}
+                                      ${estaExpirado ? 'border-gray-600' : estaDemorado ? 'border-orange-500/50' : getPriorityBorderColor(dispatch.prioridad)}
+                                      bg-gradient-to-br ${estaExpirado ? 'from-gray-800/50 to-gray-700/50' : estaDemorado ? 'from-orange-900/30 to-orange-800/20' : getPriorityGradient(dispatch.prioridad)}
+                                      ${estaExpirado ? 'opacity-75' : ''}
                                       ${isDraggable
                                         ? 'cursor-grab hover:cursor-grab active:cursor-grabbing hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1' 
                                         : 'cursor-not-allowed opacity-75'
@@ -596,7 +608,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     {((type === 'recepciones' && (dispatch as any).origen_provincia) || 
                                       (type === 'despachos' && (dispatch as any).destino_provincia)) && (
                                       <div className={`text-[9px] font-bold uppercase tracking-wide truncate ${
-                                        (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-cyan-400'
+                                        estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-300' : 'text-cyan-400'
                                       }`}>
                                         {type === 'recepciones' 
                                           ? (dispatch as any).origen_provincia
@@ -606,7 +618,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     )}
                                     {/* Cliente/Ubicación ABAJO */}
                                     <div className={`flex items-center gap-0.5 text-[9px] truncate ${
-                                      (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-slate-200'
+                                      estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-200' : 'text-slate-200'
                                     }`}>
                                       <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
                                       <span className="truncate font-medium">
@@ -621,7 +633,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                   {/* Transporte */}
                                   {dispatch.transporte_data && (
                                     <div className={`flex items-center gap-0.5 text-[9px] truncate ${
-                                      (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-emerald-300'
+                                      estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-300' : 'text-emerald-300'
                                     }`}>
                                       <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
                                       <span className="truncate">{dispatch.transporte_data.nombre}</span>
@@ -631,7 +643,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                   {/* Chofer y Camión */}
                                   {(dispatch.chofer || dispatch.camion_data) && (
                                     <div className={`text-[9px] truncate ${
-                                      (dispatch as any).estado_unidad === 'expirado' ? 'text-gray-200' : 'text-blue-300'
+                                      estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-200' : 'text-blue-300'
                                     }`}>
                                       <span className="truncate">
                                         {dispatch.chofer?.nombre_completo?.split(' ')[0] || ''}
@@ -643,14 +655,37 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
                                   {/* Estado */}
                                   <div className="mt-0.5">
-                                    <span className={`text-[8px] px-1 py-0.5 rounded ${(dispatch as any).estado_unidad === 'expirado' ? 'bg-gray-600' : getStatusColor(dispatch.estado)} text-white font-semibold block text-center`}>
-                                      {(dispatch as any).estado_unidad === 'expirado' ? 'EXPIRADO' : getStatusLabel(dispatch.estado)}
+                                    {/* 🔥 Badge de estado operativo */}
+                                    {(estaExpirado || estaDemorado) && (
+                                      <span className={`text-[8px] px-1 py-0.5 rounded text-white font-semibold block text-center mb-0.5 ${
+                                        estaExpirado ? 'bg-red-600' : 'bg-orange-600'
+                                      }`}>
+                                        {estaExpirado ? '❌ EXPIRADO' : '⏰ DEMORADO'}
+                                      </span>
+                                    )}
+                                    {/* Badge de estado normal */}
+                                    <span className={`text-[8px] px-1 py-0.5 rounded ${getStatusColor(dispatch.estado)} text-white font-semibold block text-center`}>
+                                      {getStatusLabel(dispatch.estado)}
                                     </span>
                                   </div>
+                                </div> {/* FIN del contenedor con pointer-events-none */}
+
+                                {/* 🔥 Ícono flotante de reloj para viajes demorados - DEBAJO del pin de ubicación */}
+                                {estaDemorado && (
+                                  <div 
+                                    className="absolute bottom-8 right-1 bg-orange-500 rounded-full p-1 z-50 pointer-events-auto shadow-lg" 
+                                    title="Viaje demorado"
+                                    style={{ zIndex: 999 }}
+                                  >
+                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                )}
 
                                 {/* Indicador de drag */}
                                 {isDraggable && (
-                                  <div className="absolute bottom-0 right-0 text-slate-400 group-hover:text-cyan-400 transition-colors opacity-50">
+                                  <div className="absolute bottom-0 right-0 text-slate-400 group-hover:text-cyan-400 transition-colors opacity-50 pointer-events-none">
                                     <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
                                       <circle cx="8" cy="6" r="1.5"/>
                                       <circle cx="8" cy="12" r="1.5"/>
@@ -661,7 +696,6 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     </svg>
                                   </div>
                                 )}
-                                </div> {/* FIN del contenedor con pointer-events-none */}
 
                                 {/* Botón de ubicación - CON pointer-events-auto para que sea clickeable */}
                                 <button

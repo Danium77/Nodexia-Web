@@ -44,7 +44,7 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
       // Obtener todos los viajes del despacho (sin filtrar por estado_unidad)
       const { data: viajesExpirados, error: viajesError } = await supabase
         .from('viajes_despacho')
-        .select('id, chofer_id, camion_id, acoplado_id, id_transporte, estado_unidad')
+        .select('id, chofer_id, camion_id, acoplado_id, id_transporte, estado_unidad, estado')
         .eq('despacho_id', despacho.id);
 
       if (viajesError) throw viajesError;

@@ -156,7 +156,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
           id,
           despachos!inner (scheduled_local_date)
         `)
-        .eq('id_chofer', choferId)
+        .eq('chofer_id', choferId)
         .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
         .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
         .neq('id', despacho.id); // Excluir el viaje actual
@@ -197,7 +197,7 @@ const AceptarDespachoModal: React.FC<AceptarDespachoModalProps> = ({
             id,
             despachos!inner (scheduled_local_date)
           `)
-          .eq('id_acoplado', acopladoId)
+          .eq('acoplado_id', acopladoId)
           .eq('despachos.scheduled_local_date', despacho.scheduled_local_date)
           .in('estado', ['camion_asignado', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
           .neq('id', despacho.id);

@@ -245,8 +245,8 @@ export interface ViajeRedCompleto extends ViajeRedNodexia {
     id: string;
     numero_viaje: string;
     estado?: string;
-    id_camion?: string;
-    id_chofer?: string;
+    camion_id?: string;
+    chofer_id?: string;
     camiones?: {
       patente: string;
     };

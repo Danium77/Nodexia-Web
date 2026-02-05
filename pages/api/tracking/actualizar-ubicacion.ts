@@ -129,10 +129,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Verificar si el chofer está en viaje activo y actualizar estado si corresponde
-    const { data: viajeActivo } = await supabaseAdmin
+    console.log('✅ Ubicación insertada en tracking_gps:', trackingData.id);
+
+    // Verificar si el chofer está en viaje activo
+    const { data: viajeActivo, error: viajeError } = await supabaseAdmin
       .from('viajes_despacho')
-      .select('id, estado, despacho_id, despachos(origen_id, destino_id, ubicaciones_origen:origen_id(latitud, longitud), ubicaciones_destino:destino_id(latitud, longitud))')
+      .select('id, estado, despacho_id')
       .eq('chofer_id', data.chofer_id)
       .in('estado', [
         'confirmado_chofer',
@@ -145,10 +147,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .limit(1)
       .maybeSingle();
 
+    if (viajeError) {
+      console.error('❌ Error buscando viaje activo:', viajeError);
+    }
+
+    // 🔥 NUEVO: Si hay viaje activo, también insertar en ubicaciones_choferes
+    if (viajeActivo) {
+      console.log('🚛 Viaje activo encontrado:', viajeActivo.id, '- Insertando en ubicaciones_choferes');
+      
+      const ubicacionData = {
+        chofer_id: data.chofer_id,
+        viaje_id: viajeActivo.id,
+        latitude: data.latitud,
+        longitude: data.longitud,
+        accuracy: data.precision_metros || null,
+        velocidad: data.velocidad || null,
+        heading: data.rumbo || null,
+        timestamp: data.timestamp || new Date().toISOString()
+      };
+
+      const { error: ubicacionError } = await supabaseAdmin
+        .from('ubicaciones_choferes')
+        .insert(ubicacionData);
+
+      if (ubicacionError) {
+        console.error('❌ Error insertando en ubicaciones_choferes:', ubicacionError);
+        // No fallar la request, solo logear el error
+      } else {
+        console.log('✅ Ubicación también insertada en ubicaciones_choferes');
+      }
+    }
+
+    // Cargar datos del despacho para detectar estados
+    const { data: viajeConDespacho } = viajeActivo ? await supabaseAdmin
+      .from('viajes_despacho')
+      .select('id, estado, despacho_id, despachos(origen_id, destino_id, ubicaciones_origen:origen_id(latitud, longitud), ubicaciones_destino:destino_id(latitud, longitud))')
+      .eq('id', viajeActivo.id)
+      .single()
+      : { data: null };
+
     let estado_detectado: string | null = null;
 
-    if (viajeActivo && viajeActivo.despachos) {
-      const despacho = viajeActivo.despachos as any;
+    if (viajeConDespacho && viajeConDespacho.despachos) {
+      const despacho = viajeConDespacho.despachos as any;
 
       // Calcular distancia a origen y destino usando Haversine
       const calcularDistancia = (
@@ -175,7 +216,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Si está en tránsito al origen y se acerca, marcar arribo
       if (
-        viajeActivo.estado === 'en_transito_origen' &&
+        viajeConDespacho.estado === 'en_transito_origen' &&
         despacho.ubicaciones_origen?.latitud &&
         despacho.ubicaciones_origen?.longitud
       ) {
@@ -196,13 +237,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               estado: 'arribo_origen',
               updated_at: new Date().toISOString()
             })
-            .eq('id', viajeActivo.id);
+            .eq('id', viajeConDespacho.id);
         }
       }
 
       // Si está en tránsito al destino y se acerca, marcar arribo
       if (
-        viajeActivo.estado === 'en_transito_destino' &&
+        viajeConDespacho.estado === 'en_transito_destino' &&
         despacho.ubicaciones_destino?.latitud &&
         despacho.ubicaciones_destino?.longitud
       ) {
@@ -223,7 +264,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               estado: 'arribo_destino',
               updated_at: new Date().toISOString()
             })
-            .eq('id', viajeActivo.id);
+            .eq('id', viajeConDespacho.id);
 
           // Actualizar estado del despacho también
           await supabaseAdmin
@@ -232,7 +273,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               estado: 'arribo_destino',
               updated_at: new Date().toISOString()
             })
-            .eq('id', viajeActivo.despacho_id);
+            .eq('id', viajeConDespacho.despacho_id);
         }
       }
     }
