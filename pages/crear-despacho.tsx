@@ -1147,56 +1147,19 @@ const CrearDespacho = () => {
           
           const { data: viajes, error } = await supabase
             .from('viajes_despacho')
-            .select(`
-              id,
-              numero_viaje,
-              estado,
-              id_transporte,
-              chofer_id,
-              camion_id,
-              acoplado_id,
-              id_transporte_cancelado,
-              motivo_cancelacion,
-              observaciones,
-              created_at,
-              camiones (
-                patente,
-                marca,
-                modelo,
-                anio
-              ),
-              choferes (
-                nombre,
-                apellido,
-                telefono,
-                dni
-              ),
-              acoplados (
-                patente,
-                marca,
-                modelo,
-                anio
-              ),
-              estado_carga_viaje (
-                estado_carga,
-                fecha_planificacion,
-                fecha_documentacion_preparada,
-                fecha_cargando,
-                fecha_carga_completada,
-                peso_real,
-                cantidad_bultos
-              )
-            `)
+            .select('*')
             .eq('despacho_id', despachoId)
             .order('numero_viaje', { ascending: true });
 
 
           if (error) {
-            console.error('❌ Error cargando viajes:', error);
+            console.error('Error cargando viajes:', error);
+            setViajesDespacho(prev => ({ ...prev, [despachoId]: [] }));
             return;
           }
 
           if (!viajes || viajes.length === 0) {
+            setViajesDespacho(prev => ({ ...prev, [despachoId]: [] }));
             return;
           }
 
@@ -1284,10 +1247,9 @@ const CrearDespacho = () => {
               ...v,
               transporte: v.id_transporte ? transportesData[v.id_transporte] : null,
               transporte_cancelado: v.id_transporte_cancelado ? transportesData[v.id_transporte_cancelado] : null,
-              chofer: v.choferes || (v.chofer_id ? choferesData[v.chofer_id] : null), // 🔥 Priorizar join
-              camion: v.camiones || (v.camion_id ? camionesData[v.camion_id] : null),  // 🔥 Priorizar join
-              acoplado: v.acoplados || (v.acoplado_id ? acopladosData[v.acoplado_id] : null), // 🔥 NUEVO: Acoplado
-              estado_carga_viaje: v.estado_carga_viaje || null // 🔥 NUEVO: Estado dual de carga
+              chofer: v.chofer_id ? choferesData[v.chofer_id] : null,
+              camion: v.camion_id ? camionesData[v.camion_id] : null,
+              acoplado: v.acoplado_id ? acopladosData[v.acoplado_id] : null,
             };
           }) || [];
 
