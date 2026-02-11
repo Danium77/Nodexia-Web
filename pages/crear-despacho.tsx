@@ -298,10 +298,12 @@ const CrearDespacho = () => {
           // 🔥 NUEVO: Calcular estado operativo de cada viaje para categorización correcta
           const esRedNodexia = d.origen_asignacion === 'red_nodexia';
           viajesConEstadoOperativo = viajesData.map(v => {
-            // Si está en Red Nodexia y pendiente, no tiene recursos reales aún
-            const enRedPendiente = esRedNodexia && (v.estado === 'pendiente' || v.estado === 'pendiente_asignacion');
+            // Si está en Red Nodexia y el viaje aún no está operativamente en movimiento,
+            // los recursos (chofer/camión) son datos stale del despacho anterior — ignorar
+            const estadosPreOperativos = ['pendiente', 'pendiente_asignacion', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer'];
+            const enRedPendiente = esRedNodexia && estadosPreOperativos.includes(v.estado);
             const estadoOp = calcularEstadoOperativo({
-              estado_carga: v.estado || 'pendiente',
+              estado_carga: enRedPendiente ? 'pendiente' : (v.estado || 'pendiente'),
               estado_unidad: v.estado,
               chofer_id: enRedPendiente ? null : v.chofer_id,
               camion_id: enRedPendiente ? null : v.camion_id,
