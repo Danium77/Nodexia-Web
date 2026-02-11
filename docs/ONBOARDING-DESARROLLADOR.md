@@ -124,8 +124,8 @@ Envía este archivo por email/mensaje privado seguro:
 **Archivo: `.env.local`**
 ```env
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://lkdcofsfjnluzzzwoir.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZGNvZnNmam5sdXp6endvaXIiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTczMzcxNzQ0MSwiZXhwIjoyMDQ5MjkzNDQxfQ.OxHMOV79xOT1pXZJb8jMFTWKPRWr1n_f2J4bHIvj60A
+NEXT_PUBLIC_SUPABASE_URL=<pedir al admin>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<pedir al admin>
 
 # (Agregar otras variables de entorno que tengas)
 ```

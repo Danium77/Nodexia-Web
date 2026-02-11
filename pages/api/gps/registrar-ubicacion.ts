@@ -34,21 +34,8 @@ export default async function handler(
       data: { session },
     } = await supabase.auth.getSession();
 
-    console.log('🔐 Auth check:', {
-      hasSession: !!session,
-      userEmail: session?.user?.email,
-      cookies: req.headers.cookie ? 'present' : 'missing',
-      origin: req.headers.origin,
-      referer: req.headers.referer,
-      body: { viaje_id: req.body.viaje_id }
-    });
-
-    // 🔥 TEMPORAL: Para desarrollo, permitir sin sesión si viene el viaje_id
-    // En producción, ELIMINAR esto y requerir siempre sesión
     if (!session) {
-      console.warn('⚠️ No session found, but allowing for development');
-      // Aún necesitamos validar que el viaje existe y tiene chofer
-      // La validación del chofer se hará más adelante
+      return res.status(401).json({ error: 'No autorizado' });
     }
 
     // Extraer datos del body

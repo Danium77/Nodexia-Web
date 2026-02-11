@@ -73,8 +73,10 @@ export default async function handler(
 
     console.log('SMTP configured:', smtpConfigured);
 
-    // Generar password temporal (solo si no hay SMTP)
-    const temporalPassword = smtpConfigured ? undefined : 'Temporal2024!';
+    // Generar password temporal seguro (solo si no hay SMTP)
+    const temporalPassword = smtpConfigured 
+      ? undefined 
+      : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
     
     // Crear usuario en auth.users
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
