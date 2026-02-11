@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 10-Feb-2026 (Sesión 11 — Flujo E2E Completo: Remito → CA → Chofer → Destino → Finalizar)
+**Última actualización:** 11-Feb-2026 (Sesión 12 — Hardening + Red Nodexia Fixes + Esquema Definitivo Estados)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 18-Feb-2026 (8 días)
+**Próxima presentación:** 18-Feb-2026 (7 días)
 
 ---
 
@@ -20,8 +20,10 @@
 - **API Routes Documentación:** 10 endpoints (upload, listar, [id], validar, pendientes, verificar-documentacion, documentos-detalle, estado-batch, alertas, preview-url)
 - **API Routes Operativas (Sesión 11):** upload-remito, consultar-remito, chofer/viajes, viajes/[id]/estado-unidad
 - **State Machine:** TRANSICIONES_VALIDAS en JS (19 estados, reemplaza RPC inexistente)
+- **Esquema Definitivo Estados:** 22 estados en 7 fases (0-Creación a 6-Cierre + X-Cancelado) en `lib/estadosHelper.ts`
 - **Tabla documentos_viaje:** La real es `documentos_viaje_seguro` (NOT NULL: viaje_id, tipo, nombre_archivo, file_url, storage_path, fecha_emision, subido_por)
 - **Flujo E2E Validado:** Supervisor remito → CA egreso → Chofer viaje destino → Finalizar → Vacío ✅
+- **Hardening:** ~20 APIs peligrosas eliminadas, GPS auth bypass fix, security headers, leaked key removida (commit e3b8e29)
 - **Control de Acceso:** Verificación docs integrada con API (no RPC), criterios dinámicos chofer dependencia/autónomo
 - **Alertas Documentación:** Hook useDocAlerts + DocAlertsBanner + DocComplianceCard
 - **Dashboard Transporte:** Métricas completas (viajes + flota + docs compliance)
@@ -197,6 +199,10 @@ components/
 15. **✅ RESUELTO: RPC actualizar_estado_unidad** — No existía → TRANSICIONES_VALIDAS en JS
 16. **✅ RESUELTO: Tab filtering crear-despacho** — fuera_de_horario excluía despachos → removida exclusión
 17. **✅ RESUELTO: arribado_destino invisible** — Faltaba en filtros/estilos de viajes-activos y crear-despacho
+18. **✅ RESUELTO: Viajes no se expandían** — Query con joins complejos fallaba silenciosamente → simplificado a select('*') (commit a786b89)
+19. **✅ RESUELTO: Red Nodexia mostraba datos stale** — Chofer/camión/acoplado visibles antes de confirmación → override con "Esperando oferta" (commit d0cac1c)
+20. **✅ RESUELTO: Tab categorización demorado/expirado** — Esquema definitivo con membresía exclusiva de tabs (commit 9efe9a7)
+21. **✅ RESUELTO: Hardening seguridad** — 20 APIs eliminadas, auth bypass GPS, security headers, leaked key (commit e3b8e29)
 
 ---
 
@@ -210,63 +216,70 @@ components/
 
 ## 🔄 ÚLTIMA ACTIVIDAD
 
-**Sesión 10-Feb-2026 (Sesión 11 — Flujo E2E Completo):**
+**Sesión 11-Feb-2026 (Sesión 12 — Hardening + Red Nodexia + Estados Definitivo):**
 
 ### Contexto:
-- Sesión de integración E2E: testear flujo completo desde supervisor hasta chofer finaliza viaje
-- 8 días para la presentación MVP (18-Feb-2026)
-- **RESULTADO: FLUJO E2E COMPLETO VALIDADO** ✅
+- Hardening de seguridad pre-demo
+- Red Nodexia: fixes de visualización y categorización
+- Esquema definitivo de estados para viajes (22 estados, 7 fases)
+- 7 días para la presentación MVP (18-Feb-2026)
+- **RESULTADO: SEGURIDAD HARDENED + ESTADOS DEFINITIVOS** ✅
 
-### Bugs encontrados y resueltos (11 fixes):
+### Cambios principales:
 
-**1. Chofer veía 0 viajes:**
-- CAUSA: RLS en viajes_despacho/choferes/despachos bloqueaba queries del chofer autenticado
-- FIX: Nuevo `/api/chofer/viajes.ts` con service_role (valida JWT primero)
+**1. Hardening de seguridad (commit e3b8e29):**
+- ~20 API routes peligrosas eliminadas (debug, test, bypass, delete-all)
+- GPS auth bypass fix (validar JWT antes de guardar ubicación)
+- Security headers en next.config.ts (CSP, HSTS, X-Frame-Options, etc.)
+- Leaked Supabase service key removida de docs/
+- Password hardcodeada reemplazada en nueva-invitacion.ts
 
-**2. RPC `actualizar_estado_unidad` no existía:**
-- CAUSA: La función PostgreSQL nunca fue creada
-- FIX: Reescritura completa de `/api/viajes/[id]/estado-unidad.ts` con TRANSICIONES_VALIDAS en JS + update directo
+**2. Red Nodexia fixes (commits a786b89, d0cac1c):**
+- Viajes no se expandían → query simplificado a select('*')
+- Datos stale de chofer/camión → override con "En Red Nodexia" / "Esperando oferta" cuando viaje no está en movimiento
 
-**3. Columna `fecha_salida_destino` no existía:**
-- CAUSA: La tabla viajes_despacho no tiene campos de timestamp por estado
-- FIX: Eliminados todos los timestamp fields del API de estado-unidad
+**3. Tab categorización (commits 4ea02da, 4e34c1f, aafba23, 9efe9a7):**
+- Despacho Red Nodexia aparecía en Demorados en vez de Expirados
+- Múltiples iteraciones hasta solución definitiva
+- Esquema final con membresía exclusiva de tabs
 
-**4. Transición `arribado_destino → vacio` bloqueada:**
-- FIX: Agregada a TRANSICIONES_VALIDAS
-
-**5. Despacho no aparecía en tabs de crear-despacho:**
-- CAUSA: `fuera_de_horario` excluido explícitamente de tabs 'en_proceso' y 'asignados'
-- FIX: Removida la exclusión
-
-**6. `arribado_destino` no aparecía en viajes-activos:**
-- FIX: Agregado al filtro `.in()`, estilos, contadores y labels
-
-**7-11. Fixes menores:** Labels faltantes, CSS estados, contadores incorrectos
+**4. Esquema definitivo de estados (commit 9efe9a7):**
+- estadosHelper.ts reescrito completo: 22 estados en 7 fases
+- Constantes: ESTADOS_FASE_ASIGNACION, ESTADOS_EN_MOVIMIENTO, ESTADOS_EN_PLANTA, ESTADOS_FINALES
+- Helpers: estaEnMovimiento(), estaEnAsignacion(), esFinal(), estaEnPlanta()
+- calcularEstadoOperativo() simplificado: Final>EnPlanta>EnMovimiento>Asignación
+- Tab categorización en crear-despacho.tsx con prioridad exclusiva
+- API: arribo_destino permite arribado_destino (destinos sin Nodexia)
 
 ### Archivos modificados/creados:
 ```
-CREADOS:
-- pages/api/chofer/viajes.ts (bypass RLS para chofer, ~100 líneas)
-- pages/api/upload-remito.ts (multipart upload → Storage remitos → documentos_viaje_seguro)
-- pages/api/consultar-remito.ts (query documentos_viaje_seguro por viaje_id)
-- docs/ESQUEMA-GENERAL-NODEXIA.md (mapa completo del sistema: 6 fases, estados, roles, API)
-- .copilot/sessions/2026-02-10-sesion11.md (log de sesión)
-
 REESCRITOS:
-- pages/api/viajes/[id]/estado-unidad.ts (TRANSICIONES_VALIDAS en JS, sin RPC, ~125 líneas)
+- lib/estadosHelper.ts (esquema definitivo de estados, ~260 líneas)
+
+ELIMINADOS (~20 archivos):
+- APIs de debug/test/bypass/delete-all
 
 MODIFICADOS:
-- pages/chofer/viajes.tsx (cargarViajes() usa fetch API en vez de Supabase directo)
-- pages/crear-despacho.tsx (tabs: removida exclusión fuera_de_horario, labels arribado_destino)
-- pages/transporte/viajes-activos.tsx (filtro + estilos + contadores para arribado_destino)
+- pages/crear-despacho.tsx (Red Nodexia override + tab categorización exclusiva + badges)
+- pages/api/viajes/[id]/estado-unidad.ts (transición arribo_destino → arribado_destino)
+- next.config.ts (security headers)
+- pages/api/gps/save-location.ts (auth fix)
+- pages/admin/nueva-invitacion.ts (hardcoded password removida)
 ```
+
+### Commits de sesión:
+- e3b8e29: Hardening (seguridad)
+- a786b89: Fix viajes expand
+- d0cac1c: Red Nodexia pending display
+- 4ea02da, 4e34c1f, aafba23: Tab categorización iteraciones
+- 9efe9a7: Esquema definitivo de estados
 
 ### Test Data de Referencia:
 - Despacho: DSP-20260210-001 (id: 169630e5)
 - Viaje: 43194a04
 - Chofer: walter@logisticaexpres.com (user_id: cd5eaa17, chofer_id: 75251f55)
 
-**Próximos pasos (quedan 8 días):**
+**Próximos pasos (quedan 7 días):**
 - Fase 5: Destino con Nodexia (CA + descarga en destino)
 - Cierre automático del viaje (vacío → completado)
 - Sincronización estado viaje en crear-despacho

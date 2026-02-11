@@ -4,6 +4,60 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-11 (Martes) - Sesión 12
+
+### Sesión 12 - Hardening + Red Nodexia + Esquema Definitivo Estados
+
+**Tiempo:** ~2.5 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO/Tester)
+
+#### Logros:
+1. ✅ Hardening de seguridad: ~20 APIs peligrosas eliminadas
+2. ✅ GPS auth bypass corregido (validar JWT antes de guardar)
+3. ✅ Security headers en next.config.ts (CSP, HSTS, X-Frame-Options)
+4. ✅ Leaked Supabase key removida de docs
+5. ✅ Hardcoded password reemplazada en nueva-invitacion.ts
+6. ✅ Fix viajes no se expandían (query simplificado)
+7. ✅ Fix Red Nodexia datos stale (override "Esperando oferta")
+8. ✅ Esquema definitivo de estados: 22 estados, 7 fases
+9. ✅ estadosHelper.ts reescrito completo
+10. ✅ Tab categorización exclusiva (expirado/demorado/asignado/pendiente)
+11. ✅ Badge counts consistentes con filtros
+12. ✅ API transición: arribo_destino → arribado_destino
+
+#### Archivos Creados (0):
+- Ninguno
+
+#### Archivos Eliminados (~20):
+- APIs de debug, test, bypass, borrado masivo
+
+#### Archivos Reescritos (1):
+- `lib/estadosHelper.ts` — Esquema definitivo completo (~260 líneas)
+
+#### Archivos Modificados (5):
+- `pages/crear-despacho.tsx` — Red Nodexia override + tab categorización + badges
+- `pages/api/viajes/[id]/estado-unidad.ts` — Transición arribo_destino → arribado_destino
+- `next.config.ts` — Security headers
+- `pages/api/gps/save-location.ts` — Auth fix
+- `pages/admin/nueva-invitacion.ts` — Hardcoded password removida
+
+#### Commits (7):
+- e3b8e29: Hardening seguridad (~20 APIs eliminadas + headers + auth)
+- a786b89: Fix viajes expand (query simplificado)
+- d0cac1c: Red Nodexia pending display
+- 4ea02da: Tab categorización fix v1
+- 4e34c1f: Tab categorización fix v2
+- aafba23: Tab categorización fix v3 (whitelist)
+- 9efe9a7: Esquema definitivo de estados (rewrite completo)
+
+#### Decisiones Técnicas:
+- estadosHelper.ts como fuente única de verdad para estados y categorización
+- Membresía exclusiva de tabs: prioridad completado > expirado > demorado > pendiente > en_proceso > asignado
+- Red Nodexia: estaEnMovimiento() como check canónico (no lista hardcodeada)
+- En planta = siempre activo (sin importar ventana de tiempo)
+
+---
+
 ## 📅 2026-02-10 (Lunes) - Sesión 11
 
 ### Sesión 11 - Flujo Operativo Completo E2E

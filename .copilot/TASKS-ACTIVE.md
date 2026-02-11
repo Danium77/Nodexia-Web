@@ -1,6 +1,43 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 10-Feb-2026 (Sesión 11)
+**Actualizado:** 11-Feb-2026 (Sesión 12)
+
+---
+
+## ✅ COMPLETADAS (Sesión 12 — 11-Feb-2026)
+
+### Hardening de Seguridad ✅
+**Completado por:** Opus directamente - Sesión 12
+**Commit:** e3b8e29
+**Archivos eliminados:** ~20 API routes peligrosas (debug, test, bypass, delete-all)
+**Archivos modificados:** `next.config.ts` (security headers), `pages/api/gps/save-location.ts` (auth fix), `pages/admin/nueva-invitacion.ts` (hardcoded password)
+**Archivos limpiados:** Leaked Supabase key removida de docs
+
+### Fix Viajes no se expandían ✅
+**Completado por:** Opus directamente - Sesión 12
+**Commit:** a786b89
+**Problema:** Query con joins complejos a estado_carga_viaje/camiones/choferes/acoplados fallaba silenciosamente
+**Solución:** Simplificado a `select('*')` — datos de entidades se buscan por separado
+
+### Fix Red Nodexia datos stale ✅
+**Completado por:** Opus directamente - Sesión 12
+**Commit:** d0cac1c
+**Problema:** Viaje en Red Nodexia mostraba chofer/camión/acoplado antes de confirmación
+**Solución:** Override con "En Red Nodexia", "Esperando oferta", dashes cuando viaje no está en movimiento físico
+
+### Esquema Definitivo de Estados ✅
+**Completado por:** Opus directamente - Sesión 12
+**Commit:** 9efe9a7
+**Archivos reescritos:** `lib/estadosHelper.ts` (completo)
+**Archivos modificados:** `pages/crear-despacho.tsx` (tabs + badges), `pages/api/viajes/[id]/estado-unidad.ts` (transición)
+**Cambios:**
+- 22 estados en 7 fases (0-Creación a 6-Cierre + X-Cancelado)
+- Constantes: ESTADOS_FASE_ASIGNACION, ESTADOS_EN_MOVIMIENTO, ESTADOS_EN_PLANTA, ESTADOS_FINALES
+- Helpers: estaEnMovimiento(), estaEnAsignacion(), esFinal(), estaEnPlanta()
+- calcularEstadoOperativo() simplificado: Final>EnPlanta>EnMovimiento>Asignación
+- Tab categorización exclusiva (expirado excluye demorado, demorado excluye asignado/en_proceso)
+- Badge counts consistentes con filtros
+- API: arribo_destino permite arribado_destino (destinos sin Nodexia)
 
 ---
 
