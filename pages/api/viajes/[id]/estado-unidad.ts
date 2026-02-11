@@ -22,7 +22,7 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
   'cargado': ['egreso_origen'],
   'egreso_origen': ['en_transito_destino'],
   'en_transito_destino': ['arribo_destino', 'arribado_destino', 'ingresado_destino'],
-  'arribo_destino': ['ingresado_destino'],
+  'arribo_destino': ['ingresado_destino', 'arribado_destino'],
   'arribado_destino': ['ingresado_destino', 'vacio'],
   'ingresado_destino': ['llamado_descarga'],
   'llamado_descarga': ['descargando'],

@@ -11,7 +11,7 @@ import { EstadoDualBadge } from '../components/ui/EstadoDualBadge';
 import { NodexiaLogoBadge } from '../components/ui/NodexiaLogo';
 import AbrirRedNodexiaModal from '../components/Transporte/AbrirRedNodexiaModal';
 import VerEstadoRedNodexiaModal from '../components/Transporte/VerEstadoRedNodexiaModal';
-import { calcularEstadoOperativo } from '../lib/estadosHelper';
+import { calcularEstadoOperativo, estaEnMovimiento, esFinal } from '../lib/estadosHelper';
 
 interface EmpresaOption {
   id: string;
@@ -298,13 +298,9 @@ const CrearDespacho = () => {
           // 🔥 NUEVO: Calcular estado operativo de cada viaje para categorización correcta
           const esRedNodexia = d.origen_asignacion === 'red_nodexia';
           viajesConEstadoOperativo = viajesData.map(v => {
-            // Si está en Red Nodexia, verificar si el viaje ya está en movimiento real.
-            // Solo estados donde el camión FÍSICAMENTE se movió cuentan como operativos
-            const estadosEnMovimiento = ['en_transito_origen', 'ingresado_origen', 'en_playa_origen',
-              'llamado_carga', 'cargando', 'cargado', 'egresado_origen', 'egreso_origen',
-              'en_transito_destino', 'arribado_destino', 'ingresado_destino', 'llamado_descarga',
-              'descargando', 'entregado', 'vacio', 'en_transito', 'viaje_completado', 'completado'];
-            const enRedPendiente = esRedNodexia && !estadosEnMovimiento.includes(v.estado);
+            // Red Nodexia: Si el viaje aún no está en movimiento físico (Fases 2-6),
+            // los chofer_id/camion_id son datos stale → forzar como pendiente sin recursos.
+            const enRedPendiente = esRedNodexia && !estaEnMovimiento(v.estado) && !esFinal(v.estado);
             const estadoOp = calcularEstadoOperativo({
               estado_carga: enRedPendiente ? 'pendiente' : (v.estado || 'pendiente'),
               estado_unidad: v.estado,
@@ -1894,7 +1890,8 @@ const CrearDespacho = () => {
               <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
                 {generatedDispatches.filter(d => {
                   const cantidadAsignados = d.viajes_asignados || 0;
-                  return cantidadAsignados === 0 && d.estado !== 'expirado';
+                  const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
+                  return cantidadAsignados === 0 && !(d as any).tiene_viajes_expirados && !esCompletado;
                 }).length}
               </span>
             </button>
@@ -1912,7 +1909,8 @@ const CrearDespacho = () => {
                   const cantidadTotal = d.cantidad_viajes_solicitados || 1;
                   const cantidadAsignados = d.viajes_asignados || 0;
                   const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  return cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado';
+                  const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
+                  return cantidadAsignados > 0 && viajesPendientes > 0 && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado;
                 }).length}
               </span>
             </button>
@@ -1930,9 +1928,10 @@ const CrearDespacho = () => {
                   const cantidadTotal = d.cantidad_viajes_solicitados || 1;
                   const cantidadAsignados = d.viajes_asignados || 0;
                   const viajesPendientes = cantidadTotal - cantidadAsignados;
+                  const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
                   return (
-                    (cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario') ||
-                    d.estado === 'asignado'
+                    ((cantidadAsignados > 0 && viajesPendientes === 0 && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado) ||
+                    (d.estado === 'asignado' && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado))
                   );
                 }).length}
               </span>
@@ -1947,7 +1946,7 @@ const CrearDespacho = () => {
             >
               ⏰ Demorados
               <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
-                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true).length}
+                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true && d.estado !== 'completado' && d.estado !== 'entregado').length}
               </span>
             </button>
             <button
@@ -1960,7 +1959,7 @@ const CrearDespacho = () => {
             >
               ❌ Expirados
               <span className="ml-2 px-2 py-0.5 bg-red-700 rounded text-xs">
-                {generatedDispatches.filter(d => (d as any).tiene_viajes_expirados === true).length}
+                {generatedDispatches.filter(d => (d as any).tiene_viajes_expirados === true && d.estado !== 'completado' && d.estado !== 'entregado').length}
               </span>
             </button>
             <button
@@ -2009,42 +2008,45 @@ const CrearDespacho = () => {
                   // Filtrar despachos según el tab activo
                   const filteredDispatches = generatedDispatches.filter(d => {
                     // Determinar el estado real del despacho basado en viajes ASIGNADOS
-                    // Si no se especificó cantidad_viajes_solicitados, asumir 1 viaje
                     const cantidadTotal = d.cantidad_viajes_solicitados || 1;
-                    const cantidadAsignados = d.viajes_asignados || 0; // 🔥 Cambiado de viajes_generados
+                    const cantidadAsignados = d.viajes_asignados || 0;
                     const viajesPendientes = cantidadTotal - cantidadAsignados;
+                    
+                    // Flags de estado operativo calculados en runtime
+                    const tieneDemorados = (d as any).tiene_viajes_demorados === true;
+                    const tieneExpirados = (d as any).tiene_viajes_expirados === true;
+                    const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
                     
                     let pasaFiltro = false;
                     let razon = '';
                     
-                    if (activeTab === 'pendientes') {
-                      // Pendientes: NO tienen ningún viaje asignado Y no están expirados
-                      pasaFiltro = cantidadAsignados === 0 && d.estado !== 'expirado';
-                      razon = `cantidadAsignados (${cantidadAsignados}) === 0 && estado !== 'expirado'`;
-                    } else if (activeTab === 'en_proceso') {
-                      // En proceso: tienen algunos viajes asignados pero no todos Y no están expirados
-                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario';
-                      razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) > 0 && estado !== 'expirado' && estado !== 'fuera_de_horario'`;
-                    } else if (activeTab === 'demorados') {
-                      // 🔥 Demorados = usan estado_operativo calculado (pero NO los expirados)
-                      pasaFiltro = (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true;
-                      razon = `tiene_viajes_demorados === true && !tiene_viajes_expirados`;
+                    if (activeTab === 'completados') {
+                      pasaFiltro = esCompletado;
+                      razon = `estado completado/entregado`;
                     } else if (activeTab === 'expirados') {
-                      // Expirados = usan estado_operativo calculado (viajes sin recursos)
-                      pasaFiltro = (d as any).tiene_viajes_expirados === true;
-                      razon = `tiene_viajes_expirados === true (viajes sin recursos, calculado en runtime)`;
-                    } else if (activeTab === 'completados') {
-                      // Completados: despachos con estado completado o entregado
-                      pasaFiltro = d.estado === 'completado' || d.estado === 'entregado';
-                      razon = `estado === 'completado' || estado === 'entregado'`;
+                      // Expirados: viajes sin recursos fuera de ventana (exclusivo)
+                      pasaFiltro = tieneExpirados && !esCompletado;
+                      razon = `tiene_viajes_expirados`;
+                    } else if (activeTab === 'demorados') {
+                      // Demorados: viajes CON recursos pero fuera de ventana (excluye expirados y completados)
+                      pasaFiltro = tieneDemorados && !tieneExpirados && !esCompletado;
+                      razon = `tiene_viajes_demorados && !expirados && !completados`;
+                    } else if (activeTab === 'pendientes') {
+                      // Pendientes: sin viajes asignados, no expirado, no completado
+                      pasaFiltro = cantidadAsignados === 0 && !tieneExpirados && !esCompletado;
+                      razon = `sin asignados, no expirado, no completado`;
+                    } else if (activeTab === 'en_proceso') {
+                      // En proceso: algunos viajes pero no todos, no expirado ni demorado ni completado
+                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 
+                        && !tieneExpirados && !tieneDemorados && !esCompletado;
+                      razon = `parcialmente asignado, sin expirados/demorados`;
                     } else {
-                      // Asignados: tienen TODOS los viajes asignados Y no están expirados ni demorados
-                      // TAMBIÉN incluir despachos con estado 'asignado' explícito
+                      // Asignados: todos los viajes asignados, no expirado ni demorado ni completado
                       pasaFiltro = (
-                        (cantidadAsignados > 0 && viajesPendientes === 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario') ||
-                        d.estado === 'asignado'
+                        (cantidadAsignados > 0 && viajesPendientes === 0 && !tieneExpirados && !tieneDemorados && !esCompletado) ||
+                        (d.estado === 'asignado' && !tieneExpirados && !tieneDemorados && !esCompletado)
                       );
-                      razon = `(cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) === 0) || estado === 'asignado'`;
+                      razon = `todos asignados, sin expirados/demorados/completados`;
                     }
                     
                     
