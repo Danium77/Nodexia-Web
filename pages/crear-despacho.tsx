@@ -298,10 +298,13 @@ const CrearDespacho = () => {
           // 🔥 NUEVO: Calcular estado operativo de cada viaje para categorización correcta
           const esRedNodexia = d.origen_asignacion === 'red_nodexia';
           viajesConEstadoOperativo = viajesData.map(v => {
-            // Si está en Red Nodexia y el viaje aún no está operativamente en movimiento,
-            // los recursos (chofer/camión) son datos stale del despacho anterior — ignorar
-            const estadosPreOperativos = ['pendiente', 'pendiente_asignacion', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer'];
-            const enRedPendiente = esRedNodexia && estadosPreOperativos.includes(v.estado);
+            // Si está en Red Nodexia, verificar si el viaje ya está en movimiento real.
+            // Solo estados donde el camión FÍSICAMENTE se movió cuentan como operativos
+            const estadosEnMovimiento = ['en_transito_origen', 'ingresado_origen', 'en_playa_origen',
+              'llamado_carga', 'cargando', 'cargado', 'egresado_origen', 'egreso_origen',
+              'en_transito_destino', 'arribado_destino', 'ingresado_destino', 'llamado_descarga',
+              'descargando', 'entregado', 'vacio', 'en_transito', 'viaje_completado', 'completado'];
+            const enRedPendiente = esRedNodexia && !estadosEnMovimiento.includes(v.estado);
             const estadoOp = calcularEstadoOperativo({
               estado_carga: enRedPendiente ? 'pendiente' : (v.estado || 'pendiente'),
               estado_unidad: v.estado,
@@ -1944,7 +1947,7 @@ const CrearDespacho = () => {
             >
               ⏰ Demorados
               <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
-                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true).length}
+                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true).length}
               </span>
             </button>
             <button
