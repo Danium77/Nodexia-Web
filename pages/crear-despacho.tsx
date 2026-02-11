@@ -296,12 +296,15 @@ const CrearDespacho = () => {
           hasViajesExpirados = viajesData.some(v => v.estado_carga === 'expirado');
           
           // 🔥 NUEVO: Calcular estado operativo de cada viaje para categorización correcta
+          const esRedNodexia = d.origen_asignacion === 'red_nodexia';
           viajesConEstadoOperativo = viajesData.map(v => {
+            // Si está en Red Nodexia y pendiente, no tiene recursos reales aún
+            const enRedPendiente = esRedNodexia && (v.estado === 'pendiente' || v.estado === 'pendiente_asignacion');
             const estadoOp = calcularEstadoOperativo({
               estado_carga: v.estado || 'pendiente',
               estado_unidad: v.estado,
-              chofer_id: v.chofer_id,
-              camion_id: v.camion_id,
+              chofer_id: enRedPendiente ? null : v.chofer_id,
+              camion_id: enRedPendiente ? null : v.camion_id,
               scheduled_local_date: d.scheduled_local_date,
               scheduled_local_time: d.scheduled_local_time,
               scheduled_at: scheduledAtFinal
@@ -2018,9 +2021,9 @@ const CrearDespacho = () => {
                       pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 && d.estado !== 'expirado' && d.estado !== 'fuera_de_horario';
                       razon = `cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) > 0 && estado !== 'expirado' && estado !== 'fuera_de_horario'`;
                     } else if (activeTab === 'demorados') {
-                      // 🔥 Demorados = usan estado_operativo calculado
-                      pasaFiltro = (d as any).tiene_viajes_demorados === true;
-                      razon = `tiene_viajes_demorados === true (calculado en runtime)`;
+                      // 🔥 Demorados = usan estado_operativo calculado (pero NO los expirados)
+                      pasaFiltro = (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true;
+                      razon = `tiene_viajes_demorados === true && !tiene_viajes_expirados`;
                     } else if (activeTab === 'expirados') {
                       // Expirados = usan estado_operativo calculado (viajes sin recursos)
                       pasaFiltro = (d as any).tiene_viajes_expirados === true;

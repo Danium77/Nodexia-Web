@@ -48,6 +48,7 @@ export const ESTADOS_CARGA_EN_PROGRESO = [
  * Estados de CARGA que indican que el viaje aún no comenzó
  */
 export const ESTADOS_CARGA_PENDIENTES = [
+  'pendiente',
   'pendiente_asignacion',
   'transporte_asignado',
 ] as const;
