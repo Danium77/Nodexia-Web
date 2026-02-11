@@ -2304,6 +2304,9 @@ const CrearDespacho = () => {
                                   </thead>
                                   <tbody>
                                     {viajesDespacho[dispatch.id]?.map((viaje: any) => {
+                                      // Si el viaje está en Red Nodexia y aún no fue confirmado/asignado,
+                                      // no mostrar datos de transporte/chofer/camión
+                                      const enRedPendiente = viaje.en_red_nodexia && viaje.estado_red !== 'asignado';
                                       return (
                                       <tr key={viaje.id} className="border-b border-gray-800 hover:bg-gray-800/50">
                                         <td className="py-2 px-2 font-mono">
@@ -2312,7 +2315,13 @@ const CrearDespacho = () => {
                                           </span>
                                         </td>
                                         <td className="py-2 px-2">
-                                          {viaje.estado === 'cancelado_por_transporte' && viaje.transporte_cancelado ? (
+                                          {enRedPendiente ? (
+                                            <div className="flex items-center gap-1">
+                                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30 animate-pulse">
+                                                🌐 En Red Nodexia
+                                              </span>
+                                            </div>
+                                          ) : viaje.estado === 'cancelado_por_transporte' && viaje.transporte_cancelado ? (
                                             <div>
                                               <div className="text-red-400 font-medium line-through">{viaje.transporte_cancelado.nombre}</div>
                                               <div className="text-orange-400 text-xs font-semibold">⚠️ Cancelado - Reasignar</div>
@@ -2334,7 +2343,9 @@ const CrearDespacho = () => {
                                           )}
                                         </td>
                                         <td className="py-2 px-2">
-                                          {viaje.chofer ? (
+                                          {enRedPendiente ? (
+                                            <span className="text-gray-500 text-xs">Esperando oferta</span>
+                                          ) : viaje.chofer ? (
                                             <div>
                                               <div className="text-cyan-400 font-medium">
                                                 {viaje.chofer.nombre} {viaje.chofer.apellido}
@@ -2348,7 +2359,9 @@ const CrearDespacho = () => {
                                           )}
                                         </td>
                                         <td className="py-2 px-2">
-                                          {viaje.camion ? (
+                                          {enRedPendiente ? (
+                                            <span className="text-gray-500 text-xs">—</span>
+                                          ) : viaje.camion ? (
                                             <div>
                                               <div className="text-yellow-400 font-bold">
                                                 🚛 {viaje.camion.patente}
@@ -2362,7 +2375,9 @@ const CrearDespacho = () => {
                                           )}
                                         </td>
                                         <td className="py-2 px-2">
-                                          {viaje.acoplado ? (
+                                          {enRedPendiente ? (
+                                            <span className="text-gray-500 text-xs">—</span>
+                                          ) : viaje.acoplado ? (
                                             <div>
                                               <div className="text-cyan-400 font-bold">
                                                 🚚 {viaje.acoplado.patente}
@@ -2378,7 +2393,9 @@ const CrearDespacho = () => {
                                         <td className="py-2 px-2">
                                           <div className="flex flex-col gap-1">
                                             <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-                                              viaje.estado === 'cancelado_por_transporte' || viaje.estado === 'cancelado' 
+                                              enRedPendiente
+                                                ? 'bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border border-cyan-500/30'
+                                                : viaje.estado === 'cancelado_por_transporte' || viaje.estado === 'cancelado' 
                                                 ? 'bg-red-900 text-red-200'
                                                 : viaje.estado === 'pausado'
                                                 ? 'bg-orange-900 text-orange-200'
@@ -2396,7 +2413,9 @@ const CrearDespacho = () => {
                                                 ? 'bg-emerald-900 text-emerald-200'
                                                 : 'bg-gray-900 text-gray-200'
                                             }`}>
-                                              {viaje.estado === 'cancelado_por_transporte' 
+                                              {enRedPendiente
+                                                ? '🌐 En Red'
+                                                : viaje.estado === 'cancelado_por_transporte' 
                                                 ? '⚠️ Cancelado'
                                                 : viaje.estado === 'cancelado'
                                                 ? '❌ Cancelado'
