@@ -88,37 +88,69 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
   }, [isDragging, draggedDispatch]);
 
   const getStatusColor = (estado: string) => {
-    switch (estado) {
-      case 'Generado': return 'bg-gray-600';
-      case 'Aceptado': return 'bg-blue-600';
-      case 'Asignado': return 'bg-yellow-600';
-      case 'Confirmado': return 'bg-cyan-600';
-      case 'En Camino a Origen': return 'bg-indigo-600';
-      case 'Arribado a Origen': return 'bg-purple-600';
-      case 'Cargando': return 'bg-orange-600';
-      case 'Cargado': return 'bg-emerald-600';
-      case 'Despachado': return 'bg-green-600';
-      case 'Camino a Destino': return 'bg-pink-600';
-      case 'Arribado a Destino': return 'bg-red-600';
-      case 'Descargando': return 'bg-amber-600';
-      case 'Descargado': return 'bg-lime-600';
-      case 'Terminado': return 'bg-gray-700';
-      default: return 'bg-slate-600';
-    }
+    const colors: Record<string, string> = {
+      // Legacy display names
+      'Generado': 'bg-gray-600',
+      'Aceptado': 'bg-blue-600',
+      'Asignado': 'bg-yellow-600',
+      'Confirmado': 'bg-cyan-600',
+      'En Camino a Origen': 'bg-indigo-600',
+      'Arribado a Origen': 'bg-purple-600',
+      'Cargando': 'bg-orange-600',
+      'Cargado': 'bg-emerald-600',
+      'Despachado': 'bg-green-600',
+      'Camino a Destino': 'bg-pink-600',
+      'Arribado a Destino': 'bg-red-600',
+      'Descargando': 'bg-amber-600',
+      'Descargado': 'bg-lime-600',
+      'Terminado': 'bg-gray-700',
+      // snake_case estado_unidad values
+      'pendiente': 'bg-gray-600',
+      'transporte_asignado': 'bg-blue-600',
+      'camion_asignado': 'bg-yellow-600',
+      'confirmado_chofer': 'bg-cyan-600',
+      'en_transito_origen': 'bg-indigo-600',
+      'ingresado_origen': 'bg-green-600',
+      'en_playa_origen': 'bg-teal-600',
+      'llamado_carga': 'bg-amber-600',
+      'cargando': 'bg-orange-600',
+      'egreso_origen': 'bg-purple-600',
+      'en_transito_destino': 'bg-pink-600',
+      'arribado_destino': 'bg-teal-700',
+      'ingresado_destino': 'bg-emerald-600',
+      'llamado_descarga': 'bg-cyan-700',
+      'descargando': 'bg-amber-600',
+      'entregado': 'bg-green-700',
+      'completado': 'bg-green-800',
+      'cancelado': 'bg-red-600',
+      'vacio': 'bg-slate-500',
+    };
+    return colors[estado] || 'bg-slate-600';
   };
 
   const getStatusLabel = (estado: string) => {
     const labels: Record<string, string> = {
       'pendiente': '⏳ Pendiente',
+      'transporte_asignado': '🚛 Transporte',
       'camion_asignado': '🚛 Camión Asignado',
       'confirmado_chofer': '✅ Confirmado',
       'en_transito_origen': '🚚 → Origen',
-      'arribo_origen': '📍 En Origen',
+      'ingresado_origen': '🏭 En Planta',
+      'en_playa_origen': '⏸️ Playa Espera',
+      'llamado_carga': '📢 Llamado Carga',
+      'cargando': '⚙️ Cargando',
+      'egreso_origen': '🚪 Saliendo',
       'en_transito_destino': '🚚 → Destino',
-      'arribo_destino': '📍 En Destino',
+      'arribo_origen': '📍 En Origen',
+      'arribado_destino': '📍 En Destino',
+      'ingresado_destino': '🏁 Ingresado Destino',
+      'llamado_descarga': '📢 Llamado Descarga',
+      'descargando': '📤 Descargando',
+      'vacio': '⚪ Vacío',
       'entregado': '✅ Entregado',
+      'completado': '🎉 Completado',
       'cancelado': '❌ Cancelado',
-      // Compatibilidad con estados antiguos
+      // Legacy display-name compat
       'Generado': '📋 Generado',
       'Asignado': '🚛 Asignado',
       'Confirmado': '✔️ Confirmado'

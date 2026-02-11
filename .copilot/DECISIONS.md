@@ -1,0 +1,168 @@
+# DECISIONES TÉCNICAS
+
+Registro de decisiones arquitectónicas y técnicas importantes.
+
+---
+
+## DEC-001: Sistema de Memoria Persistente (08-Feb-2026)
+
+**Contexto:** Agentes IA no tienen memoria entre sesiones  
+**Problema:** Pérdida de contexto al cerrar VS Code  
+**Decisión:** Implementar "Memory As Code" con archivos .md  
+**Alternativas consideradas:** 
+- Base de datos externa (rechazada: complejidad)
+- Comentarios en código (rechazada: dispersión)
+
+**Impacto:** Positivo - Continuidad garantizada  
+**Responsable:** Opus
+
+---
+
+## DEC-002: Enfoque MVP antes de Estabilización (08-Feb-2026)
+
+**Contexto:** Presentación en 10 días + BD con problemas  
+**Problema:** No hay tiempo para estabilización completa + features  
+**Decisión:** Priorizar features funcionales end-to-end, estabilización post-MVP  
+**Alternativas consideradas:**
+- Estabilizar primero (rechazada: no llega a MVP)
+- Solo arreglos visuales (rechazada: no funcionaría)
+
+**Impacto:** Riesgo moderado pero alcanzable  
+**Responsable:** Usuario (Product Owner)
+
+---
+
+## DEC-003: Arquitectura Modular para Features Nuevos (08-Feb-2026)
+
+**Contexto:** Código legacy difícil de mantener  
+**Problema:** Archivos de 1600+ líneas, lógica mezclada  
+**Decisión:** Features nuevos en estructura modular (modules/)  
+**Alternativas consideradas:**
+- Refactorizar todo (rechazada: tiempo)
+- Seguir con estructura actual (rechazada: insostenible)
+
+**Impacto:** Positivo - Código nuevo profesional, legacy intacto  
+**Responsable:** Opus
+
+---
+
+## DEC-004: Tabla documentos_entidad vs documentos_recursos (08-Feb-2026)
+
+**Contexto:** Sonnet propuso SQL con problemas de seguridad  
+**Problema:** Foreign keys sin validar, funciones sin permisos, auditoría faltante  
+**Decisión:** SQL completamente reescrito con seguridad completa  
+**Cambios clave:**
+- Nombre: `documentos_entidad` (según SPEC)
+- Trigger para validar foreign keys
+- Tabla de auditoría completa
+- RLS multi-tenant con permisos verificados
+- Sistema de archivado (no DELETE)
+
+**Impacto:** Alta seguridad, compliance, auditoría retrospectiva  
+**Responsable:** Opus
+
+---
+
+## DEC-005: Protocolo de Trabajo con Múltiples Sonnet (08-Feb-2026)
+
+**Contexto:** Usuario quiere equipo virtual sin perder memoria  
+**Problema:** Sonnet puede alucinar sin contexto limitado  
+**Decisión:** Sistema de tareas TASK-XXX.md con scope ultra-limitado  
+**Protocolo:**
+1. Opus crea TASK-XXX.md (1-2 archivos máx)
+2. Usuario copia a nueva ventana Sonnet
+3. Sonnet ejecuta y reporta en el mismo archivo
+4. Opus revisa antes de aplicar
+5. Usuario testea
+
+**Impacto:** Minimiza alucinaciones, permite paralelismo  
+**Responsable:** Opus
+
+---
+
+## DEC-006: FK columna correcta en tablas flota (08-Feb-2026)
+
+**Contexto:** Las tablas `choferes`, `camiones`, `acoplados` tenían originalmente `id_transporte` como FK  
+**Problema:** Migration 030 (02-Feb-2026) documentó que la columna se renombró/migró a `empresa_id`. Todo el código funcional existente usa `empresa_id`. En Sesión 3, Opus cometió el error de asumir que camiones/acoplados seguían usando `id_transporte` (solo mirando los CREATE TABLE originales sin verificar migraciones posteriores ni código funcional).  
+**Decisión:** Las 3 tablas usan `empresa_id` como FK a `empresas`. La función SQL `verificar_documentacion_entidad` era CORRECTA. Documentación corregida en SONNET-GUIDELINES, PROJECT-STATE, WORK-LOG. Código corregido en DocumentosFlotaContent.tsx.  
+**REGLA:** Siempre verificar código funcional existente antes de asumir esquema de BD desde archivos CREATE TABLE.  
+**Impacto:** Evita bugs de FK en todo código futuro  
+**Responsable:** Opus (corrección proactiva por observación del PO)
+
+---
+
+## DEC-007: NO insertar datos de procesos en BD — TODO desde UI (08-Feb-2026)
+
+**Contexto:** Nodexia es una plataforma de gestión real, no un prototipo con datos de ejemplo  
+**Decisión:** **NUNCA** crear scripts de seed/insert para datos de procesos funcionales. Todos los datos operativos se cargan EXCLUSIVAMENTE desde la UI usando los procesos funcionales de la aplicación.  
+**Aplica a:** Choferes, camiones, acoplados, despachos, viajes, documentación, incidencias, empresas de transporte, unidades operativas, y cualquier dato de negocio.  
+**Excepciones permitidas:**
+- Estructura de BD (CREATE TABLE, ALTER, migrations)
+- Configuración de roles/permisos (RLS policies)
+- Datos de sistema (super_admins, configuración global)
+- Usuarios iniciales de auth  
+**Consecuencia:** Si un feature no puede probarse porque no hay datos, primero hay que asegurar que el feature de carga desde UI funciona. Los datos de demo para presentación también se cargan desde UI.  
+**Responsable:** PO (directiva de producto)
+
+---
+
+## DEC-008: Criterios de Documentación Dinámicos por Tipo de Chofer (10-Feb-2026)
+
+**Contexto:** Control de acceso bloqueaba choferes bajo relación de dependencia por "Seguro de Vida faltante"  
+**Problema:** Los docs críticos estaban hardcodeados como `['licencia_conducir', 'art_clausula_no_repeticion']` para todos los choferes  
+**Decisión:** Los docs requeridos se determinan dinámicamente:
+- `choferes.empresa_id` → `empresas.tipo_empresa`
+- Si tipo_empresa = 'transporte' → dependencia → requiere ART + cláusula
+- Si no tiene empresa o tipo diferente → autónomo → requiere seguro de vida
+- Licencia de conducir siempre requerida
+
+**Impacto:** Positivo — cada chofer solo necesita los docs que le corresponden  
+**Responsable:** Opus + PO (PO confirmó: "Se deduce de la empresa")
+
+---
+
+## DEC-009: Alias de Tipos de Documento para Compatibilidad (10-Feb-2026)
+
+**Contexto:** Migración 046 original usaba tipos como 'vtv', 'tarjeta_verde'; la versión corregida usa 'rto', 'cedula'  
+**Problema:** Docs cargados con tipos viejos no eran reconocidos por verificaciones que buscan tipos nuevos  
+**Decisión:** `normalizarTipoDoc()` en todos los endpoints de verificación: vtv→rto, tarjeta_verde/cedula_verde→cedula  
+**Alternativas:** Migrar datos en BD (rechazada: riesgo de romper otros procesos), mantener tipos viejos en código (rechazada: confuso)  
+**Impacto:** Compatibilidad transparente sin tocar datos  
+**Responsable:** Opus
+
+---
+
+## DEC-010: Seguridad Diferida a Post-MVP con Registro Formal (10-Feb-2026)
+
+**Contexto:** Auditoría reveló 23+ endpoints vulnerables (6 críticos sin auth, 12 sin scope)  
+**Problema:** No hay tiempo para fix completo antes de la demo (18-Feb)  
+**Decisión:** Diferir a post-MVP PERO registrar formalmente en `docs/PENDIENTE-CRITICO-SEGURIDAD-API.md` con inventario completo, fases de acción, y cita del cliente  
+**REGLA:** Este archivo debe consultarse al inicio de la primera sesión post-MVP  
+**Impacto:** Riesgo aceptable para demo, pero DEBE resolverse antes de producción con datos reales  
+**Responsable:** PO (decisión) + Opus (ejecución post-MVP)
+
+---
+
+## DEC-011: Modal de Docs usa API Server-Side, no Client RLS (10-Feb-2026)
+
+**Contexto:** DocumentacionDetalle.tsx usaba `supabase` client → RLS bloqueaba acceso para usuario control-acceso  
+**Problema:** Ciertos componentes necesitan ver datos cross-empresa que RLS no permite  
+**Decisión:** Crear API endpoints autenticados que usen `supabaseAdmin` (bypasea RLS). El componente llama a la API con Bearer token.  
+**REGLA:** Cuando un componente necesita datos que RLS no permite, SIEMPRE usar API route con supabaseAdmin + auth, NUNCA el client directo.  
+**Impacto:** Datos accesibles de forma segura sin exponer todo  
+**Responsable:** Opus
+
+---
+
+## Template para futuras decisiones:
+
+```markdown
+## DEC-XXX: [Título] ([Fecha])
+
+**Contexto:** [Situación]  
+**Problema:** [Qué resolver]  
+**Decisión:** [Qué se decidió]  
+**Alternativas consideradas:** [Opciones descartadas]  
+**Impacto:** [Consecuencias]  
+**Responsable:** [Quién decidió]
+```

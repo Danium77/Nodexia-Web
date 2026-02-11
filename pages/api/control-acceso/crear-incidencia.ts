@@ -1,47 +1,69 @@
 // pages/api/control-acceso/crear-incidencia.ts
-// API para crear incidencia cuando Control de Acceso rechaza acceso
+// API para crear incidencia cuando Control de Acceso detecta problemas de documentación
+// TASK-S06: Reescritura completa — tabla incidencias_viaje con columnas correctas
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Tipos válidos según CHECK en incidencias_viaje
+const TIPOS_VALIDOS = [
+  'retraso',
+  'averia_camion',
+  'documentacion_faltante',
+  'producto_danado',
+  'accidente',
+  'otro',
+] as const;
+
+type TipoIncidencia = typeof TIPOS_VALIDOS[number];
+type Severidad = 'baja' | 'media' | 'alta' | 'critica';
+
+function determinarSeveridad(tipo: TipoIncidencia): Severidad {
+  const map: Record<TipoIncidencia, Severidad> = {
+    retraso: 'baja',
+    averia_camion: 'alta',
+    documentacion_faltante: 'media',
+    producto_danado: 'alta',
+    accidente: 'critica',
+    otro: 'media',
+  };
+  return map[tipo] || 'media';
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  try {
-    const {
-      viaje_id,
-      usuario_id,
-      tipo_incidencia,
-      descripcion,
-      fotos_incidencia,
-      documentos_faltantes,
-      requiere_supervision,
-      accion_sugerida
-    } = req.body;
+  // Auth obligatorio
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No autenticado' });
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) return res.status(401).json({ error: 'No autorizado' });
 
-    if (!viaje_id || !usuario_id || !tipo_incidencia || !descripcion) {
-      return res.status(400).json({ 
+  try {
+    const { viaje_id, tipo_incidencia, descripcion, severidad } = req.body;
+
+    // Validar campos requeridos
+    if (!viaje_id || !tipo_incidencia || !descripcion) {
+      return res.status(400).json({
         error: 'Datos requeridos faltantes',
-        required: ['viaje_id', 'usuario_id', 'tipo_incidencia', 'descripcion']
+        required: ['viaje_id', 'tipo_incidencia', 'descripcion'],
       });
     }
 
-    // 1. Validar que el viaje existe
+    // Validar tipo_incidencia contra CHECK de la tabla
+    if (!TIPOS_VALIDOS.includes(tipo_incidencia)) {
+      return res.status(400).json({
+        error: 'Tipo de incidencia inválido',
+        tipos_validos: TIPOS_VALIDOS,
+      });
+    }
+
+    // Validar que el viaje existe en viajes_despacho (NO en 'viajes')
     const { data: viaje, error: viajeError } = await supabaseAdmin
-      .from('viajes')
-      .select(`
-        *,
-        chofer:choferes(*),
-        camion:camiones(*),
-        empresa:empresas(*)
-      `)
+      .from('viajes_despacho')
+      .select('id, numero_viaje')
       .eq('id', viaje_id)
       .single();
 
@@ -49,282 +71,88 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Viaje no encontrado' });
     }
 
-    // 2. Validar el tipo de incidencia
-    const tiposValidos = [
-      'documentacion_faltante',
-      'documentacion_vencida',
-      'documentacion_incorrecta',
-      'chofer_no_autorizado',
-      'camion_no_autorizado',
-      'horario_incorrecto',
-      'producto_no_coincide',
-      'otro'
-    ];
+    // Determinar severidad: usar la enviada o calcular por tipo
+    const severidadFinal: Severidad =
+      severidad && ['baja', 'media', 'alta', 'critica'].includes(severidad)
+        ? severidad
+        : determinarSeveridad(tipo_incidencia as TipoIncidencia);
 
-    if (!tiposValidos.includes(tipo_incidencia)) {
-      return res.status(400).json({
-        error: 'Tipo de incidencia inválido',
-        tipos_validos: tiposValidos
-      });
-    }
-
-    // 3. Crear la incidencia
-    const incidenciaData = {
-      viaje_id: viaje_id,
+    // Insertar en incidencias_viaje
+    // Columnas esperadas: estado, severidad, fecha_incidencia (schema unificado via migración 053)
+    // Fallback para schema viejo: estado_resolucion, fecha_reporte, sin severidad
+    const insertData: Record<string, any> = {
+      viaje_id,
       tipo_incidencia,
-      descripcion,
-      estado_incidencia: 'abierta',
-      prioridad: determinarPrioridad(tipo_incidencia),
-      reportada_por: usuario_id,
-      fecha_reporte: new Date().toISOString(),
-      fotos_incidencia: fotos_incidencia ? JSON.stringify(fotos_incidencia) : null,
-      datos_extra: {
-        documentos_faltantes: documentos_faltantes || [],
-        requiere_supervision: requiere_supervision || false,
-        accion_sugerida: accion_sugerida || null,
-        ubicacion: 'Control de Acceso'
-      }
+      descripcion: descripcion.trim(),
+      reportado_por: user.id,
     };
 
-    const { data: incidencia, error: incidenciaError } = await supabaseAdmin
+    // Intentar con schema nuevo primero (migración 053)
+    insertData.severidad = severidadFinal;
+    insertData.estado = 'abierta';
+    insertData.fecha_incidencia = new Date().toISOString();
+
+    let incidencia: any = null;
+    let insertError: any = null;
+
+    // Intento 1: Schema unificado (estado, severidad, fecha_incidencia)
+    const result1 = await supabaseAdmin
       .from('incidencias_viaje')
-      .insert(incidenciaData)
-      .select()
+      .insert(insertData)
+      .select('id, tipo_incidencia, estado, severidad')
       .single();
 
-    if (incidenciaError) {
-      throw incidenciaError;
+    if (!result1.error) {
+      incidencia = result1.data;
+    } else {
+      console.warn('Intento 1 falló (schema nuevo), probando schema viejo:', result1.error.message);
+
+      // Intento 2: Schema viejo (estado_resolucion, fecha_reporte, sin severidad)
+      const insertDataViejo: Record<string, any> = {
+        viaje_id,
+        tipo_incidencia,
+        descripcion: descripcion.trim(),
+        reportado_por: user.id,
+        estado_resolucion: 'pendiente',
+        fecha_reporte: new Date().toISOString(),
+      };
+
+      const result2 = await supabaseAdmin
+        .from('incidencias_viaje')
+        .insert(insertDataViejo)
+        .select('id, tipo_incidencia, estado_resolucion')
+        .single();
+
+      if (!result2.error) {
+        incidencia = {
+          ...result2.data,
+          estado: result2.data.estado_resolucion || 'pendiente',
+          severidad: severidadFinal,
+        };
+      } else {
+        insertError = result2.error;
+      }
     }
 
-    // 4. Actualizar estado del viaje si es necesario
-    const nuevoEstado = determinarNuevoEstadoViaje(viaje.estado_viaje, tipo_incidencia);
-    if (nuevoEstado !== viaje.estado_viaje) {
-      await supabaseAdmin
-        .from('viajes')
-        .update({ 
-          estado_viaje: nuevoEstado,
-          observaciones: (viaje.observaciones || '') + 
-            `\n[INCIDENCIA] ${descripcion} - Reportado por Control de Acceso`,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', viaje_id);
+    if (insertError || !incidencia) {
+      console.error('Error insertando incidencia:', insertError);
+      throw insertError || new Error('No se pudo crear la incidencia');
     }
-
-    // 5. Enviar notificaciones
-    await enviarNotificacionIncidencia(viaje, incidencia);
-    if (requiere_supervision) {
-      await notificarSupervisores(viaje, incidencia);
-    }
-
-    // 6. Generar acciones recomendadas
-    const accionesRecomendadas = generarAccionesRecomendadas(tipo_incidencia, viaje);
 
     return res.status(201).json({
       success: true,
-      message: 'Incidencia creada exitosamente',
       data: {
-        incidencia: {
-          id: incidencia.id,
-          numero_incidencia: `INC-${incidencia.id.toString().padStart(5, '0')}`,
-          tipo: tipo_incidencia,
-          estado: incidencia.estado_incidencia,
-          prioridad: incidencia.prioridad
-        },
-        viaje: {
-          id: viaje.id,
-          numero_viaje: viaje.numero_viaje,
-          estado_anterior: viaje.estado_viaje,
-          estado_nuevo: nuevoEstado
-        },
-        acciones_recomendadas: accionesRecomendadas,
-        requiere_supervision: requiere_supervision,
-        siguiente_paso: {
-          descripcion: requiere_supervision ? 
-            'Incidencia escalada a supervisión. Aguardando resolución.' :
-            'Incidencia registrada. El chofer debe corregir los problemas identificados.'
-        }
-      }
+        id: incidencia.id,
+        tipo_incidencia: incidencia.tipo_incidencia,
+        estado: incidencia.estado,
+        severidad: incidencia.severidad,
+      },
     });
-
   } catch (error: any) {
     console.error('Error creando incidencia:', error);
     return res.status(500).json({
       error: 'Error interno del servidor',
-      details: error.message
+      details: error.message,
     });
-  }
-}
-
-function determinarPrioridad(tipoIncidencia: string): 'baja' | 'media' | 'alta' | 'critica' {
-  const prioridades: Record<string, 'baja' | 'media' | 'alta' | 'critica'> = {
-    'documentacion_faltante': 'media',
-    'documentacion_vencida': 'alta',
-    'documentacion_incorrecta': 'media',
-    'chofer_no_autorizado': 'critica',
-    'camion_no_autorizado': 'critica',
-    'horario_incorrecto': 'baja',
-    'producto_no_coincide': 'alta',
-    'otro': 'media'
-  };
-
-  return prioridades[tipoIncidencia] || 'media';
-}
-
-function determinarNuevoEstadoViaje(estadoActual: string, tipoIncidencia: string): string {
-  // Incidencias críticas bloquean el viaje
-  const incidenciasCriticas = [
-    'chofer_no_autorizado',
-    'camion_no_autorizado',
-    'documentacion_vencida'
-  ];
-
-  if (incidenciasCriticas.includes(tipoIncidencia)) {
-    return 'bloqueado';
-  }
-
-  // Para otras incidencias, mantener el estado actual pero agregar flag
-  return estadoActual;
-}
-
-function generarAccionesRecomendadas(tipoIncidencia: string, _viaje: any) {
-  const acciones: Record<string, string[]> = {
-    'documentacion_faltante': [
-      'Contactar al chofer para que presente la documentación faltante',
-      'Verificar en sistema si los documentos fueron cargados previamente',
-      'Solicitar documentos por email o WhatsApp'
-    ],
-    'documentacion_vencida': [
-      'Rechazar acceso hasta renovar documentación',
-      'Notificar a la empresa sobre documentos vencidos',
-      'Programar nuevo viaje una vez renovados los documentos'
-    ],
-    'documentacion_incorrecta': [
-      'Solicitar corrección de documentos',
-      'Verificar datos con el sistema de gestión',
-      'Contactar a la empresa para aclaración'
-    ],
-    'chofer_no_autorizado': [
-      'Rechazar acceso inmediatamente',
-      'Verificar identidad del chofer',
-      'Solicitar chofer autorizado'
-    ],
-    'camion_no_autorizado': [
-      'Rechazar acceso del vehículo',
-      'Verificar patente en sistema',
-      'Solicitar vehículo autorizado'
-    ],
-    'horario_incorrecto': [
-      'Verificar horarios permitidos de la empresa',
-      'Reprogramar viaje para horario correcto',
-      'Evaluar excepción si es urgente'
-    ],
-    'producto_no_coincide': [
-      'Verificar orden de trabajo',
-      'Contactar supervisor de carga',
-      'Corregir producto en sistema'
-    ],
-    'otro': [
-      'Evaluar situación específica',
-      'Contactar supervisor si es necesario',
-      'Documentar incidencia para futura referencia'
-    ]
-  };
-
-  return acciones[tipoIncidencia] || acciones['otro'];
-}
-
-async function enviarNotificacionIncidencia(viaje: any, incidencia: any) {
-  try {
-    // Notificar al chofer
-    const { data: usuarioChofer } = await supabaseAdmin
-      .from('usuarios')
-      .select('id')
-      .eq('email', viaje.chofer.email)
-      .single();
-
-    if (usuarioChofer) {
-      await supabaseAdmin
-        .from('notificaciones')
-        .insert({
-          user_id: usuarioChofer.id,
-          tipo: 'mensaje_sistema',
-          titulo: '⚠️ Incidencia Reportada',
-          mensaje: `Se reportó una incidencia en su viaje ${viaje.numero_viaje}: ${incidencia.descripcion}`,
-          viaje_id: viaje.id,
-          metadata: {
-            incidencia_id: incidencia.id,
-            tipo_incidencia: incidencia.tipo_incidencia,
-            prioridad: incidencia.prioridad
-          }
-        });
-    }
-
-    // Notificar a la empresa
-    const { data: usuariosEmpresa } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select(`
-        user_id,
-        usuarios(id, email)
-      `)
-      .eq('empresa_id', viaje.empresa_id)
-      .in('rol_interno', ['Administrador', 'Supervisor'])
-      .eq('activo', true);
-
-    if (usuariosEmpresa) {
-      for (const usuario of usuariosEmpresa) {
-        await supabaseAdmin
-          .from('notificaciones')
-          .insert({
-            user_id: usuario.user_id,
-            tipo: 'mensaje_sistema',
-            titulo: '⚠️ Incidencia en Viaje',
-            mensaje: `Incidencia reportada en viaje ${viaje.numero_viaje} de ${viaje.chofer.nombre}`,
-            viaje_id: viaje.id,
-            metadata: {
-              incidencia_id: incidencia.id,
-              tipo_incidencia: incidencia.tipo_incidencia
-            }
-          });
-      }
-    }
-
-  } catch (error) {
-    console.error('Error enviando notificaciones de incidencia:', error);
-  }
-}
-
-async function notificarSupervisores(viaje: any, incidencia: any) {
-  try {
-    // Notificar a supervisores de carga
-    const { data: supervisores } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select(`
-        user_id,
-        usuarios(id, email)
-      `)
-      .in('rol_interno', ['Supervisor de Carga', 'Administrador'])
-      .eq('activo', true);
-
-    if (supervisores) {
-      for (const supervisor of supervisores) {
-        await supabaseAdmin
-          .from('notificaciones')
-          .insert({
-            user_id: supervisor.user_id,
-            tipo: 'mensaje_sistema',
-            titulo: '🚨 Incidencia Requiere Supervisión',
-            mensaje: `Incidencia crítica en viaje ${viaje.numero_viaje}. Se requiere intervención de supervisión.`,
-            viaje_id: viaje.id,
-            metadata: {
-              incidencia_id: incidencia.id,
-              tipo_incidencia: incidencia.tipo_incidencia,
-              prioridad: incidencia.prioridad
-            }
-          });
-      }
-    }
-
-  } catch (error) {
-    console.error('Error notificando supervisores:', error);
   }
 }

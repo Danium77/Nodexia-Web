@@ -71,16 +71,35 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
 
   const getStatusColor = (estado: string) => {
     const colors: Record<string, string> = {
-      'Generado': 'bg-gray-500',
-      'Aceptado': 'bg-blue-500',
-      'Asignado': 'bg-yellow-500',
-      'Confirmado': 'bg-cyan-500',
-      'En Camino a Origen': 'bg-indigo-500',
-      'Cargando': 'bg-orange-500',
-      'Despachado': 'bg-green-500',
-      'Terminado': 'bg-gray-600'
+      // Legacy
+      'Generado': 'bg-gray-500', 'Aceptado': 'bg-blue-500', 'Asignado': 'bg-yellow-500',
+      'Confirmado': 'bg-cyan-500', 'En Camino a Origen': 'bg-indigo-500',
+      'Cargando': 'bg-orange-500', 'Despachado': 'bg-green-500', 'Terminado': 'bg-gray-600',
+      // estado_unidad values
+      'pendiente': 'bg-gray-500', 'transporte_asignado': 'bg-blue-500',
+      'camion_asignado': 'bg-yellow-500', 'confirmado_chofer': 'bg-cyan-500',
+      'en_transito_origen': 'bg-indigo-500', 'ingresado_origen': 'bg-green-500',
+      'en_playa_origen': 'bg-teal-500', 'llamado_carga': 'bg-amber-500',
+      'cargando': 'bg-orange-500', 'egreso_origen': 'bg-purple-500',
+      'en_transito_destino': 'bg-pink-500', 'arribado_destino': 'bg-teal-600',
+      'ingresado_destino': 'bg-emerald-500', 'entregado': 'bg-green-600',
+      'completado': 'bg-green-700', 'cancelado': 'bg-red-500',
     };
     return colors[estado] || 'bg-slate-500';
+  };
+
+  const getStatusLabel = (estado: string) => {
+    const labels: Record<string, string> = {
+      'pendiente': '⏳ Pendiente', 'transporte_asignado': '🚛 Transporte',
+      'camion_asignado': '🚛 Camión', 'confirmado_chofer': '✅ Confirmado',
+      'en_transito_origen': '🚚 → Origen', 'ingresado_origen': '🏭 En Planta',
+      'en_playa_origen': '⏸️ Playa', 'llamado_carga': '📢 Carga',
+      'cargando': '⚙️ Cargando', 'egreso_origen': '🚪 Saliendo',
+      'en_transito_destino': '🚚 → Destino', 'arribado_destino': '📍 Destino',
+      'ingresado_destino': '🏁 Destino', 'entregado': '✅ Entregado',
+      'completado': '🎉 Completo', 'cancelado': '❌ Cancelado',
+    };
+    return labels[estado] || estado;
   };
 
   const getPriorityIndicator = (prioridad?: string) => {
@@ -297,7 +316,7 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-sm font-bold text-white">{dispatch.pedido_id}</span>
                         <span className={`text-xs px-2 py-1 rounded ${getStatusColor(dispatch.estado)} text-white`}>
-                          {dispatch.estado}
+                          {getStatusLabel(dispatch.estado)}
                         </span>
                       </div>
                       <div className="space-y-1 text-sm">
@@ -372,7 +391,7 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
               <div>
                 <span className="text-xs text-gray-400">Estado:</span>
                 <p className={`text-sm font-semibold ${getStatusColor(selectedDispatch.estado)} px-2 py-1 rounded inline-block`}>
-                  {selectedDispatch.estado}
+                  {getStatusLabel(selectedDispatch.estado)}
                 </p>
               </div>
               <div>

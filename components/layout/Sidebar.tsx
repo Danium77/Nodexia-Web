@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { NodexiaLogoBadge } from '../ui/NodexiaLogo';
+import { useDocAlerts } from '../../lib/hooks/useDocAlerts';
 
 interface SidebarProps {
   userEmail?: string;
@@ -31,6 +32,9 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   //   const newState = !isCollapsed;
   //   setIsCollapsed(newState);
   // };
+
+  // Alertas de documentación para roles de transporte
+  const { badgeCount: docAlertBadge } = useDocAlerts(10 * 60 * 1000); // refresh cada 10 min
 
   // allow override via props (some pages pass them)
   const finalEmail = userEmail || email;
@@ -77,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   }
 
   // Definir los ítems según el rol
-  let navItems = [
+  let navItems: Array<{ name: string; icon: any; href: string; badge?: number | string; highlighted?: boolean }> = [
     { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
   ];
   
@@ -89,6 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '💎 Ubicaciones', icon: Cog6ToothIcon, href: '/admin/ubicaciones' },
       { name: '👥 Usuarios', icon: UserCircleIcon, href: '/admin/usuarios' },
       { name: '📋 Solicitudes', icon: ChartBarIcon, href: '/admin/solicitudes' },
+      { name: '✅ Validar Documentos', icon: ChartBarIcon, href: '/admin/validacion-documentos' },
       { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
       { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
       { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
@@ -101,6 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '💎 Ubicaciones', icon: Cog6ToothIcon, href: '/admin/ubicaciones' },
       { name: '👥 Usuarios', icon: UserCircleIcon, href: '/admin/usuarios' },
       { name: '📋 Solicitudes', icon: ChartBarIcon, href: '/admin/solicitudes' },
+      { name: '✅ Validar Documentos', icon: ChartBarIcon, href: '/admin/validacion-documentos' },
       { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
       { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
       { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
@@ -139,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
         { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
         { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
-        { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota' },
+        { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota', badge: docAlertBadge > 0 ? docAlertBadge : undefined },
         { name: '🗺️ Tracking GPS', icon: ChartBarIcon, href: '/transporte/tracking-flota' },
         { name: '⚙️ Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
       ];

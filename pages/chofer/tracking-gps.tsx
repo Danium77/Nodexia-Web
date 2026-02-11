@@ -439,6 +439,7 @@ export default function TrackingGPS() {
               {viajesActivos.map(viaje => (
                 <button
                   key={viaje.id}
+                  data-testid="viaje-item"
                   onClick={() => !tracking && setViajeSeleccionado(viaje.id)}
                   disabled={tracking}
                   className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
@@ -479,6 +480,7 @@ export default function TrackingGPS() {
 
             {/* Botón Principal */}
             <button
+              data-testid="tracking-button"
               onClick={tracking ? detenerTracking : iniciarTracking}
               className={`w-full py-2 rounded font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
                 tracking
@@ -499,10 +501,18 @@ export default function TrackingGPS() {
               )}
             </button>
 
+            {/* Indicador GPS Activo */}
+            {tracking && (
+              <div className="mt-3 bg-green-900/30 border border-green-500/50 rounded-lg p-3 text-center">
+                <p className="text-green-400 font-bold text-sm">🛰️ GPS ACTIVO</p>
+                <p className="text-gray-400 text-xs mt-1">Transmitiendo ubicación en tiempo real</p>
+              </div>
+            )}
+
             {/* Información GPS */}
             {gpsData && (
               <div className="mt-4 space-y-3">
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5" data-testid="gps-coordinates">
                   <div className="bg-gray-900 p-1.5 rounded">
                     <p className="text-gray-400 text-[9px]">Latitud</p>
                     <p className="text-white font-mono text-[10px]">{gpsData.latitude.toFixed(6)}</p>
@@ -513,7 +523,7 @@ export default function TrackingGPS() {
                   </div>
                   <div className="bg-gray-900 p-3 rounded-lg">
                     <p className="text-gray-400 text-xs">Velocidad</p>
-                    <p className="text-white font-bold">{gpsData.velocidad} km/h</p>
+                    <p className="text-white font-bold" data-testid="velocidad-actual">{gpsData.velocidad} km/h</p>
                   </div>
                   <div className="bg-gray-900 p-3 rounded-lg">
                     <p className="text-gray-400 text-xs">Precisión</p>
@@ -545,7 +555,7 @@ export default function TrackingGPS() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-400 text-sm">Ubicaciones enviadas</span>
-                    <span className="text-cyan-400 font-bold">{totalEnvios}</span>
+                    <span className="text-cyan-400 font-bold" data-testid="total-envios">{totalEnvios}</span>
                   </div>
                 </div>
 

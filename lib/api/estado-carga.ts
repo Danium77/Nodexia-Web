@@ -94,7 +94,7 @@ export async function actualizarEstadoCarga(
       Object.assign(updateData, input.faltantes_rechazos);
     }
 
-    // Llamar a la función SQL que valida roles
+    // Intentar RPC primero, fallback a update directo si no existe
     const { data, error } = await supabase.rpc('actualizar_estado_carga', {
       p_viaje_id: input.viaje_id,
       p_nuevo_estado: input.nuevo_estado,
@@ -102,6 +102,61 @@ export async function actualizarEstadoCarga(
     });
 
     if (error) {
+      // Si la RPC no existe, hacer update directo a la tabla
+      if (error.code === 'PGRST202' || error.message?.includes('Could not find the function')) {
+        console.warn('[estado-carga] RPC no existe, usando update directo');
+        
+        // Mapear campos de fecha según el estado
+        const fechasCampo: Record<string, string> = {
+          llamado_carga: 'fecha_llamado_carga',
+          cargando: 'fecha_cargando',
+          cargado: 'fecha_cargado',
+          llamado_descarga: 'fecha_iniciando_descarga',
+          descargando: 'fecha_descargando',
+          descargado: 'fecha_descargado',
+          en_transito: 'fecha_en_transito',
+          entregado: 'fecha_entregado',
+          completado: 'fecha_completado',
+        };
+
+        const directUpdate: Record<string, any> = {
+          estado_carga: input.nuevo_estado,
+          updated_at: new Date().toISOString(),
+        };
+
+        // Agregar fecha del estado
+        const campoFecha = fechasCampo[input.nuevo_estado];
+        if (campoFecha) {
+          directUpdate[campoFecha] = new Date().toISOString();
+        }
+
+        // Agregar observaciones si hay
+        if (input.observaciones) {
+          directUpdate.observaciones = input.observaciones;
+        }
+
+        // Agregar datos de carga (solo campos válidos de la tabla)
+        if (input.datos_carga?.peso_real_kg) directUpdate.peso_real_kg = input.datos_carga.peso_real_kg;
+        if (input.datos_carga?.cantidad_bultos) directUpdate.cantidad_bultos = input.datos_carga.cantidad_bultos;
+
+        // Agregar documentación
+        if (input.documentacion?.remito_numero) directUpdate.numero_remito = input.documentacion.remito_numero;
+
+        const { error: updateError } = await supabase
+          .from('estado_carga_viaje')
+          .update(directUpdate)
+          .eq('viaje_id', input.viaje_id);
+
+        if (updateError) {
+          return {
+            success: false,
+            error: updateError.message || 'Error al actualizar estado de carga (directo)',
+          };
+        }
+
+        return { success: true, data: directUpdate };
+      }
+
       return {
         success: false,
         error: error.message || 'Error al actualizar estado de carga',
@@ -122,29 +177,27 @@ export async function actualizarEstadoCarga(
 }
 
 /**
- * Registra llamado a carga (DEPRECATED - usar iniciarCarga)
- * El estado 'llamado_carga' fue eliminado
+ * Registra llamado a carga
+ * Transición: en_playa_origen → llamado_carga
  */
 export async function registrarLlamadoCarga(
   viaje_id: UUID,
   bay_carga?: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Directamente inicia el proceso de carga
   return await actualizarEstadoCarga({
     viaje_id,
-    nuevo_estado: 'cargando',
+    nuevo_estado: 'llamado_carga',
     observaciones: bay_carga ? `Llamado a carga - Bay: ${bay_carga}` : 'Llamado a carga',
   });
 }
 
 /**
- * Registra posicionamiento en bay de carga (DEPRECATED - usar iniciarCarga)
- * Este estado se fusiona con cargando
+ * Registra posicionamiento en bay de carga
+ * Transición intermedia: llamado_carga → cargando
  */
 export async function registrarPosicionadoCarga(
   viaje_id: UUID
 ): Promise<{ success: boolean; error?: string }> {
-  // Simplemente inicia el proceso de carga
   return await actualizarEstadoCarga({
     viaje_id,
     nuevo_estado: 'cargando',

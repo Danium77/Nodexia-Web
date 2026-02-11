@@ -26,17 +26,22 @@ export const VENTANA_TOLERANCIA_HORAS = 2;
  */
 export const ESTADOS_CARGA_EN_PROGRESO = [
   'camion_asignado',
+  'confirmado_chofer',
   'en_transito_origen',
+  'ingresado_origen',
   'en_playa_origen',
   'llamado_carga',
   'cargando',
   'cargado',
   'egresado_origen',
+  'egreso_origen',
   'en_transito_destino',
   'arribado_destino',
+  'ingresado_destino',
   'llamado_descarga',
   'descargando',
   'entregado',
+  'vacio',
 ] as const;
 
 /**
@@ -56,6 +61,29 @@ export const ESTADOS_CARGA_FINALES = [
   'cancelado',
   'expirado', // Estado final de BD (no debería usarse con nueva lógica)
 ] as const;
+
+/**
+ * Estados que indican presencia FÍSICA en una planta/ubicación
+ * Estos estados siempre son "activo" operativamente, independientemente
+ * de la ventana de tiempo, porque el camión ya está donde debe estar.
+ */
+export const ESTADOS_EN_PLANTA = [
+  'ingresado_origen',
+  'en_playa_origen',
+  'llamado_carga',
+  'cargando',
+  'cargado',
+  'ingresado_destino',
+  'llamado_descarga',
+  'descargando',
+] as const;
+
+/**
+ * Verifica si el estado indica presencia física en una planta
+ */
+export function estaEnPlanta(estadoCarga: string): boolean {
+  return ESTADOS_EN_PLANTA.includes(estadoCarga as any);
+}
 
 // ============================================================================
 // TIPOS
@@ -210,6 +238,19 @@ export function calcularEstadoOperativo(viaje: DatosViaje): ResultadoEstadoOpera
       estadoOperativo: 'activo', // Neutral, no se muestra
       razon: `Viaje en estado final: ${viaje.estado_carga}`,
       tieneRecursos,
+      estaDemorado: false,
+      minutosRetraso
+    };
+  }
+  
+  // 🏭 CASO 1.5: Viaje EN PLANTA → Siempre ACTIVO
+  // Si el camión está físicamente en una planta (ingresado, cargando, descargando, etc.)
+  // no debe clasificarse como "demorado" sin importar el tiempo transcurrido.
+  if (estaEnPlanta(viaje.estado_carga) && tieneRecursos) {
+    return {
+      estadoOperativo: 'activo',
+      razon: `Viaje en planta (${viaje.estado_carga}) — camión presente`,
+      tieneRecursos: true,
       estaDemorado: false,
       minutosRetraso
     };

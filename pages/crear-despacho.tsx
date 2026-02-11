@@ -118,7 +118,7 @@ const CrearDespacho = () => {
   const [selectedViajeNumero, setSelectedViajeNumero] = useState<string>('');
 
   // Estados para tabs de despachos
-  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'demorados' | 'expirados'>('pendientes');
+  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'demorados' | 'expirados' | 'completados'>('pendientes');
 
   // Estados para modal de Reprogramar
   const [isReprogramarModalOpen, setIsReprogramarModalOpen] = useState(false);
@@ -170,26 +170,12 @@ const CrearDespacho = () => {
       }
       setUser(currentUserData);
       
-      // Debug del usuario actual
-      console.log('👤 Usuario autenticado:', {
-        id: currentUserData.id,
-        email: currentUserData.email,
-        expected: '07df7dc0-f24f-4b39-9abf-82930154a94c'
-      });
-
-      console.log('🔍 USUARIO DEBUG COMPLETO:');
-      console.log('   - ID:', currentUserData.id);
-      console.log('   - ID length:', currentUserData.id.length);
-      console.log('   - Expected:', '74d71b4a-81db-459d-93f6-b52e82c3e4bc');
-      console.log('   - Match?:', currentUserData.id === '74d71b4a-81db-459d-93f6-b52e82c3e4bc');
-      
       // Cargar despachos del usuario (primera carga con loading)
       fetchGeneratedDispatches(currentUserData.id, true);
     }
   };
 
   const fetchGeneratedDispatches = useCallback(async (userId: string, forceLoading = false) => {
-    console.log('🔄 fetchGeneratedDispatches llamado con userId:', userId);
     
     if (!userId) {
       console.error('❌ No userId proporcionado para fetchGeneratedDispatches');
@@ -203,7 +189,6 @@ const CrearDespacho = () => {
 
     try {
       // Usar tabla despachos original para el flujo de generación -> asignación con LEFT JOIN a empresas
-      console.log('🔍 Ejecutando query para usuario:', userId);
       
       // Primero, hacer query sin filtro de estado para ver todos los despachos del usuario
       const { data: allData } = await supabase
@@ -213,7 +198,6 @@ const CrearDespacho = () => {
         .order('created_at', { ascending: false })
         .limit(5);
       
-      console.log('🐛 DEBUG - Últimos 5 despachos del usuario:', allData);
       
       const { data, error } = await supabase
         .from('despachos')
@@ -238,7 +222,6 @@ const CrearDespacho = () => {
         .order('scheduled_local_date', { ascending: false })
         .order('scheduled_local_time', { ascending: false });
 
-      console.log('📊 Query response:', { data, error });
 
       if (error) {
         console.error('❌ Error al cargar despachos generados:', error.message);
@@ -246,15 +229,9 @@ const CrearDespacho = () => {
         throw error;
       }
 
-      console.log('📦 Query ejecutado exitosamente');
-      console.log('📦 Despachos encontrados:', data?.length || 0);
       
       // Mapear los datos y obtener información del transporte si existe
       const mappedData: GeneratedDispatch[] = await Promise.all((data || []).map(async (d) => {
-        console.log(`🔍 Procesando despacho ${d.pedido_id}:`, {
-          transport_id: d.transport_id,
-          estado: d.estado
-        });
         
         // 🔥 NUEVO: Obtener conteo de viajes desde viajes_despacho
         let viajesGenerados = 0;
@@ -279,19 +256,12 @@ const CrearDespacho = () => {
           viajesGenerados = viajesData.length;
           
           // 🔥 DEBUG: Mostrar estados de todos los viajes
-          console.log(`🔍 DEBUG - Viajes del despacho ${d.pedido_id}:`, viajesData.map(v => ({
-            id: v.id,
-            estado: v.estado,
-            id_transporte: v.id_transporte
-          })));
           
           // 🔥 MOSTRAR TODOS LOS ESTADOS ÚNICOS ENCONTRADOS
           const estadosUnicos = [...new Set(viajesData.map(v => v.estado))];
-          console.log(`⚠️ ESTADOS ÚNICOS EN ESTE DESPACHO:`, estadosUnicos);
           
           // 🔥 NUEVO: Contar solo viajes con id_transporte (sin importar el estado por ahora)
           const viajesConTransporte = viajesData.filter(v => v.id_transporte).length;
-          console.log(`🚛 Viajes CON id_transporte: ${viajesConTransporte} de ${viajesData.length}`);
           
           // 🔥 NUEVO: Contar solo viajes con estado asignado o estados superiores
           // IMPORTANTE: Incluir TODOS los estados desde transporte_asignado en adelante
@@ -299,23 +269,20 @@ const CrearDespacho = () => {
             v.estado === 'asignado' || 
             v.estado === 'transporte_asignado' || 
             v.estado === 'camion_asignado' ||
-            v.estado === 'confirmado_chofer' ||  // ✅ INCLUIR estados de flujo chofer
-            v.estado === 'en_transito_origen' || // ✅ Chofer viajando a origen
-            v.estado === 'pausado' ||            // ✅ Viaje pausado por incidencia
+            v.estado === 'confirmado_chofer' ||
+            v.estado === 'en_transito_origen' ||
+            v.estado === 'arribo_origen' ||
+            v.estado === 'pausado' ||
             v.estado === 'en_carga' ||
             v.estado === 'en_transito' ||
+            v.estado === 'en_transito_destino' ||
+            v.estado === 'arribo_destino' ||
             v.estado === 'en_descarga' ||
             v.estado === 'entregado' ||
-            v.estado === 'completado'
+            v.estado === 'completado' ||
+            v.estado === 'viaje_completado'
           ).length;
           
-          console.log(`🔍 DEBUG - Estados encontrados:`, {
-            asignado: viajesData.filter(v => v.estado === 'asignado').length,
-            transporte_asignado: viajesData.filter(v => v.estado === 'transporte_asignado').length,
-            camion_asignado: viajesData.filter(v => v.estado === 'camion_asignado').length,
-            pendiente: viajesData.filter(v => v.estado === 'pendiente').length,
-            otros: viajesData.filter(v => !['asignado', 'transporte_asignado', 'camion_asignado', 'pendiente'].includes(v.estado)).length
-          });
           
           // Viajes sin asignar: pendientes + cancelados por transporte (que necesitan reasignación)
           viajesSinAsignar = viajesData.filter(v => 
@@ -347,12 +314,6 @@ const CrearDespacho = () => {
             v.estado_operativo.estadoOperativo === 'expirado'
           );
           
-          console.log(`📊 Estados operativos de viajes en ${d.pedido_id}:`, {
-            total: viajesConEstadoOperativo.length,
-            expirados: viajesConEstadoOperativo.filter(v => v.estado_operativo.estadoOperativo === 'expirado').length,
-            demorados: viajesConEstadoOperativo.filter(v => v.estado_operativo.estadoOperativo === 'demorado').length,
-            activos: viajesConEstadoOperativo.filter(v => v.estado_operativo.estadoOperativo === 'activo').length
-          });
           
           // 🔥 NUEVO: Obtener transportes únicos de los viajes
           transportesUnicos = [...new Set(
@@ -361,13 +322,6 @@ const CrearDespacho = () => {
               .map(v => v.id_transporte)
           )];
           
-          console.log(`📊 Despacho ${d.pedido_id}:`, {
-            total: viajesGenerados,
-            asignados: viajesAsignados,
-            sinAsignar: viajesSinAsignar,
-            canceladosPorTransporte: viajesCanceladosPorTransporte,
-            transportesUnicos: transportesUnicos.length
-          });
         }
         
         // Si hay transport_id, buscar información del transporte por separado
@@ -382,12 +336,10 @@ const CrearDespacho = () => {
             contacto: 'Ver viajes expandidos',
             esMultiple: true
           };
-          console.log(`✅ Despacho ${d.pedido_id} tiene múltiples transportes:`, transportesUnicos.length);
         } else if (transportesUnicos.length === 1 || d.transport_id) {
           // Si solo hay un transporte en los viajes O hay transport_id en el despacho
           const transportId = transportesUnicos[0] || d.transport_id;
           try {
-            console.log(`🚛 Buscando transporte con ID: ${transportId}`);
             
             // Query más simple sin filtros adicionales
             const { data: transporteList, error: transporteError } = await supabase
@@ -395,10 +347,8 @@ const CrearDespacho = () => {
               .select('nombre, cuit, telefono, tipo_empresa')
               .eq('id', transportId);
             
-            console.log(`📊 Usuario info: empresaId=${transportId}, rows=${transporteList?.length}`, transporteList);
             
             if (transporteError) {
-              console.warn(`⚠️ Error buscando transporte ${transportId}:`, transporteError);
             } else if (transporteList && transporteList.length > 0 && transporteList[0]) {
               const transporteData = transporteList[0];
               transporteAsignado = {
@@ -408,9 +358,7 @@ const CrearDespacho = () => {
                 contacto: transporteData.telefono || transporteData.cuit || 'Sin contacto',
                 esMultiple: false
               };
-              console.log(`✅ Transporte encontrado para ${d.pedido_id}:`, transporteAsignado);
             } else {
-              console.warn(`⚠️ No se encontró transporte con ID: ${transportId}`);
               // Asignar nombre por defecto basado en el ID para debugging
               transporteAsignado = {
                 nombre: 'Transporte Asignado',
@@ -470,7 +418,6 @@ const CrearDespacho = () => {
       
       // NO filtrar aquí - guardar TODOS los despachos
       // El filtrado se hará en el render según el tab activo
-      console.log('✅ Total despachos cargados:', mappedData.length);
       setGeneratedDispatches(mappedData);
       
     } catch (error) {
@@ -498,7 +445,6 @@ const CrearDespacho = () => {
         .eq('activo', true);
 
       if (!userEmpresasData || userEmpresasData.length === 0) {
-        console.log('No hay empresas asociadas al usuario');
         setLoadingOptions(false);
         return;
       }
@@ -516,14 +462,12 @@ const CrearDespacho = () => {
       const esCoordinador = tiposEmpresa.includes('coordinador') || 
                            roles.some(rol => rol?.toLowerCase().includes('coordinador'));
       
-      console.log('Usuario info:', { empresaIds, tiposEmpresa, roles, esCoordinador });
 
       let plantasFiltradas: any[] = [];
       let clientesFiltrados: any[] = [];
 
       if (esCoordinador) {
         // COORDINADORES: Lógica específica según el flujo de negocio
-        console.log('Usuario coordinador - cargando plantas y clientes vinculados');
         
         // ORIGEN: Planta propia + plantas adicionales de la suscripción
         // Por ahora, la planta propia (donde trabaja el coordinador)
@@ -546,11 +490,9 @@ const CrearDespacho = () => {
         // TODO: En el futuro, implementar lógica de clientes vinculados específicamente
         // basado en contratos o relaciones comerciales configuradas
         
-        console.log('Coordinador - Origen (plantas):', plantasFiltradas.length, 'Destino (clientes vinculados):', clientesFiltrados.length);
         
       } else {
         // TRANSPORTISTAS: Solo empresas asociadas via relaciones_empresas
-        console.log('Usuario transportista - cargando empresas asociadas');
         
         const { data: plantasData } = await supabase
           .from('relaciones_empresas')
@@ -580,7 +522,6 @@ const CrearDespacho = () => {
       
       if (esCoordinador) {
         // COORDINADORES: Transportes vinculados + opción red Nodexia
-        console.log('Cargando transportes para coordinador...');
         
         // 1. Transportes vinculados directamente a la planta
         const { data: transportesVinculados } = await supabase
@@ -616,7 +557,6 @@ const CrearDespacho = () => {
         // Combinar: Primero vinculados, luego red
         transportesFiltrados = [...transportesDirectos, ...transportesRed];
         
-        console.log(`Coordinador - Transportes vinculados: ${transportesDirectos.length}, Red Nodexia: ${transportesRed.length}`);
         
       } else {
         // TRANSPORTISTAS: Solo transportes asociados via relaciones
@@ -636,11 +576,6 @@ const CrearDespacho = () => {
         ).map((rel: any) => rel.empresa_transporte) || [];
       }      setTransportes(transportesFiltrados);
       
-      console.log(`Cargado para ${esCoordinador ? 'coordinador' : 'transportista'}:`, {
-        plantas: plantasFiltradas.length,
-        clientes: clientesFiltrados.length,
-        transportes: transportesFiltrados.length
-      });
 
     } catch (error) {
       console.error('Error cargando empresas asociadas:', error);
@@ -689,7 +624,6 @@ const CrearDespacho = () => {
 
   // Función para iniciar asignación de transporte
   const handleAssignTransport = (dispatch: GeneratedDispatch) => {
-    console.log('🚀 Iniciando asignación de transporte para:', dispatch.pedido_id);
     
     // Limpiar cualquier estado previo del modal
     setSelectedDispatchForAssign(null);
@@ -697,7 +631,6 @@ const CrearDespacho = () => {
     
     // Pequeña pausa para asegurar que el modal se cierre completamente
     setTimeout(() => {
-      console.log('🎯 Abriendo modal para:', dispatch.pedido_id);
       setSelectedDispatchForAssign(dispatch);
       setIsAssignModalOpen(true);
     }, 100);
@@ -705,15 +638,9 @@ const CrearDespacho = () => {
 
   // Función para abrir modal de Red Nodexia
   const handleOpenRedNodexia = async (dispatch: GeneratedDispatch) => {
-    console.log('🌐 Abriendo Red Nodexia para despacho:', {
-      pedido_id: dispatch.pedido_id,
-      despacho_id: dispatch.id,
-      dispatch_completo: dispatch
-    });
     
     try {
       // Cargar los viajes de este despacho
-      console.log('🔍 Buscando viajes para despacho_id:', dispatch.id);
       
       const { data: viajes, error } = await supabase
         .from('viajes_despacho')
@@ -721,20 +648,14 @@ const CrearDespacho = () => {
         .eq('despacho_id', dispatch.id)
         .order('numero_viaje', { ascending: true });
 
-      console.log('📦 Resultado query viajes:', {
-        error,
-        viajes_count: viajes?.length || 0,
-        viajes: viajes
-      });
 
       if (error) {
         console.error('❌ Error cargando viajes:', error);
-        alert(`Error al cargar los viajes: ${error.message}`);
+        alert('Error al cargar los viajes. Intente nuevamente.');
         return;
       }
 
       if (!viajes || viajes.length === 0) {
-        console.warn('⚠️ No se encontraron viajes para despacho:', dispatch.id);
         alert(`Este despacho no tiene viajes generados aún.\n\nDespacho ID: ${dispatch.id}\nPedido: ${dispatch.pedido_id}\n\nIntenta expandir el despacho primero para ver si existen viajes.`);
         return;
       }
@@ -742,7 +663,6 @@ const CrearDespacho = () => {
       // Seleccionar el primer viaje pendiente o el primero disponible
       const primerViaje = viajes.find(v => !v.estado || v.estado === 'pendiente') || viajes[0];
       
-      console.log('🚛 Viaje seleccionado para Red:', primerViaje);
       
       setSelectedDispatchForRed(dispatch);
       setSelectedViajeForRed(primerViaje);
@@ -762,12 +682,6 @@ const CrearDespacho = () => {
 
   // Función para abrir modal Ver Estado Red Nodexia
   const handleVerEstadoRed = async (viaje: any) => {
-    console.log('🔍 [crear-despacho] Ver estado Red Nodexia para viaje:', {
-      viaje_id: viaje.id,
-      numero_viaje: viaje.numero_viaje,
-      en_red_nodexia: viaje.en_red_nodexia,
-      estado_red: viaje.estado_red
-    });
     
     // Buscar el viaje_red_id en la tabla viajes_red_nodexia
     try {
@@ -783,12 +697,10 @@ const CrearDespacho = () => {
         return;
       }
 
-      console.log('✅ [crear-despacho] viajes_red_nodexia encontrado:', viajeRed);
 
       setSelectedViajeRedId(viajeRed.id);
       setSelectedViajeNumero(viaje.numero_viaje?.toString() || 'N/A');
       setIsVerEstadoModalOpen(true);
-      console.log('📋 [crear-despacho] Modal abierto con selectedViajeRedId:', viajeRed.id);
     } catch (err) {
       console.error('❌ [crear-despacho] Error:', err);
       alert('Error al abrir estado de Red Nodexia');
@@ -805,15 +717,6 @@ const CrearDespacho = () => {
   // Función para aceptar oferta desde modal Ver Estado
   const handleAceptarOfertaDesdeModal = async (ofertaId: string, transporteId: string) => {
     try {
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🎯 [crear-despacho] INICIANDO handleAceptarOfertaDesdeModal');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📋 Parámetros recibidos:', {
-        ofertaId,
-        transporteId,
-        selectedViajeRedId,
-        user_id: user?.id
-      });
       
       if (!selectedViajeRedId) {
         console.error('❌ selectedViajeRedId está vacío!');
@@ -830,7 +733,6 @@ const CrearDespacho = () => {
 
       if (viajeRedError || !viajeRed) throw viajeRedError || new Error('No se encontró el viaje en red');
 
-      console.log('📦 Viaje en red encontrado:', viajeRed);
 
       // 2. Obtener datos del viaje_despacho para encontrar el despacho_id
       const { data: viajeDespacho, error: viajeDespachoError } = await supabase
@@ -841,7 +743,6 @@ const CrearDespacho = () => {
 
       if (viajeDespachoError || !viajeDespacho) throw viajeDespachoError || new Error('No se encontró el viaje de despacho');
 
-      console.log('🚛 Viaje despacho encontrado:', viajeDespacho);
 
       // 3. Convertir transporteId (UUID de empresa) a transport_id (integer de tabla transportes)
       const { data: transporteData, error: transporteError } = await supabase
@@ -851,12 +752,10 @@ const CrearDespacho = () => {
         .single();
 
       if (transporteError) {
-        console.warn('⚠️ No se encontró registro en tabla transportes, usando empresa_id directamente');
       }
 
       const transportIdFinal = transporteData?.id || null;
       
-      console.log('🏢 Transporte encontrado:', { transporteData, transportIdFinal });
 
       // 4. Actualizar estado de la oferta aceptada
       const { error: ofertaError } = await supabase
@@ -880,12 +779,6 @@ const CrearDespacho = () => {
         .neq('id', ofertaId);
 
       // 6. Actualizar el viaje en red
-      console.log('🔄 [crear-despacho] Actualizando viajes_red_nodexia:', {
-        id: selectedViajeRedId,
-        nuevo_estado: 'asignado',
-        transporte_asignado_id: transporteId,
-        oferta_aceptada_id: ofertaId
-      });
 
       const { error: updateRedError, data: updateRedData } = await supabase
         .from('viajes_red_nodexia')
@@ -904,7 +797,6 @@ const CrearDespacho = () => {
         throw updateRedError;
       }
 
-      console.log('✅ [crear-despacho] UPDATE ejecutado, rows affected:', updateRedData?.length || 0);
       if (!updateRedData || updateRedData.length === 0) {
         console.error('⚠️ [crear-despacho] UPDATE no afectó ninguna fila - selectedViajeRedId podría ser incorrecto');
       }
@@ -916,7 +808,6 @@ const CrearDespacho = () => {
         .eq('id', selectedViajeRedId)
         .single();
       
-      console.log('✅ [crear-despacho] Estado Red Nodexia actualizado:', viajeRedVerificacion);
 
       // 7. Actualizar viaje_despacho con transporte asignado
       const { error: updateViajeError } = await supabase
@@ -949,7 +840,6 @@ const CrearDespacho = () => {
         throw updateDespachoError;
       }
 
-      console.log('✅ Asignación completada exitosamente');
 
       // Cerrar modal PRIMERO
       handleCloseVerEstado();
@@ -958,14 +848,11 @@ const CrearDespacho = () => {
       setSuccessMsg('✅ Transporte asignado correctamente desde Red Nodexia. Actualizando vista...');
       
       // 🔥 ESPERAR a que Supabase propague los cambios (aumentado a 2.5s para replica lag)
-      console.log('⏳ Esperando propagación de BD (replica lag)...');
       await new Promise(resolve => setTimeout(resolve, 2500));
       
       // Recargar despachos DESPUÉS de la espera
       if (user?.id) {
-        console.log('🔄 Recargando despachos...');
         await fetchGeneratedDispatches(user.id);
-        console.log('✅ Despachos recargados');
         
         // 🔥 FORZAR cambio de tab a "asignados" si el despacho está completo
         // Verificar si todos los viajes del despacho están asignados
@@ -975,16 +862,13 @@ const CrearDespacho = () => {
           const cantidadAsignados = despachoActualizado.viajes_asignados || 0;
           if (cantidadAsignados >= cantidadTotal) {
             setActiveTab('asignados');
-            console.log('🎯 Cambiando a tab "asignados"');
           } else {
             setActiveTab('en_proceso');
-            console.log('🎯 Cambiando a tab "en_proceso"');
           }
         }
         
         // 🔥 Si el despacho estaba expandido, limpiar cache para forzar recarga
         if (viajeDespacho.despacho_id && expandedDespachos.has(viajeDespacho.despacho_id)) {
-          console.log('🧹 Limpiando cache de viajes para despacho expandido');
           setViajesDespacho(prev => {
             const newCache = { ...prev };
             delete newCache[viajeDespacho.despacho_id];
@@ -1002,22 +886,18 @@ const CrearDespacho = () => {
 
     } catch (err: any) {
       console.error('❌ Error al aceptar oferta:', err);
-      setErrorMsg('Error al aceptar oferta: ' + err.message);
+      setErrorMsg('Error al aceptar oferta. Intente nuevamente.');
       setTimeout(() => setErrorMsg(''), 5000);
     }
   };
 
   // Función para manejar el éxito de la asignación
   const handleAssignSuccess = async () => {
-    console.log('🎉 handleAssignSuccess ejecutado');
-    console.log('👤 User ID para recarga:', user?.id);
-    console.log('🚛 Despacho asignado:', selectedDispatchForAssign?.pedido_id);
     
     // GUARDAR referencia ANTES de limpiar el estado
     const despachoAsignado = selectedDispatchForAssign?.pedido_id;
     const despachoId = selectedDispatchForAssign?.id;
     
-    console.log('🔍 Datos para actualización:', { despachoAsignado, despachoId });
     
     try {
       // 1. Cerrar modal inmediatamente para mejor UX
@@ -1028,7 +908,6 @@ const CrearDespacho = () => {
       
       // 3. 🔥 LIMPIAR CACHE DE VIAJES para forzar recarga cuando se expanda de nuevo
       if (despachoId) {
-        console.log('🧹 Limpiando cache de viajes para despacho:', despachoId);
         setViajesDespacho(prev => {
           const newCache = { ...prev };
           delete newCache[despachoId];
@@ -1037,18 +916,14 @@ const CrearDespacho = () => {
       }
       
       // 4. Pausa para que la BD termine de procesar el update (importante para consistencia)
-      console.log('⏳ Esperando confirmación de BD...');
       await new Promise(resolve => setTimeout(resolve, 800));
       
       // 5. Recarga completa desde BD para obtener datos actualizados
       if (user?.id) {
-        console.log('🔄 Recargando lista completa desde BD...');
         await fetchGeneratedDispatches(user.id);
-        console.log('✅ Recarga desde BD completada');
         
         // 🔥 Si el despacho estaba expandido, recargar sus viajes inmediatamente
         if (despachoId && expandedDespachos.has(despachoId)) {
-          console.log('🔄 Despacho expandido detectado, recargando viajes...');
           try {
             const { data: viajes, error } = await supabase
               .from('viajes_despacho')
@@ -1109,10 +984,6 @@ const CrearDespacho = () => {
 
               // Actualizar cache con nuevos viajes
               const viajesConTransporte = viajes.map(v => {
-                console.log('🔍 [handleAssignSuccess] Viaje:', v.id);
-                console.log('  - camiones (join):', v.camiones);
-                console.log('  - choferes (join):', v.choferes);
-                console.log('  - estado_carga_viaje:', v.estado_carga_viaje);
                 
                 return {
                   ...v,
@@ -1128,7 +999,6 @@ const CrearDespacho = () => {
                 [despachoId]: viajesConTransporte
               }));
 
-              console.log('✅ Viajes recargados con chofer/camión:', viajesConTransporte.length);
             }
           } catch (error) {
             console.error('⚠️ Error recargando viajes:', error);
@@ -1136,21 +1006,18 @@ const CrearDespacho = () => {
         }
       }
       
-      console.log('🏁 handleAssignSuccess completado exitosamente');
       
     } catch (error) {
       console.error('❌ Error en handleAssignSuccess:', error);
       setErrorMsg('Error al actualizar la lista de despachos');
     } finally {
       // 6. Limpiar estado del modal SIEMPRE al final
-      console.log('🧹 Limpiando estado del modal...');
       setSelectedDispatchForAssign(null);
     }
   };
 
   // Función para cerrar el modal
   const handleCloseAssignModal = () => {
-    console.log('🚪 Cerrando modal de asignación...');
     setIsAssignModalOpen(false);
     setSelectedDispatchForAssign(null);
   };
@@ -1231,7 +1098,7 @@ const CrearDespacho = () => {
       }
     } catch (error: any) {
       console.error('Error cancelando despacho:', error);
-      setErrorMsg(`Error al cancelar: ${error?.message || 'Error desconocido'}`);
+      setErrorMsg('Error al cancelar despacho. Intente nuevamente.');
     } finally {
       setDeletingDespachos(false);
     }
@@ -1251,25 +1118,19 @@ const CrearDespacho = () => {
 
   // 🔥 NUEVO: Toggle expandir viajes de un despacho
   const handleToggleExpandDespacho = async (despachoId: string) => {
-    console.log('🎯 handleToggleExpandDespacho llamado con despachoId:', despachoId);
-    console.log('🗂️ Despachos actuales expandidos:', Array.from(expandedDespachos));
-    console.log('🚛 Viajes actuales en estado:', Object.keys(viajesDespacho));
     
     const newExpanded = new Set(expandedDespachos);
     
     if (newExpanded.has(despachoId)) {
       // Contraer
-      console.log('📂 Colapsando despacho');
       newExpanded.delete(despachoId);
       setExpandedDespachos(newExpanded);
     } else {
       // Expandir y SIEMPRE cargar viajes (sin cache para evitar datos desactualizados)
-      console.log('📂 Expandiendo despacho');
       newExpanded.add(despachoId);
       setExpandedDespachos(newExpanded);
       
       // 🔥 SIEMPRE recargar viajes para obtener datos actualizados
-      console.log('📦 Cargando viajes para despacho:', despachoId);
         try {
           // Primero obtener el origen_asignacion del despacho padre
           const { data: despachoData, error: despachoError } = await supabase
@@ -1283,7 +1144,6 @@ const CrearDespacho = () => {
           }
           
           const origenAsignacion = despachoData?.origen_asignacion;
-          console.log('📋 origen_asignacion del despacho:', origenAsignacion);
           
           const { data: viajes, error } = await supabase
             .from('viajes_despacho')
@@ -1330,11 +1190,6 @@ const CrearDespacho = () => {
             .eq('despacho_id', despachoId)
             .order('numero_viaje', { ascending: true });
 
-          console.log(`🔎 Query viajes result for despacho ${despachoId}:`, {
-            error,
-            'viajes count': viajes?.length || 0,
-            'viajes': viajes
-          });
 
           if (error) {
             console.error('❌ Error cargando viajes:', error);
@@ -1342,13 +1197,11 @@ const CrearDespacho = () => {
           }
 
           if (!viajes || viajes.length === 0) {
-            console.warn(`⚠️ No se encontraron viajes para despacho ${despachoId}`);
             return;
           }
 
           // 🔥 Verificar cuáles viajes están en Red Nodexia y su estado
           const viajesIds = viajes.map(v => v.id);
-          console.log(`🔍 [crear-despacho] Consultando estado_red para ${viajesIds.length} viajes...`);
           
           const { data: viajesEnRed, error: redError } = await supabase
             .from('viajes_red_nodexia')
@@ -1358,7 +1211,6 @@ const CrearDespacho = () => {
           if (redError) {
             console.error('❌ [crear-despacho] Error consultando viajes_red_nodexia:', redError);
           } else {
-            console.log(`✅ [crear-despacho] viajes_red_nodexia consultados:`, viajesEnRed);
           }
           
           // Crear mapa de viajes en red con su estado
@@ -1373,12 +1225,6 @@ const CrearDespacho = () => {
             (viaje as any).estado_red = estadoRed || (origenAsignacion === 'red_nodexia' ? 'asignado' : null);
             (viaje as any).origen_asignacion = origenAsignacion; // Agregar origen del despacho padre
             
-            console.log(`📊 [crear-despacho] Viaje ${viaje.numero_viaje}:`, {
-              id: viaje.id,
-              en_red_nodexia: (viaje as any).en_red_nodexia,
-              estado_red: (viaje as any).estado_red,
-              origen_asignacion: origenAsignacion
-            });
           });
 
           // Obtener IDs únicos de transportes, choferes y camiones
@@ -1424,30 +1270,15 @@ const CrearDespacho = () => {
           const camionesData: Record<string, any> = {};
           const acopladosData: Record<string, any> = {};
 
-          console.log('📊 [crear-despacho] Resultados de queries paralelas:');
-          console.log('  - transportesResult:', { error: transportesResult.error, count: transportesResult.data?.length });
-          console.log('  - choferesResult:', { error: choferesResult.error, count: choferesResult.data?.length, data: choferesResult.data });
-          console.log('  - camionesResult:', { error: camionesResult.error, count: camionesResult.data?.length, data: camionesResult.data });
-          console.log('  - acopladosResult:', { error: acopladosResult.error, count: acopladosResult.data?.length, data: acopladosResult.data });
 
           transportesResult.data?.forEach(t => { transportesData[t.id] = t; });
           choferesResult.data?.forEach(c => { choferesData[c.id] = c; });
           camionesResult.data?.forEach(c => { camionesData[c.id] = c; });
           acopladosResult.data?.forEach(a => { acopladosData[a.id] = a; });
 
-          console.log('📦 [crear-despacho] Diccionarios creados:');
-          console.log('  - choferesData:', choferesData);
-          console.log('  - camionesData:', camionesData);
-          console.log('  - acopladosData:', acopladosData);
 
           // Agregar info completa a cada viaje
           const viajesConDatos = viajes?.map(v => {
-            console.log('🔍 Viaje ID:', v.id);
-            console.log('  - camiones (join):', v.camiones);
-            console.log('  - choferes (join):', v.choferes);
-            console.log('  - camion_id:', v.camion_id);
-            console.log('  - chofer_id:', v.chofer_id);
-            console.log('  - estado_carga_viaje:', v.estado_carga_viaje);
             
             return {
               ...v,
@@ -1460,16 +1291,12 @@ const CrearDespacho = () => {
             };
           }) || [];
 
-          console.log('✅ Viajes cargados con recursos:', viajesConDatos.length);
-          console.log('📦 Viajes completos:', viajesConDatos);
 
           setViajesDespacho(prev => {
             const newState = {
               ...prev,
               [despachoId]: viajesConDatos
             };
-            console.log('🔄 NUEVO ESTADO viajesDespacho:', newState);
-            console.log(`🔍 viajesDespacho[${despachoId}]:`, newState[despachoId]);
             return newState;
           });
         } catch (error) {
@@ -1481,7 +1308,6 @@ const CrearDespacho = () => {
   // 🔥 NUEVO: Cancelar viaje por coordinador de planta
   const handleCancelarViajeCoordinador = async (viajeId: string, despachoId: string, motivo: string) => {
     try {
-      console.log('🚫 Coordinador cancelando viaje:', viajeId);
 
       // Obtener datos del usuario actual
       const { data: { user } } = await supabase.auth.getUser();
@@ -1530,7 +1356,6 @@ const CrearDespacho = () => {
 
       if (error) throw error;
 
-      console.log('✅ Viaje cancelado definitivamente por coordinador');
 
       // Limpiar cache de viajes del despacho para forzar recarga
       setViajesDespacho(prev => {
@@ -1559,14 +1384,13 @@ const CrearDespacho = () => {
 
     } catch (err: any) {
       console.error('Error cancelando viaje:', err);
-      setErrorMsg(err.message || 'Error al cancelar el viaje');
+      setErrorMsg('Error al cancelar el viaje. Intente nuevamente.');
     }
   };
 
   // 🔥 NUEVO: Reasignar viaje cancelado por transporte
   const handleReasignarViaje = async (despacho: any, viaje: any) => {
     try {
-      console.log('🔄 Reasignando viaje cancelado:', viaje.id);
       
       // Verificar que el viaje esté en estado cancelado_por_transporte
       if (viaje.estado !== 'cancelado_por_transporte') {
@@ -1581,7 +1405,7 @@ const CrearDespacho = () => {
 
     } catch (err: any) {
       console.error('Error preparando reasignación:', err);
-      setErrorMsg(err.message || 'Error al preparar la reasignación');
+      setErrorMsg('Error al preparar la reasignación. Intente nuevamente.');
     }
   };
 
@@ -1597,12 +1421,8 @@ const CrearDespacho = () => {
   };
 
   const handleDeleteSelected = () => {
-    console.log('🚀 handleDeleteSelected iniciado');
-    console.log('📊 Despachos seleccionados:', selectedDespachos.size);
-    console.log('📋 IDs seleccionados:', Array.from(selectedDespachos));
 
     if (selectedDespachos.size === 0) {
-      console.log('⚠️ No hay despachos seleccionados');
       return;
     }
 
@@ -1612,7 +1432,6 @@ const CrearDespacho = () => {
   };
 
   const executeDelete = async () => {
-    console.log('🔄 Iniciando proceso de eliminación...');
     setDeletingDespachos(true);
     setErrorMsg('');
 
@@ -1620,8 +1439,6 @@ const CrearDespacho = () => {
     const countToDelete = despachosPendingDelete.size;
 
     try {
-      console.log('🗑️ Eliminando despachos seleccionados:', idsToDelete);
-      console.log('🎯 Total a eliminar:', countToDelete);
 
       const { data, error } = await supabase
         .from('despachos')
@@ -1629,30 +1446,24 @@ const CrearDespacho = () => {
         .in('id', idsToDelete)
         .select();
 
-      console.log('📤 Respuesta de eliminación:', { data, error });
 
       if (error) {
         console.error('❌ Error eliminando despachos:', error);
         throw error;
       }
 
-      console.log('✅ Eliminación exitosa en BD, data:', data);
 
       // Contar cuántos se eliminaron realmente
       const deletedCount = data?.length || countToDelete;
-      console.log('📊 Despachos eliminados:', deletedCount);
 
       // Limpiar selecciones ANTES de actualizar la lista
-      console.log('🧹 Limpiando selecciones...');
       setSelectedDespachos(new Set());
       setSelectAll(false);
 
       // Recargar INMEDIATAMENTE desde la base de datos
       if (user?.id) {
-        console.log('🔄 Recargando inmediatamente desde BD...');
         try {
           await fetchGeneratedDispatches(user.id);
-          console.log('✅ Recarga completada exitosamente');
         } catch (fetchError) {
           console.error('❌ Error en recarga:', fetchError);
           // Continuar aunque falle la recarga
@@ -1667,14 +1478,12 @@ const CrearDespacho = () => {
 
       setSuccessMsg(`✅ ${deletedCount} despacho(s) eliminado(s) exitosamente`);
       
-      console.log('🏁 Eliminación completada - UI actualizada');
 
     } catch (error: any) {
       console.error('💥 Error eliminando despachos:', error);
       console.error('💥 Error details:', JSON.stringify(error, null, 2));
-      setErrorMsg(`Error al eliminar despachos: ${error?.message || 'Error desconocido'}`);
+      setErrorMsg('Error al eliminar despachos. Intente nuevamente.');
     } finally {
-      console.log('🔄 Finalizando loading...');
       setDeletingDespachos(false); // Terminar loading SIEMPRE
     }
   };
@@ -1691,15 +1500,6 @@ const CrearDespacho = () => {
     }
     
     // Debug: ver qué datos tenemos
-    console.log('📦 Datos de la fila a guardar:', {
-      origen: rowToSave.origen,
-      origen_id: rowToSave.origen_id,
-      destino: rowToSave.destino,
-      destino_id: rowToSave.destino_id,
-      fecha: rowToSave.fecha_despacho,
-      hora: rowToSave.hora_despacho,
-      cantidad_viajes: rowToSave.cantidad_viajes_solicitados
-    });
     
     if (!rowToSave.origen || !rowToSave.destino || !rowToSave.fecha_despacho || !rowToSave.hora_despacho) {
       const camposFaltantes = [];
@@ -1717,11 +1517,9 @@ const CrearDespacho = () => {
       // Verificar y regenerar código si está vacío
       let finalPedidoId = rowToSave.pedido_id;
       if (!finalPedidoId || finalPedidoId.trim() === '') {
-        console.log('⚠️ Código vacío, regenerando...');
         finalPedidoId = await generateDespachoCode();
       }
       
-      console.log('📝 Guardando despacho con código:', finalPedidoId);
 
       const despachoData = {
         pedido_id: finalPedidoId,
@@ -1742,12 +1540,6 @@ const CrearDespacho = () => {
         cantidad_viajes_solicitados: rowToSave.cantidad_viajes_solicitados || 1, // NUEVO
       };
 
-      console.log('💾 Guardando despacho con ubicaciones:', {
-        origen: despachoData.origen,
-        origen_id: despachoData.origen_id,
-        destino: despachoData.destino,
-        destino_id: despachoData.destino_id
-      });
 
       const { data, error } = await supabase
         .from('despachos')
@@ -1769,9 +1561,8 @@ const CrearDespacho = () => {
 
       if (error) {
         console.error('Error al guardar despacho:', error);
-        setErrorMsg('Error al guardar despacho: ' + error.message);
+        setErrorMsg('Error al guardar despacho. Intente nuevamente.');
       } else {
-        console.log('✅ Despacho guardado exitosamente:', data[0]);
         
         // 🔥 CREAR VIAJES AUTOMÁTICAMENTE basados en cantidad_viajes_solicitados
         const despachoCreado = data[0];
@@ -1787,7 +1578,6 @@ const CrearDespacho = () => {
         
         let viajesCreados = 0;
         if (cantidadViajes > 0) {
-          console.log(`🚛 Generando ${cantidadViajes} viajes para despacho ID: ${despachoCreado.id}...`);
           
           // 🔥 Calcular scheduled_at si tenemos fecha y hora
           let scheduledAt = null;
@@ -1809,7 +1599,6 @@ const CrearDespacho = () => {
             });
           }
           
-          console.log('📦 Datos de viajes a insertar:', viajesData);
           
           const { data: viajesInsertados, error: viajesError } = await supabase
             .from('viajes_despacho')
@@ -1818,10 +1607,9 @@ const CrearDespacho = () => {
           
           if (viajesError) {
             console.error('❌ Error al crear viajes:', viajesError);
-            setErrorMsg(`Despacho creado pero error al generar viajes: ${viajesError.message}`);
+            setErrorMsg('Despacho creado pero hubo un error al generar viajes. Revise el despacho.');
           } else {
             viajesCreados = viajesInsertados?.length || 0;
-            console.log(`✅ ${viajesCreados} viajes creados exitosamente:`, viajesInsertados);
           }
         }
         
@@ -1831,7 +1619,6 @@ const CrearDespacho = () => {
           setSuccessMsg(`Despacho "${despachoCreado?.pedido_id || finalPedidoId}" generado (sin viajes creados - revisar consola).`);
         }
         
-        console.log('🔄 Recargando lista con user.id:', user.id);
         await fetchGeneratedDispatches(user.id); 
 
         // Remover la fila guardada del formulario
@@ -1856,7 +1643,7 @@ const CrearDespacho = () => {
       }
     } catch (err: any) {
       console.error('Error inesperado en handleSaveRow:', err);
-      setErrorMsg('Ocurrió un error inesperado: ' + err.message);
+      setErrorMsg('Ocurrió un error inesperado. Intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -2206,6 +1993,19 @@ const CrearDespacho = () => {
                 {generatedDispatches.filter(d => (d as any).tiene_viajes_expirados === true).length}
               </span>
             </button>
+            <button
+              onClick={() => setActiveTab('completados')}
+              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                activeTab === 'completados'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              ✅ Completados
+              <span className="ml-2 px-2 py-0.5 bg-emerald-700 rounded text-xs">
+                {generatedDispatches.filter(d => d.estado === 'completado' || d.estado === 'entregado').length}
+              </span>
+            </button>
           </div>
           
           {/* Wrapper con scroll horizontal para la tabla */}
@@ -2260,9 +2060,13 @@ const CrearDespacho = () => {
                       pasaFiltro = (d as any).tiene_viajes_demorados === true;
                       razon = `tiene_viajes_demorados === true (calculado en runtime)`;
                     } else if (activeTab === 'expirados') {
-                      // 🔥 Expirados = usan estado_operativo calculado (viajes sin recursos)
+                      // Expirados = usan estado_operativo calculado (viajes sin recursos)
                       pasaFiltro = (d as any).tiene_viajes_expirados === true;
                       razon = `tiene_viajes_expirados === true (viajes sin recursos, calculado en runtime)`;
+                    } else if (activeTab === 'completados') {
+                      // Completados: despachos con estado completado o entregado
+                      pasaFiltro = d.estado === 'completado' || d.estado === 'entregado';
+                      razon = `estado === 'completado' || estado === 'entregado'`;
                     } else {
                       // Asignados: tienen TODOS los viajes asignados Y no están expirados ni demorados
                       // TAMBIÉN incluir despachos con estado 'asignado' explícito
@@ -2273,25 +2077,10 @@ const CrearDespacho = () => {
                       razon = `(cantidadAsignados (${cantidadAsignados}) > 0 && viajesPendientes (${viajesPendientes}) === 0) || estado === 'asignado'`;
                     }
                     
-                    console.log(`🔍 Filtrado ${d.pedido_id}:`, {
-                      cantidadTotal,
-                      cantidadAsignados,
-                      viajesPendientes,
-                      estado: d.estado,
-                      activeTab,
-                      pasaFiltro,
-                      razon,
-                      transport_id: d.transporte_data?.nombre || 'Sin asignar'
-                    });
                     
                     return pasaFiltro;
                   });
 
-                  console.log(`📋 Resumen filtrado para tab "${activeTab}":`, {
-                    totalDespachos: generatedDispatches.length,
-                    despachosQuesPasanFiltro: filteredDispatches.length,
-                    despachosFiltrados: filteredDispatches.map(d => d.pedido_id)
-                  });
 
                   if (filteredDispatches.length === 0) {
                     return (
@@ -2536,11 +2325,6 @@ const CrearDespacho = () => {
                             </h4>
                             {(() => {
                               const viajes = viajesDespacho[dispatch.id];
-                              console.log(`🔍 RENDER - Despacho ${dispatch.id}:`, {
-                                'existe viajesDespacho[dispatch.id]': !!viajes,
-                                'length': viajes?.length || 0,
-                                'viajes': viajes
-                              });
                               return viajes && viajes.length > 0;
                             })() ? (
                                 <table className="w-full text-xs">
@@ -2558,13 +2342,6 @@ const CrearDespacho = () => {
                                   </thead>
                                   <tbody>
                                     {viajesDespacho[dispatch.id]?.map((viaje: any) => {
-                                      console.log('🎨 RENDER Viaje:', {
-                                        id: viaje.id,
-                                        numero: viaje.numero_viaje,
-                                        estado_red: viaje.estado_red,
-                                        en_red_nodexia: viaje.en_red_nodexia,
-                                        transporte: viaje.transporte?.nombre
-                                      });
                                       return (
                                       <tr key={viaje.id} className="border-b border-gray-800 hover:bg-gray-800/50">
                                         <td className="py-2 px-2 font-mono">
@@ -2653,6 +2430,8 @@ const CrearDespacho = () => {
                                                 ? 'bg-orange-900 text-orange-200'
                                                 : viaje.estado === 'entregado'
                                                 ? 'bg-green-900 text-green-200'
+                                                : viaje.estado === 'viaje_completado' || viaje.estado === 'completado'
+                                                ? 'bg-emerald-900 text-emerald-200'
                                                 : 'bg-gray-900 text-gray-200'
                                             }`}>
                                               {viaje.estado === 'cancelado_por_transporte' 
@@ -2675,6 +2454,8 @@ const CrearDespacho = () => {
                                                 ? '📍 En Destino'
                                                 : viaje.estado === 'entregado'
                                                 ? '✅ Entregado'
+                                                : viaje.estado === 'viaje_completado' || viaje.estado === 'completado'
+                                                ? '🏁 Completado'
                                                 : '⏳ Pendiente'}
                                             </span>
                                           </div>

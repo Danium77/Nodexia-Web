@@ -329,7 +329,7 @@ const PlanificacionPage = () => {
           camiones: viajeCamionIds
         });
 
-        // Cargar datos adicionales para viajes
+        // Cargar datos adicionales para viajes (RLS corregido en migración 052)
         const [moreTransportesResult, moreChoferesResult, moreCamionesResult] = await Promise.all([
           viajeTransporteIds.length > 0
             ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', viajeTransporteIds)

@@ -21,19 +21,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Código QR requerido' });
     }
 
-    // 1. Buscar el viaje por QR
+    // 1. Buscar el viaje por QR en tabla viajes_despacho
     const { data: viaje, error: viajeError } = await supabaseAdmin
-      .from('viajes')
+      .from('viajes_despacho')
       .select(`
         *,
-        chofer:choferes(*),
-        camion:camiones(*),
-        acoplado:acoplados(*),
-        empresa_origen:empresas!empresa_origen_id(*),
-        empresa_destino:empresas!empresa_destino_id(*)
+        despacho:despachos!inner(
+          id,
+          pedido_id,
+          origen,
+          destino
+        ),
+        choferes(
+          id,
+          nombre,
+          apellido,
+          dni,
+          telefono,
+          email
+        ),
+        camiones(
+          id,
+          patente,
+          marca,
+          modelo,
+          anio
+        ),
+        acoplados(
+          id,
+          patente,
+          marca,
+          modelo
+        )
       `)
       .eq('qr_code', qr_code)
-      .single();
+      .maybeSingle();
 
     if (viajeError || !viaje) {
       return res.status(404).json({ 
@@ -43,18 +65,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 2. Validar estado actual del viaje según la acción
+    // Usar estado_unidad en lugar de estado_viaje
+    const estadoActual = viaje.estado_unidad || viaje.estado;
+    
     if (accion === 'ingreso') {
-      if (viaje.estado_viaje !== 'confirmado') {
+      // Puede ser ingreso a origen (desde en_transito_origen) o a destino (desde en_transito_destino)
+      if (!['en_transito_origen', 'en_transito_destino'].includes(estadoActual)) {
         return res.status(400).json({
           error: 'Estado inválido para ingreso',
-          details: `El viaje está en estado: ${viaje.estado_viaje}. Solo se puede ingresar viajes confirmados.`
+          details: `El viaje está en estado: ${estadoActual}. Solo se puede ingresar viajes en tránsito.`
         });
       }
     } else if (accion === 'egreso') {
-      if (!['carga_finalizada', 'listo_egreso'].includes(viaje.estado_viaje)) {
+      // Puede ser egreso de origen (desde egreso_origen) o de destino (desde vacio)
+      if (!['egreso_origen', 'vacio'].includes(estadoActual)) {
         return res.status(400).json({
           error: 'Estado inválido para egreso', 
-          details: `El viaje debe estar en estado 'carga_finalizada' para poder egresar.`
+          details: `El viaje debe estar en estado 'egreso_origen' o 'vacio' para poder egresar.`
         });
       }
     }
@@ -65,34 +92,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 4. Preparar respuesta con toda la información
     const response = {
       viaje: {
+        id: viaje.id,
         numero_viaje: viaje.numero_viaje,
-        tipo_operacion: viaje.tipo_operacion,
-        estado_actual: viaje.estado_viaje,
-        producto: viaje.producto,
-        peso_estimado: viaje.peso_estimado
+        despacho_id: viaje.despacho_id,
+        estado_unidad: estadoActual,
+        estado_carga: viaje.estado_carga,
+        origen_id: viaje.despacho?.origen,
+        destino_id: viaje.despacho?.destino
       },
-      chofer: {
-        nombre_completo: `${viaje.chofer.nombre} ${viaje.chofer.apellido}`,
-        dni: viaje.chofer.dni,
-        telefono: viaje.chofer.telefono,
-        email: viaje.chofer.email
-      },
+      chofer: viaje.choferes ? {
+        id: viaje.choferes.id,
+        nombre_completo: `${viaje.choferes.nombre} ${viaje.choferes.apellido}`,
+        dni: viaje.choferes.dni,
+        telefono: viaje.choferes.telefono,
+        email: viaje.choferes.email
+      } : null,
       vehiculo: {
-        camion: {
-          patente: viaje.camion.patente,
-          marca: viaje.camion.marca,
-          modelo: viaje.camion.modelo,
-          anio: viaje.camion.anio
-        },
-        acoplado: viaje.acoplado ? {
-          patente: viaje.acoplado.patente,
-          marca: viaje.acoplado.marca,
-          modelo: viaje.acoplado.modelo
+        camion: viaje.camiones ? {
+          id: viaje.camiones.id,
+          patente: viaje.camiones.patente,
+          marca: viaje.camiones.marca,
+          modelo: viaje.camiones.modelo,
+          anio: viaje.camiones.anio
+        } : null,
+        acoplado: viaje.acoplados ? {
+          id: viaje.acoplados.id,
+          patente: viaje.acoplados.patente,
+          marca: viaje.acoplados.marca,
+          modelo: viaje.acoplados.modelo
         } : null
-      },
-      empresas: {
-        origen: viaje.empresa_origen.nombre,
-        destino: viaje.empresa_destino.nombre
       },
       documentacion: {
         estado: documentacionVencida.length === 0 ? 'vigente' : 'con_vencimientos',
@@ -148,22 +176,27 @@ async function verificarDocumentacion(_viaje: any) {
   return documentosVencidos;
 }
 
-function determinarAccionesDisponibles(_estadoViaje: string, accion: string, documentacionVencida: any[]) {
+function determinarAccionesDisponibles(estadoViaje: string, accion: string, documentacionVencida: any[]) {
   const documentosCriticosVencidos = documentacionVencida.filter(d => d.critico);
   
   if (accion === 'ingreso') {
     return {
       puede_ingresar: documentosCriticosVencidos.length === 0,
       puede_rechazar: true,
+      puede_crear_incidencia: documentacionVencida.length > 0,
       puede_actualizar_documentacion: documentacionVencida.length > 0,
       mensaje: documentosCriticosVencidos.length > 0 
-        ? 'No se puede ingresar por documentación vencida crítica'
-        : 'Puede proceder con el ingreso'
+        ? 'Documentación vencida - Crear incidencia para validación excepcional'
+        : documentacionVencida.length > 0
+        ? 'Puede ingresar con alerta de documentación por vencer'
+        : 'Puede proceder con el ingreso',
+      estado_siguiente: estadoViaje === 'en_transito_origen' ? 'ingresado_origen' : 'ingresado_destino'
     };
   } else if (accion === 'egreso') {
     return {
       puede_egresar: true,
-      mensaje: 'Puede proceder con el egreso'
+      mensaje: 'Puede proceder con el egreso',
+      estado_siguiente: estadoViaje === 'egreso_origen' ? 'en_transito_destino' : 'disponible'
     };
   }
 

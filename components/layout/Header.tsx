@@ -2,6 +2,8 @@
 import React from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import NotificationBell from './NotificationBell';
+import UbicacionSelector from '../ControlAcceso/UbicacionSelector';
+import { useUserRole } from '../../lib/contexts/UserRoleContext';
 
 interface HeaderProps {
   userEmail: string;
@@ -11,6 +13,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle, empresaNombre }) => {
+  const { role } = useUserRole();
   
   const handleProfileClick = () => {
     // TODO: Implementar menú de perfil
@@ -25,6 +28,9 @@ const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle, empresa
       <div className="flex items-center space-x-4">
         {/* Campana de notificaciones con badge */}
         <NotificationBell />
+        {/* Selector de ubicación para Control de Acceso */}
+        {role === 'control_acceso' && <UbicacionSelector />}
+        
         
         <button 
           onClick={handleProfileClick}

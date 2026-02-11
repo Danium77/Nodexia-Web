@@ -8,8 +8,9 @@ import dynamic from 'next/dynamic';
 // Importar componentes de contenido sin layout
 const ChoferesContent = dynamic(() => import('../../components/Transporte/ChoferesContent'), { ssr: false });
 const UnidadesContent = dynamic(() => import('../../components/Transporte/UnidadesContent'), { ssr: false });
+const DocumentosFlotaContent = dynamic(() => import('../../components/Transporte/DocumentosFlotaContent'), { ssr: false });
 
-type TabType = 'camiones' | 'acoplados' | 'choferes' | 'unidades';
+type TabType = 'camiones' | 'acoplados' | 'choferes' | 'unidades' | 'documentos';
 
 export default function FlotaTransporte() {
   const router = useRouter();
@@ -73,6 +74,16 @@ export default function FlotaTransporte() {
             >
               ⚡ Unidades Operativas
             </button>
+            <button
+              onClick={() => handleTabChange('documentos')}
+              className={`px-6 py-3 text-sm font-medium transition-all rounded-t-lg ${
+                activeTab === 'documentos'
+                  ? 'bg-gray-800 text-indigo-400 border-b-2 border-indigo-400'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
+              }`}
+            >
+              📄 Documentación
+            </button>
           </div>
         </div>
 
@@ -90,6 +101,10 @@ export default function FlotaTransporte() {
           
           {activeTab === 'unidades' && (
             <UnidadesContent />
+          )}
+
+          {activeTab === 'documentos' && (
+            <DocumentosFlotaContent />
           )}
         </div>
       </div>

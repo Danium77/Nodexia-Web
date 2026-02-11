@@ -86,7 +86,23 @@
     "typescriptreact": true,
     "javascriptreact": true
   },
-  "github.copilot.advanced": {},
+  "github.copilot.advanced": {
+    "excludes": {
+      "**/.next": true,
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/.git": true,
+      "**/playwright-report": true,
+      "**/test-results": true,
+      "**/.pnpm-store": true,
+      "**/.swc": true,
+      "**/.cache": true,
+      "**/pnpm-lock.yaml": true,
+      "**/*.tsbuildinfo": true,
+      "**/docs/archive": true
+    }
+  },
   "extensions.autoUpdate": false,
   "extensions.autoCheckUpdates": false,
   "files.trimTrailingWhitespace": false,

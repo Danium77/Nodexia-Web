@@ -231,7 +231,7 @@ const TransportesPage = () => {
           .from('relaciones_empresas')
           .update({ 
             estado: 'activa',
-            fecha_inicio: new Date().toISOString().split('T')[0]
+            fecha_inicio: new Date().toISOString()
           })
           .eq('id', relacionExistente.id);
 
@@ -243,6 +243,7 @@ const TransportesPage = () => {
         }
 
         console.log('✅ Relación reactivada');
+        setMensaje('✅ Transporte reactivado correctamente');
       } else {
         // Crear nueva relación
         const { data: relacionCreada, error: relacionError } = await supabase
@@ -251,7 +252,7 @@ const TransportesPage = () => {
             empresa_cliente_id: usuarioEmpresa.empresa_id,
             empresa_transporte_id: nuevoTransporte.id,
             estado: 'activa',
-            fecha_inicio: new Date().toISOString().split('T')[0]
+            fecha_inicio: new Date().toISOString()
           })
           .select()
           .single();
@@ -264,9 +265,8 @@ const TransportesPage = () => {
         }
 
         console.log('✅ Relación creada:', relacionCreada);
+        setMensaje('✅ Transporte asociado correctamente');
       }
-
-      setMensaje('✅ Transporte asociado correctamente a tu empresa');
       
       // Recargar la lista de transportes asociados
       await cargarTransportesAsociados();

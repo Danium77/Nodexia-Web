@@ -457,6 +457,10 @@ export type EstadoDespacho =
   | 'asignado' 
   | 'en_transito' 
   | 'entregado' 
+  | 'completado'
+  | 'finalizado'
+  | 'expirado'
+  | 'fuera_de_horario'
   | 'cancelado';
 
 export interface Despacho {
@@ -584,30 +588,39 @@ export type EstadoCargaViaje =
 export type EstadoUnidadViaje = 
   // FASE 1: ASIGNACIÓN
   | 'camion_asignado'           // Camión y chofer asignados
+  | 'confirmado_chofer'         // Chofer confirmó viaje
   
   // FASE 2: TRÁNSITO A ORIGEN
   | 'en_transito_origen'        // Viajando hacia planta de carga
+  | 'arribo_origen'             // Chofer reportó arribo a origen
   
   // FASE 3: OPERACIÓN EN ORIGEN
   | 'ingresado_origen'          // Control acceso registró ingreso
   | 'en_playa_origen'           // En playa de espera
   | 'llamado_carga'             // Llamado a posición de carga
   | 'cargando'                  // En proceso de carga
+  | 'cargado'                   // Carga completada
   
-  // FASE 4: EGRESO
+  // FASE 4: EGRESO ORIGEN
   | 'egreso_origen'             // Egresando de planta
   
   // FASE 5: TRÁNSITO A DESTINO
   | 'en_transito_destino'       // Viajando a destino
+  | 'arribo_destino'            // Chofer reportó arribo a destino
   
   // FASE 6: OPERACIÓN EN DESTINO
-  | 'arribado_destino'          // Arribó a destino
+  | 'arribado_destino'          // Arribó a destino (alias arribo_destino)
   | 'ingresado_destino'         // Control acceso destino registró ingreso
   | 'llamado_descarga'          // Llamado a descarga
   | 'descargando'               // En proceso de descarga
-  | 'vacio'                     // Camión vacío
+  | 'descargado'                // Descarga completada
   
-  // FASE 7: FINALIZACIÓN (Estado final reutilizable)
+  // FASE 7: EGRESO DESTINO
+  | 'egreso_destino'            // Egresando de destino
+  | 'vacio'                     // Camión vacío, retornando
+  | 'viaje_completado'          // Viaje finalizado
+  
+  // FASE 8: FINALIZACIÓN (Estado final reutilizable)
   | 'disponible'                // ✅ ESTADO FINAL: Disponible para reasignación a nuevo viaje
   
   // ESTADOS FINALES NO REUTILIZABLES

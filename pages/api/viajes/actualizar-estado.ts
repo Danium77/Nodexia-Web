@@ -77,8 +77,73 @@ export default async function handler(
 
     if (updateError) throw updateError;
 
-    // Si es sistema dual, actualizar también estado_unidad_viaje
-    // TODO: Implementar lógica de sistema dual si es necesario
+    // SISTEMA DUAL: Actualizar también estado_unidad_viaje
+    console.log('🔄 Actualizando sistema dual - estado_unidad_viaje');
+    
+    // Verificar si ya existe registro en estado_unidad_viaje
+    const { data: estadoUnidad, error: estadoUnidadError } = await supabase
+      .from('estado_unidad_viaje')
+      .select('id')
+      .eq('viaje_id', viaje_id)
+      .maybeSingle();
+
+    const ahora = new Date().toISOString();
+    
+    // Mapear estado a campos timestamp correspondientes
+    const timestampField: Record<string, string> = {
+      'asignado': 'fecha_asignacion',
+      'camion_asignado': 'fecha_asignacion',
+      'confirmado_chofer': 'fecha_confirmacion_chofer',
+      'en_transito_origen': 'fecha_inicio_transito_origen',
+      'arribo_origen': 'fecha_arribo_origen',
+      'en_transito_destino': 'fecha_inicio_transito_destino',
+      'arribo_destino': 'fecha_arribo_destino',
+      'entregado': 'fecha_viaje_completado'
+    };
+
+    const campoFecha = timestampField[nuevo_estado];
+
+    if (!estadoUnidad) {
+      // Crear registro inicial
+      console.log('Creating new estado_unidad_viaje record');
+      const { error: insertError } = await supabase
+        .from('estado_unidad_viaje')
+        .insert({
+          viaje_id: viaje_id,
+          estado_unidad: nuevo_estado,
+          [campoFecha]: ahora,
+          created_at: ahora,
+          updated_at: ahora
+        });
+
+      if (insertError) {
+        console.error('Error creando estado_unidad_viaje:', insertError);
+      } else {
+        console.log('✅ estado_unidad_viaje creado');
+      }
+    } else {
+      // Actualizar registro existente
+      console.log('Updating existing estado_unidad_viaje record');
+      const updateData: any = {
+        estado_unidad: nuevo_estado,
+        updated_at: ahora
+      };
+
+      if (campoFecha) {
+        updateData[campoFecha] = ahora;
+      }
+
+      const { error: updateUnidadError } = await supabase
+        .from('estado_unidad_viaje')
+        .update(updateData)
+        .eq('viaje_id', viaje_id);
+
+      if (updateUnidadError) {
+        console.error('Error actualizando estado_unidad_viaje:', updateUnidadError);
+      } else {
+        console.log('✅ estado_unidad_viaje actualizado');
+      }
+    }
 
     return res.status(200).json({ 
       success: true, 

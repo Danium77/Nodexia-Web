@@ -59,11 +59,11 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'tracking_gps') THEN
         
         -- Insertar datos únicos que NO existen en ubicaciones_choferes
-        INSERT INTO ubicaciones_choferes (chofer_id, latitud, longitud, timestamp, created_at)
+        INSERT INTO ubicaciones_choferes (chofer_id, latitude, longitude, timestamp, created_at)
         SELECT 
             t.chofer_id,
-            t.latitud,
-            t.longitud,
+            t.latitud as latitude,    -- tracking_gps usa español → ubicaciones_choferes usa inglés
+            t.longitud as longitude,  -- tracking_gps usa español → ubicaciones_choferes usa inglés
             COALESCE(t.timestamp, t.created_at) as timestamp,
             COALESCE(t.created_at, t.timestamp) as created_at
         FROM tracking_gps t

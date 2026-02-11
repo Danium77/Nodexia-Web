@@ -28,16 +28,35 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
 
   const getStatusColor = (estado: string) => {
     const colors: Record<string, string> = {
-      'Generado': 'bg-gray-600',
-      'Aceptado': 'bg-blue-600',
-      'Asignado': 'bg-yellow-600',
-      'Confirmado': 'bg-cyan-600',
-      'En Camino a Origen': 'bg-indigo-600',
-      'Cargando': 'bg-orange-600',
-      'Despachado': 'bg-green-600',
-      'Terminado': 'bg-gray-700'
+      // Legacy
+      'Generado': 'bg-gray-600', 'Aceptado': 'bg-blue-600', 'Asignado': 'bg-yellow-600',
+      'Confirmado': 'bg-cyan-600', 'En Camino a Origen': 'bg-indigo-600',
+      'Cargando': 'bg-orange-600', 'Despachado': 'bg-green-600', 'Terminado': 'bg-gray-700',
+      // estado_unidad values
+      'pendiente': 'bg-gray-600', 'transporte_asignado': 'bg-blue-600',
+      'camion_asignado': 'bg-yellow-600', 'confirmado_chofer': 'bg-cyan-600',
+      'en_transito_origen': 'bg-indigo-600', 'ingresado_origen': 'bg-green-600',
+      'en_playa_origen': 'bg-teal-600', 'llamado_carga': 'bg-amber-600',
+      'cargando': 'bg-orange-600', 'egreso_origen': 'bg-purple-600',
+      'en_transito_destino': 'bg-pink-600', 'arribado_destino': 'bg-teal-700',
+      'ingresado_destino': 'bg-emerald-600', 'entregado': 'bg-green-700',
+      'completado': 'bg-green-800', 'cancelado': 'bg-red-600',
     };
     return colors[estado] || 'bg-slate-600';
+  };
+
+  const getStatusLabel = (estado: string) => {
+    const labels: Record<string, string> = {
+      'pendiente': '⏳ Pendiente', 'transporte_asignado': '🚛 Transporte',
+      'camion_asignado': '🚛 Camión', 'confirmado_chofer': '✅ Confirmado',
+      'en_transito_origen': '🚚 → Origen', 'ingresado_origen': '🏭 En Planta',
+      'en_playa_origen': '⏸️ Playa', 'llamado_carga': '📢 Carga',
+      'cargando': '⚙️ Cargando', 'egreso_origen': '🚪 Saliendo',
+      'en_transito_destino': '🚚 → Destino', 'arribado_destino': '📍 Destino',
+      'ingresado_destino': '🏁 Destino', 'entregado': '✅ Entregado',
+      'completado': '🎉 Completo', 'cancelado': '❌ Cancelado',
+    };
+    return labels[estado] || estado;
   };
 
   const getPriorityColor = (prioridad?: string) => {
@@ -83,7 +102,7 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-white text-[10px]">{dispatch.pedido_id || 'N/A'}</span>
                       <span className={`text-[9px] px-1 py-0.5 rounded ${getStatusColor(dispatch.estado)} text-white font-semibold`}>
-                        {dispatch.estado}
+                        {getStatusLabel(dispatch.estado)}
                       </span>
                     </div>
 

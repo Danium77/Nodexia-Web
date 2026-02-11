@@ -54,12 +54,11 @@ BEGIN
         SELECT 
             id,
             chofer_id,
-            latitud,
-            longitud,
+            latitude as latitud,     -- Mapear inglés → español
+            longitude as longitud,   -- Mapear inglés → español  
             timestamp as fecha_hora,
             timestamp,
-            created_at,
-            updated_at
+            created_at
         FROM ubicaciones_choferes';
         
         RAISE NOTICE 'View tracking_gps_legacy creada exitosamente';
@@ -85,18 +84,9 @@ SELECT
     acoplado_id,
     acoplado_id as id_acoplado,  -- Alias para código viejo
     estado,
-    origen,
-    destino,
-    carga_tipo,
-    peso_estimado,
-    observaciones,
-    fecha_estimada_entrega,
     created_at,
     updated_at,
     estado_carga,
-    ubicacion_actual,
-    distancia_restante,
-    tiempo_estimado_llegada,
     id_transporte
 FROM viajes_despacho;
 

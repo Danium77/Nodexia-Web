@@ -139,8 +139,6 @@ export default function ControlAcceso() {
       // Buscar despacho primero (porque el QR puede ser el número de despacho)
       const codigoBusqueda = qrCode.trim().replace(/^(QR-|DSP-)/, ''); // Quitar prefijos
       
-      console.log('🔍 [control-acceso] Buscando con código:', codigoBusqueda);
-      console.log('🏢 [control-acceso] Empresa ID:', empresaId);
 
       // Paso 1: Buscar el despacho por código
       const { data: despacho, error: despachoError } = await supabase
@@ -181,7 +179,6 @@ export default function ControlAcceso() {
         return;
       }
 
-      console.log('✅ [control-acceso] Despacho encontrado:', despacho);
 
       // Paso 2.5: Obtener nombres de ubicaciones
       const { data: ubicaciones, error: ubicacionesError } = await supabase
@@ -192,14 +189,7 @@ export default function ControlAcceso() {
       const origenUbicacion = ubicaciones?.find(u => u.id === despacho.origen);
       const destinoUbicacion = ubicaciones?.find(u => u.id === despacho.destino);
 
-      console.log('📍 [control-acceso] Ubicaciones:', { 
-        origen: origenUbicacion?.nombre, 
-        destino: destinoUbicacion?.nombre 
-      });
-
       // Paso 3: Buscar viaje con relaciones nativas de Supabase
-      console.log('🔍 [control-acceso] Buscando viaje para despacho ID:', despacho.id);
-      console.log('🏢 [control-acceso] Empresa ID para validación:', empresaId);
       
       // Traer viaje sin relaciones primero
       const { data: viajesData, error: viajeError } = await supabase
@@ -208,13 +198,11 @@ export default function ControlAcceso() {
         .eq('despacho_id', despacho.id)
         .limit(1);
       
-      console.log('🔍 [control-acceso] Viaje encontrado:', viajesData?.[0]);
 
-      console.log('📦 [control-acceso] Resultado búsqueda viaje:', { viajesData, viajeError });
 
       if (viajeError) {
         console.error('❌ [control-acceso] Error buscando viaje:', viajeError);
-        setMessage(`❌ Error al buscar viaje: ${viajeError.message}`);
+        setMessage('❌ Error al buscar viaje. Intente nuevamente.');
         setViaje(null);
         setLoading(false);
         return;
@@ -230,17 +218,11 @@ export default function ControlAcceso() {
 
       const viajeData = viajesData[0];
       
-      console.log('🔍 [control-acceso] IDs en viaje:', {
-        chofer_id: viajeData.chofer_id,
-        camion_id: viajeData.camion_id
-      });
-      
       // Traer chofer y camión con queries separadas
       let choferData = null;
       let camionData = null;
       
       if (viajeData.chofer_id) {
-        console.log('📞 [control-acceso] Buscando chofer con ID:', viajeData.chofer_id);
         const { data: chofer, error: choferError } = await supabase
           .from('choferes')
           .select('nombre, apellido, dni, telefono')
@@ -250,14 +232,11 @@ export default function ControlAcceso() {
         if (choferError) {
           console.error('❌ [control-acceso] Error al buscar chofer:', choferError);
         } else if (!chofer) {
-          console.warn('⚠️ [control-acceso] Chofer no encontrado con ID:', viajeData.chofer_id);
         }
         choferData = chofer;
-        console.log('👤 [control-acceso] Chofer cargado:', choferData);
       }
       
       if (viajeData.camion_id) {
-        console.log('📞 [control-acceso] Buscando camión con ID:', viajeData.camion_id);
         const { data: camion, error: camionError } = await supabase
           .from('camiones')
           .select('patente, marca, modelo, anio')
@@ -267,10 +246,8 @@ export default function ControlAcceso() {
         if (camionError) {
           console.error('❌ [control-acceso] Error al buscar camión:', camionError);
         } else if (!camion) {
-          console.warn('⚠️ [control-acceso] Camión no encontrado con ID:', viajeData.camion_id);
         }
         camionData = camion;
-        console.log('🚛 [control-acceso] Camión cargado:', camionData);
       }
 
       const chofer = choferData ? {
@@ -287,8 +264,6 @@ export default function ControlAcceso() {
         año: camionData.anio
       } : null;
 
-      console.log('👤 [control-acceso] Chofer procesado:', chofer);
-      console.log('🚛 [control-acceso] Camión procesado:', camion);
 
       const tipoOp: 'envio' | 'recepcion' = 'envio';
       const estadoUnidad = viajeData.estado_unidad || viajeData.estado || 'pendiente';
@@ -339,10 +314,9 @@ export default function ControlAcceso() {
         `📋 ${tipoOp === 'envio' ? 'Envío' : 'Recepción'} ${viajeCompleto.numero_viaje} encontrado - Estado: ${getLabelEstadoUnidad(estadoUnidad as EstadoUnidadViajeType)}`
       );
       
-      console.log('📊 [control-acceso] Viaje completo:', viajeCompleto);
     } catch (error: any) {
       console.error('❌ [control-acceso] Error en escanearQR:', error);
-      setMessage(`❌ Error: ${error.message}`);
+      setMessage('❌ Error al procesar QR. Intente nuevamente.');
       setViaje(null);
     } finally {
       setLoading(false);
@@ -355,9 +329,6 @@ export default function ControlAcceso() {
 
     setLoading(true);
     try {
-      console.log('🚪 [control-acceso] Confirmando ingreso para viaje:', viaje.id);
-      console.log('🚪 [control-acceso] Tipo de operación:', viaje.tipo_operacion);
-      console.log('🚪 [control-acceso] Estado actual:', viaje.estado_unidad);
       
       // Registrar en tabla de accesos
       const { error: registroError } = await supabase
@@ -372,14 +343,12 @@ export default function ControlAcceso() {
       if (registroError) {
         console.error('⚠️ [control-acceso] Error registrando acceso:', registroError);
       } else {
-        console.log('✅ [control-acceso] Registro de acceso creado');
       }
 
       // Determinar el nuevo estado según el tipo de operación
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'en_playa_origen' : 'arribado_destino';
+        viaje.tipo_operacion === 'envio' ? 'en_playa_origen' : 'ingresado_destino';
       
-      console.log('🔄 [control-acceso] Actualizando estado a:', nuevoEstado);
 
       const result = await actualizarEstadoUnidad({
         viaje_id: viaje.id,
@@ -390,7 +359,6 @@ export default function ControlAcceso() {
       if (result.success) {
         const ahora = new Date().toLocaleString('es-ES');
         setMessage(`✅ Ingreso confirmado para ${viaje.numero_viaje} a las ${ahora}`);
-        console.log('✅ [control-acceso] Estado actualizado correctamente');
 
         setViaje({
           ...viaje,
@@ -412,7 +380,7 @@ export default function ControlAcceso() {
       }
     } catch (error: any) {
       console.error('❌ [control-acceso] Error en confirmarIngreso:', error);
-      setMessage(`❌ Error: ${error.message}`);
+      setMessage('❌ Error al confirmar ingreso. Intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -424,9 +392,6 @@ export default function ControlAcceso() {
 
     setLoading(true);
     try {
-      console.log('🚪 [control-acceso] Confirmando egreso para viaje:', viaje.id);
-      console.log('🚪 [control-acceso] Tipo de operación:', viaje.tipo_operacion);
-      console.log('🚪 [control-acceso] Estado actual:', viaje.estado_unidad);
       
       // Registrar en tabla de accesos
       const { error: registroError } = await supabase
@@ -441,16 +406,14 @@ export default function ControlAcceso() {
       if (registroError) {
         console.error('⚠️ [control-acceso] Error registrando acceso:', registroError);
       } else {
-        console.log('✅ [control-acceso] Registro de egreso creado');
       }
 
       // Determinar el nuevo estado según el tipo de operación
       // Origen: egreso_origen (que automáticamente dispara en_transito_destino)
-      // Destino: vacio (camión vacío después de descarga)
+      // Destino: egreso_destino (camión sale del destino tras descarga)
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'egreso_origen' : 'vacio';
+        viaje.tipo_operacion === 'envio' ? 'egreso_origen' : 'egreso_destino';
       
-      console.log('🔄 [control-acceso] Actualizando estado a:', nuevoEstado);
 
       const result = await actualizarEstadoUnidad({
         viaje_id: viaje.id,
@@ -460,12 +423,18 @@ export default function ControlAcceso() {
 
       if (result.success) {
         const ahora = new Date().toLocaleString('es-ES');
-        setMessage(`✅ Egreso confirmado para ${viaje.numero_viaje} a las ${ahora}`);
-        console.log('✅ [control-acceso] Estado actualizado correctamente');
+        const autoCompletado = result.data?.viaje_auto_completado;
+        
+        // Check if viaje was auto-completed
+        if (autoCompletado) {
+          setMessage(`✅ Egreso confirmado y viaje completado automáticamente para ${viaje.numero_viaje} a las ${ahora}`);
+        } else {
+          setMessage(`✅ Egreso confirmado para ${viaje.numero_viaje} a las ${ahora}`);
+        }
 
         setViaje({
           ...viaje,
-          estado_unidad: nuevoEstado,
+          estado_unidad: autoCompletado ? 'viaje_completado' : nuevoEstado,
         });
 
         // Recargar historial
@@ -483,7 +452,7 @@ export default function ControlAcceso() {
       }
     } catch (error: any) {
       console.error('❌ [control-acceso] Error en confirmarEgreso:', error);
-      setMessage(`❌ Error: ${error.message}`);
+      setMessage('❌ Error al confirmar egreso. Intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -492,26 +461,30 @@ export default function ControlAcceso() {
   // Llamar a descarga (solo en destino)
   const llamarADescarga = async () => {
     if (!viaje || viaje.tipo_operacion !== 'recepcion') return;
+    if (viaje.estado_unidad !== 'ingresado_destino') {
+      setMessage('❌ Solo se puede llamar a descarga desde estado Ingresado Destino');
+      return;
+    }
 
     setLoading(true);
     try {
       const result = await actualizarEstadoUnidad({
         viaje_id: viaje.id,
-        nuevo_estado: 'llamado_carga',
-        observaciones: 'Llamado a carga desde Control de Acceso',
+        nuevo_estado: 'llamado_descarga',
+        observaciones: 'Llamado a descarga desde Control de Acceso',
       });
 
       if (result.success) {
-        setMessage(`📢 Llamado a carga enviado para ${viaje.numero_viaje}`);
+        setMessage(`📢 Llamado a descarga enviado para ${viaje.numero_viaje}`);
         setViaje({
           ...viaje,
-          estado_unidad: 'llamado_carga',
+          estado_unidad: 'llamado_descarga',
         });
       } else {
         setMessage(`❌ ${result.error || 'Error al llamar a descarga'}`);
       }
     } catch (error: any) {
-      setMessage(`❌ Error: ${error.message}`);
+      setMessage('❌ Error al llamar a descarga. Intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -522,7 +495,6 @@ export default function ControlAcceso() {
     
     const descripcion = prompt('Describe la incidencia:');
     if (descripcion) {
-      console.log('Creando incidencia:', { viaje: viaje.id, descripcion });
       setMessage(`⚠️ Incidencia creada para ${viaje.numero_viaje}`);
     }
   };
@@ -794,7 +766,21 @@ export default function ControlAcceso() {
                   </div>
                 )}
 
-                {viaje.estado_unidad === 'arribado_destino' && viaje.tipo_operacion === 'recepcion' && (
+                {viaje.estado_unidad === 'en_transito_destino' && viaje.tipo_operacion === 'recepcion' && (
+                  <div className="mb-6 bg-purple-900/30 border border-purple-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-purple-600 rounded-lg">
+                        <TruckIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-purple-100 font-semibold">Camión en tránsito hacia destino</p>
+                        <p className="text-purple-300 text-sm mt-1">Aguardando arribo para confirmar ingreso</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(viaje.estado_unidad === 'arribado_destino' || viaje.estado_unidad === 'arribo_destino') && viaje.tipo_operacion === 'recepcion' && (
                   <div className="mb-6 bg-teal-900/30 border border-teal-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-teal-600 rounded-lg">
@@ -802,7 +788,49 @@ export default function ControlAcceso() {
                       </div>
                       <div>
                         <p className="text-teal-100 font-semibold">Camión arribó a destino</p>
-                        <p className="text-teal-300 text-sm mt-1">Confirme el ingreso o llame a descarga según el protocolo</p>
+                        <p className="text-teal-300 text-sm mt-1">Confirme el ingreso para registrar la entrada</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viaje.estado_unidad === 'ingresado_destino' && viaje.tipo_operacion === 'recepcion' && (
+                  <div className="mb-6 bg-cyan-900/30 border border-cyan-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-cyan-600 rounded-lg">
+                        <CheckCircleIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-cyan-100 font-semibold">Camión ingresado en destino</p>
+                        <p className="text-cyan-300 text-sm mt-1">Llame a descarga cuando esté listo</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(viaje.estado_unidad === 'llamado_descarga' || viaje.estado_unidad === 'descargando') && viaje.tipo_operacion === 'recepcion' && (
+                  <div className="mb-6 bg-orange-900/30 border border-orange-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-orange-600 rounded-lg">
+                        <TruckIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-orange-100 font-semibold">{viaje.estado_unidad === 'llamado_descarga' ? 'Descarga solicitada' : 'Descargando'}</p>
+                        <p className="text-orange-300 text-sm mt-1">Aguardando finalización de descarga</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(viaje.estado_unidad === 'descargado' || viaje.estado_unidad === 'egreso_destino') && viaje.tipo_operacion === 'recepcion' && (
+                  <div className="mb-6 bg-green-900/30 border border-green-700 rounded-xl p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-green-600 rounded-lg">
+                        <CheckCircleIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-green-100 font-semibold">Descarga completada</p>
+                        <p className="text-green-300 text-sm mt-1">Confirme el egreso del camión</p>
                       </div>
                     </div>
                   </div>
@@ -811,9 +839,9 @@ export default function ControlAcceso() {
                 {/* Acciones */}
                 <div className="border-t border-slate-700 pt-6">
                   <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Acciones Disponibles</p>
-                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó (en_transito_origen o arribado_destino) */}
-                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'en_transito_origen') ||
-                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'arribado_destino')) && (
+                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó */}
+                    {((viaje.tipo_operacion === 'envio' && (viaje.estado_unidad === 'en_transito_origen' || viaje.estado_unidad === 'arribo_origen')) ||
+                      (viaje.tipo_operacion === 'recepcion' && (viaje.estado_unidad === 'en_transito_destino' || viaje.estado_unidad === 'arribo_destino' || viaje.estado_unidad === 'arribado_destino'))) && (
                       <button
                         onClick={confirmarIngreso}
                         disabled={loading}
@@ -869,7 +897,7 @@ export default function ControlAcceso() {
                             setMessage(`✅ Documentación validada`);
                             setViaje({...viaje, documentacion_validada: true});
                           } catch (error: any) {
-                            setMessage(`❌ ${error.message}`);
+                            setMessage('❌ Error al validar documentación. Intente nuevamente.');
                           } finally {
                             setLoading(false);
                           }
@@ -884,7 +912,7 @@ export default function ControlAcceso() {
 
                     {/* Confirmar Egreso - Solo si documentación está validada o es en destino */}
                     {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'egreso_origen' && viaje.documentacion_validada) ||
-                      (viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'vacio')) && (
+                      (viaje.tipo_operacion === 'recepcion' && (viaje.estado_unidad === 'descargado' || viaje.estado_unidad === 'egreso_destino'))) && (
                       <button
                         onClick={confirmarEgreso}
                         disabled={loading}
@@ -896,7 +924,7 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Llamar a Descarga (solo recepción) */}
-                    {viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'arribado_destino' && (
+                    {viaje.tipo_operacion === 'recepcion' && viaje.estado_unidad === 'ingresado_destino' && (
                       <button
                         onClick={llamarADescarga}
                         disabled={loading}

@@ -1,0 +1,44 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - heading "Tracking GPS" [level=1] [ref=e7]:
+          - img [ref=e8]
+          - text: Tracking GPS
+        - paragraph [ref=e11]: Compartir ubicación en tiempo real
+      - img [ref=e12]
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - heading "Seleccionar Viaje Activo" [level=2] [ref=e16]:
+          - img [ref=e17]
+          - text: Seleccionar Viaje Activo
+        - 'button "Viaje #1 AB324HC 📍 Aceitera San Miguel S.A 📍 Tecnopack Zayas S.A" [ref=e20]':
+          - generic [ref=e21]:
+            - generic [ref=e22]:
+              - generic [ref=e23]:
+                - generic [ref=e24]: "Viaje #1"
+                - generic [ref=e25]: AB324HC
+              - paragraph [ref=e26]:
+                - generic [ref=e27]: 📍 Aceitera San Miguel S.A
+              - paragraph [ref=e28]:
+                - generic [ref=e29]: 📍 Tecnopack Zayas S.A
+            - img [ref=e30]
+      - generic [ref=e32]:
+        - heading "Control de Tracking" [level=2] [ref=e33]
+        - button "Iniciar Tracking" [ref=e34]:
+          - img [ref=e35]
+          - text: Iniciar Tracking
+      - generic [ref=e37]:
+        - heading "ℹ️ Información" [level=3] [ref=e38]
+        - list [ref=e39]:
+          - listitem [ref=e40]: • Tu ubicación se envía cada 30 segundos
+          - listitem [ref=e41]: • El tracking continúa aunque cambies de app
+          - listitem [ref=e42]: • Mantén el GPS activado para mejor precisión
+          - listitem [ref=e43]: • El coordinador puede ver tu ubicación en tiempo real
+  - button "Open Next.js Dev Tools" [ref=e49] [cursor=pointer]:
+    - img [ref=e50]
+  - alert [ref=e53]
+```

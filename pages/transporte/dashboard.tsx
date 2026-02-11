@@ -9,6 +9,10 @@ import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { useRouter } from 'next/router';
 import { TruckIcon } from '@heroicons/react/24/outline';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { useDocAlerts } from '../../lib/hooks/useDocAlerts';
+import DocAlertsBanner from '../../components/Documentacion/DocAlertsBanner';
+import DocComplianceCard from '../../components/Transporte/DocComplianceCard';
+import FlotaResumenCard from '../../components/Transporte/FlotaResumenCard';
 
 // Importar mapa dinámicamente para evitar SSR
 const MapaFlota = dynamic(() => import('../../components/Transporte/MapaFlota'), {
@@ -56,6 +60,10 @@ const TransporteDashboard = () => {
   // Modal de detalle de viaje
   const [selectedViajeId, setSelectedViajeId] = useState<string | null>(null);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
+  const { alertas: docAlertas, resumen: docResumen, loading: docAlertasLoading } = useDocAlerts();
+
+  // Contar entidades únicas en alertas para calcular compliance
+  const entidadesConAlerta = new Set(docAlertas.map(a => `${a.entidad_tipo}:${a.entidad_nombre}`)).size;
 
   // Función para cargar datos del dashboard (extraída para reutilización)
   const fetchDashboardData = async () => {
@@ -230,6 +238,17 @@ const TransporteDashboard = () => {
         alertas={stats.alertas}
       />
 
+      {/* Métricas adicionales: Flota + Docs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {empresaId && <FlotaResumenCard empresaId={empresaId} />}
+        <DocComplianceCard
+          resumen={docResumen}
+          totalEntidades={Math.max(entidadesConAlerta, 1)}
+          loading={docAlertasLoading}
+          onClick={() => router.push('/transporte/documentacion')}
+        />
+      </div>
+
       {/* Grid principal */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 mb-1">
         {/* Lista de viajes */}
@@ -238,6 +257,19 @@ const TransporteDashboard = () => {
         {/* Mapa de flota */}
         {empresaId && <MapaFlota empresaId={empresaId} />}
       </div>
+
+      {/* Alertas de documentación */}
+      {(docResumen.vencidos > 0 || docResumen.por_vencer > 0 || docResumen.faltantes > 0) && (
+        <div className="mb-1">
+          <DocAlertsBanner
+            alertas={docAlertas}
+            resumen={docResumen}
+            loading={docAlertasLoading}
+            maxVisible={4}
+            onVerTodos={() => router.push('/transporte/flota')}
+          />
+        </div>
+      )}
 
       {/* Sección de alertas si hay */}
       {stats.alertas > 0 && (

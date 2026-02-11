@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import EditarUnidadModal from '../../components/Transporte/EditarUnidadModal';
+import { UnidadDocStatusSummary, type DocStatusData } from '../../components/Documentacion/DocStatusBadge';
 import {
   TruckIcon,
   PlusIcon,
@@ -11,7 +12,8 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  MapPinIcon
+  MapPinIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 interface UnidadOperativa {
@@ -26,10 +28,10 @@ interface UnidadOperativa {
   necesita_descanso_obligatorio: boolean;
   notas?: string;
   // Datos de la vista
-  chofer_nombre?: string;
-  chofer_apellido?: string;
+  chofer_nombre: string;
+  chofer_apellido: string;
   chofer_telefono?: string;
-  camion_patente?: string;
+  camion_patente: string;
   camion_marca?: string;
   camion_modelo?: string;
   acoplado_patente?: string;
@@ -48,12 +50,23 @@ const UnidadesOperativas = () => {
   // Estados del modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedUnidad, setSelectedUnidad] = useState<UnidadOperativa | null>(null);
+  
+  // Estado de documentación por entidad
+  const [docStatuses, setDocStatuses] = useState<Record<string, DocStatusData>>({});
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   useEffect(() => {
     if (user && userEmpresas) {
       loadUnidades();
     }
   }, [user, userEmpresas]);
+
+  // Cargar estado de docs cuando las unidades estén listas
+  useEffect(() => {
+    if (unidades.length > 0) {
+      loadDocStatuses();
+    }
+  }, [unidades]);
 
   const loadUnidades = async () => {
     try {
@@ -83,6 +96,42 @@ const UnidadesOperativas = () => {
       setError(err.message || 'Error al cargar unidades');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDocStatuses = async () => {
+    try {
+      setLoadingDocs(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      // Armar lista de entidades a consultar
+      const entidades: { tipo: string; id: string }[] = [];
+      for (const u of unidades) {
+        if (u.chofer_id) entidades.push({ tipo: 'chofer', id: u.chofer_id });
+        if (u.camion_id) entidades.push({ tipo: 'camion', id: u.camion_id });
+        if (u.acoplado_id) entidades.push({ tipo: 'acoplado', id: u.acoplado_id });
+      }
+
+      if (entidades.length === 0) return;
+
+      const res = await fetch('/api/documentacion/estado-batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ entidades }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setDocStatuses(json.data || {});
+      }
+    } catch (err) {
+      console.error('Error al cargar estado de docs:', err);
+    } finally {
+      setLoadingDocs(false);
     }
   };
 
@@ -147,6 +196,21 @@ const UnidadesOperativas = () => {
   const enDescanso = unidades.filter(u => u.necesita_descanso_obligatorio).length;
   const inactivas = unidades.filter(u => !u.activo).length;
 
+  // Métricas de documentación
+  const docsConProblemas = unidades.filter(u => {
+    const ch = docStatuses[`chofer:${u.chofer_id}`];
+    const ca = docStatuses[`camion:${u.camion_id}`];
+    const ac = u.acoplado_id ? docStatuses[`acoplado:${u.acoplado_id}`] : null;
+    return [ch, ca, ac].filter(Boolean).some(s => s!.estado === 'danger' || s!.estado === 'missing');
+  }).length;
+  const docsOk = unidades.filter(u => {
+    const ch = docStatuses[`chofer:${u.chofer_id}`];
+    const ca = docStatuses[`camion:${u.camion_id}`];
+    if (!ch || !ca) return false;
+    const ac = u.acoplado_id ? docStatuses[`acoplado:${u.acoplado_id}`] : null;
+    return [ch, ca, ac].filter(Boolean).every(s => s!.estado === 'ok');
+  }).length;
+
   if (loading) {
     return (
       <AdminLayout pageTitle="Unidades Operativas">
@@ -188,7 +252,7 @@ const UnidadesOperativas = () => {
           </div>
 
           {/* Métricas */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-5 border border-gray-700 shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
@@ -226,6 +290,18 @@ const UnidadesOperativas = () => {
                   <p className="text-3xl font-bold text-gray-400 mt-1">{inactivas}</p>
                 </div>
                 <XCircleIcon className="h-12 w-12 text-gray-400 opacity-50" />
+              </div>
+            </div>
+
+            <div className={`bg-gradient-to-br ${docsConProblemas > 0 ? 'from-orange-900/20' : 'from-green-900/20'} to-gray-900 rounded-xl p-5 border ${docsConProblemas > 0 ? 'border-orange-700/30' : 'border-green-700/30'} shadow-xl`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Docs OK</p>
+                  <p className={`text-3xl font-bold mt-1 ${docsConProblemas > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                    {loadingDocs ? '...' : `${docsOk}/${totalUnidades}`}
+                  </p>
+                </div>
+                <DocumentTextIcon className={`h-12 w-12 opacity-50 ${docsConProblemas > 0 ? 'text-orange-400' : 'text-green-400'}`} />
               </div>
             </div>
           </div>
@@ -278,6 +354,9 @@ const UnidadesOperativas = () => {
                       Acoplado
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Docs
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       Horas Hoy
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -291,7 +370,7 @@ const UnidadesOperativas = () => {
                 <tbody className="bg-gray-800/30 divide-y divide-gray-700">
                   {unidadesFiltradas.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center">
+                      <td colSpan={9} className="px-6 py-12 text-center">
                         <TruckIcon className="mx-auto h-12 w-12 text-gray-600" />
                         <p className="mt-2 text-gray-400">No hay unidades para mostrar</p>
                       </td>
@@ -335,6 +414,13 @@ const UnidadesOperativas = () => {
                           <span className="text-sm text-gray-300">
                             {unidad.acoplado_patente || '-'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <UnidadDocStatusSummary
+                            choferStatus={docStatuses[`chofer:${unidad.chofer_id}`] || null}
+                            camionStatus={docStatuses[`camion:${unidad.camion_id}`] || null}
+                            acopladoStatus={unidad.acoplado_id ? (docStatuses[`acoplado:${unidad.acoplado_id}`] || null) : null}
+                          />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`text-sm font-medium ${

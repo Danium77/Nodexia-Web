@@ -53,7 +53,7 @@ const ChoferViajesPage = () => {
     enabled: !!shouldTrackGPS,
     intervalMs: 30000, // 30 segundos
     onError: (err) => console.error('GPS Error:', err),
-    onSuccess: () => console.log('GPS enviado correctamente')
+    onSuccess: () => {}
   });
 
   useEffect(() => {
@@ -77,59 +77,28 @@ const ChoferViajesPage = () => {
 
     try {
       setLoading(true);
-      console.log('🚗 Cargando viajes del chofer');
 
-      // Obtener chofer_id desde choferes usando email del usuario
-      const { data: choferData, error: errorChofer } = await supabase
-        .from('choferes')
-        .select('id')
-        .eq('email', user.email)
-        .single();
-
-      if (errorChofer || !choferData) {
-        console.error('❌ Chofer no encontrado:', errorChofer);
-        console.log('👤 Email buscado:', user.email);
+      // Obtener token de sesión
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('❌ No hay sesión activa');
         return;
       }
 
-      console.log('✅ Chofer encontrado:', choferData.id);
+      // Llamar a la API route que bypasea RLS
+      const response = await fetch('/api/chofer/viajes', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
 
-      // Buscar viajes desde viajes_despacho usando chofer_id
-      const { data: viajesData, error } = await supabase
-        .from('viajes_despacho')
-        .select(`
-          id,
-          numero_viaje,
-          despacho_id,
-          estado,
-          despachos!inner(
-            pedido_id,
-            origen,
-            destino,
-            scheduled_local_date,
-            scheduled_local_time,
-            empresas(
-              nombre
-            )
-          ),
-          camion_id,
-          camiones(
-            patente,
-            marca,
-            modelo
-          )
-        `)
-        .eq('chofer_id', choferData.id)
-        .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino'])
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('❌ Error cargando viajes:', error);
+      if (!response.ok) {
+        const errData = await response.json();
+        console.error('❌ Error API viajes:', errData);
         return;
       }
 
-      console.log('✅ Viajes cargados:', viajesData?.length || 0);
-      console.log('📦 Datos de viajes:', viajesData);
+      const { viajes: viajesData, choferId } = await response.json();
       
       const viajesFormateados: Viaje[] = (viajesData || []).map(v => {
         const despacho = Array.isArray(v.despachos) ? v.despachos[0] : v.despachos;
@@ -148,13 +117,7 @@ const ChoferViajesPage = () => {
           peso_estimado: undefined,
           observaciones_unidad: undefined,
           empresa_data: {
-            nombre: (() => {
-              if (!despacho?.empresas) return 'Sin empresa';
-              if (Array.isArray(despacho.empresas)) {
-                return (despacho.empresas[0] as any)?.nombre || 'Sin empresa';
-              }
-              return (despacho.empresas as any)?.nombre || 'Sin empresa';
-            })()
+            nombre: despacho?.origen || 'Sin empresa'
           }
         };
       });
@@ -199,7 +162,6 @@ const ChoferViajesPage = () => {
         return;
       }
 
-      console.log('✅ Estado actualizado:', resultado.estado_nuevo);
       await cargarViajes();
 
     } catch (error) {
@@ -214,18 +176,22 @@ const ChoferViajesPage = () => {
     const colores: Record<string, string> = {
       'pendiente': 'bg-slate-500',
       'asignado': 'bg-blue-500',
+      'camion_asignado': 'bg-blue-500',
       'confirmado_chofer': 'bg-blue-600',
       'en_transito_origen': 'bg-yellow-500',
       'arribo_origen': 'bg-orange-400',
-      'ingreso_planta': 'bg-orange-500',
-      'en_playa_espera': 'bg-orange-600',
-      'en_proceso_carga': 'bg-purple-500',
-      'egreso_planta': 'bg-green-500',
+      'ingresado_origen': 'bg-orange-500',
+      'en_playa_origen': 'bg-orange-600',
+      'llamado_carga': 'bg-yellow-600',
+      'cargando': 'bg-purple-500',
+      'egreso_origen': 'bg-green-500',
       'en_transito_destino': 'bg-yellow-600',
-      'arribo_destino': 'bg-cyan-500',
-      'ingreso_destino': 'bg-cyan-600',
-      'en_descarga': 'bg-purple-600',
-      'egreso_destino': 'bg-green-600',
+      'arribo_destino': 'bg-cyan-400',
+      'arribado_destino': 'bg-cyan-500',
+      'ingresado_destino': 'bg-cyan-600',
+      'llamado_descarga': 'bg-teal-500',
+      'descargando': 'bg-purple-600',
+      'vacio': 'bg-green-600',
       'viaje_completado': 'bg-gray-500',
       'cancelado': 'bg-red-500'
     };
@@ -236,21 +202,23 @@ const ChoferViajesPage = () => {
     const labels: Record<string, string> = {
       'pendiente': 'Pendiente',
       'asignado': 'Asignado',
+      'camion_asignado': 'Asignado',
       'confirmado_chofer': 'Confirmado',
       'en_transito_origen': '🚗 En camino a origen',
       'arribo_origen': '📍 Arribado a origen',
-      'ingreso_planta': '✅ En planta',
-      'en_playa_espera': '⏳ En espera',
-      'en_proceso_carga': '⬆️ Cargando',
+      'ingresado_origen': '✅ En planta',
+      'en_playa_origen': '⏳ En playa de espera',
+      'llamado_carga': '🔔 Llamado a carga',
+      'cargando': '⬆️ Cargando',
       'cargado': '📦 Cargado',
-      'egreso_planta': '🚚 Saliendo de planta',
+      'egreso_origen': '🚚 Listo para salir',
       'en_transito_destino': '🛣️ En camino a destino',
       'arribo_destino': '📍 Arribado a destino',
-      'ingreso_destino': '✅ En destino',
+      'arribado_destino': '📍 Arribado a destino',
+      'ingresado_destino': '✅ En destino',
       'llamado_descarga': '🔔 Llamado a descarga',
-      'en_descarga': '⬇️ Descargando',
+      'descargando': '⬇️ Descargando',
       'vacio': '🚪 Vacío',
-      'egreso_destino': '🏁 Saliendo de destino',
       'disponible_carga': '✅ Disponible',
       'viaje_completado': '✅ Completado',
       'cancelado': '❌ Cancelado'
@@ -259,35 +227,37 @@ const ChoferViajesPage = () => {
   };
 
   const getProximasAcciones = (estadoUnidad: string) => {
-    // El chofer solo puede actualizar estados autorizados
+    // El chofer solo puede actualizar ciertos estados
+    // Control de Acceso maneja: ingreso y egreso de planta
+    // Supervisor de Carga maneja: llamado, carga, finalizar carga
     const accionesPorEstado: Record<string, Array<{ label: string; valor: string }>> = {
       'asignado': [
+        { label: '✅ Confirmar viaje', valor: 'confirmado_chofer' }
+      ],
+      'camion_asignado': [
         { label: '✅ Confirmar viaje', valor: 'confirmado_chofer' }
       ],
       'confirmado_chofer': [
         { label: '🚗 Salir hacia origen', valor: 'en_transito_origen' }
       ],
-      'en_transito_origen': [
-        { label: '📍 Arribé a origen', valor: 'arribo_origen' }
-      ],
-      'arribo_origen': [
-        { label: '🔓 Ingresar a planta', valor: 'ingreso_planta' }
-      ],
-      // Control de acceso actualiza ingreso_planta → en_playa_espera
-      // Supervisor de carga maneja: en_playa_espera → ... → egreso_planta
-      'egreso_planta': [
+      // en_transito_origen: Chofer viaja con GPS, Control Acceso registra ingreso al llegar
+      // ingresado_origen, en_playa_origen, llamado_carga, cargando, cargado: Supervisor + CA manejan
+      // egreso_origen: Chofer inicia viaje a destino
+      'egreso_origen': [
         { label: '🚚 Salir hacia destino', valor: 'en_transito_destino' }
       ],
       'en_transito_destino': [
-        { label: '📍 Arribé a destino', valor: 'arribo_destino' }
+        { label: '📍 Arribé a destino', valor: 'arribado_destino' }
       ],
-      'arribo_destino': [
-        { label: '🔓 Ingresar a destino', valor: 'ingreso_destino' }
-      ],
-      // Descarga es manejada por cliente/control acceso
+      // Si destino usa Nodexia: CA registra ingreso, Supervisor maneja descarga, CA egreso
+      // egreso_destino: Chofer finaliza viaje
       'egreso_destino': [
-        { label: '🏁 Finalizar viaje', valor: 'viaje_completado' }
-      ]
+        { label: '🏁 Finalizar viaje', valor: 'vacio' }
+      ],
+      // Si destino NO usa Nodexia: Chofer arriba y finaliza directamente
+      'arribado_destino': [
+        { label: '🏁 Finalizar viaje', valor: 'vacio' }
+      ],
     };
 
     return accionesPorEstado[estadoUnidad] || [];

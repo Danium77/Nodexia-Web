@@ -62,27 +62,47 @@ export async function obtenerProximosEstados(
 
 /**
  * Actualiza el estado de la unidad de viaje
- * Valida roles y transiciones automáticamente en el backend
+ * Usa la API route /api/viajes/[id]/estado-unidad para centralizar:
+ * - Validación de transiciones
+ * - Auto-completar viaje (vacio → viaje_completado)
+ * - Cierre automático de despacho
  */
 export async function actualizarEstadoUnidad(
   input: ActualizarEstadoUnidadInput
 ): Promise<{ success: boolean; error?: string; data?: any }> {
   try {
-    // Llamar a la función SQL que valida roles y transiciones
-    const { data, error } = await supabase.rpc('validar_transicion_estado_unidad', {
-      p_viaje_id: input.viaje_id,
-      p_nuevo_estado: input.nuevo_estado,
-      p_observaciones: input.observaciones || null,
+    // Obtener sesión para user_id
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return { success: false, error: 'No hay sesión activa' };
+    }
+
+    // Llamar a la API route centralizada
+    const response = await fetch(`/api/viajes/${input.viaje_id}/estado-unidad`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({
+        nuevo_estado: input.nuevo_estado,
+        observaciones: input.observaciones || null,
+        user_id: userId,
+      }),
     });
 
-    if (error) {
+    const result = await response.json();
+
+    if (!response.ok || !result.exitoso) {
       return {
         success: false,
-        error: error.message || 'Error al actualizar estado',
+        error: result.mensaje || result.error || 'Error al actualizar estado',
       };
     }
 
-    // Si se proporcionó ubicación GPS, registrarla
+    // Registrar ubicación GPS si se proporcionó
     if (input.ubicacion) {
       await registrarUbicacionGPS({
         viaje_id: input.viaje_id,
@@ -95,7 +115,12 @@ export async function actualizarEstadoUnidad(
 
     return {
       success: true,
-      data,
+      data: {
+        estado_anterior: result.estado_anterior,
+        estado_nuevo: result.estado_nuevo,
+        proximos_estados: result.proximos_estados,
+        viaje_auto_completado: result.viaje_auto_completado,
+      },
     };
   } catch (err: any) {
     console.error('Error en actualizarEstadoUnidad:', err);

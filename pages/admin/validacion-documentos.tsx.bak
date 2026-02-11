@@ -1,0 +1,512 @@
+// pages/admin/validacion-documentos.tsx
+// Panel de validación de documentos para admin_nodexia / super_admin
+// Lista documentos con estado pendiente_validacion y permite aprobar/rechazar
+
+import React, { useState, useEffect, useCallback } from 'react';
+import MainLayout from '../../components/layout/MainLayout';
+import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { supabase } from '../../lib/supabaseClient';
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  EyeIcon,
+  FunnelIcon,
+  ArrowPathIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  ClockIcon,
+} from '@heroicons/react/24/outline';
+
+interface DocumentoPendiente {
+  id: string;
+  entidad_tipo: string;
+  entidad_id: string;
+  tipo_documento: string;
+  nombre_archivo: string;
+  fecha_emision: string;
+  fecha_vencimiento: string | null;
+  estado_vigencia: string;
+  file_url: string;
+  created_at: string;
+  empresa_id: string;
+  // Datos enriquecidos
+  entidad_nombre?: string;
+  entidad_identificador?: string;
+  empresa_nombre?: string;
+}
+
+type FiltroEstado = 'pendiente_validacion' | 'todos' | 'vigente' | 'rechazado' | 'vencido';
+
+const TIPO_DOC_LABELS: Record<string, string> = {
+  licencia_conducir: 'Licencia de Conducir',
+  art_clausula_no_repeticion: 'ART Cláusula No Repetición',
+  seguro_vida_autonomo: 'Seguro de Vida Autónomo',
+  seguro: 'Seguro',
+  rto: 'Revisión Técnica Obligatoria',
+  cedula: 'Cédula Verde',
+  seguro_carga_global: 'Seguro de Carga Global',
+};
+
+const ENTIDAD_TIPO_LABELS: Record<string, string> = {
+  chofer: '👤 Chofer',
+  camion: '🚛 Camión',
+  acoplado: '🔗 Acoplado',
+  transporte: '🏢 Transporte',
+};
+
+export default function ValidacionDocumentos() {
+  const { user, primaryRole, loading: roleLoading } = useUserRole();
+  const [documentos, setDocumentos] = useState<DocumentoPendiente[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filtro, setFiltro] = useState<FiltroEstado>('pendiente_validacion');
+  const [procesando, setProcesando] = useState<string | null>(null);
+  const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [rechazandoId, setRechazandoId] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
+
+  // Guard: solo admin_nodexia y super_admin
+  const tieneAcceso = primaryRole === 'super_admin' || primaryRole === 'admin_nodexia';
+
+  const cargarDocumentos = useCallback(async () => {
+    if (!user || !tieneAcceso) return;
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('documentos_entidad')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (filtro !== 'todos') {
+        query = query.eq('estado_vigencia', filtro);
+      }
+
+      const { data, error } = await query.limit(100);
+      if (error) throw error;
+
+      // Enriquecer con datos de entidad y empresa
+      const docsEnriquecidos: DocumentoPendiente[] = [];
+      
+      for (const doc of (data || [])) {
+        let entidad_nombre = '';
+        let entidad_identificador = '';
+        let empresa_nombre = '';
+
+        // Obtener nombre de entidad según tipo
+        if (doc.entidad_tipo === 'chofer') {
+          const { data: chofer } = await supabase
+            .from('choferes')
+            .select('nombre, apellido, dni, empresa_id')
+            .eq('id', doc.entidad_id)
+            .single();
+          if (chofer) {
+            entidad_nombre = `${chofer.nombre} ${chofer.apellido}`;
+            entidad_identificador = chofer.dni || '';
+            // Obtener empresa
+            const { data: empresa } = await supabase
+              .from('empresas')
+              .select('nombre')
+              .eq('id', chofer.empresa_id)
+              .single();
+            empresa_nombre = empresa?.nombre || '';
+          }
+        } else if (doc.entidad_tipo === 'camion') {
+          const { data: camion } = await supabase
+            .from('camiones')
+            .select('patente, marca, modelo, empresa_id')
+            .eq('id', doc.entidad_id)
+            .single();
+          if (camion) {
+            entidad_nombre = `${camion.marca} ${camion.modelo}`;
+            entidad_identificador = camion.patente;
+            const { data: empresa } = await supabase
+              .from('empresas')
+              .select('nombre')
+              .eq('id', camion.empresa_id)
+              .single();
+            empresa_nombre = empresa?.nombre || '';
+          }
+        } else if (doc.entidad_tipo === 'acoplado') {
+          const { data: acoplado } = await supabase
+            .from('acoplados')
+            .select('patente, marca, modelo, empresa_id')
+            .eq('id', doc.entidad_id)
+            .single();
+          if (acoplado) {
+            entidad_nombre = `${acoplado.marca} ${acoplado.modelo}`;
+            entidad_identificador = acoplado.patente;
+            const { data: empresa } = await supabase
+              .from('empresas')
+              .select('nombre')
+              .eq('id', acoplado.empresa_id)
+              .single();
+            empresa_nombre = empresa?.nombre || '';
+          }
+        }
+
+        docsEnriquecidos.push({
+          ...doc,
+          entidad_nombre,
+          entidad_identificador,
+          empresa_nombre,
+        });
+      }
+
+      setDocumentos(docsEnriquecidos);
+    } catch (err) {
+      console.error('Error cargando documentos:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, tieneAcceso, filtro]);
+
+  useEffect(() => {
+    if (tieneAcceso) {
+      cargarDocumentos();
+    }
+  }, [tieneAcceso, filtro, cargarDocumentos]);
+
+  // Aprobar documento
+  const aprobarDocumento = async (docId: string) => {
+    setProcesando(docId);
+    try {
+      const { error } = await supabase
+        .from('documentos_entidad')
+        .update({
+          estado_vigencia: 'vigente',
+          validado_por: user?.id,
+          fecha_validacion: new Date().toISOString(),
+        })
+        .eq('id', docId);
+
+      if (error) throw error;
+
+      setMensaje({ tipo: 'success', texto: 'Documento aprobado correctamente' });
+      // Actualizar lista local
+      setDocumentos(prev => prev.map(d =>
+        d.id === docId ? { ...d, estado_vigencia: 'vigente' } : d
+      ));
+      // Si filtrando por pendientes, remover de la lista
+      if (filtro === 'pendiente_validacion') {
+        setDocumentos(prev => prev.filter(d => d.id !== docId));
+      }
+    } catch (err: any) {
+      console.error('Error aprobando documento:', err);
+      setMensaje({ tipo: 'error', texto: `Error al aprobar: ${err.message}` });
+    } finally {
+      setProcesando(null);
+      setTimeout(() => setMensaje(null), 4000);
+    }
+  };
+
+  // Rechazar documento
+  const rechazarDocumento = async (docId: string) => {
+    if (!motivoRechazo.trim()) {
+      setMensaje({ tipo: 'error', texto: 'Debe indicar el motivo del rechazo' });
+      setTimeout(() => setMensaje(null), 3000);
+      return;
+    }
+
+    setProcesando(docId);
+    try {
+      const { error } = await supabase
+        .from('documentos_entidad')
+        .update({
+          estado_vigencia: 'rechazado',
+          validado_por: user?.id,
+          fecha_validacion: new Date().toISOString(),
+          motivo_rechazo: motivoRechazo.trim(),
+        })
+        .eq('id', docId);
+
+      if (error) throw error;
+
+      setMensaje({ tipo: 'success', texto: 'Documento rechazado' });
+      setRechazandoId(null);
+      setMotivoRechazo('');
+      
+      if (filtro === 'pendiente_validacion') {
+        setDocumentos(prev => prev.filter(d => d.id !== docId));
+      } else {
+        setDocumentos(prev => prev.map(d =>
+          d.id === docId ? { ...d, estado_vigencia: 'rechazado' } : d
+        ));
+      }
+    } catch (err: any) {
+      console.error('Error rechazando documento:', err);
+      setMensaje({ tipo: 'error', texto: `Error al rechazar: ${err.message}` });
+    } finally {
+      setProcesando(null);
+      setTimeout(() => setMensaje(null), 4000);
+    }
+  };
+
+  // Ver documento (signed URL)
+  const verDocumento = async (fileUrl: string) => {
+    try {
+      const { data } = await supabase.storage
+        .from('documentacion-entidades')
+        .createSignedUrl(fileUrl, 300);
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch (err) {
+      console.error('Error abriendo documento:', err);
+    }
+  };
+
+  // Obtener color de badge por estado
+  const getEstadoBadge = (estado: string) => {
+    switch (estado) {
+      case 'vigente':
+        return { bg: 'bg-green-600/30 border-green-600 text-green-300', icon: <CheckCircleIcon className="h-4 w-4" />, label: 'Vigente' };
+      case 'pendiente_validacion':
+        return { bg: 'bg-blue-600/30 border-blue-600 text-blue-300', icon: <ClockIcon className="h-4 w-4" />, label: 'Pendiente' };
+      case 'por_vencer':
+        return { bg: 'bg-yellow-600/30 border-yellow-600 text-yellow-300', icon: <ExclamationTriangleIcon className="h-4 w-4" />, label: 'Por vencer' };
+      case 'vencido':
+        return { bg: 'bg-red-600/30 border-red-600 text-red-300', icon: <XCircleIcon className="h-4 w-4" />, label: 'Vencido' };
+      case 'rechazado':
+        return { bg: 'bg-red-600/30 border-red-600 text-red-300', icon: <XCircleIcon className="h-4 w-4" />, label: 'Rechazado' };
+      default:
+        return { bg: 'bg-gray-600/30 border-gray-600 text-gray-300', icon: <DocumentTextIcon className="h-4 w-4" />, label: estado };
+    }
+  };
+
+  // Loading / sin acceso
+  if (roleLoading || !tieneAcceso) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0e1a]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Verificando permisos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const pendientesCount = documentos.filter(d => d.estado_vigencia === 'pendiente_validacion').length;
+
+  return (
+    <MainLayout pageTitle="Validación de Documentos">
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl p-6 text-white">
+          <h1 className="text-2xl font-bold mb-1">✅ Validación de Documentos</h1>
+          <p className="text-green-100 text-sm">
+            Revise, apruebe o rechace documentos subidos por las empresas de transporte
+          </p>
+        </div>
+
+        {/* Mensaje flash */}
+        {mensaje && (
+          <div className={`rounded-xl p-4 border ${
+            mensaje.tipo === 'success'
+              ? 'bg-green-900/30 border-green-700 text-green-300'
+              : 'bg-red-900/30 border-red-700 text-red-300'
+          }`}>
+            {mensaje.texto}
+          </div>
+        )}
+
+        {/* Filtros y contador */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { value: 'pendiente_validacion', label: '🕐 Pendientes', count: pendientesCount },
+              { value: 'todos', label: 'Todos' },
+              { value: 'vigente', label: '✅ Vigentes' },
+              { value: 'rechazado', label: '❌ Rechazados' },
+              { value: 'vencido', label: '⚠️ Vencidos' },
+            ].map(f => (
+              <button
+                key={f.value}
+                onClick={() => setFiltro(f.value as FiltroEstado)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  filtro === f.value
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                {f.label} {'count' in f ? `(${f.count})` : ''}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={cargarDocumentos}
+            className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 flex items-center gap-2 text-sm"
+          >
+            <ArrowPathIcon className="h-4 w-4" />
+            Actualizar
+          </button>
+        </div>
+
+        {/* Lista de documentos */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600 mx-auto"></div>
+            <p className="text-slate-400 mt-3 text-sm">Cargando documentos...</p>
+          </div>
+        ) : documentos.length === 0 ? (
+          <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
+            <DocumentTextIcon className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+            <p className="text-slate-400 text-lg font-medium">
+              {filtro === 'pendiente_validacion'
+                ? 'No hay documentos pendientes de validación'
+                : 'No se encontraron documentos con este filtro'}
+            </p>
+            <p className="text-slate-500 text-sm mt-1">
+              Los documentos aparecerán aquí cuando los transportes los suban
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {documentos.map((doc) => {
+              const badge = getEstadoBadge(doc.estado_vigencia);
+              const isPendiente = doc.estado_vigencia === 'pendiente_validacion';
+              const isRechazando = rechazandoId === doc.id;
+
+              return (
+                <div
+                  key={doc.id}
+                  className={`rounded-xl border overflow-hidden ${
+                    isPendiente
+                      ? 'border-blue-700/50 bg-blue-950/10'
+                      : 'border-slate-700 bg-slate-800/50'
+                  }`}
+                >
+                  <div className="p-4 flex items-start justify-between gap-4">
+                    {/* Columna izquierda: info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${badge.bg}`}>
+                          {badge.icon}
+                          {badge.label}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {new Date(doc.created_at).toLocaleDateString('es-AR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+
+                      <h4 className="text-white font-semibold text-sm">
+                        {TIPO_DOC_LABELS[doc.tipo_documento] || doc.tipo_documento}
+                      </h4>
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-slate-400">
+                        <span>{ENTIDAD_TIPO_LABELS[doc.entidad_tipo] || doc.entidad_tipo}</span>
+                        {doc.entidad_nombre && (
+                          <span className="text-slate-300 font-medium">
+                            {doc.entidad_nombre}
+                            {doc.entidad_identificador && ` (${doc.entidad_identificador})`}
+                          </span>
+                        )}
+                        {doc.empresa_nombre && (
+                          <span className="text-cyan-400">🏢 {doc.empresa_nombre}</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                        <span>📄 {doc.nombre_archivo}</span>
+                        {doc.fecha_emision && (
+                          <span>Emisión: {new Date(doc.fecha_emision).toLocaleDateString('es-AR')}</span>
+                        )}
+                        {doc.fecha_vencimiento && (
+                          <span>Vto: {new Date(doc.fecha_vencimiento).toLocaleDateString('es-AR')}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Columna derecha: acciones */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Ver */}
+                      <button
+                        onClick={() => verDocumento(doc.file_url)}
+                        className="p-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-all"
+                        title="Ver documento"
+                      >
+                        <EyeIcon className="h-5 w-5" />
+                      </button>
+
+                      {/* Aprobar (solo si pendiente) */}
+                      {isPendiente && (
+                        <button
+                          onClick={() => aprobarDocumento(doc.id)}
+                          disabled={procesando === doc.id}
+                          className="px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                          title="Aprobar documento"
+                        >
+                          {procesando === doc.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          ) : (
+                            <CheckCircleIcon className="h-4 w-4" />
+                          )}
+                          Aprobar
+                        </button>
+                      )}
+
+                      {/* Rechazar (solo si pendiente) */}
+                      {isPendiente && (
+                        <button
+                          onClick={() => {
+                            setRechazandoId(isRechazando ? null : doc.id);
+                            setMotivoRechazo('');
+                          }}
+                          disabled={procesando === doc.id}
+                          className={`px-4 py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center gap-1.5 disabled:opacity-50 ${
+                            isRechazando
+                              ? 'bg-slate-700 text-slate-300'
+                              : 'bg-red-600/80 hover:bg-red-700 text-white'
+                          }`}
+                          title="Rechazar documento"
+                        >
+                          <XCircleIcon className="h-4 w-4" />
+                          {isRechazando ? 'Cancelar' : 'Rechazar'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Panel de rechazo expandido */}
+                  {isRechazando && (
+                    <div className="border-t border-slate-700 bg-red-950/20 p-4">
+                      <label className="block text-sm text-red-300 font-medium mb-2">
+                        Motivo del rechazo (obligatorio):
+                      </label>
+                      <textarea
+                        value={motivoRechazo}
+                        onChange={(e) => setMotivoRechazo(e.target.value)}
+                        placeholder="Ej: Documento ilegible, fecha vencida, datos incorrectos..."
+                        className="w-full bg-slate-800 border border-red-700/50 rounded-lg p-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        rows={2}
+                      />
+                      <div className="flex justify-end mt-3">
+                        <button
+                          onClick={() => rechazarDocumento(doc.id)}
+                          disabled={procesando === doc.id || !motivoRechazo.trim()}
+                          className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {procesando === doc.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          ) : (
+                            <XCircleIcon className="h-4 w-4" />
+                          )}
+                          Confirmar Rechazo
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </MainLayout>
+  );
+}

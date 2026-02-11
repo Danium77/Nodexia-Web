@@ -118,19 +118,15 @@ const ViajesActivos = () => {
       if (viajesError) throw viajesError;
 
       // 🔥 DEBUG: Ver qué trae estado_unidad_viaje
-      console.log('📊 Viajes cargados:', viajesData?.length);
-      console.log('📊 Primer viaje completo:', JSON.stringify(viajesData?.[0], null, 2));
 
       // Cargar despachos por separado para evitar problemas de alias
       const despachoIds = [...new Set(viajesData?.map((v: any) => v.despacho_id).filter(Boolean))];
-      console.log('📦 Despacho IDs a cargar:', despachoIds);
       
       const { data: despachosData, error: despachosError } = await supabase
         .from('despachos')
         .select('id, pedido_id, origen, destino, scheduled_local_date, scheduled_local_time, prioridad')
         .in('id', despachoIds);
 
-      console.log('📦 Despachos cargados:', despachosData);
       if (despachosError) console.error('❌ Error cargando despachos:', despachosError);
 
       const despachosMap = (despachosData || []).reduce((acc: any, d: any) => {
@@ -138,7 +134,6 @@ const ViajesActivos = () => {
         return acc;
       }, {});
       
-      console.log('📦 Despachos Map:', despachosMap);
 
       // Obtener IDs de recursos
       const choferIds = [...new Set(viajesData?.map((v: any) => v.chofer_id).filter(Boolean))];
@@ -234,7 +229,7 @@ const ViajesActivos = () => {
 
     } catch (err: any) {
       console.error('Error cargando viajes activos:', err);
-      setError(err.message);
+      setError('Error al cargar viajes. Intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -250,6 +245,7 @@ const ViajesActivos = () => {
       en_transito_destino: { color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', text: '→ Destino', icon: TruckIcon },
       arribo_destino: { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', text: 'En Destino', icon: MapPinIcon },
       entregado: { color: 'bg-green-500/20 text-green-400 border-green-500/30', text: 'Entregado', icon: CheckCircleIcon },
+      viaje_completado: { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', text: 'Viaje Completado', icon: CheckCircleIcon },
       cancelado: { color: 'bg-red-500/20 text-red-400 border-red-500/30', text: 'Cancelado', icon: ExclamationTriangleIcon }
     };
 
@@ -294,7 +290,6 @@ const ViajesActivos = () => {
   }, [viajes, selectedViajes]);
 
   const handleActualizarUbicaciones = () => {
-    console.log('🔄 Actualizando ubicaciones GPS manualmente');
     loadViajes();
   };
 
@@ -311,9 +306,6 @@ const ViajesActivos = () => {
   };
 
   const handleVerDetalle = (viaje: ViajeActivo) => {
-    console.log('🔍 Viaje seleccionado:', viaje);
-    console.log('🔍 Estado unidad:', viaje.estado_unidad);
-    console.log('🔍 Estado unidad viaje completo:', viaje);
     setViajeDetalle(viaje);
   };
 
@@ -382,7 +374,7 @@ const ViajesActivos = () => {
           <div className="col-span-2 bg-[#1b273b] rounded border border-gray-800 overflow-hidden flex flex-col">
             <div className="p-1.5 border-b border-gray-800">
               <h3 className="text-white font-semibold text-xs">
-                {selectedEstado === 'todos' ? 'Todos' : getEstadoBadge(selectedEstado).label}
+                {selectedEstado === 'todos' ? 'Todos' : selectedEstado.replace(/_/g, ' ')}
                 <span className="text-cyan-400 ml-1 text-[10px]">({viajesFiltrados.length})</span>
               </h3>
             </div>
@@ -529,7 +521,7 @@ const ViajesActivos = () => {
                     { estados: ['arribo_origen', 'en_planta'], label: 'En Planta', color: 'cyan', pulso: false },
                     { estados: ['en_ruta_destino', 'en_transito_destino'], label: 'A Destino', color: 'orange', pulso: true },
                     { estados: ['arribo_destino'], label: 'En Destino', color: 'teal', pulso: false },
-                    { estados: ['completado'], label: 'Completado', color: 'green', pulso: false, icon: 'check' },
+                    { estados: ['completado', 'viaje_completado'], label: 'Completado', color: 'green', pulso: false, icon: 'check' },
                     { estados: ['cancelado'], label: 'Cancelado', color: 'red', pulso: false, icon: 'x' }
                   ];
 
@@ -632,7 +624,6 @@ const ViajesActivos = () => {
                 {/* Estado */}
                 <div>
                   <h3 className="text-white font-semibold mb-3">Estado del Viaje</h3>
-                  {console.log('🎯 Renderizando panel - estado_unidad:', viajeDetalle.estado_unidad)}
                   {viajeDetalle.estado_unidad ? (
                     <>
                       <EstadoDualBadge

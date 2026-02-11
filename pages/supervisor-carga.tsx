@@ -1,109 +1,122 @@
-﻿// pages/supervisor-carga.tsx
-// Interfaz para Supervisor de Carga con sistema de estados duales
+// pages/supervisor-carga.tsx
+// Interfaz para Supervisor de Carga - Gestión de operaciones de carga en planta origen
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import MainLayout from '../components/layout/MainLayout';
-import { QrCodeIcon, TruckIcon, DocumentTextIcon, ScaleIcon, PhoneIcon, PlayIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { registrarLlamadoCarga, iniciarCarga as apiIniciarCarga, completarCarga, iniciarDescarga, completarDescarga, confirmarEntrega, registrarDescargando } from '../lib/api/estado-carga';
-import { getColorEstadoCarga, getLabelEstadoCarga } from '../lib/helpers/estados-helpers';
+import {
+  QrCodeIcon,
+  TruckIcon,
+  ScaleIcon,
+  PhoneIcon,
+  PlayIcon,
+  CheckCircleIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  CameraIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { actualizarEstadoCarga } from '../lib/api/estado-carga';
+import { actualizarEstadoUnidad } from '../lib/api/estado-unidad';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
 import { supabase } from '../lib/supabaseClient';
 import type { EstadoUnidadViaje, EstadoCargaViaje } from '../lib/types';
 
-interface ViajeQR {
+// ─── Tipos ──────────────────────────────────────────────────────
+interface ViajeParaCarga {
   id: string;
   numero_viaje: string;
-  qr_code: string;
-  estado_viaje: string;
-  estado_unidad: EstadoUnidadViaje;
-  estado_carga: EstadoCargaViaje;
-  tipo_operacion: 'envio' | 'recepcion';
-  producto: string;
-  peso_estimado: number;
-  peso_real?: number;
-  bultos?: number;
-  temperatura?: number;
-  observaciones?: string;
-  planta_origen_id: string;
-  planta_destino_id: string;
-  chofer: any;
-  camion: any;
+  estado: string;
+  estado_carga: string;
+  origen: string;
+  destino: string;
+  chofer: { nombre: string; dni: string };
+  camion: { patente: string; marca: string };
+  tipo_operacion: 'carga' | 'descarga';
 }
 
+// ─── Labels de estado para UI ───────────────────────────────────
+const ESTADO_LABELS: Record<string, string> = {
+  ingresado_origen: '🏭 En Planta',
+  en_playa_origen: '⏸️ En Playa',
+  llamado_carga: '📢 Llamado',
+  cargando: '⚙️ Cargando',
+  cargado: '📦 Cargado',
+};
+
+const ESTADO_COLORS: Record<string, string> = {
+  ingresado_origen: 'bg-blue-900/30 text-blue-400 border-blue-800',
+  en_playa_origen: 'bg-cyan-900/30 text-cyan-400 border-cyan-800',
+  llamado_carga: 'bg-yellow-900/30 text-yellow-400 border-yellow-800',
+  cargando: 'bg-orange-900/30 text-orange-400 border-orange-800',
+  cargado: 'bg-green-900/30 text-green-400 border-green-800',
+};
+
+// Estados que interesan al supervisor: carga en origen + descarga en destino
+const ESTADOS_CARGA = ['ingresado_origen', 'en_playa_origen', 'llamado_carga', 'cargando', 'cargado'];
+const ESTADOS_DESCARGA = ['ingresado_destino', 'llamado_descarga', 'descargando', 'descargado'];
+const ESTADOS_SUPERVISOR = [...ESTADOS_CARGA, ...ESTADOS_DESCARGA];
+
+type TabType = 'scanner' | 'planta' | 'en_proceso' | 'completados';
+
+// ─── Componente Principal ───────────────────────────────────────
 export default function SupervisorCarga() {
-  const { empresaId } = useUserRole();
-  const [qrCode, setQrCode] = useState('');
-  const [viaje, setViaje] = useState<ViajeQR | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { empresaId, user } = useUserRole();
+
+  // Estado general
+  const [activeTab, setActiveTab] = useState<TabType>('planta');
+  const [viajes, setViajes] = useState<ViajeParaCarga[]>([]);
   const [loadingViajes, setLoadingViajes] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [message, setMessage] = useState('');
-  const [observaciones, setObservaciones] = useState('');
-  const [activeTab, setActiveTab] = useState('scanner');
-  const [viajes, setViajes] = useState<ViajeQR[]>([]);
-  const [pesoReal, setPesoReal] = useState('');
-  const [bultos, setBultos] = useState('');
-  const [temperatura, setTemperatura] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
-  // Cargar viajes en cola y activos al montar y cada 30 segundos
-  useEffect(() => {
-    cargarViajes();
-    const interval = setInterval(cargarViajes, 30000);
-    return () => clearInterval(interval);
-  }, [empresaId]);
+  // Scanner QR
+  const [qrCode, setQrCode] = useState('');
+  const [viajeEscaneado, setViajeEscaneado] = useState<ViajeParaCarga | null>(null);
+  const [loadingScanner, setLoadingScanner] = useState(false);
 
-  // Cargar viajes relevantes para supervisor de carga
-  const cargarViajes = async () => {
+  // Foto remito (requerida para finalizar carga)
+  const [remitoFile, setRemitoFile] = useState<File | null>(null);
+  const [remitoPreview, setRemitoPreview] = useState<string | null>(null);
+  const [remitoUploaded, setRemitoUploaded] = useState(false);
+  const [uploadingRemito, setUploadingRemito] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ─── Mostrar notificación temporal ─────────────────────────────
+  const showMessage = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => setMessage(''), 5000);
+  }, []);
+
+  // ─── Cargar viajes relevantes ──────────────────────────────────
+  const cargarViajes = useCallback(async () => {
     if (!empresaId) return;
-    
+
     setLoadingViajes(true);
     try {
-      console.log('📦 [supervisor-carga] Cargando viajes para empresa:', empresaId);
-      
-      const { data: viajesData, error } = await supabase
+      const { data, error } = await supabase
         .from('viajes_despacho')
         .select(`
           id,
           numero_viaje,
-          despacho_id,
+          estado,
           chofer_id,
           camion_id,
-          estado,
-          despachos!inner (
+          despacho_id,
+          despachos (
             id,
+            pedido_id,
             origen,
             destino,
-            producto,
-            id_empresa,
-            peso_estimado
-          ),
-          choferes (
-            id,
-            nombre,
-            apellido,
-            dni
-          ),
-          camiones (
-            id,
-            patente,
-            marca,
-            modelo
-          ),
-          estado_unidad_viaje (
-            estado_unidad
+            origen_empresa_id,
+            destino_empresa_id
           ),
           estado_carga_viaje (
-            estado_carga,
-            peso_real_kg,
-            cantidad_bultos,
-            temperatura_carga
+            estado_carga
           )
         `)
-        .eq('despachos.id_empresa', empresaId)
-        .in('estado_unidad_viaje.estado_unidad', [
-          'ingreso_planta',
-          'en_playa_espera',
-          'en_proceso_carga'
-        ])
+        .in('estado', ESTADOS_SUPERVISOR)
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -111,651 +124,926 @@ export default function SupervisorCarga() {
         return;
       }
 
-      console.log('✅ [supervisor-carga] Viajes cargados:', viajesData?.length || 0);
+      console.log('📦 [supervisor-carga] Viajes crudos (antes de filtro empresa):', data?.length || 0, data);
 
-      const viajesFormateados: ViajeQR[] = (viajesData || []).map((v: any) => ({
-        id: v.id,
-        numero_viaje: v.numero_viaje.toString(),
-        qr_code: `QR-${v.numero_viaje}`,
-        estado_viaje: v.estado,
-        estado_unidad: v.estado_unidad_viaje?.estado_unidad || v.estado,
-        estado_carga: v.estado_carga_viaje?.estado_carga || 'pendiente',
-        tipo_operacion: 'envio' as const, // Supervisor solo trabaja en origen
-        producto: v.despachos?.producto || `${v.despachos?.origen} → ${v.despachos?.destino}`,
-        peso_estimado: v.despachos?.peso_estimado || 0,
-        peso_real: v.estado_carga_viaje?.peso_real_kg,
-        bultos: v.estado_carga_viaje?.cantidad_bultos,
-        temperatura: v.estado_carga_viaje?.temperatura_carga,
-        planta_origen_id: v.despachos?.id_empresa,
-        planta_destino_id: v.despachos?.id_empresa,
-        chofer: v.choferes ? {
-          nombre: `${v.choferes.nombre} ${v.choferes.apellido}`,
-          dni: v.choferes.dni
-        } : {
-          nombre: 'Sin asignar',
-          dni: 'N/A'
-        },
-        camion: v.camiones ? {
-          patente: v.camiones.patente,
-          marca: `${v.camiones.marca} ${v.camiones.modelo || ''}`.trim()
-        } : {
-          patente: 'Sin asignar',
-          marca: 'N/A'
+      // Filtrar: carga (origen) + descarga (destino) según empresa del supervisor
+      const viajesFiltrados = (data || []).filter((v: any) => {
+        const despacho = Array.isArray(v.despachos) ? v.despachos[0] : v.despachos;
+        const esCarga = despacho?.origen_empresa_id === empresaId;
+        const esDescarga = despacho?.destino_empresa_id === empresaId;
+        return esCarga || esDescarga;
+      });
+
+      console.log('✅ [supervisor-carga] Viajes filtrados:', viajesFiltrados.length);
+
+      // Traer choferes y camiones por ID (queries directas para esquivar RLS)
+      const choferIds = [...new Set(viajesFiltrados.map((v: any) => v.chofer_id).filter(Boolean))];
+      const camionIds = [...new Set(viajesFiltrados.map((v: any) => v.camion_id).filter(Boolean))];
+
+      let choferesMap: Record<string, any> = {};
+      let camionesMap: Record<string, any> = {};
+
+      if (choferIds.length > 0) {
+        const { data: choferes } = await supabase
+          .from('choferes')
+          .select('id, nombre, apellido, dni')
+          .in('id', choferIds);
+        if (choferes) {
+          choferes.forEach((c: any) => { choferesMap[c.id] = c; });
         }
-      }));
+      }
 
-      setViajes(viajesFormateados);
-    } catch (error) {
-      console.error('❌ [supervisor-carga] Error en cargarViajes:', error);
+      if (camionIds.length > 0) {
+        const { data: camiones } = await supabase
+          .from('camiones')
+          .select('id, patente, marca, modelo')
+          .in('id', camionIds);
+        if (camiones) {
+          camiones.forEach((c: any) => { camionesMap[c.id] = c; });
+        }
+      }
+
+      const formateados: ViajeParaCarga[] = viajesFiltrados.map((v: any) => {
+        const despacho = Array.isArray(v.despachos) ? v.despachos[0] : v.despachos;
+        const carga = Array.isArray(v.estado_carga_viaje) ? v.estado_carga_viaje[0] : v.estado_carga_viaje;
+        const chofer = choferesMap[v.chofer_id];
+        const camion = camionesMap[v.camion_id];
+
+        // Determinar si es carga (origen) o descarga (destino)
+        const esCarga = ESTADOS_CARGA.includes(v.estado);
+        const tipo_operacion = esCarga ? 'carga' as const : 'descarga' as const;
+
+        return {
+          id: v.id,
+          numero_viaje: String(v.numero_viaje),
+          estado: v.estado || 'ingresado_origen',
+          estado_carga: carga?.estado_carga || 'pendiente',
+          origen: despacho?.origen || '-',
+          destino: despacho?.destino || '-',
+          chofer: chofer
+            ? { nombre: `${chofer.nombre} ${chofer.apellido}`, dni: chofer.dni }
+            : { nombre: 'Sin asignar', dni: '-' },
+          camion: camion
+            ? { patente: camion.patente, marca: `${camion.marca} ${camion.modelo || ''}`.trim() }
+            : { patente: 'Sin asignar', marca: '-' },
+          tipo_operacion,
+        };
+      });
+
+      setViajes(formateados);
+    } catch (err) {
+      console.error('❌ [supervisor-carga] Exception:', err);
     } finally {
       setLoadingViajes(false);
     }
+  }, [empresaId]);
+
+  // Auto-refresh cada 30 segundos
+  useEffect(() => {
+    cargarViajes();
+    const interval = setInterval(cargarViajes, 30000);
+    return () => clearInterval(interval);
+  }, [cargarViajes]);
+
+  // ─── Actualizar ambos estados (unidad + carga) ────────────────
+  const actualizarEstadoDual = async (
+    viajeId: string,
+    estadoUnidad: EstadoUnidadViaje,
+    estadoCarga: EstadoCargaViaje,
+    datosExtra?: { datos_carga?: Record<string, any> }
+  ): Promise<{ success: boolean; error?: string }> => {
+    // 1. Actualizar estado_unidad (también sync viajes_despacho.estado)
+    const resUnidad = await actualizarEstadoUnidad({
+      viaje_id: viajeId,
+      nuevo_estado: estadoUnidad,
+    });
+
+    if (!resUnidad.success) {
+      return { success: false, error: resUnidad.error || 'Error actualizando estado unidad' };
+    }
+
+    // 2. Actualizar estado_carga
+    const resCarga = await actualizarEstadoCarga({
+      viaje_id: viajeId,
+      nuevo_estado: estadoCarga,
+      ...(datosExtra || {}),
+    });
+
+    if (!resCarga.success) {
+      console.warn('[supervisor-carga] estado_unidad OK pero estado_carga falló:', resCarga.error);
+    }
+
+    return { success: true };
   };
 
-  // Detectar tipo de operación (envío vs recepción) - NO UTILIZADA
-  // const detectarTipoOperacion = (viajeData: ViajeQR): 'envio' | 'recepcion' => {
-  //   return empresaId === viajeData.planta_origen_id ? 'envio' : 'recepcion';
-  // };
+  // ─── Acciones del Supervisor ───────────────────────────────────
 
+  // Helper: actualizar viajeEscaneado si coincide
+  const actualizarEscaneado = useCallback((viajeId: string, nuevoEstado: string, nuevoCarga?: string) => {
+    setViajeEscaneado(prev => {
+      if (prev && prev.id === viajeId) {
+        return { ...prev, estado: nuevoEstado, estado_carga: nuevoCarga || prev.estado_carga };
+      }
+      return prev;
+    });
+  }, []);
+
+  // 1. Llamar a Carga (ingresado_origen/en_playa_origen → llamado_carga)
+  const llamarACarga = async (viajeId: string) => {
+    setLoadingAction(viajeId);
+    try {
+      console.log('📢 [supervisor-carga] Llamando a carga viaje:', viajeId);
+      const result = await actualizarEstadoDual(
+        viajeId,
+        'llamado_carga' as EstadoUnidadViaje,
+        'llamado_carga' as EstadoCargaViaje
+      );
+
+      if (result.success) {
+        showMessage('📢 Vehículo llamado a carga');
+        actualizarEscaneado(viajeId, 'llamado_carga', 'llamado_carga');
+        await cargarViajes();
+      } else {
+        console.error('❌ [supervisor-carga] Error llamar a carga:', result.error);
+        showMessage(result.error || 'Error al llamar a carga', 'error');
+      }
+    } catch (err) {
+      console.error('❌ [supervisor-carga] Exception:', err);
+      showMessage('Error al llamar a carga', 'error');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  // 2. Iniciar Carga (llamado_carga → cargando)
+  const iniciarCargaViaje = async (viaje: ViajeParaCarga) => {
+    setLoadingAction(viaje.id);
+    try {
+      console.log('⚙️ [supervisor-carga] Iniciando carga viaje:', viaje.id);
+      const result = await actualizarEstadoDual(
+        viaje.id,
+        'cargando' as EstadoUnidadViaje,
+        'cargando' as EstadoCargaViaje
+      );
+
+      if (result.success) {
+        showMessage(`⚙️ Carga iniciada - ${viaje.camion.patente}`);
+        actualizarEscaneado(viaje.id, 'cargando', 'cargando');
+        await cargarViajes();
+      } else {
+        console.error('❌ [supervisor-carga] Error iniciar carga:', result.error);
+        showMessage(result.error || 'Error al iniciar carga', 'error');
+      }
+    } catch (err) {
+      console.error('❌ [supervisor-carga] Exception:', err);
+      showMessage('Error al iniciar carga', 'error');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  // ─── Foto de Remito (requerida para finalizar carga) ─────────
+  const handleRemitoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      showMessage('La imagen es demasiado grande. Máximo 10MB', 'error');
+      return;
+    }
+
+    if (!selectedFile.type.startsWith('image/')) {
+      showMessage('Solo se permiten archivos de imagen (JPG, PNG, etc.)', 'error');
+      return;
+    }
+
+    setRemitoFile(selectedFile);
+    setRemitoUploaded(false);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => setRemitoPreview(ev.target?.result as string);
+    reader.readAsDataURL(selectedFile);
+  };
+
+  const limpiarRemito = () => {
+    setRemitoFile(null);
+    setRemitoPreview(null);
+    setRemitoUploaded(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const subirFotoRemito = async (viajeId: string): Promise<string | null> => {
+    if (!remitoFile) return null;
+
+    setUploadingRemito(true);
+    try {
+      // Usar API route server-side para bypass RLS
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        showMessage('Sesión expirada. Ingrese nuevamente.', 'error');
+        return null;
+      }
+
+      const formData = new FormData();
+      formData.append('file', remitoFile);
+      formData.append('viaje_id', viajeId);
+
+      const response = await fetch('/api/upload-remito', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        console.error('❌ [supervisor-carga] Error subiendo foto:', result.error);
+        showMessage('Error subiendo la foto del remito', 'error');
+        return null;
+      }
+
+      setRemitoUploaded(true);
+      return result.url;
+    } catch (err) {
+      console.error('❌ [supervisor-carga] Exception subiendo remito:', err);
+      showMessage('Error al subir la foto', 'error');
+      return null;
+    } finally {
+      setUploadingRemito(false);
+    }
+  };
+
+  // 3. Finalizar Carga (cargando → cargado)
+  //    estado_unidad → cargado
+  //    estado_carga  → cargado
+  //    Control de Acceso luego hace: cargado → egreso_origen
+  const finalizarCarga = async (viajeId: string) => {
+    setLoadingAction(viajeId);
+    try {
+      // Subir foto si no se subió aún
+      let remitoUrl: string | null = null;
+      if (remitoFile && !remitoUploaded) {
+        remitoUrl = await subirFotoRemito(viajeId);
+        if (!remitoUrl) {
+          showMessage('No se pudo subir la foto del remito', 'error');
+          setLoadingAction(null);
+          return;
+        }
+      }
+
+      console.log('✅ [supervisor-carga] Finalizando carga viaje:', viajeId);
+      const result = await actualizarEstadoDual(
+        viajeId,
+        'cargado' as EstadoUnidadViaje,
+        'cargado' as EstadoCargaViaje,
+        remitoUrl ? { datos_carga: { remito_url: remitoUrl } } : undefined
+      );
+
+      if (result.success) {
+        showMessage('✅ Carga finalizada - Control de Acceso debe confirmar egreso');
+        actualizarEscaneado(viajeId, 'cargado', 'cargado');
+        limpiarRemito();
+        await cargarViajes();
+      } else {
+        console.error('❌ [supervisor-carga] Error finalizar:', result.error);
+        showMessage(result.error || 'Error al finalizar carga', 'error');
+      }
+    } catch (err) {
+      console.error('❌ [supervisor-carga] Exception:', err);
+      showMessage('Error al finalizar carga', 'error');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  // ─── Acciones de DESCARGA (destino) ────────────────────────────
+
+  // 4. Llamar a Descarga (ingresado_destino → llamado_descarga)
+  const llamarADescarga = async (viajeId: string) => {
+    setLoadingAction(viajeId);
+    try {
+      console.log('📢 [supervisor-carga] Llamando a descarga viaje:', viajeId);
+      const result = await actualizarEstadoDual(
+        viajeId,
+        'llamado_descarga' as EstadoUnidadViaje,
+        'llamado_descarga' as EstadoCargaViaje
+      );
+
+      if (result.success) {
+        showMessage('📢 Vehículo llamado a descarga');
+        actualizarEscaneado(viajeId, 'llamado_descarga', 'llamado_descarga');
+        await cargarViajes();
+      } else {
+        showMessage(result.error || 'Error al llamar a descarga', 'error');
+      }
+    } catch (err) {
+      showMessage('Error al llamar a descarga', 'error');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  // 5. Iniciar Descarga (llamado_descarga → descargando)
+  const iniciarDescarga = async (viaje: ViajeParaCarga) => {
+    setLoadingAction(viaje.id);
+    try {
+      console.log('⬇️ [supervisor-carga] Iniciando descarga viaje:', viaje.id);
+      const result = await actualizarEstadoDual(
+        viaje.id,
+        'descargando' as EstadoUnidadViaje,
+        'descargando' as EstadoCargaViaje
+      );
+
+      if (result.success) {
+        showMessage(`⬇️ Descarga iniciada - ${viaje.camion.patente}`);
+        actualizarEscaneado(viaje.id, 'descargando', 'descargando');
+        await cargarViajes();
+      } else {
+        showMessage(result.error || 'Error al iniciar descarga', 'error');
+      }
+    } catch (err) {
+      showMessage('Error al iniciar descarga', 'error');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  // 6. Finalizar Descarga (descargando → descargado)
+  //    Control de Acceso luego hace: descargado → egreso_destino
+  const finalizarDescarga = async (viajeId: string) => {
+    setLoadingAction(viajeId);
+    try {
+      console.log('✅ [supervisor-carga] Finalizando descarga viaje:', viajeId);
+      const result = await actualizarEstadoDual(
+        viajeId,
+        'descargado' as EstadoUnidadViaje,
+        'descargado' as EstadoCargaViaje
+      );
+
+      if (result.success) {
+        showMessage('✅ Descarga finalizada - Control de Acceso debe confirmar egreso');
+        actualizarEscaneado(viajeId, 'descargado', 'descargado');
+        await cargarViajes();
+      } else {
+        showMessage(result.error || 'Error al finalizar descarga', 'error');
+      }
+    } catch (err) {
+      showMessage('Error al finalizar descarga', 'error');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  // ─── Scanner QR ────────────────────────────────────────────────
   const escanearQR = async () => {
     if (!qrCode.trim()) return;
 
-    setLoading(true);
-    setMessage('');
+    setLoadingScanner(true);
+    setViajeEscaneado(null);
 
     try {
-      const codigoBusqueda = qrCode.trim().replace(/^QR-/, '');
-      console.log('🔍 [supervisor-carga] Buscando viaje con código:', codigoBusqueda);
-      
-      const { data: viajeData, error: viajeError } = await supabase
-        .from('viajes_despacho')
-        .select(`
-          id,
-          numero_viaje,
-          despacho_id,
-          chofer_id,
-          camion_id,
-          estado,
-          despachos!inner (
-            id,
-            origen,
-            destino,
-            producto,
-            id_empresa,
-            peso_estimado
-          ),
-          choferes (
-            id,
-            nombre,
-            apellido,
-            dni
-          ),
-          camiones (
-            id,
-            patente,
-            marca,
-            modelo
-          ),
-          estado_unidad_viaje (
-            estado_unidad
-          ),
-          estado_carga_viaje (
-            estado_carga,
-            peso_real_kg,
-            cantidad_bultos,
-            temperatura_carga
-          )
-        `)
-        .or(`numero_viaje.ilike.%${codigoBusqueda}%,id.eq.${codigoBusqueda}`)
-        .single();
-      
-      if (viajeError || !viajeData) {
-        console.error('❌ [supervisor-carga] Error buscando viaje:', viajeError);
-        setMessage('❌ Código QR no válido o viaje no encontrado');
-        setViaje(null);
+      const codigo = qrCode.trim().replace(/^(QR-|DSP-)/, '');
+      console.log('🔍 [supervisor-carga] Buscando con código:', codigo);
+
+      // Paso 1: Buscar despacho por pedido_id
+      const { data: despacho, error: despError } = await supabase
+        .from('despachos')
+        .select('id, pedido_id, origen, destino')
+        .ilike('pedido_id', `%${codigo}%`)
+        .maybeSingle();
+
+      if (despError || !despacho) {
+        showMessage('Despacho no encontrado', 'error');
         return;
       }
 
-      console.log('✅ [supervisor-carga] Viaje encontrado:', viajeData);
+      console.log('✅ [supervisor-carga] Despacho encontrado:', despacho.pedido_id);
 
-      // Extraer primer elemento de arrays (relaciones Supabase devuelven arrays)
-      const despacho = Array.isArray(viajeData.despachos) ? viajeData.despachos[0] : viajeData.despachos;
-      const chofer = Array.isArray(viajeData.choferes) ? viajeData.choferes[0] : viajeData.choferes;
-      const camion = Array.isArray(viajeData.camiones) ? viajeData.camiones[0] : viajeData.camiones;
-      const estadoUnidadRecord = Array.isArray(viajeData.estado_unidad_viaje) ? viajeData.estado_unidad_viaje[0] : viajeData.estado_unidad_viaje;
-      const estadoCargaRecord = Array.isArray(viajeData.estado_carga_viaje) ? viajeData.estado_carga_viaje[0] : viajeData.estado_carga_viaje;
+      // Paso 2: Buscar viaje del despacho
+      const { data: viajesData, error: viajeError } = await supabase
+        .from('viajes_despacho')
+        .select('id, numero_viaje, estado, chofer_id, camion_id, estado_carga_viaje (estado_carga)')
+        .eq('despacho_id', despacho.id)
+        .limit(1);
 
-      const tipoOperacion = despacho?.id_empresa === empresaId ? 'envio' : 'recepcion';
-      
-      const viajeCompleto: ViajeQR = {
+      if (viajeError || !viajesData || viajesData.length === 0) {
+        showMessage('No hay viajes asignados a este despacho', 'error');
+        return;
+      }
+
+      const viajeData = viajesData[0];
+      const carga = Array.isArray(viajeData.estado_carga_viaje) ? viajeData.estado_carga_viaje[0] : viajeData.estado_carga_viaje;
+
+      // Paso 3: Traer chofer y camión por ID (queries directas para esquivar RLS)
+      let choferNombre = 'Sin asignar';
+      let choferDni = '-';
+      let camionPatente = 'Sin asignar';
+      let camionMarca = '-';
+
+      if (viajeData.chofer_id) {
+        const { data: choferData } = await supabase
+          .from('choferes')
+          .select('nombre, apellido, dni')
+          .eq('id', viajeData.chofer_id)
+          .maybeSingle();
+        if (choferData) {
+          choferNombre = `${choferData.nombre} ${choferData.apellido || ''}`.trim();
+          choferDni = choferData.dni || '-';
+        }
+      }
+
+      if (viajeData.camion_id) {
+        const { data: camionData } = await supabase
+          .from('camiones')
+          .select('patente, marca, modelo')
+          .eq('id', viajeData.camion_id)
+          .maybeSingle();
+        if (camionData) {
+          camionPatente = camionData.patente;
+          camionMarca = `${camionData.marca} ${camionData.modelo || ''}`.trim();
+        }
+      }
+
+      setViajeEscaneado({
         id: viajeData.id,
-        numero_viaje: viajeData.numero_viaje.toString(),
-        qr_code: `QR-${viajeData.numero_viaje}`,
-        estado_viaje: viajeData.estado,
-        estado_unidad: estadoUnidadRecord?.estado_unidad || viajeData.estado,
-        estado_carga: estadoCargaRecord?.estado_carga || 'pendiente',
-        tipo_operacion: tipoOperacion,
-        producto: despacho?.producto || `${despacho?.origen || ''} → ${despacho?.destino || ''}`,
-        peso_estimado: despacho?.peso_estimado || 0,
-        peso_real: estadoCargaRecord?.peso_real_kg,
-        bultos: estadoCargaRecord?.cantidad_bultos,
-        temperatura: estadoCargaRecord?.temperatura_carga,
-        planta_origen_id: despacho?.id_empresa,
-        planta_destino_id: despacho?.id_empresa,
-        chofer: chofer ? {
-          nombre: `${chofer.nombre} ${chofer.apellido}`,
-          dni: chofer.dni
-        } : {
-          nombre: 'Sin asignar',
-          dni: 'N/A'
-        },
-        camion: camion ? {
-          patente: camion.patente,
-          marca: `${camion.marca} ${camion.modelo || ''}`.trim()
-        } : {
-          patente: 'Sin asignar',
-          marca: 'N/A'
-        }
-      };
-      
-      setViaje(viajeCompleto);
-      setMessage(`📋 Viaje ${viajeCompleto.numero_viaje} encontrado - Operación: ${tipoOperacion === 'envio' ? '📤 Envío (Carga)' : '📥 Recepción (Descarga)'}`);
-      console.log('📊 [supervisor-carga] Viaje completo:', viajeCompleto);
-    } catch (error: any) {
-      console.error('❌ [supervisor-carga] Error en escanearQR:', error);
-      setMessage(`❌ Error: ${error.message}`);
-      setViaje(null);
+        numero_viaje: String(viajeData.numero_viaje),
+        estado: viajeData.estado || 'desconocido',
+        estado_carga: carga?.estado_carga || 'pendiente',
+        origen: despacho.origen || '-',
+        destino: despacho.destino || '-',
+        chofer: { nombre: choferNombre, dni: choferDni },
+        camion: { patente: camionPatente, marca: camionMarca },
+        tipo_operacion: ESTADOS_CARGA.includes(viajeData.estado) ? 'carga' : 'descarga',
+      });
+
+      showMessage(`Viaje ${viajeData.numero_viaje} encontrado`);
+    } catch (err) {
+      showMessage('Error al buscar viaje', 'error');
     } finally {
-      setLoading(false);
+      setLoadingScanner(false);
     }
   };
 
-  const llamarACarga = async (viajeId: string) => {
-    setLoading(true);
-    try {
-      console.log('📞 [supervisor-carga] Llamando a carga viaje:', viajeId);
-      const result = await registrarLlamadoCarga(viajeId);
-      
-      if (result.success) {
-        setMessage(`✅ Notificación enviada al chofer para dirigirse a punto de carga`);
-        console.log('✅ [supervisor-carga] Llamado a carga exitoso');
-        cargarViajes();
-      } else {
-        setMessage(`❌ ${result.error || 'Error al llamar a carga'}`);
-        console.error('❌ [supervisor-carga] Error:', result.error);
-      }
-    } catch (error) {
-      setMessage('❌ Error al llamar a carga');
-      console.error('❌ [supervisor-carga] Exception:', error);
-    }
-    setLoading(false);
+  // ─── Filtros por Tab ───────────────────────────────────────────
+  const viajesEnPlanta = viajes.filter(v =>
+    ['ingresado_origen', 'en_playa_origen', 'ingresado_destino'].includes(v.estado)
+  );
+
+  const viajesEnProceso = viajes.filter(v =>
+    ['llamado_carga', 'cargando', 'llamado_descarga', 'descargando'].includes(v.estado)
+  );
+
+  const viajesCompletados = viajes.filter(v =>
+    v.estado === 'cargado' || v.estado === 'descargado'
+  );
+
+  // ─── Helpers de renderizado ────────────────────────────────────
+  const getEstadoBadge = (estado: string, estadoCarga?: string) => {
+    const key = estadoCarga === 'cargado' ? 'cargado' : estado;
+    const label = ESTADO_LABELS[key] || key;
+    const color = ESTADO_COLORS[key] || 'bg-slate-700 text-slate-300 border-slate-600';
+    return (
+      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold border ${color}`}>
+        {label}
+      </span>
+    );
   };
 
-  // DEPRECATED: posicionarParaCarga fusionado con iniciarCarga
-  // const posicionarParaCarga = async () => { ... };
+  const renderAcciones = (v: ViajeParaCarga) => {
+    const isLoading = loadingAction === v.id;
 
-  const iniciarCarga = async (viajeIdOpt?: string) => {
-    const targetViajeId = viajeIdOpt || viaje?.id;
-    if (!targetViajeId) return;
-    
-    setLoading(true);
-    try {
-      console.log('▶️ [supervisor-carga] Iniciando carga:', targetViajeId);
-      const result = await apiIniciarCarga(targetViajeId, viaje?.producto || 'Carga', viaje?.peso_estimado);
-      
-      if (result.success) {
-        setMessage(`✅ Carga iniciada`);
-        console.log('✅ [supervisor-carga] Carga iniciada exitosamente');
-        
-        if (viaje && !viajeIdOpt) {
-          setViaje({ ...viaje, estado_carga: 'cargando' });
-        }
-        cargarViajes();
-      } else {
-        setMessage(`❌ ${result.error || 'Error al iniciar carga'}`);
-      }
-    } catch (error) {
-      setMessage('❌ Error al iniciar carga');
-      console.error('❌ [supervisor-carga] Error:', error);
-    }
-    setLoading(false);
-  };
-
-  const cerrarCarga = async () => {
-    if (!viaje) return;
-
-    setLoading(true);
-    try {
-      console.log('🏁 [supervisor-carga] Cerrando carga:', viaje.id);
-      
-      const result = await completarCarga(
-        viaje.id,
-        0, // Peso se registra en Control de Acceso
-        0  // Bultos se registran en Control de Acceso
+    // === CARGA (origen) ===
+    if (v.estado === 'cargado') {
+      return (
+        <span className="text-sm text-green-400 flex items-center gap-1.5">
+          <CheckCircleIcon className="h-4 w-4" />
+          Cargado - Esperando egreso (Control Acceso)
+        </span>
       );
-      
-      if (result.success) {
-        setMessage(`✅ Carga cerrada - Peso y bultos se registrarán en Control de Acceso`);
-        console.log('✅ [supervisor-carga] Carga cerrada exitosamente');
-        
-        setViaje({
-          ...viaje,
-          estado_carga: 'cargado'
-        });
-
-        setTimeout(() => {
-          setViaje(null);
-          setQrCode('');
-          setMessage('');
-          cargarViajes();
-        }, 3000);
-      } else {
-        setMessage(`❌ ${result.error || 'Error al cerrar carga'}`);
-      }
-    } catch (error) {
-      setMessage('❌ Error al cerrar carga');
-      console.error('❌ [supervisor-carga] Error:', error);
     }
-    setLoading(false);
-  };
 
-  // Funciones para descarga (recepción)
-  // Funciones para descarga (recepciÃ³n)
-  const iniciarDescargaViaje = async () => {
-    if (!viaje) return;
-    setLoading(true);
-    try {
-      await iniciarDescarga(viaje.id);
-      setMessage(`âœ… Descarga iniciada para ${viaje.numero_viaje}`);
-      setViaje({ ...viaje, estado_carga: 'descargando' });
-    } catch (error) {
-      setMessage('âŒ Error al iniciar descarga');
-      console.error(error);
+    if (['ingresado_origen', 'en_playa_origen'].includes(v.estado)) {
+      return (
+        <button
+          onClick={() => llamarACarga(v.id)}
+          disabled={isLoading}
+          className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          <PhoneIcon className="h-4 w-4" />
+          {isLoading ? 'Llamando...' : '📢 Llamar a Carga'}
+        </button>
+      );
     }
-    setLoading(false);
-  };
 
-  const registrarProgresoDescarga = async () => {
-    if (!viaje) return;
-    setLoading(true);
-    try {
-      await registrarDescargando(viaje.id, observaciones || undefined);
-      setMessage(`âœ… Progreso de descarga registrado`);
-      setViaje({ ...viaje, estado_carga: 'descargando' });
-    } catch (error) {
-      setMessage('âŒ Error al registrar progreso');
-      console.error(error);
+    if (v.estado === 'llamado_carga') {
+      return (
+        <button
+          onClick={() => iniciarCargaViaje(v)}
+          disabled={isLoading}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          <PlayIcon className="h-4 w-4" />
+          {isLoading ? 'Iniciando...' : '⚙️ Iniciar Carga'}
+        </button>
+      );
     }
-    setLoading(false);
-  };
 
-  const finalizarDescarga = async () => {
-    if (!viaje) return;
-    setLoading(true);
-    try {
-      await completarDescarga(viaje.id);
-      setMessage(`âœ… Descarga completada para ${viaje.numero_viaje}`);
-      setViaje({ ...viaje, estado_carga: 'entregado' });
+    if (v.estado === 'cargando') {
+      return (
+        <div className="w-full space-y-3">
+          {/* Foto del remito */}
+          <div className="border border-dashed border-slate-600 rounded-lg p-3">
+            <p className="text-xs text-slate-400 mb-2 font-medium">📸 Foto del remito firmado (requerida)</p>
 
-      setTimeout(() => {
-        setViaje(null);
-        setQrCode('');
-        setObservaciones('');
-        setMessage('');
-      }, 3000);
-    } catch (error) {
-      setMessage('âŒ Error al completar descarga');
-      console.error(error);
-    }
-    setLoading(false);
-  };
-
-  const confirmarEntregaFinal = async () => {
-    if (!viaje) return;
-    setLoading(true);
-    try {
-      // confirmarEntrega(viaje_id, certificado_entrega_url?)
-      await confirmarEntrega(viaje.id, undefined);
-      setMessage(`âœ… Entrega confirmada para ${viaje.numero_viaje}`);
-      setViaje({ ...viaje, estado_carga: 'completado' });
-
-      setTimeout(() => {
-        setViaje(null);
-        setQrCode('');
-        setObservaciones('');
-        setMessage('');
-      }, 3000);
-    } catch (error) {
-      setMessage('âŒ Error al confirmar entrega');
-      console.error(error);
-    }
-    setLoading(false);
-  };
-
-  const resetForm = () => {
-    setViaje(null);
-    setQrCode('');
-    setPesoReal('');
-    setBultos('');
-    setTemperatura('');
-    setObservaciones('');
-    setMessage('');
-  };
-
-  return (
-    <MainLayout pageTitle="Supervisor de Carga">
-      {/* Header especÃ­fico de la pÃ¡gina */}
-      <div className="mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="p-3 bg-yellow-600 rounded-xl">
-            <ScaleIcon className="h-8 w-8 text-yellow-100" />
+            {!remitoPreview ? (
+              <label className="flex flex-col items-center gap-2 cursor-pointer py-4 hover:bg-slate-700/30 rounded-lg transition-colors">
+                <CameraIcon className="h-8 w-8 text-yellow-500" />
+                <span className="text-sm text-slate-300">Tomar foto o seleccionar imagen</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleRemitoFileChange}
+                  className="hidden"
+                />
+              </label>
+            ) : (
+              <div className="relative">
+                <img
+                  src={remitoPreview}
+                  alt="Remito firmado"
+                  className="w-full max-h-48 object-contain rounded-lg bg-slate-900"
+                />
+                <button
+                  onClick={limpiarRemito}
+                  className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full hover:bg-red-500 transition-colors"
+                  title="Quitar foto"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+                {remitoFile && (
+                  <p className="text-xs text-slate-500 mt-1 text-center">
+                    {remitoFile.name} ({(remitoFile.size / 1024).toFixed(0)} KB)
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-100">Supervisor de Carga</h1>
-            <p className="text-slate-300 mt-1">
-              GestiÃ³n y control de procesos de carga en planta
-            </p>
+
+          {/* Botón Finalizar Carga — solo habilitado con foto */}
+          <button
+            onClick={() => finalizarCarga(v.id)}
+            disabled={isLoading || !remitoFile || uploadingRemito}
+            className="w-full bg-purple-600 text-white px-4 py-3 rounded-lg text-sm font-medium hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            <CheckCircleIcon className="h-4 w-4" />
+            {uploadingRemito ? 'Subiendo foto...' : isLoading ? 'Finalizando...' : !remitoFile ? '📷 Suba la foto para finalizar' : '✅ Finalizar Carga'}
+          </button>
+        </div>
+      );
+    }
+
+    // === DESCARGA (destino) ===
+    if (v.estado === 'descargado') {
+      return (
+        <span className="text-sm text-green-400 flex items-center gap-1.5">
+          <CheckCircleIcon className="h-4 w-4" />
+          Descargado - Esperando egreso (Control Acceso)
+        </span>
+      );
+    }
+
+    if (v.estado === 'ingresado_destino') {
+      return (
+        <button
+          onClick={() => llamarADescarga(v.id)}
+          disabled={isLoading}
+          className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          <PhoneIcon className="h-4 w-4" />
+          {isLoading ? 'Llamando...' : '📢 Llamar a Descarga'}
+        </button>
+      );
+    }
+
+    if (v.estado === 'llamado_descarga') {
+      return (
+        <button
+          onClick={() => iniciarDescarga(v)}
+          disabled={isLoading}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          <PlayIcon className="h-4 w-4" />
+          {isLoading ? 'Iniciando...' : '⬇️ Iniciar Descarga'}
+        </button>
+      );
+    }
+
+    if (v.estado === 'descargando') {
+      return (
+        <button
+          onClick={() => finalizarDescarga(v.id)}
+          disabled={isLoading}
+          className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          <CheckCircleIcon className="h-4 w-4" />
+          {isLoading ? 'Finalizando...' : '✅ Finalizar Descarga'}
+        </button>
+      );
+    }
+
+    return null;
+  };
+
+  // ─── Tarjeta de viaje reutilizable ─────────────────────────────
+  const renderViajeCard = (v: ViajeParaCarga) => (
+    <div key={v.id} className="border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors bg-slate-800/50">
+      <div className="flex justify-between items-start mb-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-lg text-slate-100">#{v.numero_viaje}</p>
+            {getEstadoBadge(v.estado, v.estado_carga)}
           </div>
+          <p className="text-sm text-slate-300">{v.origen} → {v.destino}</p>
+        </div>
+        <div className="text-right space-y-1">
+          <p className="text-sm text-slate-300 font-medium">{v.camion.patente}</p>
+          <p className="text-xs text-slate-400">{v.camion.marca}</p>
         </div>
       </div>
 
-      {/* NavegaciÃ³n por pestaÃ±as */}
+      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+        <div>
+          <span className="text-slate-500">Chofer:</span>{' '}
+          <span className="text-slate-300">{v.chofer.nombre}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Ruta:</span>{' '}
+          <span className="text-slate-300">{v.origen} → {v.destino}</span>
+        </div>
+      </div>
+
+      {renderAcciones(v)}
+    </div>
+  );
+
+  // ─── Render Principal ──────────────────────────────────────────
+  return (
+    <MainLayout pageTitle="Supervisor de Carga">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-yellow-600 rounded-xl">
+              <ScaleIcon className="h-8 w-8 text-yellow-100" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-100">Supervisor de Carga</h1>
+              <p className="text-slate-400 text-sm mt-0.5">
+                Gestión de operaciones de carga en planta
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={cargarViajes}
+            disabled={loadingViajes}
+            className="p-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-700 transition-colors"
+            title="Actualizar"
+          >
+            <ArrowPathIcon className={`h-5 w-5 ${loadingViajes ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Resumen rápido */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-blue-400">{viajesEnPlanta.length}</p>
+          <p className="text-xs text-slate-400 mt-1">En Planta</p>
+        </div>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-orange-400">{viajesEnProceso.length}</p>
+          <p className="text-xs text-slate-400 mt-1">En Proceso</p>
+        </div>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-green-400">{viajesCompletados.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Completados</p>
+        </div>
+      </div>
+
+      {/* Notificación */}
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg border text-sm ${
+          messageType === 'error'
+            ? 'bg-red-900/30 text-red-400 border-red-800'
+            : 'bg-green-900/30 text-green-400 border-green-800'
+        }`}>
+          {message}
+        </div>
+      )}
+
+      {/* Tabs */}
       <div className="mb-6">
         <div className="border-b border-slate-700">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'scanner'
-                  ? 'border-yellow-500 text-yellow-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              <QrCodeIcon className="h-5 w-5 inline mr-2" />
-              EscÃ¡ner QR
-            </button>
-            <button
-              onClick={() => setActiveTab('queue')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'queue'
-                  ? 'border-yellow-500 text-yellow-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              <TruckIcon className="h-5 w-5 inline mr-2" />
-              Cola de Carga
-            </button>
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'active'
-                  ? 'border-yellow-500 text-yellow-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              <PlayIcon className="h-5 w-5 inline mr-2" />
-              Cargas Activas
-            </button>
+          <nav className="-mb-px flex space-x-1">
+            {[
+              { key: 'planta' as TabType, label: 'En Planta', icon: TruckIcon, count: viajesEnPlanta.length },
+              { key: 'en_proceso' as TabType, label: 'En Proceso', icon: PlayIcon, count: viajesEnProceso.length },
+              { key: 'completados' as TabType, label: 'Completados', icon: CheckCircleIcon, count: viajesCompletados.length },
+              { key: 'scanner' as TabType, label: 'Escáner QR', icon: QrCodeIcon },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`py-2.5 px-4 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
+                  activeTab === tab.key
+                    ? 'border-yellow-500 text-yellow-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-600'
+                }`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${
+                    activeTab === tab.key
+                      ? 'bg-yellow-600/30 text-yellow-400'
+                      : 'bg-slate-700 text-slate-400'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
           </nav>
         </div>
       </div>
 
-      {/* Contenido segÃºn pestaÃ±a activa */}
+      {/* ─── TAB: En Planta ──────────────────────────────────────── */}
+      {activeTab === 'planta' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+              <TruckIcon className="h-5 w-5 text-blue-400" />
+              Vehículos en Planta
+            </h2>
+            <p className="text-xs text-slate-500">Esperando ser llamados a carga/descarga</p>
+          </div>
+
+          {viajesEnPlanta.length === 0 ? (
+            <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
+              <TruckIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No hay vehículos esperando en planta</p>
+              <p className="text-slate-500 text-xs mt-1">Aparecen aquí después de pasar por Control de Acceso</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {viajesEnPlanta.map(renderViajeCard)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB: En Proceso ─────────────────────────────────────── */}
+      {activeTab === 'en_proceso' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+              <PlayIcon className="h-5 w-5 text-orange-400" />
+              Operaciones en Proceso
+            </h2>
+            <p className="text-xs text-slate-500">Carga y descarga en curso</p>
+          </div>
+
+          {viajesEnProceso.length === 0 ? (
+            <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
+              <PlayIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No hay operaciones en proceso</p>
+              <p className="text-slate-500 text-xs mt-1">Llame vehículos desde la pestaña «En Planta»</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {viajesEnProceso.map(renderViajeCard)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB: Completados ───────────────────────────────────── */}
+      {activeTab === 'completados' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+              <CheckCircleIcon className="h-5 w-5 text-green-400" />
+              Operaciones Completadas
+            </h2>
+            <p className="text-xs text-slate-500">Esperando egreso por Control de Acceso</p>
+          </div>
+
+          {viajesCompletados.length === 0 ? (
+            <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
+              <CheckCircleIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No hay operaciones completadas</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {viajesCompletados.map(renderViajeCard)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB: Scanner QR ─────────────────────────────────────── */}
       {activeTab === 'scanner' && (
         <div className="space-y-6">
-          {/* EscÃ¡ner QR */}
-          <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700 p-6">
-            <div className="flex items-center space-x-3 mb-4">
+          {/* Campo de escaneo */}
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <div className="flex items-center gap-3 mb-4">
               <QrCodeIcon className="h-6 w-6 text-yellow-500" />
-              <h2 className="text-lg font-semibold text-slate-100">Escanear CÃ³digo QR</h2>
+              <h2 className="text-lg font-semibold text-slate-100">Escanear Código QR</h2>
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Ingrese o escanee cÃ³digo QR"
+                placeholder="Ingrese N° de viaje o escanee código QR"
                 value={qrCode}
                 onChange={(e) => setQrCode(e.target.value)}
                 className="flex-1 px-4 py-3 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none placeholder-slate-400"
-                onKeyPress={(e) => e.key === 'Enter' && escanearQR()}
+                onKeyDown={(e) => e.key === 'Enter' && escanearQR()}
               />
               <button
                 onClick={escanearQR}
-                disabled={loading || !qrCode.trim()}
-                className="bg-yellow-600 text-yellow-100 px-6 py-3 rounded-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center space-x-2"
+                disabled={loadingScanner || !qrCode.trim()}
+                className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-yellow-500 disabled:opacity-50 transition-colors flex items-center gap-2"
               >
                 <QrCodeIcon className="h-5 w-5" />
-                <span>{loading ? 'Escaneando...' : 'Escanear'}</span>
+                {loadingScanner ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
-
-            {message && (
-              <div className={`mt-4 p-3 rounded-lg ${
-                message.includes('âŒ') ? 'bg-red-900/30 text-red-400 border border-red-800' : 'bg-green-900/30 text-green-400 border border-green-800'
-              }`}>
-                {message}
-              </div>
-            )}
           </div>
 
-          {/* CÃ³digos Demo */}
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-            <h3 className="font-semibold text-slate-100 mb-3 flex items-center space-x-2">
-              <DocumentTextIcon className="h-5 w-5" />
-              <span>CÃ³digos Demo para Probar</span>
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                <code className="text-yellow-400 font-mono font-semibold">QR-VJ2025001</code>
-                <p className="text-slate-300 mt-1">En planta (se puede llamar a carga)</p>
+          {/* Resultado del escaneo */}
+          {viajeEscaneado && (
+            <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-100">Viaje #{viajeEscaneado.numero_viaje}</h3>
+                {getEstadoBadge(viajeEscaneado.estado, viajeEscaneado.estado_carga)}
               </div>
-              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                <code className="text-yellow-400 font-mono font-semibold">QR-VJ2025002</code>
-                <p className="text-slate-300 mt-1">Llamado a carga (se puede iniciar)</p>
-              </div>
-              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                <code className="text-yellow-400 font-mono font-semibold">QR-VJ2025003</code>
-                <p className="text-slate-300 mt-1">Cargando (se puede finalizar)</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* PestaÃ±a Cola de Carga */}
-      {activeTab === 'queue' && (
-        <div className="space-y-6">
-          <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700 p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <TruckIcon className="h-6 w-6 text-blue-500" />
-              <h2 className="text-lg font-semibold text-slate-100">VehÃ­culos en Cola de Carga</h2>
-            </div>
-            
-            <div className="space-y-4">
-              {viajes.filter(v => v.estado_viaje === 'ingresado_planta').map((v) => (
-                <div key={v.id} className="border border-slate-600 rounded-lg p-4 hover:border-slate-500 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="font-semibold text-slate-100">{v.numero_viaje}</p>
-                      <p className="text-sm text-slate-300">{v.producto}</p>
-                      <p className="text-sm text-slate-400">CamiÃ³n: {v.camion.patente} - {v.camion.marca}</p>
-                      <p className="text-sm text-slate-400">Chofer: {v.chofer.nombre}</p>
-                    </div>
-                    <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-blue-900/30 text-blue-400">
-                      EN PLANTA
-                    </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-slate-500">Ruta</label>
+                    <p className="text-slate-200">{viajeEscaneado.origen} → {viajeEscaneado.destino}</p>
                   </div>
-                  
-                  <button
-                    onClick={() => llamarACarga(v.id)}
-                    disabled={loading}
-                    className="bg-yellow-600 text-yellow-100 px-4 py-2 rounded-lg text-sm hover:bg-yellow-700 disabled:opacity-50 flex items-center space-x-2"
-                  >
-                    <PhoneIcon className="h-4 w-4" />
-                    <span>Llamar a Carga</span>
-                  </button>
-                </div>
-              ))}
-              
-              {viajes.filter(v => v.estado_viaje === 'ingresado_planta').length === 0 && (
-                <div className="text-center py-8">
-                  <TruckIcon className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                  <p className="text-slate-400">No hay vehÃ­culos esperando ser llamados a carga</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PestaÃ±a Cargas Activas */}
-      {activeTab === 'active' && (
-        <div className="space-y-6">
-          <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700 p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <PlayIcon className="h-6 w-6 text-green-500" />
-              <h2 className="text-lg font-semibold text-slate-100">Cargas en Proceso</h2>
-            </div>
-            
-            <div className="space-y-4">
-              {viajes.filter(v => ['llamado_carga', 'cargando'].includes(v.estado_viaje)).map((v) => (
-                <div key={v.id} className="border border-slate-600 rounded-lg p-4 hover:border-slate-500 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="font-semibold text-slate-100">{v.numero_viaje}</p>
-                      <p className="text-sm text-slate-300">{v.producto}</p>
-                      <p className="text-sm text-slate-400">Peso Estimado: {v.peso_estimado / 1000} tons</p>
-                      <p className="text-sm text-slate-400">CamiÃ³n: {v.camion.patente} - {v.camion.marca}</p>
-                      <p className="text-sm text-slate-400">Chofer: {v.chofer.nombre}</p>
-                    </div>
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                      v.estado_viaje === 'llamado_carga' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-green-900/30 text-green-400'
-                    }`}>
-                      {v.estado_viaje === 'llamado_carga' ? 'LLAMADO A CARGA' : 'CARGANDO'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex space-x-3">
-                    {v.estado_viaje === 'llamado_carga' && (
-                      <button
-                        onClick={() => iniciarCarga(v.id)}
-                        disabled={loading}
-                        className="bg-green-600 text-green-100 px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
-                      >
-                        <PlayIcon className="h-4 w-4" />
-                        <span>Iniciar Carga</span>
-                      </button>
-                    )}
-                    
-                    {v.estado_viaje === 'cargando' && (
-                      <button
-                        onClick={() => cerrarCarga()}
-                        disabled={loading}
-                        className="bg-purple-600 text-purple-100 px-4 py-2 rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
-                      >
-                        Cerrar Carga
-                      </button>
-                    )}
+                  <div>
+                    <label className="text-xs text-slate-500">Vehículo</label>
+                    <p className="text-slate-200">{viajeEscaneado.camion.patente} - {viajeEscaneado.camion.marca}</p>
                   </div>
                 </div>
-              ))}
-              
-              {viajes.filter(v => ['llamado_carga', 'cargando'].includes(v.estado_viaje)).length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-slate-400">No hay cargas en proceso en este momento</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-slate-500">Chofer</label>
+                    <p className="text-slate-200">{viajeEscaneado.chofer.nombre}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500">DNI</label>
+                    <p className="text-slate-200">{viajeEscaneado.chofer.dni}</p>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Detalle del viaje escaneado */}
-      {viaje && (
-        <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700 p-6 mt-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-100">Viaje Encontrado</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-300">NÃºmero de Viaje</label>
-                <p className="text-lg font-semibold text-slate-100">{viaje.numero_viaje}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Producto</label>
-                <p className="text-slate-100">{viaje.producto}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Peso Estimado</label>
-                <p className="text-slate-100">{viaje.peso_estimado / 1000} toneladas</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Estado Actual</label>
-                <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
-                  viaje.estado_viaje === 'ingresado_planta' ? 'bg-blue-900/30 text-blue-400' :
-                  viaje.estado_viaje === 'llamado_carga' ? 'bg-yellow-900/30 text-yellow-400' :
-                  viaje.estado_viaje === 'cargando' ? 'bg-green-900/30 text-green-400' :
-                  'bg-gray-900/30 text-gray-400'
-                }`}>
-                  {viaje.estado_viaje.replace('_', ' ').toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300">VehÃ­culo</label>
-                <p className="text-slate-100">{viaje.camion.patente} - {viaje.camion.marca}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Chofer</label>
-                <p className="text-slate-100">{viaje.chofer.nombre}</p>
-              </div>
-            </div>
-          </div>
 
-          <div className="mt-6 flex space-x-4">
-            {viaje.estado_viaje === 'ingresado_planta' && (
-              <button
-                onClick={() => llamarACarga(viaje.id)}
-                disabled={loading}
-                className="bg-yellow-600 text-yellow-100 px-6 py-3 rounded-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center space-x-2"
-              >
-                <PhoneIcon className="h-5 w-5" />
-                <span>Llamar a Carga</span>
-              </button>
-            )}
-            
-            {viaje.estado_viaje === 'llamado_carga' && (
-              <button
-                onClick={() => iniciarCarga(viaje.id)}
-                disabled={loading}
-                className="bg-green-600 text-green-100 px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
-              >
-                <PlayIcon className="h-5 w-5" />
-                <span>Iniciar Carga</span>
-              </button>
-            )}
-            
-            {viaje.estado_viaje === 'cargando' && (
-              <button
-                onClick={() => cerrarCarga()}
-                disabled={loading}
-                className="bg-purple-600 text-purple-100 px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
-              >
-                <CheckCircleIcon className="h-5 w-5" />
-                <span>Cerrar Carga</span>
-              </button>
-            )}
-            
-            <button
-              onClick={resetForm}
-              className="px-6 py-3 text-slate-300 hover:text-slate-100 border border-slate-600 rounded-lg hover:bg-slate-700"
-            >
-              Nuevo Escaneo
-            </button>
-          </div>
+              {/* Acciones del viaje escaneado */}
+              <div className="pt-4 border-t border-slate-700 flex gap-3 flex-wrap">
+                {renderAcciones(viajeEscaneado)}
+                <button
+                  onClick={() => {
+                    setViajeEscaneado(null);
+                    setQrCode('');
+                  }}
+                  className="px-4 py-2 text-slate-400 hover:text-slate-200 border border-slate-600 rounded-lg text-sm transition-colors"
+                >
+                  Nuevo Escaneo
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Advertencia: viaje fuera del ámbito supervisor */}
+          {viajeEscaneado && !ESTADOS_SUPERVISOR.includes(viajeEscaneado.estado) && viajeEscaneado.estado_carga !== 'cargado' && (
+            <div className="bg-yellow-900/20 border border-yellow-800 rounded-xl p-4 flex items-start gap-3">
+              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-yellow-400 font-medium text-sm">Viaje fuera del ámbito del Supervisor</p>
+                <p className="text-yellow-500/80 text-xs mt-1">
+                  Estado actual: {viajeEscaneado.estado}. Este viaje no está en la etapa de carga.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </MainLayout>

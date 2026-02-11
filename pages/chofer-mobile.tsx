@@ -19,8 +19,10 @@ import {
   Bars3Icon,
   QrCodeIcon,
   DocumentTextIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
+import { SubirDocumento, ListaDocumentos } from '../components/Documentacion';
 
 interface ViajeChofer {
   id: string;
@@ -75,8 +77,18 @@ export default function ChoferMobile() {
   const [lastLocationSent, setLastLocationSent] = useState<Date | null>(null);
   const [sendingLocation, setSendingLocation] = useState(false);
   const [activeTab, setActiveTab] = useState<'viajes' | 'incidencias' | 'perfil'>('viajes');
+
+  // Permitir navegación directa a un tab vía query param (?tab=perfil)
+  useEffect(() => {
+    const tab = router.query.tab as string;
+    if (tab === 'perfil' || tab === 'incidencias' || tab === 'viajes') {
+      setActiveTab(tab);
+    }
+  }, [router.query.tab]);
   const [showMenuHamburguesa, setShowMenuHamburguesa] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showUploadDoc, setShowUploadDoc] = useState(false);
+  const [docRefreshKey, setDocRefreshKey] = useState(0);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   
   // Modal de incidencias
@@ -1439,6 +1451,54 @@ export default function ChoferMobile() {
                 <span className="text-cyan-400 font-bold text-lg">{viajes.length}</span>
               </div>
             </div>
+          </div>
+
+          {/* Mis Documentos */}
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                <DocumentTextIcon className="h-5 w-5 text-cyan-400" />
+                Mis Documentos
+              </h4>
+              {choferData?.id && choferData?.empresa_id && (
+                <button
+                  onClick={() => setShowUploadDoc(!showUploadDoc)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded-lg transition-colors"
+                >
+                  <ArrowUpTrayIcon className="h-4 w-4" />
+                  Subir
+                </button>
+              )}
+            </div>
+
+            {/* Formulario de upload */}
+            {showUploadDoc && choferData?.id && choferData?.empresa_id && (
+              <div className="mb-4">
+                <SubirDocumento
+                  entidadTipo="chofer"
+                  entidadId={choferData.id}
+                  empresaId={choferData.empresa_id}
+                  onUploadSuccess={() => {
+                    setShowUploadDoc(false);
+                    setDocRefreshKey(k => k + 1);
+                  }}
+                  onCancel={() => setShowUploadDoc(false)}
+                />
+              </div>
+            )}
+
+            {/* Lista de documentos */}
+            {choferData?.id ? (
+              <div key={docRefreshKey}>
+                <ListaDocumentos
+                  entidadTipo="chofer"
+                  entidadId={choferData.id}
+                  showActions={false}
+                />
+              </div>
+            ) : (
+              <p className="text-slate-500 text-sm text-center py-4">Cargando documentos...</p>
+            )}
           </div>
 
           {/* Botón GPS destacado */}

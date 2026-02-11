@@ -2,7 +2,7 @@
 
 **Para:** GitHub Copilot  
 **Objetivo:** Arrancar cada sesión de trabajo de forma autónoma y estructurada  
-**Última actualización:** 17-Dic-2025
+**Última actualización:** 08-Feb-2026
 
 ---
 
@@ -76,6 +76,12 @@ Este documento contiene:
 ✅ Código de referencia que funciona
 
 **Regla de Oro:** Copiar patrón de `pages/crear-despacho.tsx` líneas 1210-1252
+
+🎉 **MIGRACIÓN COMPLETADA (05-Feb-2026):** Nomenclatura 100% unificada
+- ✅ Sistema GPS consolidado en `ubicaciones_choferes`
+- ✅ Convención única: `chofer_id`, `camion_id`, `acoplado_id`  
+- ✅ TypeScript protege contra nomenclatura incorrecta
+- ✅ 0 posibilidad de errores de duplicación futuros
 
 He leído el documento. Listo para trabajar con estructura oficial. ✅
 ```
@@ -242,7 +248,87 @@ manage_todo_list({
 
 ---
 
-## 📁 DONDE GUARDAR DOCUMENTOS
+## � REGLAS DE SEGURIDAD SQL — OBLIGATORIAS
+
+> **Contexto:** El 08-Feb-2026 se detectaron vulnerabilidades graves en funciones SECURITY DEFINER
+> que aceptaban UUID de usuario como parámetro, permitiendo a cualquier usuario autenticado
+> impersonar a otro. Se aplicó la migración 044 para corregirlas. Estas reglas existen para
+> que NUNCA se repita este tipo de error.
+
+### 🚨 AL CREAR FUNCIONES SQL:
+
+#### 1. NUNCA aceptar UUID de usuario como parámetro en funciones SECURITY DEFINER
+
+```sql
+-- ❌ PROHIBIDO - Un atacante puede pasar el UUID de otro usuario
+CREATE FUNCTION mi_funcion(user_uuid UUID)
+SECURITY DEFINER AS $$
+  SELECT * FROM datos WHERE user_id = user_uuid;
+$$;
+
+-- ✅ CORRECTO - Siempre usar auth.uid() internamente
+CREATE FUNCTION mi_funcion()
+SECURITY DEFINER AS $$
+DECLARE
+  current_user_id UUID := auth.uid();
+BEGIN
+  IF current_user_id IS NULL THEN RETURN; END IF;
+  RETURN QUERY SELECT * FROM datos WHERE user_id = current_user_id;
+END;
+$$;
+```
+
+#### 2. SIEMPRE agregar REVOKE + GRANT después de crear una función SECURITY DEFINER
+
+```sql
+-- Inmediatamente después de CREATE FUNCTION:
+REVOKE ALL ON FUNCTION nombre_funcion() FROM public, anon;
+GRANT EXECUTE ON FUNCTION nombre_funcion() TO authenticated;
+```
+
+Sin esto, **cualquier persona** puede llamar a la función directamente desde la API de Supabase.
+
+#### 3. NUNCA dejar funciones de test/debug accesibles
+
+Si se crean funciones auxiliares para pruebas, agregar `DROP FUNCTION` al final del script
+o restringirlas exclusivamente a `service_role`.
+
+#### 4. Para evitar recursión en políticas RLS
+
+Cuando una política RLS necesite hacer JOIN con tablas protegidas por RLS, usar una función
+`SECURITY DEFINER` **sin parámetros de identidad** que use `auth.uid()` internamente.
+
+#### 5. Los parámetros de una función RPC son controlados por el cliente
+
+**Solo `auth.uid()` es confiable** para identificar al usuario que hace la llamada.
+Los parámetros los puede modificar cualquier persona desde el navegador.
+
+#### 6. Incluir verificación al final de cada migración SQL
+
+```sql
+-- Al final de cada archivo de migración:
+SELECT proname, pronargs, prosecdef
+FROM pg_proc
+WHERE proname IN ('funcion_1', 'funcion_2');
+-- Para confirmar que se crearon correctamente
+```
+
+### 📋 Checklist antes de ejecutar cualquier SQL:
+
+```
+- [ ] ¿Alguna función SECURITY DEFINER acepta UUID de usuario? → NO debe
+- [ ] ¿Todas las funciones SECURITY DEFINER tienen REVOKE? → SÍ debe
+- [ ] ¿Hay funciones de test que quedan accesibles? → NO debe
+- [ ] ¿Se usa auth.uid() en vez de parámetros para identidad? → SÍ debe
+- [ ] ¿Se incluye bloque de verificación al final? → SÍ debe
+```
+
+> **Referencia:** Migración `sql/migrations/044_seguridad_revoke_funciones.sql`
+> contiene el patrón correcto implementado.
+
+---
+
+## �📁 DONDE GUARDAR DOCUMENTOS
 
 ### Durante la sesión:
 
@@ -373,6 +459,7 @@ Una vez completada la sesión, ejecuta:
 
 ---
 
-*Última actualización: 17-Dic-2025*  
+*Última actualización: 08-Feb-2026*  
 *Owner: Jary (usuario no-técnico)*  
-*Builder: GitHub Copilot (tú)*
+*Builder: GitHub Copilot (tú)*  
+*Seguridad SQL revisada por: GitHub Copilot (Opus) — 08-Feb-2026*

@@ -112,8 +112,8 @@ export default function SuperAdminDashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded p-2 text-white">
-          <h1 className="text-3xl font-bold mb-2">AdministraciÃ³n Central Nodexia</h1>
-          <p className="text-purple-100">Sistema de gestiÃ³n multi-tenant</p>
+          <h1 className="text-3xl font-bold mb-2">Administración Central Nodexia</h1>
+          <p className="text-purple-100">Sistema de gestión multi-tenant</p>
         </div>
 
         {/* Stats Grid */}
@@ -179,14 +179,14 @@ export default function SuperAdminDashboard() {
 
         {/* Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-          {/* GestiÃ³n de Empresas */}
+          {/* Gestión de Empresas */}
           <button
             onClick={() => router.push('/admin/empresas')}
             className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 text-left group"
           >
             <div className="flex items-center justify-between mb-4">
               <BuildingOfficeIcon className="h-10 w-10 text-blue-600 group-hover:text-blue-700" />
-              <span className="text-blue-600 text-sm font-medium">Gestionar â†’</span>
+              <span className="text-blue-600 text-sm font-medium">Gestionar →</span>
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Empresas</h3>
             <p className="text-sm text-gray-600">
@@ -194,14 +194,14 @@ export default function SuperAdminDashboard() {
             </p>
           </button>
 
-          {/* GestiÃ³n de Usuarios */}
+          {/* Gestión de Usuarios */}
           <button
             onClick={() => router.push('/admin/usuarios')}
             className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 text-left group"
           >
             <div className="flex items-center justify-between mb-4">
               <UsersIcon className="h-10 w-10 text-green-600 group-hover:text-green-700" />
-              <span className="text-green-600 text-sm font-medium">Gestionar â†’</span>
+              <span className="text-green-600 text-sm font-medium">Gestionar →</span>
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Usuarios</h3>
             <p className="text-sm text-gray-600">
@@ -216,11 +216,11 @@ export default function SuperAdminDashboard() {
           >
             <div className="flex items-center justify-between mb-4">
               <CreditCardIcon className="h-10 w-10 text-purple-600 group-hover:text-purple-700" />
-              <span className="text-purple-600 text-sm font-medium">Gestionar â†’</span>
+              <span className="text-purple-600 text-sm font-medium">Gestionar →</span>
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Suscripciones</h3>
             <p className="text-sm text-gray-600">
-              Planes, facturaciÃ³n y lÃ­mites de uso por empresa
+              Planes, facturación y límites de uso por empresa
             </p>
           </button>
 
@@ -248,26 +248,26 @@ export default function SuperAdminDashboard() {
           >
             <div className="flex items-center justify-between mb-4">
               <ChartBarIcon className="h-10 w-10 text-orange-600 group-hover:text-orange-700" />
-              <span className="text-orange-600 text-sm font-medium">Ver â†’</span>
+              <span className="text-orange-600 text-sm font-medium">Ver →</span>
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">AnalÃ­ticas Globales</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Analíticas Globales</h3>
             <p className="text-sm text-gray-600">
-              MÃ©tricas y estadÃ­sticas de toda la red Nodexia
+              Métricas y estadísticas de toda la red Nodexia
             </p>
           </button>
 
-          {/* ConfiguraciÃ³n */}
+          {/* Configuración */}
           <button
             onClick={() => router.push('/admin/configuracion')}
             className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 text-left group"
           >
             <div className="flex items-center justify-between mb-4">
               <Cog6ToothIcon className="h-10 w-10 text-gray-600 group-hover:text-gray-700" />
-              <span className="text-gray-600 text-sm font-medium">Configurar â†’</span>
+              <span className="text-gray-600 text-sm font-medium">Configurar →</span>
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">ConfiguraciÃ³n</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Configuración</h3>
             <p className="text-sm text-gray-600">
-              ParÃ¡metros generales del sistema y ajustes avanzados
+              Parámetros generales del sistema y ajustes avanzados
             </p>
           </button>
 

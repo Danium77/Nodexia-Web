@@ -70,7 +70,7 @@ const Dashboard = () => {
       
       case 'administrativo':
         setHasRedirected(true);
-        router.replace('/dashboard');
+        router.replace('/administrativo/dashboard');
         break;
       
       case 'control_acceso':

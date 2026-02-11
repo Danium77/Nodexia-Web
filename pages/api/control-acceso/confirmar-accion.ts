@@ -3,6 +3,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import type { EstadoUnidadViaje } from '../../../lib/types';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -15,98 +16,102 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { qr_code, accion, usuario_id, observaciones } = req.body;
+    const { viaje_id, accion, usuario_id, observaciones, planta_id } = req.body;
 
-    if (!qr_code || !accion || !usuario_id) {
+    if (!viaje_id || !accion || !usuario_id) {
       return res.status(400).json({ 
         error: 'Datos requeridos faltantes',
-        required: ['qr_code', 'accion', 'usuario_id']
+        required: ['viaje_id', 'accion', 'usuario_id']
       });
     }
 
-    // 1. Obtener el viaje
+    // 1. Obtener el viaje desde viajes_despacho
     const { data: viaje, error: viajeError } = await supabaseAdmin
-      .from('viajes')
-      .select('*')
-      .eq('qr_code', qr_code)
+      .from('viajes_despacho')
+      .select(`
+        *,
+        despacho:despachos!inner(
+          id,
+          pedido_id,
+          origen,
+          destino
+        )
+      `)
+      .eq('id', viaje_id)
       .single();
 
     if (viajeError || !viaje) {
       return res.status(404).json({ error: 'Viaje no encontrado' });
     }
 
-    let nuevoEstado;
-    let campoFecha;
-    let campoUsuario;
-
+    const estadoActual = viaje.estado_unidad || viaje.estado;
+    let nuevoEstado: EstadoUnidadViaje;
+    
+    // Determinar el nuevo estado según el estado actual y acción
     if (accion === 'ingreso') {
-      // Validar que está en estado correcto
-      if (viaje.estado_viaje !== 'confirmado') {
+      if (estadoActual === 'en_transito_origen') {
+        nuevoEstado = 'ingresado_origen';
+      } else if (estadoActual === 'en_transito_destino') {
+        nuevoEstado = 'ingresado_destino';
+      } else {
         return res.status(400).json({
-          error: `No se puede ingresar un viaje en estado: ${viaje.estado_viaje}`
+          error: `No se puede ingresar un viaje en estado: ${estadoActual}`
         });
       }
-      
-      nuevoEstado = 'ingresado_planta';
-      campoFecha = 'fecha_ingreso_planta';
-      campoUsuario = 'ingreso_por';
-      
     } else if (accion === 'egreso') {
-      // Validar que está listo para egresar
-      if (!['carga_finalizada', 'listo_egreso'].includes(viaje.estado_viaje)) {
+      if (estadoActual === 'egreso_origen') {
+        nuevoEstado = 'en_transito_destino';
+      } else if (estadoActual === 'vacio') {
+        nuevoEstado = 'disponible';
+      } else {
         return res.status(400).json({
-          error: `No se puede egresar un viaje en estado: ${viaje.estado_viaje}`
+          error: `No se puede egresar un viaje en estado: ${estadoActual}`
         });
       }
-      
-      nuevoEstado = 'egresado_planta';
-      campoFecha = 'fecha_egreso_planta';
-      campoUsuario = 'egreso_por';
+    } else {
+      return res.status(400).json({
+        error: 'Acción no válida. Use "ingreso" o "egreso"'
+      });
     }
 
-    // 2. Actualizar el viaje con el nuevo estado
-    const updateData: any = {
-      estado_viaje: nuevoEstado,
-      updated_at: new Date().toISOString()
-    };
+    // 2. Usar la función RPC validar_transicion_estado_unidad para actualizar el estado
+    const { data: resultado, error: transicionError } = await supabaseAdmin
+      .rpc('validar_transicion_estado_unidad', {
+        p_viaje_id: viaje_id,
+        p_nuevo_estado: nuevoEstado,
+        p_observaciones: observaciones || `${accion === 'ingreso' ? 'Ingreso' : 'Egreso'} confirmado por Control de Acceso`
+      });
 
-    updateData[campoFecha as string] = new Date().toISOString();
-    updateData[campoUsuario as string] = usuario_id;
-
-    if (observaciones) {
-      updateData.observaciones = (viaje.observaciones ? viaje.observaciones + '\n' : '') + 
-        `[${accion.toUpperCase()}] ${observaciones}`;
+    if (transicionError || !resultado) {
+      console.error('Error en transición de estado:', transicionError);
+      return res.status(400).json({
+        error: 'No se pudo actualizar el estado',
+        details: transicionError?.message || 'Transición no válida'
+      });
     }
 
-    const { error: updateError } = await supabaseAdmin
-      .from('viajes')
-      .update(updateData)
-      .eq('id', viaje.id)
-      .select()
-      .single();
+    // 3. Crear registro de acceso
+    const { error: registroError } = await supabaseAdmin
+      .from('registros_acceso')
+      .insert({
+        viaje_id: viaje_id,
+        tipo: accion as 'ingreso' | 'egreso',
+        usuario_id: usuario_id,
+        observaciones: observaciones || `${accion === 'ingreso' ? 'Ingreso' : 'Egreso'} confirmado`,
+        timestamp: new Date().toISOString()
+      });
 
-    if (updateError) {
-      throw updateError;
+    if (registroError) {
+      console.error('Error creando registro de acceso:', registroError);
+      // No fallar la operación por esto
     }
 
-    // 3. Si es ingreso, cambiar automáticamente a "en_playa_esperando"
-    if (accion === 'ingreso') {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Pequeña pausa
-      
-      await supabaseAdmin
-        .from('viajes')
-        .update({ 
-          estado_viaje: 'en_playa_esperando',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', viaje.id);
+    // 4. Crear notificación para el chofer (opcional)
+    if (viaje.chofer_id) {
+      await crearNotificacionChofer(viaje.chofer_id, viaje, accion, nuevoEstado).catch(err => {
+        console.error('Error creando notificación:', err);
+      });
     }
-
-    // 4. Crear notificación para el chofer
-    await crearNotificacionChofer(viaje, accion, nuevoEstado || '');
-
-    // 5. Crear log de auditoría (opcional)
-    await crearLogAuditoria(viaje.id, accion, usuario_id, nuevoEstado || '');
 
     return res.status(200).json({
       success: true,
@@ -114,8 +119,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: {
         viaje_id: viaje.id,
         numero_viaje: viaje.numero_viaje,
-        estado_anterior: viaje.estado_viaje,
-        estado_nuevo: accion === 'ingreso' ? 'en_playa_esperando' : nuevoEstado,
+        estado_anterior: estadoActual,
+        estado_nuevo: nuevoEstado,
         timestamp: new Date().toISOString(),
         usuario_responsable: usuario_id
       }
@@ -130,13 +135,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function crearNotificacionChofer(viaje: any, accion: string, nuevoEstado: string) {
+async function crearNotificacionChofer(choferId: string, viaje: any, accion: string, nuevoEstado: string) {
   try {
-    // Buscar el usuario chofer asociado al viaje
+    // Buscar el usuario chofer
     const { data: chofer } = await supabaseAdmin
       .from('choferes')
       .select('email')
-      .eq('id', viaje.chofer_id)
+      .eq('id', choferId)
       .single();
 
     if (!chofer?.email) return;
@@ -145,17 +150,27 @@ async function crearNotificacionChofer(viaje: any, accion: string, nuevoEstado: 
       .from('usuarios')
       .select('id')
       .eq('email', chofer.email)
-      .single();
+      .maybeSingle();
 
     if (!usuarioChofer) return;
 
     let titulo, mensaje;
     if (accion === 'ingreso') {
-      titulo = 'Ingreso Confirmado';
-      mensaje = `Su camión ha ingresado a la planta. Viaje: ${viaje.numero_viaje}. Diríjase a la playa de estacionamiento.`;
+      if (nuevoEstado === 'ingresado_origen') {
+        titulo = 'Ingreso a Planta Origen';
+        mensaje = `Ha ingresado a planta de origen. Viaje: ${viaje.numero_viaje}. Aguarde instrucciones de carga.`;
+      } else {
+        titulo = 'Ingreso a Destino';
+        mensaje = `Ha ingresado a planta destino. Viaje: ${viaje.numero_viaje}. Aguarde instrucciones de descarga.`;
+      }
     } else {
-      titulo = 'Egreso Autorizado';
-      mensaje = `Puede egresar de la planta. Viaje: ${viaje.numero_viaje} completado exitosamente.`;
+      if (nuevoEstado === 'en_transito_destino') {
+        titulo = 'Egreso Autorizado - Rumbo a Destino';
+        mensaje = `Puede egresar de planta. Diríjase al destino. Viaje: ${viaje.numero_viaje}`;
+      } else {
+        titulo = 'Viaje Completado';
+        mensaje = `Viaje ${viaje.numero_viaje} completado exitosamente. Unidad disponible.`;
+      }
     }
 
     await supabaseAdmin
@@ -174,21 +189,5 @@ async function crearNotificacionChofer(viaje: any, accion: string, nuevoEstado: 
 
   } catch (error) {
     console.error('Error creando notificación chofer:', error);
-    // No fallar la operación principal por esto
-  }
-}
-
-async function crearLogAuditoria(viajeId: string, accion: string, usuarioId: string, nuevoEstado: string) {
-  try {
-    // En una implementación completa, tendríamos una tabla de logs
-    console.log('LOG AUDITORÍA:', {
-      viaje_id: viajeId,
-      accion,
-      usuario_id: usuarioId,
-      nuevo_estado: nuevoEstado,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error creando log auditoría:', error);
   }
 }

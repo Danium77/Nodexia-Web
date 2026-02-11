@@ -1,0 +1,454 @@
+﻿// pages/estados-camiones.tsx
+// Panel de estados generales de todos los camiones
+
+import { useState, useEffect } from 'react';
+import { TruckIcon, ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import MainLayout from '../components/layout/MainLayout';
+import { supabase } from '../lib/supabaseClient';
+import { useUserRole } from '../lib/contexts/UserRoleContext';
+
+interface ViajeEstado {
+  id: string;
+  numero_viaje: string;
+  estado_unidad: string;
+  producto?: string;
+  cantidad?: number;
+  unidad_medida?: string;
+  chofer_nombre?: string;
+  chofer_apellido?: string;
+  chofer_dni?: string;
+  camion_patente?: string;
+  camion_marca?: string;
+  camion_modelo?: string;
+  fecha_ingreso?: string;
+  hora_estimada_salida?: string;
+  created_at: string;
+}
+
+type TabEstado = 'todos' | 'confirmado' | 'ingresado_planta' | 'llamado_carga' | 'cargando' | 'carga_finalizada' | 'egresado_planta';
+
+export default function EstadosCamiones() {
+  const { userEmpresas } = useUserRole();
+  const [viajes, setViajes] = useState<ViajeEstado[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tabActivo, setTabActivo] = useState<TabEstado>('todos');
+
+  useEffect(() => {
+    cargarViajes();
+  }, [userEmpresas]);
+
+  const cargarViajes = async () => {
+    try {
+      setLoading(true);
+
+      if (!userEmpresas || userEmpresas.length === 0) {
+        setViajes([]);
+        return;
+      }
+
+      const empresaIds = userEmpresas.map(ue => ue.empresa.id);
+
+      // Consultar viajes activos con datos de chofer y camión
+      const { data, error } = await supabase
+        .from('viajes_despacho')
+        .select(`
+          id,
+          numero_viaje,
+          estado_unidad,
+          producto,
+          cantidad,
+          unidad_medida,
+          chofer_nombre,
+          chofer_apellido,
+          chofer_dni,
+          camion_patente,
+          camion_marca,
+          camion_modelo,
+          fecha_ingreso,
+          hora_estimada_salida,
+          created_at
+        `)
+        .in('empresa_id', empresaIds)
+        .in('estado_unidad', [
+          'camion_asignado',
+          'confirmado_chofer',
+          'en_transito_origen',
+          'ingresado_origen',
+          'en_playa_origen',
+          'llamado_carga',
+          'cargando',
+          'egreso_origen'
+        ])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setViajes(data || []);
+    } catch (error: any) {
+      console.error('Error cargando viajes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mapear estados del sistema a estados simplificados para UI
+  const mapearEstadoUI = (estadoUnidad: string): string => {
+    switch (estadoUnidad) {
+      case 'camion_asignado':
+      case 'confirmado_chofer':
+        return 'confirmado';
+      case 'en_transito_origen':
+      case 'ingresado_origen':
+      case 'en_playa_origen':
+        return 'ingresado_planta';
+      case 'llamado_carga':
+        return 'llamado_carga';
+      case 'cargando':
+        return 'cargando';
+      case 'egreso_origen':
+        return 'carga_finalizada';
+      default:
+        return 'confirmado';
+    }
+  };
+
+  // Filtrar viajes según tab activo
+  const viajesFiltrados = tabActivo === 'todos' 
+    ? viajes 
+    : viajes.filter(v => mapearEstadoUI(v.estado_unidad) === tabActivo);
+
+  // Función para obtener el color según el estado
+  const getEstadoColor = (estado: string) => {
+    switch (estado) {
+      case 'confirmado':
+        return 'text-blue-400 bg-blue-900/30';
+      case 'ingresado_planta':
+        return 'text-green-400 bg-green-900/30';
+      case 'llamado_carga':
+        return 'text-yellow-400 bg-yellow-900/30';
+      case 'cargando':
+        return 'text-orange-400 bg-orange-900/30';
+      case 'carga_finalizada':
+        return 'text-purple-400 bg-purple-900/30';
+      case 'egresado_planta':
+        return 'text-gray-400 bg-gray-900/30';
+      default:
+        return 'text-gray-400 bg-gray-900/30';
+    }
+  };
+
+  // Función para obtener el texto del estado
+  const getEstadoTexto = (estado: string) => {
+    switch (estado) {
+      case 'confirmado':
+        return 'Por Arribar';
+      case 'ingresado_planta':
+        return 'En Planta';
+      case 'llamado_carga':
+        return 'Llamado a Carga';
+      case 'cargando':
+        return 'Cargando';
+      case 'carga_finalizada':
+        return 'Listo para Salir';
+      case 'egresado_planta':
+        return 'Ha Salido';
+      default:
+        return estado;
+    }
+  };
+
+  // Función para obtener el ícono según el estado
+  const getEstadoIcon = (estado: string) => {
+    switch (estado) {
+      case 'confirmado':
+        return <ClockIcon className="h-5 w-5" />;
+      case 'ingresado_planta':
+        return <TruckIcon className="h-5 w-5" />;
+      case 'llamado_carga':
+      case 'cargando':
+        return <ExclamationTriangleIcon className="h-5 w-5" />;
+      case 'carga_finalizada':
+        return <CheckCircleIcon className="h-5 w-5" />;
+      case 'egresado_planta':
+        return <ArrowRightOnRectangleIcon className="h-5 w-5" />;
+      default:
+        return <TruckIcon className="h-5 w-5" />;
+    }
+  };
+
+  // Contar estados para el resumen
+  const estadosCount = {
+    confirmado: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'confirmado').length,
+    ingresado_planta: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'ingresado_planta').length,
+    llamado_carga: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'llamado_carga').length,
+    cargando: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'cargando').length,
+    carga_finalizada: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'carga_finalizada').length,
+    egresado_planta: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'egresado_planta').length,
+  };
+
+  if (loading) {
+    return (
+      <MainLayout pageTitle="Estados de Camiones">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto"></div>
+            <p className="text-slate-300 mt-4">Cargando viajes...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout pageTitle="Estados de Camiones">
+      {/* Header específico de la página */}
+      <div className="mb-6">
+        <div className="flex items-center space-x-3">
+          <div className="p-3 bg-indigo-600 rounded-xl">
+            <TruckIcon className="h-8 w-8 text-indigo-100" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-100">Monitor General de Vehículos</h1>
+            <p className="text-slate-300 mt-1">
+              Estados en tiempo real de todos los camiones en planta
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Resumen de Estados - Clickeables */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-1 mb-2">
+        <div 
+          onClick={() => setTabActivo('todos')}
+          className={`cursor-pointer rounded-lg shadow-sm border p-4 transition-all ${
+            tabActivo === 'todos' 
+              ? 'bg-cyan-700 border-cyan-500 ring-2 ring-cyan-400' 
+              : 'bg-slate-800 border-slate-700 hover:border-cyan-600'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-cyan-300">Todos</p>
+              <p className="text-2xl font-bold text-cyan-200">{viajes.length}</p>
+            </div>
+            <TruckIcon className="h-8 w-8 text-cyan-400" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setTabActivo('confirmado')}
+          className={`cursor-pointer rounded-lg shadow-sm border p-4 transition-all ${
+            tabActivo === 'confirmado' 
+              ? 'bg-blue-700 border-blue-500 ring-2 ring-blue-400' 
+              : 'bg-slate-800 border-slate-700 hover:border-blue-600'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-400">Por Arribar</p>
+              <p className="text-2xl font-bold text-blue-300">{estadosCount.confirmado}</p>
+            </div>
+            <ClockIcon className="h-8 w-8 text-blue-500" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setTabActivo('ingresado_planta')}
+          className={`cursor-pointer rounded-lg shadow-sm border p-4 transition-all ${
+            tabActivo === 'ingresado_planta' 
+              ? 'bg-green-700 border-green-500 ring-2 ring-green-400' 
+              : 'bg-slate-800 border-slate-700 hover:border-green-600'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-400">En Planta</p>
+              <p className="text-2xl font-bold text-green-300">{estadosCount.ingresado_planta}</p>
+            </div>
+            <TruckIcon className="h-8 w-8 text-green-500" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setTabActivo('llamado_carga')}
+          className={`cursor-pointer rounded-lg shadow-sm border p-4 transition-all ${
+            tabActivo === 'llamado_carga' 
+              ? 'bg-yellow-700 border-yellow-500 ring-2 ring-yellow-400' 
+              : 'bg-slate-800 border-slate-700 hover:border-yellow-600'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-yellow-400">Llamado Carga</p>
+              <p className="text-2xl font-bold text-yellow-300">{estadosCount.llamado_carga}</p>
+            </div>
+            <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setTabActivo('cargando')}
+          className={`cursor-pointer rounded-lg shadow-sm border p-4 transition-all ${
+            tabActivo === 'cargando' 
+              ? 'bg-orange-700 border-orange-500 ring-2 ring-orange-400' 
+              : 'bg-slate-800 border-slate-700 hover:border-orange-600'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-orange-400">Cargando</p>
+              <p className="text-2xl font-bold text-orange-300">{estadosCount.cargando}</p>
+            </div>
+            <ExclamationTriangleIcon className="h-8 w-8 text-orange-500" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setTabActivo('carga_finalizada')}
+          className={`cursor-pointer rounded-lg shadow-sm border p-4 transition-all ${
+            tabActivo === 'carga_finalizada' 
+              ? 'bg-purple-700 border-purple-500 ring-2 ring-purple-400' 
+              : 'bg-slate-800 border-slate-700 hover:border-purple-600'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-400">Listo Salir</p>
+              <p className="text-2xl font-bold text-purple-300">{estadosCount.carga_finalizada}</p>
+            </div>
+            <CheckCircleIcon className="h-8 w-8 text-purple-500" />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setTabActivo('egresado_planta')}
+          className={`cursor-pointer rounded-lg shadow-sm border p-4 transition-all ${
+            tabActivo === 'egresado_planta' 
+              ? 'bg-gray-700 border-gray-500 ring-2 ring-gray-400' 
+              : 'bg-slate-800 border-slate-700 hover:border-gray-600'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-400">Ha Salido</p>
+              <p className="text-2xl font-bold text-gray-300">{estadosCount.egresado_planta}</p>
+            </div>
+            <ArrowRightOnRectangleIcon className="h-8 w-8 text-gray-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabla de Viajes Filtrados */}
+      <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700">
+        <div className="px-6 py-4 border-b border-slate-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-slate-100">
+                {tabActivo === 'todos' ? 'Todos los Vehículos' : `Vehículos - ${getEstadoTexto(tabActivo)}`}
+              </h3>
+              <p className="text-sm text-slate-400 mt-1">
+                {viajesFiltrados.length} {viajesFiltrados.length === 1 ? 'vehículo' : 'vehículos'}
+              </p>
+            </div>
+            <button
+              onClick={cargarViajes}
+              className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+            >
+              🔄 Actualizar
+            </button>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          {viajesFiltrados.length === 0 ? (
+            <div className="text-center py-12">
+              <TruckIcon className="h-16 w-16 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400 text-lg">No hay vehículos en este estado</p>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-slate-700">
+              <thead className="bg-slate-900">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    Viaje
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    Chofer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    Vehículo
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    Carga
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    Ingreso
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    Est. Salida
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-slate-800 divide-y divide-slate-700">
+                {viajesFiltrados.map((viaje) => {
+                  const estadoUI = mapearEstadoUI(viaje.estado_unidad);
+                  const cargaTexto = viaje.producto 
+                    ? `${viaje.producto}${viaje.cantidad ? ` - ${viaje.cantidad} ${viaje.unidad_medida || 'ton'}` : ''}`
+                    : '-';
+                  
+                  return (
+                    <tr key={viaje.id} className="hover:bg-slate-700">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEstadoColor(estadoUI)}`}>
+                          <span className="mr-1.5">{getEstadoIcon(estadoUI)}</span>
+                          {getEstadoTexto(estadoUI)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-slate-100">{viaje.numero_viaje}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-100">
+                          {viaje.chofer_nombre && viaje.chofer_apellido 
+                            ? `${viaje.chofer_nombre} ${viaje.chofer_apellido}` 
+                            : '-'}
+                        </div>
+                        {viaje.chofer_dni && (
+                          <div className="text-sm text-slate-400">DNI: {viaje.chofer_dni}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-100">{viaje.camion_patente || '-'}</div>
+                        {viaje.camion_marca && (
+                          <div className="text-sm text-slate-400">
+                            {viaje.camion_marca} {viaje.camion_modelo || ''}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-100">{cargaTexto}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-100">
+                          {viaje.fecha_ingreso || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-100">
+                          {viaje.hora_estimada_salida || '-'}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
