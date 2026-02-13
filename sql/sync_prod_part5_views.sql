@@ -18,7 +18,7 @@ SELECT
     d.destino,
     d.scheduled_at AS fecha_programada,
     v.transport_id,
-    t.nombre_comercial AS transporte_nombre,
+    t.nombre AS transporte_nombre,
     v.chofer_id,
     ch.nombre || ' ' || COALESCE(ch.apellido, '') AS chofer_nombre,
     v.camion_id,
@@ -237,7 +237,7 @@ ORDER BY n.created_at DESC;
 CREATE OR REPLACE VIEW vista_analytics_cancelaciones AS
 SELECT 
   c.*,
-  e.nombre_comercial as empresa_nombre,
+  e.nombre as empresa_nombre,
   e.tipo_empresa,
   u.email as cancelado_por_email,
   EXTRACT(EPOCH FROM (NOW() - c.created_at)) / 3600 AS horas_desde_cancelacion,

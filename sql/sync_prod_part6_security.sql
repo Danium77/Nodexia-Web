@@ -142,7 +142,7 @@ CREATE POLICY "Transporte sube documentos" ON documentos_recursos FOR INSERT
 
 DROP POLICY IF EXISTS "Admin Nodexia valida documentos" ON documentos_recursos;
 CREATE POLICY "Admin Nodexia valida documentos" ON documentos_recursos FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM usuarios u WHERE u.id = auth.uid() AND u.rol_global = 'superadmin'));
+  USING (EXISTS (SELECT 1 FROM super_admins sa WHERE sa.user_id = auth.uid() AND sa.activo = TRUE));
 
 DROP POLICY IF EXISTS "Coordinador Planta valida por incidencia" ON documentos_recursos;
 CREATE POLICY "Coordinador Planta valida por incidencia" ON documentos_recursos FOR UPDATE
@@ -156,7 +156,7 @@ CREATE POLICY "Coordinador Planta valida por incidencia" ON documentos_recursos 
 
 DROP POLICY IF EXISTS "Solo admin elimina documentos" ON documentos_recursos;
 CREATE POLICY "Solo admin elimina documentos" ON documentos_recursos FOR DELETE
-  USING (EXISTS (SELECT 1 FROM usuarios u WHERE u.id = auth.uid() AND u.rol_global = 'superadmin'));
+  USING (EXISTS (SELECT 1 FROM super_admins sa WHERE sa.user_id = auth.uid() AND sa.activo = TRUE));
 
 -- ============================================================================
 -- SECCIÓN G: RLS - HISTORIAL_DESPACHOS (055)
