@@ -1,6 +1,6 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 13-Feb-2026 (Sesión 18 — Deuda Técnica + Prep Deploy)
+**Última actualización:** 13-Feb-2026 (Sesión 18 — Cleanup + Prep Deploy)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
 **Próxima presentación:** 18-Feb-2026 (5 días)
@@ -34,7 +34,15 @@
 - **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
 - **Sync estado_carga_viaje:** cambiarEstadoViaje() sincroniza automáticamente estado_carga_viaje (elimina actualizarEstadoDual)
 - **Vercel Config:** vercel.json creado (región gru1, pnpm, API maxDuration 30s)
-- **Git:** Pusheado a GitHub main (commit f3e8611)
+- **Git:** Pusheado a GitHub main (commit b582da2)
+- **Codebase Cleanup (Sesión 18):**
+  - scripts/ archivado (196→5 operativos)
+  - sql/ archivado (229 root→0, 124→36 migraciones canónicas)
+  - docs/ archivado (244→15 operativos)
+  - lib/ limpio (7 módulos dead code eliminados)
+  - components/ limpio (27 componentes muertos + 3 hooks muertos eliminados)
+  - .gitignore actualizado (playwright-report, test-results, archive dirs)
+  - Build limpio: 0 errores
 - **PostgREST FK Hints:** `ofertas_red_nodexia!viaje_red_id` para disambiguar 2 FKs a viajes_red_nodexia
 - **Fase 5 Destino:** Control de acceso auto-detecta envio/recepcion por empresa_id de ubicación
 - **Timeline/Historial:** Híbrido — timestamps existentes de viajes_despacho + tabla historial_despachos para eventos custom

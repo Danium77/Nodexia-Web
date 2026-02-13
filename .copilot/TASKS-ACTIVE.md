@@ -1,10 +1,34 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 13-Feb-2026 (Sesión 18)
+**Actualizado:** 13-Feb-2026 (Sesión 18 — Cleanup completado)
 
 ---
 
 ## ✅ COMPLETADAS (Sesión 18 — 13-Feb-2026)
+
+### Codebase Cleanup para Revisión de Cliente ✅
+**Completado por:** Opus directamente - Sesión 18
+**Objetivo:** Estructura profesional para que un dev del cliente revise el código
+
+#### Archivado masivo:
+- **scripts/** — 196 archivos → 5 operativos (archivados a scripts/archive/)
+- **sql/** — 229 root → 0, 124 migraciones → 36 canónicas (archivados a sql/archive/)
+- **docs/** — 244 archivos → 15 operativos (archivados a docs/archive/)
+
+#### Dead code eliminado:
+- **lib/** — 7 módulos muertos: email/, errors/, navigation.ts, type-guards.ts, api/middleware.ts, contexts/UserRoleContext.jsx, hooks/useNotifications.ts, utils/roleHelpers.js
+- **components/** — 27 componentes muertos: Dashboard chain (6), SuperAdmin managers (5), forms (3), Modals (2), ui duplicates/dead (7), Despachos (1), ControlAcceso (1), context (1)
+- **hooks/** — 3 dead: useDashboardKPIs, useSuperAdmin, useNotifications
+- **Stale artifacts** — .vscode/settings.json + tsconfig.json en Admin/, Planning/, Transporte/, SuperAdmin/
+
+#### Fixes:
+- `lib/contexts/UserRoleContext.tsx` — getPrimaryRole inlined (was importing deleted navigation.ts)
+- `components/ui/index.ts` — barrel limpiado (removed deleted exports)
+- `.gitignore` — playwright-report/, test-results/, archive dirs
+
+#### Verificación:
+- Build: 0 errores ✅
+- **Git:** Commit b582da2, pusheado a main
 
 ### Deuda Técnica: Centralización estado_carga_viaje ✅
 **Completado por:** Opus directamente - Sesión 18
@@ -33,7 +57,7 @@
 - Tests estados: 56/56 pasan ✅
 - localhost refs: todos con fallback a NEXT_PUBLIC_SITE_URL ✅
 - File uploads: formidable + fs.readFileSync compatible con Vercel serverless ✅
-**Git:** Commit f3e8611, pusheado a main
+**Git:** Commit b582da2, pusheado a main
 
 ---
 
