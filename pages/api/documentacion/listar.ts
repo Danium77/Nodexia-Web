@@ -3,23 +3,14 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    // Verificar autenticación
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'No autorizado' });
-    }
-
     const { entidad_tipo, entidad_id, activo, estado_vigencia } = req.query;
 
     // Validar parámetros requeridos
@@ -72,6 +63,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('entidad_tipo', entidad_tipo)
       .eq('entidad_id', entidad_id);
 
+    // Empresa scoping: solo documentos de la empresa del usuario
+    if (authCtx.empresaId) {
+      query = query.eq('empresa_id', authCtx.empresaId);
+    }
+
     // Filtrar por activo (por defecto solo activos)
     if (activo !== undefined) {
       const activoBool = activo === 'true' || activo === '1';
@@ -91,7 +87,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: documentos, error: dbError } = await query;
 
     if (dbError) {
-      console.error('Error al consultar documentos:', dbError);
       return res.status(500).json({
         error: 'Error al consultar documentos',
         details: dbError.message
@@ -169,10 +164,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Error en listar documentación:', error);
     return res.status(500).json({
       error: 'Error interno del servidor',
       details: error.message
     });
   }
-}
+});

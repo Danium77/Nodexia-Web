@@ -3,18 +3,9 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Verificar autenticación
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No autenticado' });
-  }
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) {
-    return res.status(401).json({ error: 'No autorizado' });
-  }
-
+export default withAuth(async (req, res, authCtx) => {
   const { id } = req.query;
 
   // Validar que se proporcionó un ID
@@ -64,7 +55,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .maybeSingle();
 
       if (dbError) {
-        console.error('Error al consultar documento:', dbError);
         return res.status(500).json({
           error: 'Error al consultar documento',
           details: dbError.message
@@ -76,6 +66,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           error: 'Documento no encontrado',
           details: `No se encontró un documento con ID: ${id}`
         });
+      }
+
+      // Empresa scoping: verificar que el documento pertenece a la empresa del usuario
+      if (authCtx.empresaId && documento.empresa_id && documento.empresa_id !== authCtx.empresaId) {
+        return res.status(403).json({ error: 'Sin acceso a este documento' });
       }
 
       // Calcular información adicional sobre vencimiento
@@ -161,8 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             };
           }
         }
-      } catch (err) {
-        console.error('Error al obtener información de entidad:', err);
+      } catch (_err) {
         // No es crítico, continuar sin la información adicional
       }
 
@@ -187,7 +181,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     } catch (error: any) {
-      console.error('Error en GET documento:', error);
       return res.status(500).json({
         error: 'Error interno del servidor',
         details: error.message
@@ -203,12 +196,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Verificar que el documento existe y está activo
       const { data: documentoExistente, error: checkError } = await supabaseAdmin
         .from('documentos_entidad')
-        .select('id, activo, entidad_tipo, entidad_id, tipo_documento')
+        .select('id, activo, entidad_tipo, entidad_id, tipo_documento, empresa_id')
         .eq('id', id)
         .maybeSingle();
 
       if (checkError) {
-        console.error('Error al verificar documento:', checkError);
         return res.status(500).json({
           error: 'Error al verificar documento',
           details: checkError.message
@@ -220,6 +212,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           error: 'Documento no encontrado',
           details: `No se encontró un documento con ID: ${id}`
         });
+      }
+
+      // Empresa scoping: verificar acceso
+      if (authCtx.empresaId && documentoExistente.empresa_id && documentoExistente.empresa_id !== authCtx.empresaId) {
+        return res.status(403).json({ error: 'Sin acceso a este documento' });
       }
 
       if (!documentoExistente.activo) {
@@ -241,7 +238,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single();
 
       if (updateError) {
-        console.error('Error al desactivar documento:', updateError);
         return res.status(500).json({
           error: 'Error al desactivar documento',
           details: updateError.message
@@ -264,8 +260,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               entidad_id: documentoExistente.entidad_id,
             }
           });
-      } catch (auditError) {
-        console.error('Error al registrar en auditoría:', auditError);
+      } catch (_auditError) {
         // No es crítico, continuar
       }
 
@@ -280,7 +275,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     } catch (error: any) {
-      console.error('Error en DELETE documento:', error);
       return res.status(500).json({
         error: 'Error interno del servidor',
         details: error.message
@@ -295,4 +289,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: 'Solo se permiten los métodos GET y DELETE'
     });
   }
-}
+});

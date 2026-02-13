@@ -3,6 +3,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 import formidable from 'formidable';
 import fs from 'fs';
 
@@ -23,21 +24,12 @@ interface DocumentMetadata {
   subido_por: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    // Verificar autenticación
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'No autorizado' });
-    }
 
     // Parsear el FormData
     const form = formidable({
@@ -69,8 +61,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       tipo_documento: fields.tipo_documento?.[0] || '',
       fecha_emision: fields.fecha_emision?.[0] || '',
       fecha_vencimiento: fields.fecha_vencimiento?.[0],
-      empresa_id: fields.empresa_id?.[0] || '',
-      subido_por: user.id, // Siempre usar el usuario autenticado
+      empresa_id: authCtx.empresaId || fields.empresa_id?.[0] || '',
+      subido_por: authCtx.userId,
     };
 
     // Validar campos requeridos (fecha_emision ya no es obligatoria, la asigna admin al validar)
@@ -136,7 +128,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     if (storageError) {
-      console.error('Error al subir archivo a Storage:', storageError);
       return res.status(500).json({
         error: 'Error al subir archivo',
         details: storageError.message
@@ -158,7 +149,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('activo', true);
 
     if (cleanupError) {
-      console.error('Error al desactivar documentos previos:', cleanupError);
       // Si falla por UNIQUE en activo=false, intentar eliminar inactivos antiguos
       const { error: deleteOldError } = await supabaseAdmin
         .from('documentos_entidad')
@@ -169,7 +159,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq('activo', false);
       
       if (deleteOldError) {
-        console.error('Error eliminando docs inactivos antiguos:', deleteOldError);
+        // Noop: error eliminando docs inactivos antiguos no es bloqueante
       }
 
       // Reintentar desactivación
@@ -182,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq('activo', true);
 
       if (retryError) {
-        console.error('Error al desactivar docs (reintento):', retryError);
+        // Noop: retry de desactivación no es bloqueante
       }
     }
 
@@ -214,7 +204,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (dbError) {
-      console.error('Error al insertar documento en BD:', dbError.message, dbError.code, dbError.details, dbError.hint);
       
       // Intentar eliminar el archivo del storage si falla la inserción en BD
       await supabaseAdmin.storage
@@ -232,8 +221,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Limpiar archivo temporal
     try {
       fs.unlinkSync(archivo.filepath);
-    } catch (err) {
-      console.error('Error al eliminar archivo temporal:', err);
+    } catch (_err) {
+      // No es crítico si la limpieza del temporal falla
     }
 
     return res.status(201).json({
@@ -251,10 +240,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Error en upload de documentación:', error);
     return res.status(500).json({
       error: 'Error interno del servidor',
       details: error.message
     });
   }
-}
+});

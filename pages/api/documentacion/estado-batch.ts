@@ -4,6 +4,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 interface EntidadQuery {
   tipo: 'chofer' | 'camion' | 'acoplado' | 'transporte';
@@ -39,22 +40,12 @@ function normalizarTipoDoc(tipo: string): string {
   return TIPO_DOC_ALIASES[tipo] || tipo;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    // Verificar autenticación
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'No autorizado' });
-    }
-
     const { entidades } = req.body as { entidades: EntidadQuery[] };
 
     if (!entidades || !Array.isArray(entidades) || entidades.length === 0) {
@@ -86,11 +77,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Una sola query para todos los documentos de todas las entidades
-    const { data: docs, error: queryError } = await supabaseAdmin
+    let docsQuery = supabaseAdmin
       .from('documentos_entidad')
       .select('entidad_tipo, entidad_id, tipo_documento, estado_vigencia, fecha_vencimiento, activo')
       .in('entidad_id', allIds)
       .eq('activo', true);
+
+    // Empresa scoping
+    if (authCtx.empresaId) {
+      docsQuery = docsQuery.eq('empresa_id', authCtx.empresaId);
+    }
+
+    const { data: docs, error: queryError } = await docsQuery;
 
     if (queryError) throw queryError;
 
@@ -171,7 +169,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ data: resultado });
   } catch (err: any) {
-    console.error('Error estado-batch:', err);
     return res.status(500).json({ error: err.message || 'Error interno' });
   }
-}
+});

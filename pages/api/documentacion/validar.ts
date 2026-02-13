@@ -3,6 +3,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 type Accion = 'aprobar' | 'rechazar';
 
@@ -14,39 +15,21 @@ interface ValidarBody {
   fecha_vencimiento?: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    // ── Auth ──
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'No autorizado' });
-    }
-
     // ── Verificar rol: solo super_admin / admin_nodexia ──
-    const { data: roles } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select('rol_interno')
-      .eq('user_id', user.id)
-      .eq('activo', true)
-      .maybeSingle();
-
     const { data: isSuperAdmin } = await supabaseAdmin
       .from('super_admins')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', authCtx.userId)
       .eq('activo', true)
       .maybeSingle();
 
-    const esAdmin = !!isSuperAdmin || roles?.rol_interno === 'admin_nodexia';
+    const esAdmin = !!isSuperAdmin || authCtx.rolInterno === 'admin_nodexia';
     if (!esAdmin) {
       return res.status(403).json({ error: 'Sin permisos' });
     }
@@ -110,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (accion === 'aprobar') {
       const updateData: Record<string, any> = {
         estado_vigencia: 'vigente',
-        validado_por: user.id,
+        validado_por: authCtx.userId,
         fecha_validacion: ahora,
         updated_at: ahora,
       };
@@ -131,7 +114,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single();
 
       if (updateError) {
-        console.error('Error al aprobar documento:', updateError);
         return res.status(500).json({
           error: 'Error al aprobar documento',
           details: updateError.message,
@@ -158,7 +140,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('documentos_entidad')
       .update({
         estado_vigencia: 'rechazado',
-        validado_por: user.id,
+        validado_por: authCtx.userId,
         fecha_validacion: ahora,
         motivo_rechazo: motivo_rechazo!.trim(),
         updated_at: ahora,
@@ -168,7 +150,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (updateError) {
-      console.error('Error al rechazar documento:', updateError);
       return res.status(500).json({
         error: 'Error al rechazar documento',
         details: updateError.message,
@@ -191,10 +172,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
-    console.error('Error en validación de documento:', message);
     return res.status(500).json({
       error: 'Error interno del servidor',
       details: message,
     });
   }
-}
+});

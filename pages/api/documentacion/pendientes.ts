@@ -3,6 +3,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 interface DocumentoPendiente {
   id: string;
@@ -25,39 +26,21 @@ interface DocumentoPendiente {
   empresa_nombre: string | null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    // ── Auth ──
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'No autorizado' });
-    }
-
     // ── Verificar rol: solo super_admin / admin_nodexia ──
-    const { data: roles } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select('rol_interno')
-      .eq('user_id', user.id)
-      .eq('activo', true)
-      .maybeSingle();
-
     const { data: isSuperAdmin } = await supabaseAdmin
       .from('super_admins')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', authCtx.userId)
       .eq('activo', true)
       .maybeSingle();
 
-    const esAdmin = !!isSuperAdmin || roles?.rol_interno === 'admin_nodexia';
+    const esAdmin = !!isSuperAdmin || authCtx.rolInterno === 'admin_nodexia';
     if (!esAdmin) {
       return res.status(403).json({ error: 'Sin permisos' });
     }
@@ -102,6 +85,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (empresa_id && typeof empresa_id === 'string') {
       query = query.eq('empresa_id', empresa_id);
+    } else if (!isSuperAdmin && authCtx.empresaId) {
+      // admin_nodexia solo ve docs de su empresa
+      query = query.eq('empresa_id', authCtx.empresaId);
     }
 
     if (entidad_tipo && typeof entidad_tipo === 'string') {
@@ -111,7 +97,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: documentos, error: dbError } = await query;
 
     if (dbError) {
-      console.error('Error al consultar documentos pendientes:', dbError);
       return res.status(500).json({
         error: 'Error al consultar documentos pendientes',
         details: dbError.message,
@@ -226,10 +211,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
-    console.error('Error al listar documentos pendientes:', message);
     return res.status(500).json({
       error: 'Error interno del servidor',
       details: message,
     });
   }
-}
+});

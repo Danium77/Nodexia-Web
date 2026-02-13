@@ -4,6 +4,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 // Documentos requeridos por tipo de entidad
 // Para chofer: depende del tipo de empresa (dependencia vs autónomo)
@@ -42,32 +43,18 @@ interface Alerta {
   dias_restantes?: number;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No autenticado' });
-
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: 'No autorizado' });
-
-    // Obtener empresa_id del usuario
-    const { data: relacion } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select('empresa_id, empresas:empresa_id(tipo_empresa)')
-      .eq('user_id', user.id)
-      .limit(1)
-      .single();
-
-    if (!relacion?.empresa_id) {
+    const empresaId = authCtx.empresaId;
+    if (!empresaId) {
       return res.status(200).json({ data: { alertas: [], resumen: { vencidos: 0, por_vencer: 0, faltantes: 0, total: 0 } } });
     }
 
-    const empresaId = relacion.empresa_id;
-    const tipoEmpresa = (relacion.empresas as any)?.tipo_empresa as string | null;
+    const tipoEmpresa = authCtx.tipoEmpresa;
     const hoy = new Date();
     const en30Dias = new Date();
     en30Dias.setDate(en30Dias.getDate() + 30);
@@ -175,10 +162,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ data: { alertas, resumen } });
   } catch (err: any) {
-    console.error('Error alertas docs:', err);
     return res.status(500).json({ error: err.message || 'Error interno' });
   }
-}
+});
 
 function getEntidadNombre(tipo: string, id: string, choferes: any[], camiones: any[], acoplados: any[]): string {
   if (tipo === 'chofer') {
