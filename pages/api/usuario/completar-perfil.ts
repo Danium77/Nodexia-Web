@@ -45,18 +45,6 @@ export default withAuth(async (req, res, { user, userId }) => {
       throw insertError;
     }
 
-    // También actualizar el perfil del usuario si existe la tabla profile_users
-    await supabaseAdmin
-      .from('profile_users')
-      .upsert({
-        user_id: userId,
-        nombre,
-        apellido,
-        dni,
-        localidad,
-        telefono
-      }, { onConflict: 'user_id' });
-
     res.status(200).json({ 
       message: 'Perfil completado y usuario asociado a empresa exitosamente',
       detalles: {

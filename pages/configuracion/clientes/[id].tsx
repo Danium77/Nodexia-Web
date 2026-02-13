@@ -76,24 +76,19 @@ const ClienteDetail: React.FC = () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: profile } = await supabase
-            .from('profile_users')
-            .select('roles(name)')
+          const { data: ue } = await supabase
+            .from('usuarios_empresa')
+            .select('rol_interno')
             .eq('user_id', user.id)
+            .eq('activo', true)
             .single();
           
-          if (profile?.roles) {
-            const rolesRaw: any = profile.roles;
-            const userRoles = Array.isArray(rolesRaw)
-              ? rolesRaw.map((r: any) => r.name)
-              : [rolesRaw.name];
-            
-            // Si tiene rol transporte, usar 'transporte', sino usar el primer rol
-            setUserRole(userRoles.includes('transporte') ? 'transporte' : userRoles[0] || '');
+          if (ue?.rol_interno) {
+            setUserRole(ue.rol_interno === 'transporte' ? 'transporte' : ue.rol_interno);
           }
         }
       } catch (error) {
-        console.error('Error detecting user role:', error);
+        // silent
       }
     };
     
