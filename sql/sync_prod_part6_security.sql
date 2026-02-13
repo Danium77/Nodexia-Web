@@ -199,9 +199,8 @@ CREATE POLICY "Usuarios ven auditoría de sus viajes" ON auditoria_estados FOR S
     EXISTS (
       SELECT 1 FROM viajes_despacho vd
       JOIN despachos d ON d.id = vd.despacho_id
-      JOIN usuarios_empresa ue ON (ue.empresa_id = d.origen_empresa_id OR ue.empresa_id = d.destino_empresa_id)
       WHERE vd.id = auditoria_estados.viaje_id
-        AND ue.user_id = auth.uid()
+        AND d.created_by = auth.uid()
     )
     OR EXISTS (
       SELECT 1 FROM viajes_despacho vd
