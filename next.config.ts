@@ -1,11 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Fijar distDir para compatibilidad con Vercel (Next.js 16 cambió el default a "next")
+  distDir: '.next',
   // 🔥 DESHABILITADO en dev para evitar doble montaje de componentes que causa reloads
   reactStrictMode: process.env.NODE_ENV === 'production',
-  eslint: {
-    // Lint rules should run during builds — re-enabled to fix remaining issues.
-  },
   
   // 🔥 Permitir cookies en desarrollo HTTP (necesario para Supabase Auth)
   experimental: {
