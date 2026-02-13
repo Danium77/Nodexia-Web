@@ -1,6 +1,6 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 13-Feb-2026 (Cierre Sesión 17 — Centralización Estados Completa)
+**Última actualización:** 13-Feb-2026 (Sesión 18 — Deuda Técnica + Prep Deploy)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
 **Próxima presentación:** 18-Feb-2026 (5 días)
@@ -32,6 +32,9 @@
 - **Services Layer:** `lib/services/viajeEstado.ts` (cambiarEstadoViaje, asignarUnidad) + `lib/services/notificaciones.ts` (notificarCambioEstado)
 - **Thin API Routes:** API routes delegan a services layer (no lógica directa en handlers)
 - **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
+- **Sync estado_carga_viaje:** cambiarEstadoViaje() sincroniza automáticamente estado_carga_viaje (elimina actualizarEstadoDual)
+- **Vercel Config:** vercel.json creado (región gru1, pnpm, API maxDuration 30s)
+- **Git:** Pusheado a GitHub main (commit f3e8611)
 - **PostgREST FK Hints:** `ofertas_red_nodexia!viaje_red_id` para disambiguar 2 FKs a viajes_red_nodexia
 - **Fase 5 Destino:** Control de acceso auto-detecta envio/recepcion por empresa_id de ubicación
 - **Timeline/Historial:** Híbrido — timestamps existentes de viajes_despacho + tabla historial_despachos para eventos custom

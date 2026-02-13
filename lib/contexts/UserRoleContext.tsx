@@ -7,8 +7,19 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { useRouter } from 'next/router';
 import { supabase } from '../supabaseClient';
 import { UserRole } from '../types';
-import { getPrimaryRole } from '../navigation';
 import type { User } from '@supabase/supabase-js';
+
+/** Determine the highest-priority role from a list */
+function getPrimaryRole(roles: string[]): UserRole {
+  if (roles.includes('admin_nodexia')) return 'admin_nodexia';
+  if (roles.includes('coordinador')) return 'coordinador';
+  if (roles.includes('control_acceso')) return 'control_acceso';
+  if (roles.includes('supervisor')) return 'supervisor';
+  if (roles.includes('chofer')) return 'chofer';
+  if (roles.includes('administrativo')) return 'administrativo';
+  if (roles.includes('visor')) return 'visor';
+  return 'coordinador';
+}
 
 interface UserRoleContextType {
   user: User | null;

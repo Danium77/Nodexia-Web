@@ -1,6 +1,39 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 13-Feb-2026 (Cierre Sesión 17)
+**Actualizado:** 13-Feb-2026 (Sesión 18)
+
+---
+
+## ✅ COMPLETADAS (Sesión 18 — 13-Feb-2026)
+
+### Deuda Técnica: Centralización estado_carga_viaje ✅
+**Completado por:** Opus directamente - Sesión 18
+**Problema:** supervisor-carga.tsx usaba `actualizarEstadoDual()` con 2 API calls separadas — si estado_carga fallaba, continuaba silenciosamente
+**Solución:** `cambiarEstadoViaje()` ahora sincroniza automáticamente `estado_carga_viaje` cuando el estado es carga-related
+**Archivos modificados:**
+- `lib/services/viajeEstado.ts` — Nueva función `sincronizarEstadoCarga()` + ESTADOS_CON_CARGA + ESTADO_A_TIMESTAMP_CARGA
+- `pages/supervisor-carga.tsx` — `actualizarEstadoDual` reemplazado por `actualizarEstado` (single call)
+- Eliminada dependencia de `lib/api/estado-carga.ts` en supervisor-carga
+
+### Deuda Técnica: Deprecar lib/estadosHelper.ts ✅
+**Completado por:** Opus directamente - Sesión 18
+**Archivos creados:** `lib/estados/operativo.ts` (funciones UI: calcularEstadoOperativo, getColorEstadoOperativo, etc.)
+**Archivos modificados:**
+- `lib/estados/index.ts` — Re-exporta operativo.ts
+- `lib/estadosHelper.ts` — Marcado DEPRECATED, solo re-exports
+- `pages/crear-despacho.tsx` — Import migrado a `../lib/estados`
+- `pages/planificacion.tsx` — Import migrado a `../lib/estados`
+- `components/Planning/PlanningGrid.tsx` — Import migrado a `../../lib/estados`
+
+### Prep Deploy Vercel (TASK-S24 parcial) ✅
+**Completado por:** Opus directamente - Sesión 18
+**Archivos creados:** `vercel.json`
+**Verificaciones:**
+- Build de producción: 0 errores ✅
+- Tests estados: 56/56 pasan ✅
+- localhost refs: todos con fallback a NEXT_PUBLIC_SITE_URL ✅
+- File uploads: formidable + fs.readFileSync compatible con Vercel serverless ✅
+**Git:** Commit f3e8611, pusheado a main
 
 ---
 
@@ -274,32 +307,27 @@
 
 ---
 
-## 🎯 PRÓXIMAS TAREAS (Sesión 18+)
+## 🎯 PRÓXIMAS TAREAS (Sesión 19+)
 
 ### REFERENCIA: Esquema General
 **Archivo:** `docs/ESQUEMA-GENERAL-NODEXIA.md`
 - Mapa completo de 6 fases, roles, estados, API routes, tablas
 - Consultar antes de cada sesión para contexto
 
-### ⚠️ PENDIENTE: Ejecutar Migraciones 055 + 056
+### ⚠️ PENDIENTE: Ejecutar Migraciones 055 + 056 en BD PROD
 - `sql/migrations/055_historial_despachos.sql` — Tabla historial_despachos
 - `sql/migrations/056_fix_rls_viajes_red_rechazados.sql` — RLS transportes rechazados
+- También ejecutar 058 + 059 si no se corrieron en prod
 
-### DEUDA TÉCNICA (Post-centralización estados):
+### DEUDA TÉCNICA RESTANTE:
 
-#### 1. Centralizar estado_carga_viaje (Prioridad MEDIA)
-- Crear service análogo a viajeEstado.ts para operaciones de carga
-- supervisor-carga.tsx hace updates directos → migrar a service
-- actualizarEstadoDual() tiene error silencioso si carga falla → fix
+#### 1. ✅ COMPLETADO: Centralizar estado_carga_viaje (Sesión 18)
 
 #### 2. Renombrar prop estado_unidad → estado (Prioridad BAJA)
 - Interfaz ViajeEstado en estados-camiones.tsx usa `estado_unidad` como prop name
 - Cosmético pero limpia deuda técnica en componentes downstream
 
-#### 3. Deprecar lib/estadosHelper.ts (Prioridad BAJA)
-- Actualmente es bridge que re-exporta desde lib/estados/config.ts
-- calcularEstadoOperativo() aún usa estado_unidad como fallback
-- Migrar importadores a lib/estados directamente
+#### 3. ✅ COMPLETADO: Deprecar lib/estadosHelper.ts (Sesión 18)
 
 ### TASK-S23: Definir Circuito de Incidencias (Prioridad MEDIA)
 - Quién crea incidencias: Control de Acceso
@@ -307,11 +335,18 @@
 - Estados: abierta → en_revision → resuelta/cerrada
 - Notificaciones: al crear, al resolver
 
-### TASK-S24: Deploy Staging (Prioridad ALTA — Demo 18-Feb)
-- Build de producción
-- Variables de entorno en Vercel (apuntar a BD prod)
-- Replicar schema de dev a prod (migraciones SQL manuales)
-- ⚠️ BD dev y prod son SEPARADAS — solo se deploya código + schema
+### TASK-S24: Deploy a Vercel (Prioridad ALTA — Demo 18-Feb)
+- ✅ vercel.json creado
+- ✅ Build limpio, código pusheado a GitHub
+- **PENDIENTE:** Configurar variables de entorno en dashboard de Vercel:
+  - `NEXT_PUBLIC_SUPABASE_URL` → URL del proyecto Supabase PROD
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` → anon key del proyecto PROD
+  - `SUPABASE_SERVICE_ROLE_KEY` → service role key del proyecto PROD
+  - `NEXT_PUBLIC_SITE_URL` → URL del deploy Vercel (ej: https://nodexia.vercel.app)
+  - `NEXT_PUBLIC_USE_EMAIL_INVITES` → 'false' (o 'true' si SMTP configurado)
+  - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` → API key de Google Maps
+- **PENDIENTE:** Ejecutar migraciones SQL en BD de producción
+- **PENDIENTE:** Conectar repo GitHub en dashboard de Vercel
 
 ### TASK-S25: Testing con Data Real (Prioridad ALTA — Demo 18-Feb)
 - Probar flujo E2E completo incluyendo Fase 5 destino
