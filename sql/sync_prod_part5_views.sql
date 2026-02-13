@@ -9,6 +9,7 @@
 -- VISTA 1: vista_viajes_expirados (013) — adaptada a estados 058
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_viajes_expirados;
 CREATE OR REPLACE VIEW vista_viajes_expirados AS
 SELECT 
     v.id AS viaje_id,
@@ -46,6 +47,7 @@ ORDER BY v.updated_at DESC;
 -- VISTA 2: vista_despachos_con_descarga (014)
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_despachos_con_descarga;
 CREATE OR REPLACE VIEW vista_despachos_con_descarga AS
 SELECT 
   d.*,
@@ -67,6 +69,7 @@ FROM despachos d;
 -- VISTA 3: vista_kpis_expiracion (016) — adaptada a estados 058
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_kpis_expiracion;
 CREATE OR REPLACE VIEW vista_kpis_expiracion AS
 SELECT 
   COUNT(*) FILTER (WHERE fue_expirado = true) AS total_expirados_historico,
@@ -89,6 +92,7 @@ FROM viajes_despacho;
 -- VISTA 4: vista_disponibilidad_unidades (017)
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_disponibilidad_unidades;
 CREATE OR REPLACE VIEW vista_disponibilidad_unidades AS
 SELECT 
   uo.id,
@@ -166,6 +170,7 @@ WHERE uo.activo = true;
 -- VISTA 5: ultima_ubicacion_choferes (024)
 -- ============================================================================
 
+DROP VIEW IF EXISTS ultima_ubicacion_choferes;
 CREATE OR REPLACE VIEW ultima_ubicacion_choferes AS
 SELECT DISTINCT ON (chofer_id)
   chofer_id,
@@ -182,6 +187,7 @@ ORDER BY chofer_id, timestamp DESC;
 -- VISTA 6: vista_historial_unidades (025)
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_historial_unidades;
 CREATE OR REPLACE VIEW vista_historial_unidades AS
 SELECT 
   h.id,
@@ -216,6 +222,7 @@ ORDER BY h.created_at DESC;
 -- VISTA 7: vista_notificaciones_pendientes (026)
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_notificaciones_pendientes;
 CREATE OR REPLACE VIEW vista_notificaciones_pendientes AS
 SELECT 
   n.id, n.user_id, n.tipo, n.titulo, n.mensaje,
@@ -234,6 +241,7 @@ ORDER BY n.created_at DESC;
 -- VISTA 8: vista_analytics_cancelaciones (028)
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_analytics_cancelaciones;
 CREATE OR REPLACE VIEW vista_analytics_cancelaciones AS
 SELECT 
   c.*,
@@ -258,6 +266,7 @@ JOIN auth.users u ON c.cancelado_por_user_id = u.id;
 -- VISTA 9: vista_kpis_cancelaciones_empresa (028)
 -- ============================================================================
 
+DROP VIEW IF EXISTS vista_kpis_cancelaciones_empresa;
 CREATE OR REPLACE VIEW vista_kpis_cancelaciones_empresa AS
 SELECT 
   empresa_id,
@@ -278,6 +287,7 @@ GROUP BY empresa_id;
 -- VISTA 10: documentos_proximos_vencer (archive/046_CORREGIDO)
 -- ============================================================================
 
+DROP VIEW IF EXISTS documentos_proximos_vencer;
 CREATE OR REPLACE VIEW documentos_proximos_vencer AS
 SELECT 
   de.*,
