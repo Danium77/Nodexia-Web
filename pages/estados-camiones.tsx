@@ -23,7 +23,7 @@ interface ViajeEstado {
   destino?: string;
 }
 
-type TabEstado = 'todos' | 'confirmado' | 'ingresado_planta' | 'llamado_carga' | 'cargando' | 'carga_finalizada' | 'egresado_planta';
+type TabEstado = 'todos' | 'confirmado' | 'ingresado_planta' | 'llamado_carga' | 'cargando' | 'cargado' | 'egreso';
 
 export default function EstadosCamiones() {
   const { userEmpresas } = useUserRole();
@@ -56,9 +56,9 @@ export default function EstadosCamiones() {
         'confirmado_chofer',
         'en_transito_origen',
         'ingresado_origen',
-        'en_playa_origen',
         'llamado_carga',
         'cargando',
+        'cargado',
         'egreso_origen'
       ];
 
@@ -85,9 +85,9 @@ export default function EstadosCamiones() {
       // Paso 2: Obtener viajes activos de esos despachos
       const { data: viajesData, error: viajesError } = await supabase
         .from('viajes_despacho')
-        .select('id, numero_viaje, estado_unidad, estado, chofer_id, camion_id, despacho_id, created_at')
+        .select('id, numero_viaje, estado, chofer_id, camion_id, despacho_id, created_at')
         .in('despacho_id', despachoIds)
-        .in('estado_unidad', estadosActivos)
+        .in('estado', estadosActivos)
         .order('created_at', { ascending: false });
 
       if (viajesError) {
@@ -126,7 +126,7 @@ export default function EstadosCamiones() {
         return {
           id: v.id,
           numero_viaje: v.numero_viaje?.toString() || 'N/A',
-          estado_unidad: v.estado_unidad || v.estado || 'camion_asignado',
+          estado_unidad: v.estado || 'camion_asignado',
           chofer_nombre: chofer?.nombre,
           chofer_apellido: chofer?.apellido,
           chofer_dni: chofer?.dni,
@@ -155,14 +155,15 @@ export default function EstadosCamiones() {
       case 'en_transito_origen':
         return 'confirmado';
       case 'ingresado_origen':
-      case 'en_playa_origen':
         return 'ingresado_planta';
       case 'llamado_carga':
         return 'llamado_carga';
       case 'cargando':
         return 'cargando';
+      case 'cargado':
+        return 'cargado';
       case 'egreso_origen':
-        return 'carga_finalizada';
+        return 'egreso';
       default:
         return 'confirmado';
     }
@@ -179,8 +180,8 @@ export default function EstadosCamiones() {
       case 'ingresado_planta': return 'text-green-400 bg-green-900/30';
       case 'llamado_carga': return 'text-yellow-400 bg-yellow-900/30';
       case 'cargando': return 'text-orange-400 bg-orange-900/30';
-      case 'carga_finalizada': return 'text-purple-400 bg-purple-900/30';
-      case 'egresado_planta': return 'text-gray-400 bg-gray-900/30';
+      case 'cargado': return 'text-purple-400 bg-purple-900/30';
+      case 'egreso': return 'text-gray-400 bg-gray-900/30';
       default: return 'text-gray-400 bg-gray-900/30';
     }
   };
@@ -191,8 +192,8 @@ export default function EstadosCamiones() {
       case 'ingresado_planta': return 'En Planta';
       case 'llamado_carga': return 'Llamado a Carga';
       case 'cargando': return 'Cargando';
-      case 'carga_finalizada': return 'Listo para Salir';
-      case 'egresado_planta': return 'Ha Salido';
+      case 'cargado': return 'Cargado';
+      case 'egreso': return 'Listo Salir';
       default: return estado;
     }
   };
@@ -203,8 +204,8 @@ export default function EstadosCamiones() {
       case 'ingresado_planta': return <TruckIcon className="h-5 w-5" />;
       case 'llamado_carga':
       case 'cargando': return <ExclamationTriangleIcon className="h-5 w-5" />;
-      case 'carga_finalizada': return <CheckCircleIcon className="h-5 w-5" />;
-      case 'egresado_planta': return <ArrowRightOnRectangleIcon className="h-5 w-5" />;
+      case 'cargado': return <CheckCircleIcon className="h-5 w-5" />;
+      case 'egreso': return <ArrowRightOnRectangleIcon className="h-5 w-5" />;
       default: return <TruckIcon className="h-5 w-5" />;
     }
   };
@@ -214,8 +215,8 @@ export default function EstadosCamiones() {
     ingresado_planta: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'ingresado_planta').length,
     llamado_carga: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'llamado_carga').length,
     cargando: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'cargando').length,
-    carga_finalizada: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'carga_finalizada').length,
-    egresado_planta: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'egresado_planta').length,
+    carga_finalizada: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'cargado').length,
+    egresado_planta: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'egreso').length,
   };
 
   if (loading) {
@@ -253,8 +254,8 @@ export default function EstadosCamiones() {
           { key: 'ingresado_planta' as TabEstado, label: 'En Planta', count: estadosCount.ingresado_planta, color: 'green', Icon: TruckIcon },
           { key: 'llamado_carga' as TabEstado, label: 'Llamado Carga', count: estadosCount.llamado_carga, color: 'yellow', Icon: ExclamationTriangleIcon },
           { key: 'cargando' as TabEstado, label: 'Cargando', count: estadosCount.cargando, color: 'orange', Icon: ExclamationTriangleIcon },
-          { key: 'carga_finalizada' as TabEstado, label: 'Listo Salir', count: estadosCount.carga_finalizada, color: 'purple', Icon: CheckCircleIcon },
-          { key: 'egresado_planta' as TabEstado, label: 'Ha Salido', count: estadosCount.egresado_planta, color: 'gray', Icon: ArrowRightOnRectangleIcon },
+          { key: 'cargado' as TabEstado, label: 'Cargado', count: estadosCount.carga_finalizada, color: 'purple', Icon: CheckCircleIcon },
+          { key: 'egreso' as TabEstado, label: 'Listo Salir', count: estadosCount.egresado_planta, color: 'gray', Icon: ArrowRightOnRectangleIcon },
         ].map(({ key, label, count, color, Icon }) => (
           <div
             key={key}

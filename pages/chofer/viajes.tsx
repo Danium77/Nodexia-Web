@@ -126,7 +126,7 @@ const ChoferViajesPage = () => {
 
       // Detectar viaje activo (primer viaje no completado)
       const activo = viajesFormateados.find(v => 
-        v.estado_unidad !== 'viaje_completado' && 
+        v.estado_unidad !== 'completado' && 
         v.estado_unidad !== 'cancelado'
       );
       setViajeActivo(activo || null);
@@ -175,25 +175,23 @@ const ChoferViajesPage = () => {
   const getEstadoColor = (estado: string) => {
     const colores: Record<string, string> = {
       'pendiente': 'bg-slate-500',
-      'asignado': 'bg-blue-500',
+      'transporte_asignado': 'bg-blue-400',
       'camion_asignado': 'bg-blue-500',
       'confirmado_chofer': 'bg-blue-600',
       'en_transito_origen': 'bg-yellow-500',
-      'arribo_origen': 'bg-orange-400',
       'ingresado_origen': 'bg-orange-500',
-      'en_playa_origen': 'bg-orange-600',
       'llamado_carga': 'bg-yellow-600',
       'cargando': 'bg-purple-500',
+      'cargado': 'bg-purple-600',
       'egreso_origen': 'bg-green-500',
       'en_transito_destino': 'bg-yellow-600',
-      'arribo_destino': 'bg-cyan-400',
-      'arribado_destino': 'bg-cyan-500',
       'ingresado_destino': 'bg-cyan-600',
       'llamado_descarga': 'bg-teal-500',
       'descargando': 'bg-purple-600',
-      'vacio': 'bg-green-600',
-      'viaje_completado': 'bg-gray-500',
-      'cancelado': 'bg-red-500'
+      'descargado': 'bg-emerald-500',
+      'egreso_destino': 'bg-emerald-600',
+      'completado': 'bg-green-700',
+      'cancelado': 'bg-red-500',
     };
     return colores[estado] || 'bg-slate-500';
   };
@@ -201,27 +199,23 @@ const ChoferViajesPage = () => {
   const getEstadoLabel = (estado: string): string => {
     const labels: Record<string, string> = {
       'pendiente': 'Pendiente',
-      'asignado': 'Asignado',
+      'transporte_asignado': 'Transporte Asignado',
       'camion_asignado': 'Asignado',
       'confirmado_chofer': 'Confirmado',
       'en_transito_origen': '🚗 En camino a origen',
-      'arribo_origen': '📍 Arribado a origen',
       'ingresado_origen': '✅ En planta',
-      'en_playa_origen': '⏳ En playa de espera',
       'llamado_carga': '🔔 Llamado a carga',
       'cargando': '⬆️ Cargando',
       'cargado': '📦 Cargado',
       'egreso_origen': '🚚 Listo para salir',
       'en_transito_destino': '🛣️ En camino a destino',
-      'arribo_destino': '📍 Arribado a destino',
-      'arribado_destino': '📍 Arribado a destino',
       'ingresado_destino': '✅ En destino',
       'llamado_descarga': '🔔 Llamado a descarga',
       'descargando': '⬇️ Descargando',
-      'vacio': '🚪 Vacío',
-      'disponible_carga': '✅ Disponible',
-      'viaje_completado': '✅ Completado',
-      'cancelado': '❌ Cancelado'
+      'descargado': '✅ Descargado',
+      'egreso_destino': '🚚 Egresando de destino',
+      'completado': '✅ Completado',
+      'cancelado': '❌ Cancelado',
     };
     return labels[estado] || estado;
   };
@@ -231,9 +225,6 @@ const ChoferViajesPage = () => {
     // Control de Acceso maneja: ingreso y egreso de planta
     // Supervisor de Carga maneja: llamado, carga, finalizar carga
     const accionesPorEstado: Record<string, Array<{ label: string; valor: string }>> = {
-      'asignado': [
-        { label: '✅ Confirmar viaje', valor: 'confirmado_chofer' }
-      ],
       'camion_asignado': [
         { label: '✅ Confirmar viaje', valor: 'confirmado_chofer' }
       ],
@@ -241,22 +232,14 @@ const ChoferViajesPage = () => {
         { label: '🚗 Salir hacia origen', valor: 'en_transito_origen' }
       ],
       // en_transito_origen: Chofer viaja con GPS, Control Acceso registra ingreso al llegar
-      // ingresado_origen, en_playa_origen, llamado_carga, cargando, cargado: Supervisor + CA manejan
+      // ingresado_origen, llamado_carga, cargando, cargado: Supervisor + CA manejan
       // egreso_origen: Chofer inicia viaje a destino
       'egreso_origen': [
         { label: '🚚 Salir hacia destino', valor: 'en_transito_destino' }
       ],
+      // en_transito_destino: Si destino NO usa Nodexia, chofer puede registrar llegada
       'en_transito_destino': [
-        { label: '📍 Arribé a destino', valor: 'arribado_destino' }
-      ],
-      // Si destino usa Nodexia: CA registra ingreso, Supervisor maneja descarga, CA egreso
-      // egreso_destino: Chofer finaliza viaje
-      'egreso_destino': [
-        { label: '🏁 Finalizar viaje', valor: 'vacio' }
-      ],
-      // Si destino NO usa Nodexia: Chofer arriba y finaliza directamente
-      'arribado_destino': [
-        { label: '🏁 Finalizar viaje', valor: 'vacio' }
+        { label: '📍 Llegé a destino', valor: 'ingresado_destino' }
       ],
     };
 

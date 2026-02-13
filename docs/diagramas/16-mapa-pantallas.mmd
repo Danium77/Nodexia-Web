@@ -1,0 +1,56 @@
+graph TD
+    subgraph "🏭 PLANTA"
+        P_DASH["coordinator-dashboard"]
+        P_CREAR["crear-despacho"]
+        P_DESP["despachos"]
+        P_PLAN["planificacion"]
+        P_RED["red-nodexia"]
+        P_RED_O["red-nodexia/ofertas"]
+        P_EST["estadisticas"]
+        P_INC["incidencias"]
+        P_CAM["estados-camiones"]
+        P_DOC["documentos"]
+        P_NOT["notificaciones"]
+        P_REL["gestion-relaciones"]
+        P_REP["reportes/auditoria"]
+        P_CA["control-acceso"]
+        P_SUP["supervisor-carga"]
+    end
+    
+    subgraph "🚛 TRANSPORTE"
+        T_DASH["transporte/dashboard"]
+        T_DESP["transporte/despachos-ofrecidos"]
+        T_CARG["transporte/cargas-en-red"]
+        T_VIAJ["transporte/viajes-activos"]
+        T_FLOT["transporte/flota"]
+        T_UNIT["transporte/unidades"]
+        T_CHOF["transporte/choferes"]
+        T_DOCS["transporte/documentacion"]
+        T_TRAC["transporte/tracking-flota"]
+        T_CONF["transporte/configuracion"]
+    end
+    
+    subgraph "🧑‍✈️ CHOFER Mobile"
+        C_DASH["chofer-mobile"]
+        C_VIAJ["chofer/viajes"]
+        C_GPS["chofer/tracking-gps"]
+        C_PERF["chofer/perfil"]
+    end
+    
+    subgraph "⚙️ ADMIN"
+        A_DASH["admin/super-admin-dashboard"]
+        A_EMP["admin/empresas"]
+        A_USR["admin/usuarios"]
+        A_CLI["admin/clientes"]
+        A_VAL["admin/validacion-documentos"]
+        A_SOL["admin/solicitudes"]
+        A_ROL["admin/roles"]
+        A_PLA["admin/planes"]
+        A_UBI["admin/ubicaciones"]
+        A_SAL["admin/sistema-salud"]
+    end
+
+    style P_DASH fill:#3b82f6,color:#fff
+    style T_DASH fill:#f97316,color:#fff
+    style C_DASH fill:#22c55e,color:#fff
+    style A_DASH fill:#a855f7,color:#fff

@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nodexia - Mapa Completo de Flujos</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .header { background: #1e293b; padding: 24px 40px; border-bottom: 2px solid #3b82f6; }
+        .header h1 { font-size: 28px; color: #fff; }
+        .header p { color: #94a3b8; margin-top: 4px; }
+        .nav { background: #1e293b; padding: 12px 40px; border-bottom: 1px solid #334155; display: flex; gap: 8px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; }
+        .nav a { color: #94a3b8; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; transition: all 0.2s; }
+        .nav a:hover { background: #334155; color: #fff; }
+        .nav a.active { background: #3b82f6; color: #fff; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 40px; }
+        .diagram-section { margin-bottom: 60px; background: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid #334155; }
+        .diagram-header { padding: 20px 24px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .diagram-header h2 { font-size: 20px; color: #fff; }
+        .diagram-header .badge { background: #3b82f6; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+        .diagram-body { padding: 24px; background: #fff; min-height: 200px; display: flex; justify-content: center; align-items: center; }
+        .diagram-body .mermaid { width: 100%; }
+        .diagram-footer { padding: 12px 24px; background: #0f172a; border-top: 1px solid #334155; font-size: 12px; color: #64748b; }
+        .btn-download { background: #22c55e; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .btn-download:hover { background: #16a34a; }
+        .info-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .info-table th { background: #334155; color: #fff; padding: 10px 16px; text-align: left; font-size: 13px; }
+        .info-table td { padding: 8px 16px; border-bottom: 1px solid #334155; font-size: 13px; color: #cbd5e1; }
+        .info-table tr:hover td { background: #1e293b; }
+        .phase-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .instructions { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; margin-bottom: 40px; }
+        .instructions h3 { color: #3b82f6; margin-bottom: 8px; }
+        .instructions ol { padding-left: 20px; color: #94a3b8; line-height: 1.8; }
+        .instructions ol li strong { color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🚛 Nodexia — Mapa Completo de Flujos</h1>
+    <p>Todos los diagramas de la plataforma • Click derecho en cualquier diagrama → "Guardar imagen como" para exportar PNG</p>
+</div>
+
+<div class="nav" id="nav">
+    <a href="#d01" class="active">Arquitectura</a>
+    <a href="#d02">Roles</a>
+    <a href="#d03">Modelo Datos</a>
+    <a href="#d04">Estados Viaje</a>
+    <a href="#d05">Red vs Directa</a>
+    <a href="#d06">Flujo Directo</a>
+    <a href="#d07">Flujo Red Nodexia</a>
+    <a href="#d08">Coord. Planta</a>
+    <a href="#d09">Coord. Transporte</a>
+    <a href="#d10">Chofer</a>
+    <a href="#d11">Control Acceso</a>
+    <a href="#d12">Supervisor Carga</a>
+    <a href="#d13">Sync Viaje↔Despacho</a>
+    <a href="#d14">Cron Expiración</a>
+    <a href="#d15">Flujo E2E</a>
+    <a href="#d16">Mapa Pantallas</a>
+    <a href="#tabla-estados">Tabla Estados</a>
+    <a href="#tabla-apis">Tabla APIs</a>
+</div>
+
+<div class="container">
+
+    <div class="instructions">
+        <h3>📋 Cómo exportar a Figma / cualquier herramienta</h3>
+        <ol>
+            <li><strong>Click derecho</strong> sobre cualquier diagrama → <strong>"Guardar imagen como..."</strong> → guardá como PNG</li>
+            <li>En Figma: <strong>Ctrl+Shift+K</strong> → seleccioná el PNG → click en el canvas</li>
+            <li>También podés hacer <strong>screenshot</strong> con Win+Shift+S y pegar directo</li>
+        </ol>
+    </div>
+
+    <!-- 01 ARQUITECTURA -->
+    <div class="diagram-section" id="d01">
+        <div class="diagram-header">
+            <h2>01 — Arquitectura General</h2>
+            <span class="badge">Sistema</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+graph TB
+    subgraph "FRONTEND - Next.js + React 19"
+        WEB["🌐 Web App<br/>(Desktop)"]
+        PWA["📱 PWA Mobile<br/>(Chofer / CA)"]
+    end
+    subgraph "BACKEND - Next.js API Routes"
+        API_EST["Estado Unidad API"]
+        API_CARGA["Estado Carga API"]
+        API_GPS["GPS API"]
+        API_DOC["Documentación API"]
+        API_RED["Red Nodexia API"]
+        API_CA["Control Acceso API"]
+        API_ADMIN["Admin APIs"]
+        API_TRANSP["Transporte API"]
+    end
+    subgraph "SUPABASE"
+        DB[(PostgreSQL)]
+        AUTH["Auth JWT"]
+        STORAGE["Storage<br/>Remitos, Docs"]
+        RLS["Row Level Security"]
+        CRON["pg_cron<br/>cada 5 min"]
+    end
+    WEB --> API_EST & API_CARGA & API_RED & API_ADMIN
+    PWA --> API_EST & API_GPS & API_CA
+    API_EST & API_CARGA & API_GPS & API_DOC --> DB
+    API_RED & API_CA & API_ADMIN & API_TRANSP --> DB
+    API_DOC --> STORAGE
+    CRON --> DB
+    AUTH --> RLS
+            </pre>
+        </div>
+        <div class="diagram-footer">Stack: Next.js 16 + React 19 + Supabase + TypeScript + Tailwind v4</div>
+    </div>
+
+    <!-- 02 ROLES -->
+    <div class="diagram-section" id="d02">
+        <div class="diagram-header">
+            <h2>02 — Roles del Sistema</h2>
+            <span class="badge">Organización</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+graph LR
+    subgraph "Empresa tipo: PLANTA"
+        COORD_P["🏭 Coordinador<br/>de Planta"]
+        CA["🚧 Control<br/>de Acceso"]
+        SUP["👷 Supervisor<br/>de Carga"]
+        ADMIN_P["📋 Administrativo"]
+    end
+    subgraph "Empresa tipo: TRANSPORTE"
+        COORD_T["🚛 Coordinador<br/>de Transporte"]
+        CHOFER["🧑‍✈️ Chofer"]
+        SUP_F["👷 Supervisor<br/>de Flota"]
+        ADMIN_T["📋 Administrativo"]
+    end
+    subgraph "Empresa tipo: CLIENTE"
+        VISOR["👁️ Visor"]
+    end
+    subgraph "Plataforma"
+        ADMIN_N["⚙️ Admin Nodexia"]
+    end
+            </pre>
+        </div>
+        <div class="diagram-footer">9 roles • 4 tipos de empresa • Permisos por rol_interno + tipo_empresa</div>
+    </div>
+
+    <!-- 03 MODELO DATOS -->
+    <div class="diagram-section" id="d03">
+        <div class="diagram-header">
+            <h2>03 — Modelo de Datos</h2>
+            <span class="badge">Base de Datos</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+erDiagram
+    EMPRESAS ||--o{ USUARIOS_EMPRESA : tiene
+    EMPRESAS ||--o{ CAMIONES : posee
+    EMPRESAS ||--o{ ACOPLADOS : posee
+    EMPRESAS ||--o{ CHOFERES : emplea
+    EMPRESAS ||--o{ UBICACIONES : opera
+    DESPACHOS ||--o{ VIAJES_DESPACHO : contiene
+    DESPACHOS }o--|| UBICACIONES : origen
+    DESPACHOS }o--|| UBICACIONES : destino
+    VIAJES_DESPACHO }o--o| CHOFERES : asignado
+    VIAJES_DESPACHO }o--o| CAMIONES : asignado
+    VIAJES_DESPACHO }o--o| ACOPLADOS : asignado
+    VIAJES_DESPACHO }o--o| EMPRESAS : id_transporte
+    VIAJES_RED_NODEXIA ||--|| VIAJES_DESPACHO : publica
+    VIAJES_RED_NODEXIA ||--o{ OFERTAS_RED_NODEXIA : recibe
+    OFERTAS_RED_NODEXIA }o--|| EMPRESAS : ofertante
+    VIAJES_DESPACHO ||--o{ UBICACIONES_CHOFERES : tracking
+    VIAJES_DESPACHO ||--o{ REGISTROS_ACCESO : ingreso_egreso
+    VIAJES_DESPACHO ||--o{ DOCUMENTOS_VIAJE : remitos
+    CHOFERES }o--o| USUARIOS : cuenta
+    USUARIOS_EMPRESA }o--|| USUARIOS : es
+            </pre>
+        </div>
+        <div class="diagram-footer">15+ tablas principales • Relación 1:N despacho→viajes • Marketplace via viajes_red_nodexia + ofertas</div>
+    </div>
+
+    <!-- 04 MAQUINA ESTADOS -->
+    <div class="diagram-section" id="d04">
+        <div class="diagram-header">
+            <h2>04 — Máquina de Estados del Viaje</h2>
+            <span class="badge">Core</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+stateDiagram-v2
+    direction LR
+    state "F0: CREACIÓN" as f0 {
+        pendiente
+    }
+    state "F1: ASIGNACIÓN" as f1 {
+        transporte_asignado
+        camion_asignado
+        confirmado_chofer
+    }
+    state "F2: TRÁNSITO ORIGEN" as f2 {
+        en_transito_origen
+        arribo_origen
+    }
+    state "F3: PLANTA ORIGEN" as f3 {
+        ingresado_origen
+        en_playa_origen
+        llamado_carga
+        cargando
+        cargado
+    }
+    state "F4: EGRESO" as f4 {
+        egreso_origen
+    }
+    state "F5: TRÁNSITO DESTINO" as f5 {
+        en_transito_destino
+        arribo_destino
+        arribado_destino
+    }
+    state "F6: PLANTA DESTINO" as f6 {
+        ingresado_destino
+        llamado_descarga
+        descargando
+        descargado
+    }
+    state "F7: CIERRE" as f7 {
+        egreso_destino
+        vacio
+    }
+    state "F8: FINAL" as f8 {
+        viaje_completado
+    }
+    [*] --> pendiente
+    pendiente --> transporte_asignado
+    pendiente --> camion_asignado
+    transporte_asignado --> camion_asignado
+    camion_asignado --> confirmado_chofer
+    confirmado_chofer --> en_transito_origen
+    en_transito_origen --> arribo_origen
+    arribo_origen --> ingresado_origen
+    ingresado_origen --> en_playa_origen
+    en_playa_origen --> llamado_carga
+    llamado_carga --> cargando
+    cargando --> cargado
+    cargado --> egreso_origen
+    egreso_origen --> en_transito_destino
+    en_transito_destino --> arribo_destino
+    arribo_destino --> arribado_destino
+    arribado_destino --> ingresado_destino
+    ingresado_destino --> llamado_descarga
+    llamado_descarga --> descargando
+    descargando --> descargado
+    descargado --> egreso_destino
+    egreso_destino --> vacio
+    vacio --> viaje_completado
+    viaje_completado --> [*]
+            </pre>
+        </div>
+        <div class="diagram-footer">25+ estados • 8 fases • Flujo lineal con shortcuts permitidos</div>
+    </div>
+
+    <!-- 05 BIFURCACION -->
+    <div class="diagram-section" id="d05">
+        <div class="diagram-header">
+            <h2>05 — Bifurcación: Red Nodexia vs Asignación Directa</h2>
+            <span class="badge">Flujo</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart TD
+    START["🏭 Coordinador Planta<br/>Crea Despacho"] --> DECIDE{"¿Cómo asignar<br/>transporte?"}
+    DECIDE -->|"Asignación Directa"| DIRECTO
+    DECIDE -->|"Red Nodexia<br/>Marketplace"| RED
+    subgraph DIRECTO["FLUJO DIRECTO"]
+        D1["Seleccionar transporte<br/>de lista de relaciones"]
+        D2["Transporte ve despacho<br/>en Despachos Ofrecidos"]
+        D3["Transporte asigna<br/>chofer + camión + acoplado"]
+    end
+    subgraph RED["FLUJO RED NODEXIA"]
+        R1["Publicar viaje<br/>en Red Nodexia"]
+        R2["Transportes ven carga<br/>en Cargas en Red"]
+        R3["Transportes envían<br/>ofertas"]
+        R4["Coordinador revisa<br/>y acepta oferta"]
+        R5["Transporte asigna<br/>chofer + camión + acoplado"]
+    end
+    D1 --> D2 --> D3
+    R1 --> R2 --> R3 --> R4 --> R5
+    D3 --> MERGE["✅ Estado: camion_asignado<br/>Flujo unificado"]
+    R5 --> MERGE
+    MERGE --> CHOFER_CONF["Chofer confirma viaje"]
+    CHOFER_CONF --> FLOW["Flujo de estados operativos"]
+            </pre>
+        </div>
+        <div class="diagram-footer">Dos caminos de asignación que convergen en camion_asignado</div>
+    </div>
+
+    <!-- 06 FLUJO DIRECTO -->
+    <div class="diagram-section" id="d06">
+        <div class="diagram-header">
+            <h2>06 — Flujo Directo (Detalle)</h2>
+            <span class="badge">Sequence</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+sequenceDiagram
+    actor CP as 🏭 Coord. Planta
+    participant DB as 📦 Supabase
+    actor CT as 🚛 Coord. Transporte
+    actor CH as 🧑‍✈️ Chofer
+    Note over CP: CREACION
+    CP->>DB: INSERT despacho + viajes
+    Note over DB: estado = pendiente
+    Note over CP: ASIGNACION
+    CP->>DB: UPDATE viaje SET id_transporte
+    Note over DB: estado = transporte_asignado
+    CT->>DB: GET viajes WHERE id_transporte = mi_empresa
+    Note over CT: Ve en Despachos Ofrecidos
+    CT->>DB: POST /api/transporte/asignar-unidad
+    Note over DB: chofer_id, camion_id, acoplado_id<br/>estado = camion_asignado
+    CH->>DB: POST /api/viajes/id/estado-unidad
+    Note over DB: estado = confirmado_chofer
+            </pre>
+        </div>
+        <div class="diagram-footer">origen_asignacion = 'directo'</div>
+    </div>
+
+    <!-- 07 FLUJO RED NODEXIA -->
+    <div class="diagram-section" id="d07">
+        <div class="diagram-header">
+            <h2>07 — Flujo Red Nodexia (Marketplace)</h2>
+            <span class="badge">Sequence</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+sequenceDiagram
+    actor CP as 🏭 Coord. Planta
+    participant DB as 📦 Supabase
+    participant RED as 🌐 Red Nodexia
+    actor CT as 🚛 Coord. Transporte
+    actor CH as 🧑‍✈️ Chofer
+    Note over CP: CREACION
+    CP->>DB: INSERT despacho + viajes
+    CP->>RED: Publicar viaje
+    Note over RED: estado_red = abierto
+    Note over CT: MARKETPLACE
+    CT->>RED: Ver Cargas en Red
+    CT->>RED: Enviar oferta
+    Note over RED: estado_red = con_ofertas
+    Note over CP: SELECCION
+    CP->>RED: Revisar ofertas
+    CP->>DB: POST /api/red-nodexia/aceptar-oferta
+    Note over DB: oferta = aceptada<br/>viaje = transporte_asignado<br/>origen_asignacion = red_nodexia
+    Note over CT: ASIGNACION UNIDAD
+    CT->>DB: POST /api/transporte/asignar-unidad
+    Note over DB: estado = camion_asignado
+    CH->>DB: Confirmar viaje
+    Note over DB: estado = confirmado_chofer
+            </pre>
+        </div>
+        <div class="diagram-footer">origen_asignacion = 'red_nodexia' • Tabla ofertas_red_nodexia</div>
+    </div>
+
+    <!-- 08 COORD PLANTA -->
+    <div class="diagram-section" id="d08">
+        <div class="diagram-header">
+            <h2>08 — Flujo: Coordinador de Planta</h2>
+            <span class="badge">Rol</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart TD
+    LOGIN["Login"] --> DASH["Dashboard<br/>KPIs, Alertas, Mapa"]
+    DASH --> CREAR["Crear Despacho"]
+    DASH --> PLAN["Planificación<br/>Grilla semana/día/mes"]
+    DASH --> TRACK["Tracking<br/>Mapa en vivo"]
+    DASH --> RED_N["Red Nodexia<br/>Publicar / Ofertas"]
+    DASH --> STATS["Estadísticas"]
+    CREAR --> DESP_PEND["Despacho Pendiente"]
+    DESP_PEND --> ASIG_DIR["Asignar Transporte<br/>Directo"]
+    DESP_PEND --> ASIG_RED["Publicar en Red<br/>Nodexia"]
+    ASIG_DIR --> ESPERA_T["Esperar asignación<br/>de unidad"]
+    ASIG_RED --> ESPERA_O["Esperar ofertas"]
+    ESPERA_O --> ACEPTAR["Aceptar oferta"]
+    ACEPTAR --> ESPERA_T
+    ESPERA_T --> MONIT["Monitorear progreso"]
+            </pre>
+        </div>
+        <div class="diagram-footer">Páginas: coordinator-dashboard, crear-despacho, planificacion, red-nodexia, estadisticas</div>
+    </div>
+
+    <!-- 09 COORD TRANSPORTE -->
+    <div class="diagram-section" id="d09">
+        <div class="diagram-header">
+            <h2>09 — Flujo: Coordinador de Transporte</h2>
+            <span class="badge">Rol</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart TD
+    LOGIN["Login"] --> DASH["Dashboard Transporte<br/>Stats, Alertas, Flota"]
+    DASH --> DESP_O["Despachos Ofrecidos<br/>Asignación Directa"]
+    DASH --> CARGAS["Cargas en Red<br/>Marketplace"]
+    DASH --> VIAJES["Viajes Activos<br/>Mapa + Timeline"]
+    DASH --> FLOTA["Gestión de Flota"]
+    DASH --> DOCS["Documentación"]
+    DESP_O --> ACEPTAR_D["Aceptar despacho"]
+    ACEPTAR_D --> ASIGNAR["Asignar Unidad<br/>Chofer+Camión+Acoplado"]
+    CARGAS --> OFERTAR["Enviar Oferta"]
+    OFERTAR --> ESPERA["Esperar aceptación"]
+    ESPERA --> ASIGNAR
+    ASIGNAR --> MONIT["Monitorear Viajes Activos"]
+    FLOTA --> CAM["Camiones"]
+    FLOTA --> ACO["Acoplados"]
+    FLOTA --> CHO["Choferes"]
+    FLOTA --> UNI["Unidades Operativas"]
+            </pre>
+        </div>
+        <div class="diagram-footer">Páginas: transporte/dashboard, despachos-ofrecidos, cargas-en-red, viajes-activos, flota</div>
+    </div>
+
+    <!-- 10 CHOFER -->
+    <div class="diagram-section" id="d10">
+        <div class="diagram-header">
+            <h2>10 — Flujo: Chofer (Mobile)</h2>
+            <span class="badge">Rol</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart TD
+    LOGIN["Login Mobile"] --> DASH["Dashboard Chofer<br/>Viajes Asignados"]
+    DASH --> VIAJE["Ver Viaje Activo"]
+    VIAJE --> CONFIRM["✅ Confirmar Viaje<br/>confirmado_chofer"]
+    CONFIRM --> TRANSITO1["🚚 Iniciar Tránsito<br/>en_transito_origen<br/>GPS ON"]
+    TRANSITO1 --> ARRIBO1["📍 Arribo Planta<br/>arribo_origen"]
+    ARRIBO1 --> ESPERA_CA["⏳ Esperar ingreso<br/>Control Acceso"]
+    ESPERA_CA --> EN_PLANTA["En Planta Origen<br/>Supervisor maneja"]
+    EN_PLANTA --> ESPERA_EGRESO["⏳ Esperar egreso<br/>Control Acceso"]
+    ESPERA_EGRESO --> TRANSITO2["🚛 Tránsito a Destino<br/>en_transito_destino<br/>GPS ON"]
+    TRANSITO2 --> ARRIBO2["📍 Arribo Destino<br/>arribo_destino"]
+    ARRIBO2 --> FIN["✅ Viaje Completado"]
+    VIAJE --> INCID["⚠️ Reportar Incidencia"]
+    VIAJE --> DOC["📄 Subir Remito"]
+            </pre>
+        </div>
+        <div class="diagram-footer">Páginas: chofer-mobile, chofer/viajes, chofer/tracking-gps</div>
+    </div>
+
+    <!-- 11 CONTROL ACCESO -->
+    <div class="diagram-section" id="d11">
+        <div class="diagram-header">
+            <h2>11 — Flujo: Control de Acceso</h2>
+            <span class="badge">Rol</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart TD
+    LOGIN["Login"] --> SELEC["Seleccionar Ubicación"]
+    SELEC --> SCAN["📷 Escanear QR<br/>del Despacho"]
+    SCAN --> INFO["Ver Info del Viaje<br/>Chofer, Camión, Estado"]
+    INFO --> TIPO{"¿Tipo operación?"}
+    TIPO -->|"ENVÍO<br/>soy origen"| ENVIO
+    TIPO -->|"RECEPCIÓN<br/>soy destino"| RECEP
+    subgraph ENVIO["Operación de Envío"]
+        ING_O["🚧 Confirmar INGRESO<br/>ingresado_origen"]
+        ING_O --> ESPERA_C["⏳ Esperar carga"]
+        ESPERA_C --> VAL_D["📋 Validar Docs"]
+        VAL_D --> EGR_O["🚪 Confirmar EGRESO<br/>egreso_origen"]
+    end
+    subgraph RECEP["Operación de Recepción"]
+        ING_D["🚧 Confirmar INGRESO<br/>ingresado_destino"]
+        ING_D --> ESPERA_D["⏳ Esperar descarga"]
+        ESPERA_D --> VAL_D2["📋 Validar Docs"]
+        VAL_D2 --> EGR_D["🚪 Confirmar EGRESO<br/>egreso_destino"]
+    end
+            </pre>
+        </div>
+        <div class="diagram-footer">Auto-detecta tipo operación según empresa • Página: control-acceso</div>
+    </div>
+
+    <!-- 12 SUPERVISOR -->
+    <div class="diagram-section" id="d12">
+        <div class="diagram-header">
+            <h2>12 — Flujo: Supervisor de Carga</h2>
+            <span class="badge">Rol</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart TD
+    LOGIN["Login"] --> DASH["Dashboard<br/>Supervisor de Carga"]
+    DASH --> COLA["Ver Cola de Espera<br/>viajes en_playa_origen"]
+    COLA --> LLAMAR["📢 Llamar a Carga<br/>llamado_carga"]
+    LLAMAR --> INICIAR["⚙️ Iniciar Carga<br/>QR scan - cargando"]
+    INICIAR --> CARGAR["📦 Cargando...<br/>Registro peso/producto"]
+    CARGAR --> REMITO["📸 Subir Remito"]
+    REMITO --> FINALIZAR["✅ Finalizar Carga<br/>cargado"]
+    FINALIZAR --> LISTO["Camión listo<br/>para egreso por CA"]
+            </pre>
+        </div>
+        <div class="diagram-footer">Página: supervisor-carga • APIs: llamar-carga, iniciar-carga, finalizar-carga</div>
+    </div>
+
+    <!-- 13 SYNC -->
+    <div class="diagram-section" id="d13">
+        <div class="diagram-header">
+            <h2>13 — Sincronización Viaje ↔ Despacho</h2>
+            <span class="badge">Sync</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart LR
+    subgraph VIAJE["viaje.estado_unidad"]
+        V_PEND["pendiente"]
+        V_TRANS["transporte_asignado"]
+        V_CAM["camion_asignado"]
+        V_CONF["confirmado_chofer"]
+        V_TRANSIT["en_transito_origen<br/>hasta<br/>egreso_destino / vacio"]
+        V_COMP["viaje_completado"]
+    end
+    subgraph DESPACHO["despacho.estado"]
+        D_PEND["pendiente"]
+        D_TRANS["transporte_asignado"]
+        D_CAM["camion_asignado"]
+        D_TRANSIT["en_transito"]
+        D_COMP["completado"]
+    end
+    V_PEND -->|"mapea a"| D_PEND
+    V_TRANS -->|"mapea a"| D_TRANS
+    V_CAM -->|"mapea a"| D_CAM
+    V_CONF -->|"mapea a"| D_CAM
+    V_TRANSIT -->|"mapea a"| D_TRANSIT
+    V_COMP -->|"mapea a"| D_COMP
+            </pre>
+        </div>
+        <div class="diagram-footer">Multi-viaje: despacho toma estado del viaje más avanzado</div>
+    </div>
+
+    <!-- 14 CRON -->
+    <div class="diagram-section" id="d14">
+        <div class="diagram-header">
+            <h2>14 — Cron de Expiración</h2>
+            <span class="badge">Sistema</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+flowchart TD
+    CRON["⏰ pg_cron cada 5 min"] --> FUNC["marcar_viajes_expirados"]
+    FUNC --> CHECK{"¿Viaje cumple TODAS<br/>las condiciones?"}
+    CHECK -->|"SÍ"| EXPIRE["estado = expirado"]
+    CHECK -->|"NO"| SKIP["No tocar"]
+    EXPIRE --> DESP_CHECK{"¿TODOS los viajes<br/>del despacho expirados?"}
+    DESP_CHECK -->|"SÍ"| DESP_EXP["despacho = expirado"]
+    DESP_CHECK -->|"NO"| DESP_OK["despacho sin cambios"]
+    subgraph COND["Condiciones para expirar"]
+        C1["1. chofer_id IS NULL<br/>OR camion_id IS NULL"]
+        C2["2. scheduled_at menor a<br/>NOW - 2 horas"]
+        C3["3. estado NO protegido"]
+    end
+    subgraph PROT["Estados PROTEGIDOS"]
+        P1["Planta: ingresado, playa,<br/>llamado, cargando, cargado, egreso"]
+        P2["Tránsito: en_transito,<br/>arribo, arribado"]
+        P3["Destino: ingresado,<br/>descargando, descargado"]
+        P4["Finales: vacio,<br/>completado, cancelado"]
+    end
+            </pre>
+        </div>
+        <div class="diagram-footer">Solo expira: pendiente, transporte_asignado, camion_asignado, confirmado_chofer, fuera_de_horario</div>
+    </div>
+
+    <!-- 15 E2E -->
+    <div class="diagram-section" id="d15">
+        <div class="diagram-header">
+            <h2>15 — Flujo End-to-End Completo</h2>
+            <span class="badge">E2E</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+sequenceDiagram
+    actor CP as 🏭 Coord. Planta
+    actor CT as 🚛 Coord. Transporte
+    actor CH as 🧑‍✈️ Chofer
+    actor CA as 🚧 Control Acceso
+    actor SC as 👷 Supervisor
+    participant SYS as ⚙️ Sistema
+    Note over CP: FASE 0 - Creación
+    CP->>SYS: Crear despacho + viajes
+    Note over SYS: estado = pendiente
+    Note over CP,CT: FASE 1 - Asignación
+    alt Directa
+        CP->>CT: Asignar transporte
+    else Red Nodexia
+        CP->>SYS: Publicar en Red
+        CT->>SYS: Enviar oferta
+        CP->>SYS: Aceptar oferta
+    end
+    CT->>SYS: Asignar chofer + camión
+    Note over SYS: camion_asignado
+    CH->>SYS: Confirmar viaje
+    Note over SYS: confirmado_chofer
+    Note over CH: FASE 2 - Tránsito a Origen
+    CH->>SYS: Iniciar tránsito + GPS
+    Note over SYS: en_transito_origen
+    CH->>SYS: Arribo planta
+    Note over SYS: arribo_origen
+    Note over CA,SC: FASE 3 - Planta Origen
+    CA->>SYS: QR + Ingreso
+    Note over SYS: ingresado_origen
+    SC->>SYS: Llamar carga
+    Note over SYS: llamado_carga
+    SC->>SYS: Iniciar + Finalizar carga
+    Note over SYS: cargado
+    Note over CA: FASE 4 - Egreso
+    CA->>SYS: Validar docs + Egreso
+    Note over SYS: egreso_origen
+    Note over CH: FASE 5 - Tránsito a Destino
+    CH->>SYS: Tránsito destino + GPS
+    Note over SYS: en_transito_destino
+    CH->>SYS: Arribo destino
+    Note over SYS: arribo_destino
+    Note over CA,SC: FASE 6 - Planta Destino
+    CA->>SYS: Ingreso destino
+    SC->>SYS: Descarga
+    Note over SYS: descargado
+    Note over CA: FASE 7 - Egreso Destino
+    CA->>SYS: Egreso destino
+    Note over SYS: vacio
+    Note over SYS: FASE 8 - Auto cierre
+    SYS->>SYS: viaje_completado
+            </pre>
+        </div>
+        <div class="diagram-footer">Flujo completo: 5 roles • 8 fases • ~25 transiciones de estado</div>
+    </div>
+
+    <!-- 16 MAPA PANTALLAS -->
+    <div class="diagram-section" id="d16">
+        <div class="diagram-header">
+            <h2>16 — Mapa de Pantallas por Rol</h2>
+            <span class="badge">Navegación</span>
+        </div>
+        <div class="diagram-body">
+            <pre class="mermaid">
+graph TD
+    subgraph PLANTA["🏭 PLANTA"]
+        P1["coordinator-dashboard"]
+        P2["crear-despacho"]
+        P3["planificacion"]
+        P4["red-nodexia"]
+        P5["estadisticas"]
+        P6["control-acceso"]
+        P7["supervisor-carga"]
+        P8["incidencias"]
+        P9["documentos"]
+    end
+    subgraph TRANSP["🚛 TRANSPORTE"]
+        T1["transporte/dashboard"]
+        T2["transporte/despachos-ofrecidos"]
+        T3["transporte/cargas-en-red"]
+        T4["transporte/viajes-activos"]
+        T5["transporte/flota"]
+        T6["transporte/choferes"]
+        T7["transporte/documentacion"]
+        T8["transporte/tracking-flota"]
+    end
+    subgraph CHOFER["🧑‍✈️ CHOFER"]
+        C1["chofer-mobile"]
+        C2["chofer/viajes"]
+        C3["chofer/tracking-gps"]
+        C4["chofer/perfil"]
+    end
+    subgraph ADMIN["⚙️ ADMIN"]
+        A1["admin/super-admin-dashboard"]
+        A2["admin/empresas"]
+        A3["admin/usuarios"]
+        A4["admin/validacion-documentos"]
+        A5["admin/solicitudes"]
+        A6["admin/sistema-salud"]
+    end
+            </pre>
+        </div>
+        <div class="diagram-footer">50+ páginas • 4 grupos principales</div>
+    </div>
+
+    <!-- TABLA DE ESTADOS -->
+    <div class="diagram-section" id="tabla-estados">
+        <div class="diagram-header">
+            <h2>Tabla Completa de Estados</h2>
+            <span class="badge">Referencia</span>
+        </div>
+        <div style="padding: 24px; overflow-x: auto;">
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Estado</th>
+                        <th>Fase</th>
+                        <th>Responsable</th>
+                        <th>Progreso</th>
+                        <th>Transiciones Válidas →</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>0</td><td><code>pendiente</code></td><td><span class="phase-badge" style="background:#6b7280">Creación</span></td><td>Sistema</td><td>0%</td><td>transporte_asignado, camion_asignado, confirmado_chofer, en_transito_origen, en_playa_origen</td></tr>
+                    <tr><td>1</td><td><code>transporte_asignado</code></td><td><span class="phase-badge" style="background:#3b82f6">Asignación</span></td><td>Coord. Planta</td><td>3%</td><td>camion_asignado, confirmado_chofer, en_transito_origen, en_playa_origen</td></tr>
+                    <tr><td>2</td><td><code>camion_asignado</code></td><td><span class="phase-badge" style="background:#3b82f6">Asignación</span></td><td>Coord. Transporte</td><td>5%</td><td>confirmado_chofer, en_transito_origen, en_playa_origen</td></tr>
+                    <tr><td>3</td><td><code>confirmado_chofer</code></td><td><span class="phase-badge" style="background:#3b82f6">Asignación</span></td><td>Chofer</td><td>10%</td><td>en_transito_origen, en_playa_origen</td></tr>
+                    <tr><td>4</td><td><code>en_transito_origen</code></td><td><span class="phase-badge" style="background:#6366f1">Tránsito→Origen</span></td><td>Chofer</td><td>15%</td><td>arribo_origen, ingresado_origen, en_playa_origen</td></tr>
+                    <tr><td>5</td><td><code>arribo_origen</code></td><td><span class="phase-badge" style="background:#6366f1">Tránsito→Origen</span></td><td>Chofer (GPS)</td><td>20%</td><td>ingresado_origen, en_playa_origen</td></tr>
+                    <tr><td>6</td><td><code>ingresado_origen</code></td><td><span class="phase-badge" style="background:#eab308;color:#000">Planta Origen</span></td><td>Control Acceso</td><td>25%</td><td>en_playa_origen</td></tr>
+                    <tr><td>7</td><td><code>en_playa_origen</code></td><td><span class="phase-badge" style="background:#eab308;color:#000">Planta Origen</span></td><td>Automático</td><td>30%</td><td>llamado_carga</td></tr>
+                    <tr><td>8</td><td><code>llamado_carga</code></td><td><span class="phase-badge" style="background:#eab308;color:#000">Planta Origen</span></td><td>Supervisor</td><td>35%</td><td>cargando</td></tr>
+                    <tr><td>9</td><td><code>cargando</code></td><td><span class="phase-badge" style="background:#f97316">Planta Origen</span></td><td>Supervisor</td><td>40%</td><td>cargado</td></tr>
+                    <tr><td>10</td><td><code>cargado</code></td><td><span class="phase-badge" style="background:#f97316">Planta Origen</span></td><td>Supervisor</td><td>50%</td><td>egreso_origen</td></tr>
+                    <tr><td>11</td><td><code>egreso_origen</code></td><td><span class="phase-badge" style="background:#a855f7">Egreso Origen</span></td><td>Control Acceso</td><td>55%</td><td>en_transito_destino</td></tr>
+                    <tr><td>12</td><td><code>en_transito_destino</code></td><td><span class="phase-badge" style="background:#14b8a6">Tránsito→Destino</span></td><td>Chofer</td><td>60%</td><td>arribo_destino, arribado_destino, ingresado_destino</td></tr>
+                    <tr><td>13</td><td><code>arribo_destino</code></td><td><span class="phase-badge" style="background:#14b8a6">Tránsito→Destino</span></td><td>Chofer (GPS)</td><td>70%</td><td>ingresado_destino, arribado_destino, vacio</td></tr>
+                    <tr><td>14</td><td><code>arribado_destino</code></td><td><span class="phase-badge" style="background:#14b8a6">Tránsito→Destino</span></td><td>Chofer</td><td>70%</td><td>ingresado_destino, vacio</td></tr>
+                    <tr><td>15</td><td><code>ingresado_destino</code></td><td><span class="phase-badge" style="background:#06b6d4">Planta Destino</span></td><td>Control Acceso</td><td>75%</td><td>llamado_descarga</td></tr>
+                    <tr><td>16</td><td><code>llamado_descarga</code></td><td><span class="phase-badge" style="background:#06b6d4">Planta Destino</span></td><td>Supervisor</td><td>80%</td><td>descargando</td></tr>
+                    <tr><td>17</td><td><code>descargando</code></td><td><span class="phase-badge" style="background:#06b6d4">Planta Destino</span></td><td>Supervisor</td><td>85%</td><td>descargado</td></tr>
+                    <tr><td>18</td><td><code>descargado</code></td><td><span class="phase-badge" style="background:#06b6d4">Planta Destino</span></td><td>Supervisor</td><td>90%</td><td>egreso_destino</td></tr>
+                    <tr><td>19</td><td><code>egreso_destino</code></td><td><span class="phase-badge" style="background:#10b981">Cierre</span></td><td>Control Acceso</td><td>93%</td><td>vacio, viaje_completado</td></tr>
+                    <tr><td>20</td><td><code>vacio</code></td><td><span class="phase-badge" style="background:#10b981">Cierre</span></td><td>Automático</td><td>95%</td><td>viaje_completado</td></tr>
+                    <tr><td>21</td><td><code>viaje_completado</code></td><td><span class="phase-badge" style="background:#22c55e">Final</span></td><td>Automático</td><td>100%</td><td>— (terminal)</td></tr>
+                    <tr><td>—</td><td><code>expirado</code></td><td><span class="phase-badge" style="background:#6b7280">Especial</span></td><td>Cron</td><td>—</td><td>transporte_asignado, camion_asignado (reactivar)</td></tr>
+                    <tr><td>—</td><td><code>cancelado</code></td><td><span class="phase-badge" style="background:#ef4444">Final</span></td><td>Coordinador</td><td>—</td><td>— (terminal)</td></tr>
+                    <tr><td>—</td><td><code>fuera_de_horario</code></td><td><span class="phase-badge" style="background:#6b7280">Especial</span></td><td>Cron</td><td>—</td><td>en_transito_origen, arribo_origen, ingresado_origen</td></tr>
+                    <tr><td>—</td><td><code>incidencia</code></td><td><span class="phase-badge" style="background:#f97316">Especial</span></td><td>Chofer</td><td>—</td><td>— (terminal)</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TABLA DE APIS -->
+    <div class="diagram-section" id="tabla-apis">
+        <div class="diagram-header">
+            <h2>Tabla Completa de APIs</h2>
+            <span class="badge">Referencia</span>
+        </div>
+        <div style="padding: 24px; overflow-x: auto;">
+            <table class="info-table">
+                <thead>
+                    <tr>
+                        <th>Módulo</th>
+                        <th>Endpoint</th>
+                        <th>Método</th>
+                        <th>Propósito</th>
+                        <th>Roles</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td rowspan="4">Estado Viaje</td><td>/api/viajes/[id]/estado-unidad</td><td>POST</td><td>Avanzar estado físico</td><td>Todos</td></tr>
+                    <tr><td>/api/viajes/[id]/estado-carga</td><td>POST</td><td>Actualizar estado carga</td><td>Supervisor</td></tr>
+                    <tr><td>/api/viajes/[id]/estados</td><td>GET</td><td>Estado dual completo</td><td>Todos</td></tr>
+                    <tr><td>/api/viajes/actualizar-estado</td><td>POST</td><td>Legacy estado update</td><td>Chofer</td></tr>
+                    <tr><td>Asignación</td><td>/api/transporte/asignar-unidad</td><td>POST</td><td>Asignar chofer+camión+acoplado</td><td>Coord. Transp.</td></tr>
+                    <tr><td>Red Nodexia</td><td>/api/red-nodexia/aceptar-oferta</td><td>POST</td><td>Aceptar oferta marketplace</td><td>Coord. Planta</td></tr>
+                    <tr><td rowspan="5">Control Acceso</td><td>/api/control-acceso/escanear-qr</td><td>POST</td><td>Leer QR, obtener datos</td><td>CA</td></tr>
+                    <tr><td>/api/control-acceso/confirmar-accion</td><td>POST</td><td>Confirmar ingreso/egreso</td><td>CA</td></tr>
+                    <tr><td>/api/control-acceso/verificar-documentacion</td><td>GET</td><td>Verificar docs entidad</td><td>CA</td></tr>
+                    <tr><td>/api/control-acceso/documentos-detalle</td><td>GET</td><td>Detalle docs</td><td>CA</td></tr>
+                    <tr><td>/api/control-acceso/crear-incidencia</td><td>POST</td><td>Registrar incidencia</td><td>CA</td></tr>
+                    <tr><td rowspan="3">Supervisor</td><td>/api/supervisor-carga/llamar-carga</td><td>POST</td><td>Llamar camión a carga</td><td>Supervisor</td></tr>
+                    <tr><td>/api/supervisor-carga/iniciar-carga</td><td>POST</td><td>Iniciar carga (QR)</td><td>Supervisor</td></tr>
+                    <tr><td>/api/supervisor-carga/finalizar-carga</td><td>POST</td><td>Finalizar + peso + remito</td><td>Supervisor</td></tr>
+                    <tr><td rowspan="3">GPS</td><td>/api/gps/registrar-ubicacion</td><td>POST</td><td>Guardar posición GPS</td><td>Chofer</td></tr>
+                    <tr><td>/api/gps/ubicaciones-historicas</td><td>GET</td><td>Historial GPS viaje</td><td>Coord.</td></tr>
+                    <tr><td>/api/gps/estadisticas-viaje</td><td>GET</td><td>Stats viaje (km, vel)</td><td>Coord.</td></tr>
+                    <tr><td>Chofer</td><td>/api/chofer/viajes</td><td>GET</td><td>Viajes activos del chofer</td><td>Chofer</td></tr>
+                    <tr><td rowspan="6">Documentación</td><td>/api/documentacion/upload</td><td>POST</td><td>Subir documento</td><td>Todos</td></tr>
+                    <tr><td>/api/documentacion/listar</td><td>GET</td><td>Listar docs entidad</td><td>Todos</td></tr>
+                    <tr><td>/api/documentacion/validar</td><td>POST</td><td>Aprobar/rechazar doc</td><td>Admin</td></tr>
+                    <tr><td>/api/documentacion/pendientes</td><td>GET</td><td>Docs pendientes</td><td>Admin</td></tr>
+                    <tr><td>/api/documentacion/alertas</td><td>GET</td><td>Alertas vencimiento</td><td>Coord.</td></tr>
+                    <tr><td>/api/documentacion/estado-batch</td><td>POST</td><td>Estado docs en batch</td><td>Coord. T.</td></tr>
+                    <tr><td>Remito</td><td>/api/upload-remito</td><td>POST</td><td>Subir foto remito</td><td>Chofer/Sup.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    mermaid.initialize({ 
+        startOnLoad: true, 
+        theme: 'default',
+        flowchart: { useMaxWidth: true, htmlLabels: true },
+        sequence: { useMaxWidth: true },
+        er: { useMaxWidth: true }
+    });
+
+    // Smooth scroll for nav
+    document.querySelectorAll('.nav a').forEach(link => {
+        link.addEventListener('click', (e) => {
+            document.querySelectorAll('.nav a').forEach(l => l.classList.remove('active'));
+            e.target.classList.add('active');
+        });
+    });
+</script>
+
+</body>
+</html>

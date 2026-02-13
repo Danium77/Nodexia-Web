@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 11-Feb-2026 (Sesión 12 — Hardening + Red Nodexia Fixes + Esquema Definitivo Estados)
+**Última actualización:** 13-Feb-2026 (Cierre Sesión 17 — Centralización Estados Completa)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 18-Feb-2026 (7 días)
+**Próxima presentación:** 18-Feb-2026 (5 días)
 
 ---
 
@@ -12,17 +12,35 @@
 - **Fase:** Pre-MVP (Días 1-9 completados, adelantados al plan)
 - **Stack:** Next.js 16 + React 19 + Supabase + TypeScript + Tailwind v4
 - **Deployado:** No (desarrollo local)
-- **Tests:** Mínimos (3 archivos)
-- **Migraciones BD:** 109 archivos (046_CORREGIDO + 049 + 050 + 052 + 053 + 054 ejecutadas)
+- **Tests:** 4 archivos (56 tests para sistema de estados centralizados)
+- **Migraciones BD:** 112 archivos (058 + 059 ejecutadas, 055 + 056 pendientes)
 - **BD lista para documentación:** SÍ (3 tablas + 7 funciones + 3 triggers + 6 RLS + 14 indexes)
+- **Red Nodexia BD:** 4 tablas (`viajes_red_nodexia`, `requisitos_viaje_red`, `ofertas_red_nodexia`, `historial_red_nodexia`)
+- **Historial Despachos BD:** Tabla `historial_despachos` (migración 055, pendiente ejecución)
 - **RLS corregido:** Migración 052 (get_visible_chofer_ids, get_visible_camion_ids, get_visible_acoplado_ids) - admin bypass + branches correctos
+- **RLS gap:** `ofertas_red_nodexia` sin UPDATE policy (bypaseado por API service role)
 - **Storage Buckets:** documentacion-entidades, documentacion-viajes (privados, 10MB, PDF/JPG/PNG), remitos (público, 10MB)
 - **API Routes Documentación:** 10 endpoints (upload, listar, [id], validar, pendientes, verificar-documentacion, documentos-detalle, estado-batch, alertas, preview-url)
 - **API Routes Operativas (Sesión 11):** upload-remito, consultar-remito, chofer/viajes, viajes/[id]/estado-unidad
-- **State Machine:** TRANSICIONES_VALIDAS en JS (19 estados, reemplaza RPC inexistente)
-- **Esquema Definitivo Estados:** 22 estados en 7 fases (0-Creación a 6-Cierre + X-Cancelado) en `lib/estadosHelper.ts`
+- **API Routes Red Nodexia (Sesión 13):** `/api/red-nodexia/aceptar-oferta` (service role, 8 pasos atómicos + historial)
+- **API Routes Sesión 14:** `/api/transporte/asignar-unidad` (service role, bypass RLS), `/api/despachos/timeline` (timeline híbrido)
+- **State Machine:** TRANSICIONES_VALIDAS en `lib/estados/config.ts` (17+1 estados centralizados, 7 fases)
+- **Esquema Definitivo Estados:** 17 estados + cancelado en `lib/estados/config.ts` (FUENTE ÚNICA DE VERDAD)
+- **Estados (17+1):** pendiente, transporte_asignado, camion_asignado, confirmado_chofer, en_transito_origen, ingresado_origen, llamado_carga, cargando, cargado, egreso_origen, en_transito_destino, ingresado_destino, llamado_descarga, descargando, descargado, egreso_destino, completado (+cancelado)
+- **Display Centralizado:** `ESTADO_DISPLAY` + `getEstadoDisplay()` con legacy mapping en `lib/estados/config.ts`
+- **Despacho Sync:** `cambiarEstadoViaje()` sincroniza 3 tablas: viajes_despacho + despachos + estado_unidad_viaje
+- **Services Layer:** `lib/services/viajeEstado.ts` (cambiarEstadoViaje, asignarUnidad) + `lib/services/notificaciones.ts` (notificarCambioEstado)
+- **Thin API Routes:** API routes delegan a services layer (no lógica directa en handlers)
+- **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
+- **PostgREST FK Hints:** `ofertas_red_nodexia!viaje_red_id` para disambiguar 2 FKs a viajes_red_nodexia
+- **Fase 5 Destino:** Control de acceso auto-detecta envio/recepcion por empresa_id de ubicación
+- **Timeline/Historial:** Híbrido — timestamps existentes de viajes_despacho + tabla historial_despachos para eventos custom
+- **Asignar Unidad:** API service role bypasa RLS (fix DSP-20260211-004)
+- **Vinculación Model:** `relaciones_empresas` (empresa_cliente_id, empresa_transporte_id, estado: activa/inactiva)
+- **Tabla `transportes`:** NO EXISTE — código legacy que la referenciaba fue corregido
 - **Tabla documentos_viaje:** La real es `documentos_viaje_seguro` (NOT NULL: viaje_id, tipo, nombre_archivo, file_url, storage_path, fecha_emision, subido_por)
 - **Flujo E2E Validado:** Supervisor remito → CA egreso → Chofer viaje destino → Finalizar → Vacío ✅
+- **Red Nodexia E2E Validado:** Publicar → Ofertar → Aceptar → Rechazar otros → Display badges ✅
 - **Hardening:** ~20 APIs peligrosas eliminadas, GPS auth bypass fix, security headers, leaked key removida (commit e3b8e29)
 - **Control de Acceso:** Verificación docs integrada con API (no RPC), criterios dinámicos chofer dependencia/autónomo
 - **Alertas Documentación:** Hook useDocAlerts + DocAlertsBanner + DocComplianceCard
@@ -37,8 +55,10 @@
 - ✅ Ver planificación semanal/mensual/diaria con estados
 - ✅ Gestionar ubicaciones
 - ✅ Gestionar transportes vinculados
+- ✅ Desvincular transporte con validación de viajes activos + modal confirmación
 - ✅ Crear despachos
 - ✅ Asignar transporte
+- ✅ Aceptar oferta Red Nodexia (API service role, 8 pasos atómicos)
 
 ### Transporte:
 - ✅ Gestionar flota (camión, chofer, acoplado)
@@ -49,6 +69,9 @@
 - ✅ Panel de estado de cada unidad operativa
 - ✅ Asignación inteligente de unidades
 - ✅ Acceso a red Nodexia (ofertas de carga)
+- ✅ Red Nodexia: marketplace filtra viajes de empresas vinculadas directamente
+- ✅ Red Nodexia: display "No seleccionado" para ofertas rechazadas (badge rojo, banner, opacity)
+- ✅ Red Nodexia: modal in-app para confirmación de oferta (no browser alert)
 - ✅ Estado de docs en tabla de unidades operativas (DocStatusBadge)
 - ✅ Alertas de vencimiento de docs en sidebar (badge) y dashboard (banner)
 - ✅ Compliance de documentación en dashboard (DocComplianceCard)
@@ -203,6 +226,10 @@ components/
 19. **✅ RESUELTO: Red Nodexia mostraba datos stale** — Chofer/camión/acoplado visibles antes de confirmación → override con "Esperando oferta" (commit d0cac1c)
 20. **✅ RESUELTO: Tab categorización demorado/expirado** — Esquema definitivo con membresía exclusiva de tabs (commit 9efe9a7)
 21. **✅ RESUELTO: Hardening seguridad** — 20 APIs eliminadas, auth bypass GPS, security headers, leaked key (commit e3b8e29)
+22. **✅ RESUELTO: PostgREST embed ambiguity** — ofertas_red_nodexia tiene 2 FKs a viajes_red_nodexia → FK hint `!viaje_red_id`
+23. **✅ RESUELTO: RLS bloqueaba aceptar oferta** — ofertas no tenía UPDATE policy + trigger permission denied → API service role
+24. **⚠️ RLS gap:** `ofertas_red_nodexia` sin UPDATE policy — Bypaseado por API, pero falta policy para seguridad en producción
+25. **✅ RESUELTO: DSP-20260211-004 chofer/camión no muestra** — Causa: RLS bloqueaba AsignarUnidadModal + enRedPendiente nullificaba chofer_id. Fix: API service role + condición actualizada + display intermedio
 
 ---
 
@@ -216,74 +243,82 @@ components/
 
 ## 🔄 ÚLTIMA ACTIVIDAD
 
-**Sesión 11-Feb-2026 (Sesión 12 — Hardening + Red Nodexia + Estados Definitivo):**
+**Sesión 13-Feb-2026 (Sesiones 16-17 — Centralización de Estados Completa):**
 
 ### Contexto:
-- Hardening de seguridad pre-demo
-- Red Nodexia: fixes de visualización y categorización
-- Esquema definitivo de estados para viajes (22 estados, 7 fases)
-- 7 días para la presentación MVP (18-Feb-2026)
-- **RESULTADO: SEGURIDAD HARDENED + ESTADOS DEFINITIVOS** ✅
+- Reestructuración arquitectónica completa del sistema de estados para escalabilidad de equipo
+- Migración de 22 estados legacy a 17+1 centralizados
+- Purga completa de estados obsoletos en 30+ archivos
+- Services layer (viajeEstado, notificaciones) para thin API routes
+- 56 tests automatizados para el sistema de estados
 
 ### Cambios principales:
 
-**1. Hardening de seguridad (commit e3b8e29):**
-- ~20 API routes peligrosas eliminadas (debug, test, bypass, delete-all)
-- GPS auth bypass fix (validar JWT antes de guardar ubicación)
-- Security headers en next.config.ts (CSP, HSTS, X-Frame-Options, etc.)
-- Leaked Supabase service key removida de docs/
-- Password hardcodeada reemplazada en nueva-invitacion.ts
+**1. Sistema de estados centralizado (lib/estados/config.ts):**
+- 17 estados + cancelado como FUENTE ÚNICA DE VERDAD
+- TRANSICIONES_VALIDAS, ORDEN_ESTADOS, ESTADO_DISPLAY, ROLES_AUTORIZADOS
+- Funciones: validarTransicion, getProximosEstados, puedeActualizar, calcularProgreso
+- Legacy mapping en getEstadoDisplay() para backward compatibility
 
-**2. Red Nodexia fixes (commits a786b89, d0cac1c):**
-- Viajes no se expandían → query simplificado a select('*')
-- Datos stale de chofer/camión → override con "En Red Nodexia" / "Esperando oferta" cuando viaje no está en movimiento
+**2. Services layer completo:**
+- `lib/services/viajeEstado.ts` — cambiarEstadoViaje() sincroniza 3 tablas (viajes_despacho + despachos + estado_unidad_viaje)
+- `lib/services/notificaciones.ts` — notificarCambioEstado() centralizado
+- ESTADO_A_TIMESTAMP mapping: cada estado popula su timestamp en estado_unidad_viaje
 
-**3. Tab categorización (commits 4ea02da, 4e34c1f, aafba23, 9efe9a7):**
-- Despacho Red Nodexia aparecía en Demorados en vez de Expirados
-- Múltiples iteraciones hasta solución definitiva
-- Esquema final con membresía exclusiva de tabs
+**3. Purga de estados obsoletos (30+ archivos):**
+- Eliminados: arribo_origen, arribo_destino, en_playa_origen, viaje_completado, entregado, vacio, disponible_carga, etc.
+- Reemplazados por equivalentes centralizados en todo el código ejecutable
 
-**4. Esquema definitivo de estados (commit 9efe9a7):**
-- estadosHelper.ts reescrito completo: 22 estados en 7 fases
-- Constantes: ESTADOS_FASE_ASIGNACION, ESTADOS_EN_MOVIMIENTO, ESTADOS_EN_PLANTA, ESTADOS_FINALES
-- Helpers: estaEnMovimiento(), estaEnAsignacion(), esFinal(), estaEnPlanta()
-- calcularEstadoOperativo() simplificado: Final>EnPlanta>EnMovimiento>Asignación
-- Tab categorización en crear-despacho.tsx con prioridad exclusiva
-- API: arribo_destino permite arribado_destino (destinos sin Nodexia)
+**4. confirmar-accion.ts migrado:**
+- Antes: usaba RPC validar_transicion_estado_unidad (riesgo de desync)
+- Ahora: usa cambiarEstadoViaje() + notificarCambioEstado()
 
-### Archivos modificados/creados:
+**5. cancelarViaje() centralizado:**
+- Antes: update directo en estado_unidad_viaje (bypasaba service)
+- Ahora: ruta via API → cambiarEstadoViaje()
+
+**6. Lectura estandarizada:**
+- Todos los archivos usan `estado || estado_unidad` (estado es canónico)
+- estados-camiones.tsx: query cambiada de .in('estado_unidad') a .in('estado')
+
+**7. 56 tests automatizados:**
+- Completeness (18 estados), transitions, happy-path, roles, legacy mapping, graph integrity
+
+### Archivos creados:
 ```
-REESCRITOS:
-- lib/estadosHelper.ts (esquema definitivo de estados, ~260 líneas)
-
-ELIMINADOS (~20 archivos):
-- APIs de debug/test/bypass/delete-all
-
-MODIFICADOS:
-- pages/crear-despacho.tsx (Red Nodexia override + tab categorización exclusiva + badges)
-- pages/api/viajes/[id]/estado-unidad.ts (transición arribo_destino → arribado_destino)
-- next.config.ts (security headers)
-- pages/api/gps/save-location.ts (auth fix)
-- pages/admin/nueva-invitacion.ts (hardcoded password removida)
+lib/estados/config.ts — Fuente única de verdad (17+1 estados)
+lib/estados/index.ts — Re-exports
+lib/services/viajeEstado.ts — Service: cambiarEstadoViaje, asignarUnidad
+lib/services/notificaciones.ts — Service: notificarCambioEstado
+sql/migrations/058_centralizacion_estados_y_paradas.sql — Migración estados + paradas ✅ EJECUTADA
+sql/migrations/059_unificar_estado_unidad_viaje.sql — CHECK constraint actualizado ✅ EJECUTADA
+__tests__/lib/estados-config.test.ts — 56 tests
 ```
 
-### Commits de sesión:
-- e3b8e29: Hardening (seguridad)
-- a786b89: Fix viajes expand
-- d0cac1c: Red Nodexia pending display
-- 4ea02da, 4e34c1f, aafba23: Tab categorización iteraciones
-- 9efe9a7: Esquema definitivo de estados
+### Archivos modificados (30+):
+```
+Purga de estados obsoletos en: crear-despacho.tsx, despachos.tsx, notificaciones.tsx,
+types/network.ts, MonthView.tsx, DayView.tsx, estados-camiones.tsx, supervisor-carga.tsx,
+viajes-activos.tsx, despachos-ofrecidos.tsx, tracking-flota.tsx, demo-qr.tsx,
+configuracion/transportes.tsx, actualizar-ubicacion.ts, escanear-qr.ts, chofer/viajes.ts,
+control-acceso.tsx, confirmar-accion.ts, lib/api/estado-unidad.ts, lib/estadosHelper.ts
+```
 
-### Test Data de Referencia:
-- Despacho: DSP-20260210-001 (id: 169630e5)
-- Viaje: 43194a04
-- Chofer: walter@logisticaexpres.com (user_id: cd5eaa17, chofer_id: 75251f55)
+### Migraciones ejecutadas:
+- ✅ `058_centralizacion_estados_y_paradas.sql`
+- ✅ `059_unificar_estado_unidad_viaje.sql`
 
-**Próximos pasos (quedan 7 días):**
-- Fase 5: Destino con Nodexia (CA + descarga en destino)
-- Cierre automático del viaje (vacío → completado)
-- Sincronización estado viaje en crear-despacho
-- Polish para demo + deploy staging
+**⚠️ MIGRACIONES PENDIENTES DE EJECUCIÓN:**
+- `sql/migrations/055_historial_despachos.sql` — Tabla historial_despachos
+- `sql/migrations/056_fix_rls_viajes_red_rechazados.sql` — RLS transportes rechazados
+
+**Próximos pasos (quedan 5 días):**
+- Centralizar estado_carga_viaje (service análogo para carga)
+- Fix actualizarEstadoDual() en supervisor-carga.tsx (error silencioso si carga falla)
+- Renombrar prop estado_unidad → estado en interfaz ViajeEstado
+- TASK-S23: Circuito de incidencias
+- TASK-S24: Deploy staging (Vercel)
+- TASK-S25: Testing con data real
 
 ---
 
@@ -293,3 +328,5 @@ MODIFICADOS:
 - Presentación MVP: 18-Feb-2026
 - Objetivo post-MVP: Profesionalizar sin equipo humano
 - Stack moderno (puede tener bugs por versiones muy nuevas)
+- Tabla `transportes` NO existe — usar `empresas` con tipo_empresa='transporte'
+- `despachos` usa `pedido_id` para identificadores DSP-YYYYMMDD-NNN

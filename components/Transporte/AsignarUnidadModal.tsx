@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { TruckIcon, XMarkIcon, MapPinIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { TruckIcon, XMarkIcon, MapPinIcon, ClockIcon, CheckCircleIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
 import RouteMap from '../Maps/RouteMap';
+
+interface DocStatus {
+  total_requeridos: number;
+  total_subidos: number;
+  vigentes: number;
+  por_vencer: number;
+  vencidos: number;
+  faltantes: string[];
+  estado: 'ok' | 'warning' | 'danger' | 'missing';
+}
 
 interface UnidadDisponible {
   id: string;
@@ -70,6 +80,7 @@ export default function AsignarUnidadModal({
   const [distanciaViaje, setDistanciaViaje] = useState<number | null>(null);
   const [origenCoords, setOrigenCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [destinoCoords, setDestinoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [docStatusMap, setDocStatusMap] = useState<Record<string, DocStatus>>({});
 
   useEffect(() => {
     if (isOpen && userEmpresas) {
@@ -292,6 +303,30 @@ export default function AsignarUnidadModal({
       unidadesConScore.sort((a, b) => (b.score || 0) - (a.score || 0));
 
       setUnidades(unidadesConScore);
+
+      // Cargar estado de documentación para todas las entidades
+      try {
+        const entidades: { tipo: string; id: string }[] = [];
+        unidadesConScore.forEach(u => {
+          if (u.chofer_id) entidades.push({ tipo: 'chofer', id: u.chofer_id });
+          if (u.camion_id) entidades.push({ tipo: 'camion', id: u.camion_id });
+          if (u.acoplado_id) entidades.push({ tipo: 'acoplado', id: u.acoplado_id });
+        });
+
+        if (entidades.length > 0) {
+          const docRes = await fetch('/api/documentacion/estado-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entidades }),
+          });
+          if (docRes.ok) {
+            const docData = await docRes.json();
+            setDocStatusMap(docData.data || {});
+          }
+        }
+      } catch (docErr) {
+        console.warn('⚠️ No se pudo cargar estado de documentación:', docErr);
+      }
     } catch (err: any) {
       console.error('Error al cargar unidades:', err);
       setError(err.message || 'Error al cargar unidades');
@@ -332,66 +367,49 @@ export default function AsignarUnidadModal({
       }
 
       if (viajeId) {
-        // 🛡️ VALIDACIÓN ADICIONAL: Verificar estado antes de actualizar
-        const { data: viajeActual } = await supabase
-          .from('viajes_despacho')
-          .select('estado')
-          .eq('id', viajeId)
-          .single();
-        
-        if (viajeActual?.estado === 'expirado') {
-          throw new Error('❌ No se puede asignar unidad a un viaje EXPIRADO. El viaje debe ser reprogramado primero.');
-        }
-        
-        // Actualizar viaje existente
-        const updateData: any = {
-          chofer_id: unidad.chofer_id,
-          camion_id: unidad.camion_id,
-          estado: 'transporte_asignado',
-          updated_at: new Date().toISOString()
-        };
-        
-        if (unidad.acoplado_id) {
-          updateData.acoplado_id = unidad.acoplado_id;
-        }
-        
-        const { error: updateError } = await supabase
-          .from('viajes_despacho')
-          .update(updateData)
-          .eq('id', viajeId);
+        // � Usar API route con service_role para bypasear RLS
+        const response = await fetch('/api/transporte/asignar-unidad', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            viajeId,
+            despachoId: despacho.id,
+            choferId: unidad.chofer_id,
+            camionId: unidad.camion_id,
+            acopladoId: unidad.acoplado_id || null,
+            unidadNombre: unidad.nombre,
+            pedidoId: despacho.pedido_id
+          })
+        });
 
-        if (updateError) throw updateError;
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'Error al asignar unidad');
+        }
+        console.log('✅ Unidad asignada via API:', result);
       } else {
-        // Crear nuevo viaje
-        const insertData: any = {
-          despacho_id: despacho.id,
-          numero_viaje: 1,
-          chofer_id: unidad.chofer_id,
-          camion_id: unidad.camion_id,
-          estado: 'transporte_asignado'
-        };
-        
-        if (unidad.acoplado_id) {
-          insertData.acoplado_id = unidad.acoplado_id;
+        // Crear nuevo viaje (caso raro — normalmente el viaje ya existe)
+        const response = await fetch('/api/transporte/asignar-unidad', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            viajeId: null,
+            despachoId: despacho.id,
+            choferId: unidad.chofer_id,
+            camionId: unidad.camion_id,
+            acopladoId: unidad.acoplado_id || null,
+            unidadNombre: unidad.nombre,
+            pedidoId: despacho.pedido_id,
+            createNew: true
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'Error al crear viaje con unidad');
         }
-        
-        const { error: insertError } = await supabase
-          .from('viajes_despacho')
-          .insert(insertData);
-
-        if (insertError) throw insertError;
+        console.log('✅ Viaje creado con unidad via API:', result);
       }
-
-      // Actualizar estado del despacho
-      const { error: despachoError } = await supabase
-        .from('despachos')
-        .update({
-          estado: 'transporte_asignado',
-          comentarios: `${despacho.pedido_id} - Unidad asignada: ${unidad.nombre}`
-        })
-        .eq('id', despacho.id);
-
-      if (despachoError) throw despachoError;
 
       onSuccess();
       onClose();
@@ -632,6 +650,43 @@ export default function AsignarUnidadModal({
                         </p>
                       </div>
                     </div>
+
+                    {/* Estado de Documentación */}
+                    {(() => {
+                      const choferDoc = docStatusMap[`chofer:${unidad.chofer_id}`];
+                      const camionDoc = docStatusMap[`camion:${unidad.camion_id}`];
+                      const acopladoDoc = unidad.acoplado_id ? docStatusMap[`acoplado:${unidad.acoplado_id}`] : null;
+                      const hasDocData = choferDoc || camionDoc || acopladoDoc;
+                      if (!hasDocData) return null;
+
+                      const getDocBadge = (doc: DocStatus | undefined, label: string) => {
+                        if (!doc) return null;
+                        const colors = {
+                          ok: 'text-green-400 bg-green-500/10',
+                          warning: 'text-yellow-400 bg-yellow-500/10',
+                          danger: 'text-red-400 bg-red-500/10',
+                          missing: 'text-gray-400 bg-gray-500/10',
+                        };
+                        const icons = { ok: '✅', warning: '⚠️', danger: '❌', missing: '📄' };
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${colors[doc.estado]}`}>
+                            {icons[doc.estado]} {label}
+                            {doc.vencidos > 0 && <span className="text-red-300">({doc.vencidos} venc.)</span>}
+                            {doc.faltantes.length > 0 && doc.vencidos === 0 && <span className="text-gray-300">({doc.faltantes.length} falt.)</span>}
+                          </span>
+                        );
+                      };
+
+                      return (
+                        <div className="mt-3 flex items-center gap-2 flex-wrap">
+                          <DocumentCheckIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-xs text-gray-400">Docs:</span>
+                          {getDocBadge(choferDoc, 'Chofer')}
+                          {getDocBadge(camionDoc, 'Camión')}
+                          {acopladoDoc && getDocBadge(acopladoDoc, 'Acoplado')}
+                        </div>
+                      );
+                    })()}
 
                     {/* Distancia */}
                     {unidad.distancia_km !== undefined && unidad.distancia_km > 0 && (

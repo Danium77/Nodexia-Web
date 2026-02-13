@@ -65,8 +65,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 2. Validar estado actual del viaje según la acción
-    // Usar estado_unidad en lugar de estado_viaje
-    const estadoActual = viaje.estado_unidad || viaje.estado;
+    // Prefer estado (canonical) over estado_unidad (legacy sync)
+    const estadoActual = viaje.estado || viaje.estado_unidad;
     
     if (accion === 'ingreso') {
       // Puede ser ingreso a origen (desde en_transito_origen) o a destino (desde en_transito_destino)
@@ -77,11 +77,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
     } else if (accion === 'egreso') {
-      // Puede ser egreso de origen (desde egreso_origen) o de destino (desde vacio)
-      if (!['egreso_origen', 'vacio'].includes(estadoActual)) {
+      // Puede ser egreso de origen (desde cargado) o de destino (desde descargado)
+      if (!['cargado', 'descargado'].includes(estadoActual)) {
         return res.status(400).json({
           error: 'Estado inválido para egreso', 
-          details: `El viaje debe estar en estado 'egreso_origen' o 'vacio' para poder egresar.`
+          details: `El viaje debe estar en estado 'cargado' o 'descargado' para poder egresar.`
         });
       }
     }

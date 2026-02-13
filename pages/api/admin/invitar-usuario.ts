@@ -1,9 +1,9 @@
 // pages/api/admin/invitar-usuario.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { withAdminAuth as withAdminAuth2, type NextApiHandlerWithAdmin as NextApiHandlerWithAdmin2 } from '../../../lib/middleware/withAdminAuth2';
+import { withAdminAuth, type NextApiHandlerWithAdmin } from '../../../lib/middleware/withAdminAuth';
 
-const inviteUserHandler: NextApiHandlerWithAdmin2 = async (req, res, _adminUser) => {
+const inviteUserHandler: NextApiHandlerWithAdmin = async (req, res, _adminUser) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -114,4 +114,4 @@ const inviteUserHandler: NextApiHandlerWithAdmin2 = async (req, res, _adminUser)
   }
 };
 
-export default withAdminAuth2(inviteUserHandler);
+export default withAdminAuth(inviteUserHandler);

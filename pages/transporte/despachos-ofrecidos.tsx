@@ -199,7 +199,7 @@ const DespachosOfrecidos = () => {
           )
         `)
         .or(`id_transporte.eq.${empresaId},id_transporte_cancelado.eq.${empresaId}`)
-        .in('estado', ['pendiente', 'asignado', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'pausado', 'cancelado', 'cancelado_por_transporte'])
+        .in('estado', ['pendiente', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'ingresado_origen', 'llamado_carga', 'cargando', 'cargado', 'egreso_origen', 'en_transito_destino', 'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino', 'completado', 'cancelado', 'cancelado_por_transporte'])
         .order('created_at', { ascending: true });
 
       console.log('📊 Query ejecutado con filtros:', {
@@ -326,8 +326,16 @@ const DespachosOfrecidos = () => {
         (d.estado_viaje as string) !== 'confirmado_chofer' &&
         (d.estado_viaje as string) !== 'en_transito_origen' &&
         (d.estado_viaje as string) !== 'en_transito_destino' &&
-        (d.estado_viaje as string) !== 'arribo_origen' &&
-        (d.estado_viaje as string) !== 'arribo_destino'
+        (d.estado_viaje as string) !== 'ingresado_origen' &&
+        (d.estado_viaje as string) !== 'llamado_carga' &&
+        (d.estado_viaje as string) !== 'cargando' &&
+        (d.estado_viaje as string) !== 'cargado' &&
+        (d.estado_viaje as string) !== 'egreso_origen' &&
+        (d.estado_viaje as string) !== 'ingresado_destino' &&
+        (d.estado_viaje as string) !== 'llamado_descarga' &&
+        (d.estado_viaje as string) !== 'descargando' &&
+        (d.estado_viaje as string) !== 'descargado' &&
+        (d.estado_viaje as string) !== 'egreso_destino'
       );
     } else if (estadoTab === 'asignados') {
       // ✅ Viajes con chofer Y camión asignados, o en estados avanzados
@@ -481,7 +489,7 @@ const DespachosOfrecidos = () => {
   ).length;
   
   const enTransito = despachos.filter(d => 
-    ['en_transito_origen', 'en_transito_destino', 'arribo_origen', 'arribo_destino'].includes(d.estado_viaje as string)
+    ['en_transito_origen', 'en_transito_destino', 'ingresado_origen', 'ingresado_destino'].includes(d.estado_viaje as string)
   ).length;
   
   const ahora = new Date();
@@ -903,8 +911,9 @@ const DespachosOfrecidos = () => {
                       despacho.estado_viaje === 'pausado' ? 'bg-orange-600/20 text-orange-400 border border-orange-600/30' :
                       despacho.estado_viaje === 'confirmado_chofer' ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30' :
                       despacho.estado_viaje === 'en_transito_origen' || despacho.estado_viaje === 'en_transito_destino' ? 'bg-green-600/20 text-green-400 border border-green-600/30' :
-                      despacho.estado_viaje === 'arribo_origen' || despacho.estado_viaje === 'arribo_destino' ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30' :
-                      despacho.estado_viaje === 'entregado' ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30' :
+                      despacho.estado_viaje === 'ingresado_origen' || despacho.estado_viaje === 'ingresado_destino' ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30' :
+                      despacho.estado_viaje === 'cargado' || despacho.estado_viaje === 'descargado' ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-600/30' :
+                      despacho.estado_viaje === 'completado' || despacho.estado_viaje === 'egreso_destino' ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30' :
                       despacho.estado_viaje === 'cancelado' || despacho.estado_viaje === 'cancelado_por_transporte' ? 'bg-red-600/20 text-red-400 border border-red-600/30' :
                       'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30'
                     }`}>
@@ -913,9 +922,11 @@ const DespachosOfrecidos = () => {
                        despacho.estado_viaje === 'confirmado_chofer' ? '✓ Confirmado' :
                        despacho.estado_viaje === 'en_transito_origen' ? '🚚 A Origen' :
                        despacho.estado_viaje === 'en_transito_destino' ? '🚛 A Destino' :
-                       despacho.estado_viaje === 'arribo_origen' ? '📍 En Origen' :
-                       despacho.estado_viaje === 'arribo_destino' ? '📍 En Destino' :
-                       despacho.estado_viaje === 'entregado' ? '✅ Entregado' :
+                       despacho.estado_viaje === 'ingresado_origen' ? '🏭 En Planta' :
+                       despacho.estado_viaje === 'ingresado_destino' ? '🏁 En Destino' :
+                       despacho.estado_viaje === 'cargado' ? '📦 Cargado' :
+                       despacho.estado_viaje === 'descargado' ? '✅ Descargado' :
+                       despacho.estado_viaje === 'completado' ? '🏆 Completado' :
                        despacho.estado_viaje === 'cancelado' ? '❌ Cancelado' :
                        despacho.estado_viaje?.replace('_', ' ').toUpperCase()}
                     </span>

@@ -201,7 +201,7 @@ export default function ChoferMobile() {
           
           // Si el servidor detectó arribo, actualizar estado local
           if (result.estado_detectado) {
-            setMessage(`📍 ${result.estado_detectado === 'arribo_origen' ? 'Arribaste al origen' : 'Arribaste al destino'}`);
+            setMessage(`📍 ${result.estado_detectado === 'ingresado_origen' ? 'Arribaste al origen' : 'Arribaste al destino'}`);
             fetchViajes(); // Recargar viajes para actualizar estado
           }
         } else {
@@ -366,7 +366,7 @@ export default function ChoferMobile() {
           )
         `)
         .eq('chofer_id', chofer.id)
-        .in('estado', ['transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'entregado', 'expirado', 'pausado'])
+        .in('estado', ['transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'ingresado_origen', 'llamado_carga', 'cargando', 'cargado', 'egreso_origen', 'en_transito_destino', 'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino', 'completado'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -523,44 +523,9 @@ export default function ChoferMobile() {
     }
   };
 
-  const handleLlegarOrigen = async () => {
-    if (!viajeActivo || !user?.id) return;
-
-    try {
-      setLoading(true);
-      
-      // El chofer marca que llegó al origen
-      const response = await fetch('/api/viajes/actualizar-estado', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          viaje_id: viajeActivo.id,
-          nuevo_estado: 'arribo_origen',
-          user_id: user.id
-        })
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      
-      setMessage('✅ Llegada a origen registrada');
-      
-      // Actualizar el viaje activo Y la lista de viajes localmente
-      if (viajeActivo) {
-        const viajeActualizado = { ...viajeActivo, estado: 'arribo_origen' };
-        setViajeActivo(viajeActualizado);
-        
-        // Actualizar también en la lista de viajes
-        setViajes(viajes.map(v => 
-          v.id === viajeActivo.id ? viajeActualizado : v
-        ));
-      }
-    } catch (error: any) {
-      setError('Error al registrar llegada: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // NOTA: handleLlegarOrigen eliminado — en el nuevo flujo,
+  // el ingreso a origen lo registra Control de Acceso al escanear el QR.
+  // La UI ya muestra "Esperando registro en portería" cuando estado === 'en_transito_origen'.
 
   const handleIniciarTransitoDestino = async () => {
     if (!viajeActivo || !user?.id) return;
@@ -611,7 +576,7 @@ export default function ChoferMobile() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           viaje_id: viajeActivo.id,
-          nuevo_estado: 'arribo_destino',
+          nuevo_estado: 'ingresado_destino',
           user_id: user.id
         })
       });
@@ -623,7 +588,7 @@ export default function ChoferMobile() {
       
       // Actualizar el viaje activo Y la lista de viajes localmente
       if (viajeActivo) {
-        const viajeActualizado = { ...viajeActivo, estado: 'arribo_destino' };
+        const viajeActualizado = { ...viajeActivo, estado: 'ingresado_destino' };
         setViajeActivo(viajeActualizado);
         
         // Actualizar también en la lista de viajes
@@ -860,7 +825,7 @@ export default function ChoferMobile() {
         setMessage('✅ Ubicación enviada correctamente');
         
         if (result.estado_detectado) {
-          const estadoMsg = result.estado_detectado === 'arribo_origen' ? 'Arribaste al origen' : 'Arribaste al destino';
+          const estadoMsg = result.estado_detectado === 'ingresado_origen' ? 'Arribaste al origen' : 'Arribaste al destino';
           setMessage(`📍 ${estadoMsg}`);
           addDebugLog(`🎯 Estado detectado: ${result.estado_detectado}`);
           fetchViajes();
@@ -1008,7 +973,9 @@ export default function ChoferMobile() {
                 viajeActivo.estado === 'transporte_asignado' || viajeActivo.estado === 'camion_asignado' ? 'bg-yellow-600' :
                 viajeActivo.estado === 'confirmado_chofer' ? 'bg-blue-600' :
                 viajeActivo.estado === 'en_transito_origen' || viajeActivo.estado === 'en_transito_destino' ? 'bg-green-600' :
-                viajeActivo.estado === 'arribo_origen' || viajeActivo.estado === 'arribo_destino' ? 'bg-purple-600' :
+                viajeActivo.estado === 'ingresado_origen' || viajeActivo.estado === 'ingresado_destino' ? 'bg-purple-600' :
+                viajeActivo.estado === 'llamado_carga' || viajeActivo.estado === 'cargando' || viajeActivo.estado === 'llamado_descarga' || viajeActivo.estado === 'descargando' ? 'bg-amber-600' :
+                viajeActivo.estado === 'cargado' || viajeActivo.estado === 'descargado' || viajeActivo.estado === 'egreso_origen' || viajeActivo.estado === 'egreso_destino' || viajeActivo.estado === 'completado' ? 'bg-emerald-600' :
                 viajeActivo.estado === 'pausado' ? 'bg-orange-600' :
                 'bg-slate-600'
               } text-white`}>
@@ -1209,7 +1176,34 @@ export default function ChoferMobile() {
               </>
             )}
 
-            {viajeActivo.estado === 'arribo_origen' && (
+            {viajeActivo.estado === 'ingresado_origen' && (
+              <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/40 rounded-xl p-5 text-center backdrop-blur-sm">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl">🏭</span>
+                </div>
+                <p className="text-blue-400 font-bold text-lg mb-2">Ingreso registrado</p>
+                <p className="text-sm text-slate-300">Esperando llamado a carga del supervisor</p>
+              </div>
+            )}
+
+            {(viajeActivo.estado === 'llamado_carga' || viajeActivo.estado === 'cargando' || viajeActivo.estado === 'cargado') && (
+              <div className="bg-gradient-to-br from-amber-500/20 to-orange-600/10 border border-amber-500/40 rounded-xl p-5 text-center backdrop-blur-sm">
+                <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-3 animate-pulse">
+                  <span className="text-2xl">{viajeActivo.estado === 'llamado_carga' ? '📢' : viajeActivo.estado === 'cargando' ? '⏳' : '✅'}</span>
+                </div>
+                <p className="text-amber-400 font-bold text-lg mb-2">
+                  {viajeActivo.estado === 'llamado_carga' ? 'Llamado a Carga' : 
+                   viajeActivo.estado === 'cargando' ? 'Cargando...' : 'Carga Completada'}
+                </p>
+                <p className="text-sm text-slate-300">
+                  {viajeActivo.estado === 'llamado_carga' ? 'Dirigite a la posición de carga asignada' :
+                   viajeActivo.estado === 'cargando' ? 'Permanecé cerca del vehículo durante la carga' :
+                   'Esperando autorización de egreso de Control de Acceso'}
+                </p>
+              </div>
+            )}
+
+            {viajeActivo.estado === 'egreso_origen' && (
               <button
                 onClick={handleIniciarTransitoDestino}
                 disabled={loading}
@@ -1266,27 +1260,46 @@ export default function ChoferMobile() {
               </>
             )}
 
-            {viajeActivo.estado === 'arribo_destino' && (
-              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/50 rounded-2xl p-8 text-center backdrop-blur-sm relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent"></div>
-                <div className="relative z-10">
-                  <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                    <span className="text-4xl">🎉</span>
-                  </div>
-                  <p className="text-green-400 font-bold text-2xl mb-3">Viaje completado</p>
-                  <p className="text-base text-slate-200 mb-2">Has llegado al destino</p>
-                  <p className="text-sm text-slate-400">El supervisor de carga registrará la descarga</p>
+            {viajeActivo.estado === 'ingresado_destino' && (
+              <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/40 rounded-xl p-5 text-center backdrop-blur-sm">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl">🏭</span>
                 </div>
+                <p className="text-blue-400 font-bold text-lg mb-2">Ingreso a destino registrado</p>
+                <p className="text-sm text-slate-300">Esperando llamado a descarga del supervisor</p>
               </div>
             )}
 
-            {viajeActivo.estado === 'entregado' && (
-              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/50 rounded p-2 text-center backdrop-blur-sm">
-                <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3 animate-bounce">
-                  <span className="text-3xl">✅</span>
+            {(viajeActivo.estado === 'llamado_descarga' || viajeActivo.estado === 'descargando' || viajeActivo.estado === 'descargado') && (
+              <div className="bg-gradient-to-br from-amber-500/20 to-orange-600/10 border border-amber-500/40 rounded-xl p-5 text-center backdrop-blur-sm">
+                <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-3 animate-pulse">
+                  <span className="text-2xl">{viajeActivo.estado === 'llamado_descarga' ? '📢' : viajeActivo.estado === 'descargando' ? '⏳' : '✅'}</span>
                 </div>
-                <p className="text-green-400 font-bold text-xl mb-2">¡Entrega exitosa!</p>
-                <p className="text-sm text-slate-300">Excelente trabajo completado</p>
+                <p className="text-amber-400 font-bold text-lg mb-2">
+                  {viajeActivo.estado === 'llamado_descarga' ? 'Llamado a Descarga' :
+                   viajeActivo.estado === 'descargando' ? 'Descargando...' : 'Descarga Completada'}
+                </p>
+                <p className="text-sm text-slate-300">
+                  {viajeActivo.estado === 'llamado_descarga' ? 'Dirigite a la posición de descarga asignada' :
+                   viajeActivo.estado === 'descargando' ? 'Permanecé cerca del vehículo durante la descarga' :
+                   'Esperando autorización de egreso de Control de Acceso'}
+                </p>
+              </div>
+            )}
+
+            {(viajeActivo.estado === 'egreso_destino' || viajeActivo.estado === 'completado') && (
+              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/50 rounded-2xl p-8 text-center backdrop-blur-sm relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent"></div>
+                <div className="relative z-10">
+                  <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                    <span className="text-4xl">🎉</span>
+                  </div>
+                  <p className="text-green-400 font-bold text-2xl mb-3">¡Viaje completado!</p>
+                  <p className="text-base text-slate-200 mb-2">Excelente trabajo</p>
+                  <p className="text-sm text-slate-400">
+                    {viajeActivo.estado === 'egreso_destino' ? 'Egreso registrado. Viaje casi finalizado.' : 'Viaje finalizado exitosamente.'}
+                  </p>
+                </div>
               </div>
             )}
           </div>

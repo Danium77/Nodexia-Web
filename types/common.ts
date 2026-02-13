@@ -1,5 +1,6 @@
 // types/common.ts
 // Centralized common types for the application
+// NOTE: Entity types (Empresa, Chofer, etc.) are in lib/types.ts
 
 export interface BaseEntity {
   id: string;
@@ -48,21 +49,8 @@ export interface User extends BaseEntity {
   phone?: string;
 }
 
-// Modelo centralizado de Empresa para toda la app
-export interface Empresa extends BaseEntity {
-  nombre: string;
-  cuit: string;
-  tipo_empresa: 'planta' | 'transporte' | 'cliente' | 'sistema';
-  email?: string;
-  telefono?: string;
-  direccion?: string;
-  localidad?: string;
-  provincia?: string;
-  activa: boolean;
-  usuario_admin?: string;
-  fecha_creacion?: string;
-  notas?: string;
-}
+// Re-export canonical Empresa from lib/types
+export type { Empresa } from '../lib/types';
 
 export interface Role {
   id: number;

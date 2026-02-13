@@ -1,0 +1,27 @@
+flowchart TD
+    LOGIN["Login"] --> DASH["Dashboard Transporte\nStats, Alertas, Flota"]
+    
+    DASH --> DESP_O["Despachos Ofrecidos\nAsignación Directa"]
+    DASH --> CARGAS["Cargas en Red\nMarketplace"]
+    DASH --> VIAJES["Viajes Activos\nMapa + Timeline"]
+    DASH --> FLOTA["Gestión de Flota"]
+    DASH --> DOCS["Documentación"]
+    
+    DESP_O --> ACEPTAR_D["Aceptar/Rechazar\ndespacho"]
+    ACEPTAR_D --> ASIGNAR["Asignar Unidad\nChofer+Camión+Acoplado"]
+    
+    CARGAS --> OFERTAR["Enviar Oferta"]
+    OFERTAR --> ESPERA["Esperar aceptación"]
+    ESPERA --> ASIGNAR
+    
+    ASIGNAR --> MONIT["Monitorear\nViajes Activos"]
+    
+    FLOTA --> CAM["Camiones"]
+    FLOTA --> ACO["Acoplados"]
+    FLOTA --> CHO["Choferes"]
+    FLOTA --> UNI["Unidades Operativas"]
+    
+    style ASIGNAR fill:#3b82f6,color:#fff
+    style OFERTAR fill:#a855f7,color:#fff
+    style DASH fill:#1e293b,color:#fff
+    style LOGIN fill:#64748b,color:#fff

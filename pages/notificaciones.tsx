@@ -20,7 +20,11 @@ import { es } from 'date-fns/locale';
 
 interface Notificacion {
   id: string;
-  tipo: 'arribo_origen' | 'arribo_destino' | 'demora' | 'cambio_estado' | 'recepcion_nueva' | 'unidad_modificada' | 'alerta_gps' | 'despacho_asignado' | 'pedido_nuevo';
+  // Tipos de notificación (NO son estados de viaje):
+  // - Tipos legacy en DB: arribo_origen, arribo_destino
+  // - Tipos actuales (lib/services/notificaciones.ts): viaje_asignado, llamado_carga, viaje_cancelado,
+  //   viaje_completado, ingreso_confirmado, egreso_confirmado, cambio_estado, etc.
+  tipo: string;
   titulo: string;
   mensaje: string;
   leida: boolean;
@@ -184,21 +188,32 @@ const NotificacionesPage: React.FC = () => {
 
   const getIconoTipo = (tipo: string) => {
     switch (tipo) {
-      case 'arribo_origen':
-      case 'arribo_destino':
+      case 'arribo_origen':     // legacy
+      case 'arribo_destino':    // legacy
+      case 'ingreso_confirmado':
+      case 'egreso_confirmado':
         return <CheckCircleIcon className="h-6 w-6 text-green-500" />;
+      case 'viaje_completado':
+        return <CheckCircleIcon className="h-6 w-6 text-emerald-500" />;
       case 'demora':
+      case 'demora_detectada':
         return <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500" />;
       case 'cambio_estado':
         return <InformationCircleIcon className="h-6 w-6 text-blue-500" />;
+      case 'llamado_carga':
+        return <TruckIcon className="h-6 w-6 text-orange-500" />;
+      case 'viaje_asignado':
+      case 'despacho_asignado':
+        return <TruckIcon className="h-6 w-6 text-indigo-500" />;
+      case 'viaje_cancelado':
+        return <XMarkIcon className="h-6 w-6 text-red-500" />;
       case 'recepcion_nueva':
+      case 'documentacion_rechazada':
         return <DocumentTextIcon className="h-6 w-6 text-purple-500" />;
       case 'unidad_modificada':
         return <TruckIcon className="h-6 w-6 text-cyan-500" />;
       case 'alerta_gps':
         return <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />;
-      case 'despacho_asignado':
-        return <TruckIcon className="h-6 w-6 text-indigo-500" />;
       default:
         return <BellIcon className="h-6 w-6 text-gray-500" />;
     }

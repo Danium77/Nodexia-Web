@@ -1,0 +1,110 @@
+stateDiagram-v2
+    direction LR
+    
+    state "F0: CREACIÓN" as f0 {
+        pendiente
+    }
+    
+    state "F1: ASIGNACIÓN" as f1 {
+        transporte_asignado
+        camion_asignado
+        confirmado_chofer
+    }
+    
+    state "F2: TRÁNSITO A ORIGEN" as f2 {
+        en_transito_origen
+        arribo_origen
+    }
+    
+    state "F3: PLANTA ORIGEN" as f3 {
+        ingresado_origen
+        en_playa_origen
+        llamado_carga
+        cargando
+        cargado
+    }
+    
+    state "F4: EGRESO ORIGEN" as f4 {
+        egreso_origen
+    }
+    
+    state "F5: TRÁNSITO A DESTINO" as f5 {
+        en_transito_destino
+        arribo_destino
+        arribado_destino
+    }
+    
+    state "F6: PLANTA DESTINO" as f6 {
+        ingresado_destino
+        llamado_descarga
+        descargando
+        descargado
+    }
+    
+    state "F7: CIERRE" as f7 {
+        egreso_destino
+        vacio
+    }
+    
+    state "F8: FINAL" as f8 {
+        viaje_completado
+        disponible
+    }
+
+    [*] --> pendiente
+    
+    pendiente --> transporte_asignado
+    pendiente --> camion_asignado
+    pendiente --> confirmado_chofer
+    pendiente --> en_transito_origen
+    pendiente --> en_playa_origen
+    
+    transporte_asignado --> camion_asignado
+    transporte_asignado --> confirmado_chofer
+    transporte_asignado --> en_transito_origen
+    transporte_asignado --> en_playa_origen
+    
+    camion_asignado --> confirmado_chofer
+    camion_asignado --> en_transito_origen
+    camion_asignado --> en_playa_origen
+    
+    confirmado_chofer --> en_transito_origen
+    confirmado_chofer --> en_playa_origen
+    
+    en_transito_origen --> arribo_origen
+    en_transito_origen --> ingresado_origen
+    en_transito_origen --> en_playa_origen
+    
+    arribo_origen --> ingresado_origen
+    arribo_origen --> en_playa_origen
+    
+    ingresado_origen --> en_playa_origen
+    en_playa_origen --> llamado_carga
+    llamado_carga --> cargando
+    cargando --> cargado
+    cargado --> egreso_origen
+    
+    egreso_origen --> en_transito_destino
+    
+    en_transito_destino --> arribo_destino
+    en_transito_destino --> arribado_destino
+    en_transito_destino --> ingresado_destino
+    
+    arribo_destino --> ingresado_destino
+    arribo_destino --> arribado_destino
+    arribo_destino --> vacio
+    
+    arribado_destino --> ingresado_destino
+    arribado_destino --> vacio
+    
+    ingresado_destino --> llamado_descarga
+    llamado_descarga --> descargando
+    descargando --> descargado
+    descargado --> egreso_destino
+    
+    egreso_destino --> vacio
+    egreso_destino --> viaje_completado
+    
+    vacio --> viaje_completado
+    
+    viaje_completado --> [*]

@@ -69,19 +69,26 @@ interface Dispatch {
   destino_provincia?: string;
 }
 
-// Estados del viaje en orden - Sistema Dual Actualizado
+// Estados del viaje — alineados con lib/estados/config.ts
 const ESTADOS_VIAJE = [
   { key: 'pendiente', label: 'Pendiente', icon: '⏳', color: 'bg-gray-600' },
+  { key: 'transporte_asignado', label: 'Transporte Asignado', icon: '📋', color: 'bg-blue-600' },
   { key: 'camion_asignado', label: 'Recursos Asignados', icon: '🚛', color: 'bg-yellow-600' },
   { key: 'confirmado_chofer', label: 'Confirmado', icon: '✅', color: 'bg-blue-600' },
-  { key: 'pausado', label: 'Pausado (Incidencia)', icon: '⏸️', color: 'bg-orange-600' },
   { key: 'en_transito_origen', label: 'Hacia Origen', icon: '🚚', color: 'bg-purple-600' },
-  { key: 'arribo_origen', label: 'En Origen', icon: '📍', color: 'bg-orange-600' },
+  { key: 'ingresado_origen', label: 'En Planta Origen', icon: '🏭', color: 'bg-cyan-600' },
+  { key: 'llamado_carga', label: 'Llamado Carga', icon: '📢', color: 'bg-amber-600' },
+  { key: 'cargando', label: 'Cargando', icon: '⚙️', color: 'bg-orange-600' },
+  { key: 'cargado', label: 'Cargado', icon: '📦', color: 'bg-indigo-600' },
+  { key: 'egreso_origen', label: 'Egreso Origen', icon: '🚪', color: 'bg-violet-600' },
   { key: 'en_transito_destino', label: 'Hacia Destino', icon: '🚛', color: 'bg-indigo-600' },
-  { key: 'arribo_destino', label: 'En Destino', icon: '📍', color: 'bg-amber-600' },
-  { key: 'entregado', label: 'Entregado', icon: '✅', color: 'bg-green-600' },
-  { key: 'expirado', label: 'Expirado', icon: '⚠️', color: 'bg-red-700' },
-  { key: 'cancelado', label: 'Cancelado', icon: '❌', color: 'bg-red-600' }
+  { key: 'ingresado_destino', label: 'En Planta Destino', icon: '🏁', color: 'bg-teal-600' },
+  { key: 'llamado_descarga', label: 'Llamado Descarga', icon: '📢', color: 'bg-amber-600' },
+  { key: 'descargando', label: 'Descargando', icon: '📤', color: 'bg-cyan-600' },
+  { key: 'descargado', label: 'Descargado', icon: '✅', color: 'bg-emerald-600' },
+  { key: 'egreso_destino', label: 'Egreso Destino', icon: '🚪', color: 'bg-emerald-600' },
+  { key: 'completado', label: 'Completado', icon: '🏆', color: 'bg-green-600' },
+  { key: 'cancelado', label: 'Cancelado', icon: '❌', color: 'bg-red-600' },
 ];
 
 interface TrackingViewProps {
@@ -172,7 +179,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
   }, [dispatches, expandedDespachos]);
 
   // Filtrar solo despachos en estados activos Y que tengan viajes con recursos
-  const ESTADOS_INACTIVOS = ['expirado', 'viaje_completado', 'entregado', 'cancelado', 'descarga_completada'];
+  const ESTADOS_INACTIVOS = ['completado', 'cancelado', 'egreso_destino'];
   
   const despachosActivos = dispatches.filter(d => {
     // 1. Verificar que tenga estado activo

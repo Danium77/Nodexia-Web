@@ -80,12 +80,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `)
       .eq('chofer_id', choferId)
       .in('estado', [
-        'camion_asignado', 'confirmado_chofer',
-        'en_transito_origen', 'arribo_origen',
-        'ingresado_origen', 'en_playa_origen',
+        'transporte_asignado', 'camion_asignado', 'confirmado_chofer',
+        'en_transito_origen', 'ingresado_origen',
         'llamado_carga', 'cargando', 'cargado', 'egreso_origen',
-        'en_transito_destino', 'arribo_destino', 'arribado_destino',
-        'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino', 'vacio'
+        'en_transito_destino', 'ingresado_destino',
+        'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'
       ])
       .order('created_at', { ascending: false });
 

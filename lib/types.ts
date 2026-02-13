@@ -1,7 +1,16 @@
 /**
  * Centralized type definitions for the entire application
  * This ensures consistency across all components and reduces duplication
+ *
+ * REGLA: Los estados se definen ÚNICAMENTE en lib/estados/config.ts
+ *        Este archivo re-exporta aliases de compatibilidad.
  */
+
+// =====================
+// Re-export: Estados centralizados (FUENTE DE VERDAD: lib/estados/config.ts)
+// =====================
+import { EstadoViaje, type EstadoViajeType } from './estados/config';
+export { EstadoViaje, type EstadoViajeType };
 
 // =====================
 // Base types
@@ -452,16 +461,7 @@ export interface Transporte {
 // Dispatch types
 // =====================
 
-export type EstadoDespacho = 
-  | 'pendiente' 
-  | 'asignado' 
-  | 'en_transito' 
-  | 'entregado' 
-  | 'completado'
-  | 'finalizado'
-  | 'expirado'
-  | 'fuera_de_horario'
-  | 'cancelado';
+export type EstadoDespacho = EstadoViajeType; // 1:1 con viaje — ya no tiene estado propio
 
 export interface Despacho {
   id: UUID;
@@ -474,7 +474,7 @@ export interface Despacho {
   vehiculo?: Vehiculo;
   transport_id?: UUID; // Empresa de transporte asignada
   origen_id?: UUID; // Origen de carga
-  estado: EstadoDespacho;
+  estado: EstadoViajeType; // 1:1 — espejo del estado del viaje
   fecha_programada: Timestamp;
   fecha_real_salida?: Timestamp;
   fecha_real_entrega?: Timestamp;
@@ -482,16 +482,21 @@ export interface Despacho {
   usuario_alta: UUID;
   fecha_alta: Timestamp;
   fecha_modificacion?: Timestamp;
-  // Campos para sistema de múltiples viajes (NUEVOS - Opción C)
+  // 1:1 — un despacho tiene UN viaje
+  /** @deprecated Ya no hay múltiples viajes — usar viaje directamente */
   cantidad_viajes_solicitados?: number;
+  /** @deprecated Ya no hay múltiples viajes */
   cantidad_viajes_asignados?: number;
+  /** @deprecated Ya no hay múltiples viajes */
   cantidad_viajes_completados?: number;
   // Relaciones populadas
   cliente?: Cliente; // DEPRECATED
   destino?: Destino; // NUEVO
   transporte?: Empresa;
   origen?: Origen;
-  viajes?: ViajeDespacho[]; // NUEVO - Lista de viajes del despacho
+  viaje?: ViajeDespacho;               // 1:1 relación
+  /** @deprecated Usar `viaje` (1:1) */
+  viajes?: ViajeDespacho[];
 }
 
 // =====================
@@ -532,107 +537,24 @@ export interface Incidencia {
 // =====================
 
 // =====================
-// Estados DUALES del Sistema (Migración 015 V2 - 10 Ene 2026)
+// DEPRECATED: Estados duales eliminados — ahora hay UN solo estado por viaje
+// Se mantienen aliases para compatibilidad durante migración
+// FUENTE DE VERDAD: lib/estados/config.ts → EstadoViaje / EstadoViajeType
 // =====================
 
-/**
- * Estados de la CARGA (Producto + Documentación) - 17 estados
- * Refleja el ciclo de vida del producto desde planificación hasta entrega
- * Basado en: Excel "Flujo de Estados" - 10 Ene 2026
- * Patrón: Uber Freight / Amazon Relay
- */
-export type EstadoCargaViaje = 
-  // FASE 1: PLANIFICACIÓN
-  | 'pendiente_asignacion'      // Despacho creado, esperando asignación de transporte
-  | 'transporte_asignado'       // Transporte asignado por coordinador planta
-  
-  // FASE 2: ASIGNACIÓN RECURSOS
-  | 'camion_asignado'           // Camión y chofer asignados
-  
-  // FASE 3: TRÁNSITO A ORIGEN
-  | 'en_transito_origen'        // Chofer viajando hacia planta de carga
-  
-  // FASE 4: OPERACIÓN EN ORIGEN
-  | 'en_playa_origen'           // En planta esperando proceso de carga
-  | 'llamado_carga'             // Supervisor llamó al camión para cargar
-  | 'cargando'                  // Proceso de carga en progreso
-  | 'cargado'                   // Carga completada
-  
-  // FASE 5: EGRESO Y TRÁNSITO
-  | 'egresado_origen'           // Control acceso autorizó salida de planta
-  | 'en_transito_destino'       // Viajando hacia destino
-  
-  // FASE 6: OPERACIÓN EN DESTINO
-  | 'arribado_destino'          // Chofer arribó a destino
-  | 'llamado_descarga'          // Supervisor destino llamó a descarga
-  | 'descargando'               // Proceso de descarga en progreso
-  | 'entregado'                 // Producto entregado y documentado
-  
-  // FASE 7: FINALIZACIÓN
-  | 'disponible'                // Transición antes del cierre
-  
-  // ESTADOS FINALES
-  | 'completado'                // ✅ Viaje completado exitosamente (estado final)
-  | 'cancelado'                 // Viaje cancelado
-  | 'expirado';                 // Viaje expirado (sin recursos a tiempo)
+/** @deprecated Usar EstadoViajeType de lib/estados/config.ts */
+export type EstadoCargaViaje = EstadoViajeType;
+
+/** @deprecated Usar EstadoViajeType de lib/estados/config.ts */
+export type EstadoUnidadViaje = EstadoViajeType;
+
+/** @deprecated Usar EstadoViajeType de lib/estados/config.ts */
+export type EstadoViajeDespacho = EstadoViajeType;
 
 /**
- * Estados de la UNIDAD (Chofer + Camión) - 17 estados
- * Refleja la ubicación física y operación del vehículo
- * Basado en: Excel "Flujo de Estados" - 10 Ene 2026
- * 
- * ⚠️ IMPORTANTE: La unidad termina en 'disponible' (estado final REUTILIZABLE).
- * Cuando se asigna a un nuevo viaje, pasa de 'disponible' → 'camion_asignado' (nuevo ciclo).
- * Los estados 'cancelado', 'expirado', 'incidencia' son finales NO reutilizables.
- */
-export type EstadoUnidadViaje = 
-  // FASE 1: ASIGNACIÓN
-  | 'camion_asignado'           // Camión y chofer asignados
-  | 'confirmado_chofer'         // Chofer confirmó viaje
-  
-  // FASE 2: TRÁNSITO A ORIGEN
-  | 'en_transito_origen'        // Viajando hacia planta de carga
-  | 'arribo_origen'             // Chofer reportó arribo a origen
-  
-  // FASE 3: OPERACIÓN EN ORIGEN
-  | 'ingresado_origen'          // Control acceso registró ingreso
-  | 'en_playa_origen'           // En playa de espera
-  | 'llamado_carga'             // Llamado a posición de carga
-  | 'cargando'                  // En proceso de carga
-  | 'cargado'                   // Carga completada
-  
-  // FASE 4: EGRESO ORIGEN
-  | 'egreso_origen'             // Egresando de planta
-  
-  // FASE 5: TRÁNSITO A DESTINO
-  | 'en_transito_destino'       // Viajando a destino
-  | 'arribo_destino'            // Chofer reportó arribo a destino
-  
-  // FASE 6: OPERACIÓN EN DESTINO
-  | 'arribado_destino'          // Arribó a destino (alias arribo_destino)
-  | 'ingresado_destino'         // Control acceso destino registró ingreso
-  | 'llamado_descarga'          // Llamado a descarga
-  | 'descargando'               // En proceso de descarga
-  | 'descargado'                // Descarga completada
-  
-  // FASE 7: EGRESO DESTINO
-  | 'egreso_destino'            // Egresando de destino
-  | 'vacio'                     // Camión vacío, retornando
-  | 'viaje_completado'          // Viaje finalizado
-  
-  // FASE 8: FINALIZACIÓN (Estado final reutilizable)
-  | 'disponible'                // ✅ ESTADO FINAL: Disponible para reasignación a nuevo viaje
-  
-  // ESTADOS FINALES NO REUTILIZABLES
-  | 'cancelado'                 // Viaje cancelado (no reutilizable)
-  | 'expirado'                  // Viaje expirado (no reutilizable)
-  | 'incidencia';               // En resolución de incidencia (no reutilizable)
-
-// DEPRECATED - Mantener por compatibilidad temporal
-export type EstadoViajeDespacho = EstadoUnidadViaje;
-
-/**
- * Interface base de viaje con estados duales (Migración 015 V2 - 10 Ene 2026)
+ * Interface base de viaje (Sistema 1:1 con despacho)
+ * ESTADO ÚNICO — ya NO hay estados duales (carga/unidad por separado).
+ * Un solo campo `estado` (= EstadoViajeType).
  */
 export interface ViajeDespacho {
   id: UUID;
@@ -643,10 +565,15 @@ export interface ViajeDespacho {
   acoplado_id?: UUID;
   chofer_id?: UUID;
   
-  // ESTADOS DUALES (Migración 015 V2 - 10 Ene 2026)
-  estado_carga: EstadoCargaViaje;     // Estado del producto/documentación (17 estados)
-  estado_unidad?: EstadoUnidadViaje;  // Estado físico del camión/chofer (17 estados) - NULL si no hay unidad
-  estado?: EstadoViajeDespacho;       // DEPRECATED: usar estado_carga y estado_unidad
+  // ESTADO ÚNICO (lib/estados/config.ts)
+  estado: EstadoViajeType;             // Estado actual del viaje
+  /** @deprecated Alias de `estado` — usar `estado` directamente */
+  estado_carga?: EstadoViajeType;
+  /** @deprecated Alias de `estado` — usar `estado` directamente */
+  estado_unidad?: EstadoViajeType;
+  
+  // Multi-destino: parada actual (tabla paradas)
+  parada_actual?: number;              // Orden de la parada actual (1..4)
   
   // CAMPOS DE REPROGRAMACIÓN (Migración 016 - 10 Ene 2026)
   fue_expirado?: boolean;                   // Si alguna vez estuvo en estado expirado
@@ -799,104 +726,27 @@ export interface IncidenciaViaje {
   viaje?: ViajeDespacho;
 }
 
-// Vista completa de viajes (para reportes)
 // =====================
-// Nuevas tablas de Estados Duales (21 Nov 2025)
-// Interfaces que representan las TABLAS (records en DB)
-// Los TYPES arriba representan los VALUES posibles
+// DEPRECATED: Registros de estado dual — ya no se usan
+// Se mantienen vacíos para compatibilidad de imports existentes
 // =====================
 
+/** @deprecated Estados duales eliminados — usar EstadoViajeType */
 export interface EstadoUnidadViajeRecord {
   id: UUID;
   viaje_id: UUID;
-  estado_unidad: EstadoUnidadViaje; // <-- usa el TYPE, no la interface
-  
-  // Timestamps de transiciones (20 estados)
+  estado_unidad: EstadoViajeType;
   fecha_creacion: Timestamp;
-  fecha_asignacion?: Timestamp;
-  fecha_confirmacion_chofer?: Timestamp;
-  fecha_inicio_transito_origen?: Timestamp;
-  fecha_arribo_origen?: Timestamp;
-  fecha_ingreso_planta?: Timestamp;
-  fecha_ingreso_playa?: Timestamp;
-  fecha_inicio_proceso_carga?: Timestamp;
-  fecha_cargado?: Timestamp;
-  fecha_egreso_planta?: Timestamp;
-  fecha_inicio_transito_destino?: Timestamp;
-  fecha_arribo_destino?: Timestamp;
-  fecha_ingreso_destino?: Timestamp;
-  fecha_llamado_descarga?: Timestamp;
-  fecha_inicio_descarga?: Timestamp;
-  fecha_vacio?: Timestamp;
-  fecha_egreso_destino?: Timestamp;
-  fecha_disponible_carga?: Timestamp;
-  fecha_viaje_completado?: Timestamp;
-  fecha_cancelacion?: Timestamp;
-  
-  // GPS Tracking
-  ubicacion_actual_lat?: number;
-  ubicacion_actual_lon?: number;
-  ultima_actualizacion_gps?: Timestamp;
-  velocidad_actual_kmh?: number;
-  
-  // Cancelación
-  cancelado_por?: UUID;
-  motivo_cancelacion?: string;
-  
-  observaciones_unidad?: string;
   created_at: Timestamp;
   updated_at?: Timestamp;
 }
 
+/** @deprecated Estados duales eliminados — usar EstadoViajeType */
 export interface EstadoCargaViajeRecord {
   id: UUID;
   viaje_id: UUID;
-  estado_carga: EstadoCargaViaje; // <-- usa el TYPE, no la interface
-  
-  // Timestamps de transiciones (17 estados)
+  estado_carga: EstadoViajeType;
   fecha_creacion: Timestamp;
-  fecha_planificacion?: Timestamp;
-  fecha_documentacion_preparada?: Timestamp;
-  fecha_llamado_carga?: Timestamp;
-  fecha_posicionado_carga?: Timestamp;
-  fecha_iniciando_carga?: Timestamp;
-  fecha_cargando?: Timestamp;
-  fecha_carga_completada?: Timestamp;
-  fecha_documentacion_validada?: Timestamp;
-  fecha_en_transito?: Timestamp;
-  fecha_arribado_destino?: Timestamp;
-  fecha_iniciando_descarga?: Timestamp;
-  fecha_descargando?: Timestamp;
-  fecha_descargado?: Timestamp;
-  fecha_entregado?: Timestamp;
-  fecha_cancelacion?: Timestamp;
-  
-  // Datos de carga
-  producto?: string;
-  peso_estimado_kg?: number;
-  peso_real_kg?: number;
-  cantidad_bultos?: number;
-  temperatura_carga?: number;
-  
-  // Documentación
-  remito_numero?: string;
-  remito_url?: string;
-  carta_porte_url?: string;
-  certificado_calidad_url?: string;
-  documentacion_adicional?: any[]; // JSONB array
-  
-  // Faltantes/Rechazos
-  tiene_faltante: boolean;
-  detalle_faltante?: string;
-  peso_faltante_kg?: number;
-  tiene_rechazo: boolean;
-  detalle_rechazo?: string;
-  
-  // Cancelación
-  cancelado_por?: UUID;
-  motivo_cancelacion?: string;
-  
-  observaciones_carga?: string;
   created_at: Timestamp;
   updated_at?: Timestamp;
 }
@@ -945,29 +795,19 @@ export interface Notificacion {
 }
 
 // Vista unificada de estados (para dashboards)
+/** @deprecated Simplificar — usar ViajeDespacho con estado único */
 export interface VistaEstadoViajeCompleto {
   viaje_id: UUID;
   despacho_id: UUID;
   numero_despacho: string;
   numero_viaje: number;
   
-  // Estado UNIDAD
-  estado_unidad: EstadoUnidadViaje;
-  fecha_asignacion?: Timestamp;
-  fecha_confirmacion_chofer?: Timestamp;
-  fecha_arribo_origen?: Timestamp;
-  fecha_unidad_carga_ok?: Timestamp;
-  fecha_egreso_origen?: Timestamp;
-  fecha_arribo_destino?: Timestamp;
-  fecha_viaje_completado?: Timestamp;
-  ubicacion_actual_lat?: number;
-  ubicacion_actual_lon?: number;
-  ultima_actualizacion_gps?: Timestamp;
-  velocidad_actual_kmh?: number;
-  observaciones_unidad?: string;
-  
-  // Estado CARGA
-  estado_carga: EstadoCargaViaje;
+  // Estado ÚNICO
+  estado: EstadoViajeType;
+  /** @deprecated */
+  estado_unidad?: EstadoViajeType;
+  /** @deprecated */
+  estado_carga?: EstadoViajeType;
   fecha_planificacion?: Timestamp;
   fecha_documentacion_preparada?: Timestamp;
   fecha_carga_producto_ok?: Timestamp;
@@ -1001,8 +841,9 @@ export interface VistaEstadoViajeCompleto {
 }
 
 // DEPRECATED - Mantener por compatibilidad
+/** @deprecated Usar ViajeDespacho con estado único */
 export interface VistaViajeDespacho extends VistaEstadoViajeCompleto {
-  estado: EstadoViajeDespacho; // Mapea a estado_unidad
+  estado: EstadoViajeType;
   fecha_asignacion_camion?: Timestamp;
   fecha_ingreso_planta?: Timestamp;
   fecha_salida_planta?: Timestamp;

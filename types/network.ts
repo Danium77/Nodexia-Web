@@ -1,6 +1,6 @@
 // Tipos TypeScript para la estructura de red de empresas
 import type { Empresa } from './common';
-import type { Camion, Acoplado } from './business';
+import type { Camion, Acoplado } from '../lib/types';
 
 export interface RolEmpresa {
   id: string;
@@ -53,7 +53,7 @@ export interface DespachoRed {
   origen: string;
   destino: string;
   fecha_despacho: string;
-  estado: 'planificado' | 'asignado' | 'en_ruta' | 'entregado' | 'cancelado';
+  estado: 'pendiente' | 'transporte_asignado' | 'en_transito_origen' | 'en_transito_destino' | 'completado' | 'cancelado';
   observaciones?: string;
   creado_por: string;
   fecha_creacion: string;

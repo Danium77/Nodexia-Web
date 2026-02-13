@@ -1,0 +1,32 @@
+flowchart TD
+    LOGIN["Login"] --> SELEC["Seleccionar\nUbicación - Planta"]
+    SELEC --> SCAN["📷 Escanear QR\ndel Despacho"]
+    
+    SCAN --> INFO["Ver Info del Viaje\nChofer, Camión, Estado"]
+    
+    INFO --> TIPO{"¿Tipo operación?"}
+    
+    TIPO -->|"ENVÍO\nsoy origen"| ENVIO
+    TIPO -->|"RECEPCIÓN\nsoy destino"| RECEP
+    
+    subgraph ENVIO["Operación de Envío"]
+        ING_O["🚧 Confirmar INGRESO\ningresado_origen"]
+        ING_O --> ESPERA_CARGA["⏳ Esperar carga\nSupervisor"]
+        ESPERA_CARGA --> VAL_DOC["📋 Validar Documentación"]
+        VAL_DOC --> EGR_O["🚪 Confirmar EGRESO\negreso_origen"]
+    end
+    
+    subgraph RECEP["Operación de Recepción"]
+        ING_D["🚧 Confirmar INGRESO\ningresado_destino"]
+        ING_D --> ESPERA_DESC["⏳ Esperar descarga\nSupervisor"]
+        ESPERA_DESC --> VAL_DOC2["📋 Validar Documentación"]
+        VAL_DOC2 --> EGR_D["🚪 Confirmar EGRESO\negreso_destino"]
+    end
+    
+    style ING_O fill:#3b82f6,color:#fff
+    style EGR_O fill:#a855f7,color:#fff
+    style ING_D fill:#14b8a6,color:#fff
+    style EGR_D fill:#ec4899,color:#fff
+    style SCAN fill:#f59e0b,color:#000
+    style ENVIO fill:#eff6ff,stroke:#3b82f6
+    style RECEP fill:#f0fdfa,stroke:#14b8a6

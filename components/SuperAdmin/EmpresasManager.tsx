@@ -43,9 +43,9 @@ const EmpresasManager: React.FC = () => {
                   <td className="p-4 text-gray-300">{empresa.email}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      empresa.activa ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                      empresa.activo ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
                     }`}>
-                      {empresa.activa ? 'Activa' : 'Inactiva'}
+                      {empresa.activo ? 'Activa' : 'Inactiva'}
                     </span>
                   </td>
                   <td className="p-4">

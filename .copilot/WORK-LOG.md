@@ -4,6 +4,117 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-13 (Viernes) - Sesiones 16-17
+
+### Sesiones 16-17 - Centralización Completa de Estados
+
+**Tiempo:** ~5 horas (2 sesiones continuas)  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Logros:
+1. ✅ Sistema de 17+1 estados centralizado en `lib/estados/config.ts`
+2. ✅ Services layer: `lib/services/viajeEstado.ts` + `lib/services/notificaciones.ts`
+3. ✅ Purga completa de estados obsoletos en 30+ archivos ejecutables
+4. ✅ `cambiarEstadoViaje()` sincroniza 3 tablas: viajes_despacho + despachos + estado_unidad_viaje
+5. ✅ Timestamps automáticos: ESTADO_A_TIMESTAMP mapping popula columna por fase
+6. ✅ `confirmar-accion.ts` migrado de RPC a cambiarEstadoViaje() + notificarCambioEstado()
+7. ✅ `cancelarViaje()` centralizado via API (antes: update directo bypasando service)
+8. ✅ Lectura estandarizada: `estado || estado_unidad` en todos los archivos
+9. ✅ SQL Migration 058 ejecutada (centralización + paradas multi-destino)
+10. ✅ SQL Migration 059 ejecutada (CHECK constraint estado_unidad_viaje)
+11. ✅ 56 tests automatizados (completeness, transitions, happy-path, roles, legacy mapping, graph integrity)
+12. ✅ 0 TypeScript errors
+
+#### Archivos Creados (7):
+- `lib/estados/config.ts` — Fuente única de verdad (17+1 estados, ~750 líneas)
+- `lib/estados/index.ts` — Re-exports
+- `lib/services/viajeEstado.ts` — cambiarEstadoViaje, asignarUnidad, verificarChoferViaje (~370 líneas)
+- `lib/services/notificaciones.ts` — notificarCambioEstado, notificarUsuario
+- `sql/migrations/058_centralizacion_estados_y_paradas.sql` — Estados + paradas
+- `sql/migrations/059_unificar_estado_unidad_viaje.sql` — Sync estado_unidad_viaje
+- `__tests__/lib/estados-config.test.ts` — 56 tests
+
+#### Archivos Modificados (30+):
+- `pages/crear-despacho.tsx` — 9 replacements estados obsoletos
+- `pages/despachos.tsx` — estados obsoletos
+- `pages/notificaciones.tsx` — estados obsoletos
+- `types/network.ts` — estados obsoletos
+- `components/Planning/MonthView.tsx` — estados obsoletos
+- `components/Planning/DayView.tsx` — estados obsoletos
+- `pages/estados-camiones.tsx` — query .in('estado'), fallback order, prop fix
+- `pages/supervisor-carga.tsx` — estados obsoletos
+- `pages/viajes-activos.tsx` — estados obsoletos
+- `pages/despachos-ofrecidos.tsx` — estados obsoletos
+- `pages/tracking-flota.tsx` — estados obsoletos
+- `pages/demo-qr.tsx` — estados obsoletos
+- `pages/configuracion/transportes.tsx` — estados obsoletos
+- `pages/api/actualizar-ubicacion.ts` — estados obsoletos
+- `pages/api/control-acceso/escanear-qr.ts` — read order + comment
+- `pages/api/chofer/viajes.ts` — estados obsoletos
+- `pages/api/control-acceso/confirmar-accion.ts` — FULL REWRITE (RPC → service)
+- `pages/control-acceso.tsx` — read order estandarizado
+- `lib/api/estado-unidad.ts` — cancelarViaje() centralizado
+- `lib/estadosHelper.ts` — TODO deprecation comment
+- `__tests__/sync-usuarios.test.ts` — estados obsoletos
+
+#### Decisiones Técnicas:
+- `lib/estados/config.ts` como FUENTE ÚNICA DE VERDAD (no más estadosHelper, no más estado-helpers)
+- `estado` es el campo canónico en viajes_despacho (estado_unidad es legacy sync)
+- cambiarEstadoViaje() como ÚNICO punto de escritura de estados (service pattern)
+- Timestamps automáticos en estado_unidad_viaje via ESTADO_A_TIMESTAMP mapping
+- Legacy mapping en getEstadoDisplay() para backward compatibility sin romper UI
+- Tests de graph integrity (BFS reachability) para prevenir estados huérfanos
+
+---
+
+## 📅 2026-02-11 (Martes) - Sesión 13
+
+### Sesión 13 - Estado Sync + Desvincular + Red Nodexia E2E + API Aceptar Oferta
+
+**Tiempo:** ~4 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO/Tester)
+
+#### Logros:
+1. ✅ TASK-S28: Sincronización Estado Viaje en Despachos (35 estados centralizados, 6 archivos)
+2. ✅ Feature "Desvincular Transporte" en página de configuración con validación de viajes activos
+3. ✅ Modal de confirmación para desvincular (reemplaza warning inline)
+4. ✅ Tablas `ofertas_red_nodexia` y `historial_red_nodexia` creadas en Supabase
+5. ✅ Fix PostgREST embed ambiguity (`!viaje_red_id` FK hint)
+6. ✅ Filtering de transportes vinculados en marketplace Red Nodexia
+7. ✅ Display "No seleccionado" para ofertas rechazadas (badge rojo, banner, opacity)
+8. ✅ Browser `alert()` reemplazado por modal in-app styled (cargas-en-red.tsx)
+9. ✅ API route `/api/red-nodexia/aceptar-oferta.ts` (service role, bypasa RLS)
+10. ✅ Refactor `handleAceptarOfertaDesdeModal` → usa API en vez de 8 queries client-side
+11. ✅ Fix datos DSP-20260211-004 con script service role
+12. ✅ Flujo Red Nodexia validado E2E: publicar → ofertar → aceptar → rechazar otros
+
+#### Archivos Creados (2):
+- `pages/api/red-nodexia/aceptar-oferta.ts` — API handler service role (~140 líneas)
+- `sql/crear-ofertas-red-nodexia.sql` — Migración ofertas + historial Red Nodexia
+
+#### Archivos Modificados (5):
+- `pages/crear-despacho.tsx` — handleAceptarOfertaDesdeModal refactored a API call, badge con getEstadoDisplay()
+- `lib/hooks/useRedNodexia.tsx` — FK hints `!viaje_red_id` en 3 queries, include 'asignado' en filtro
+- `pages/transporte/cargas-en-red.tsx` — Filtering vinculados, rejected display, success modal
+- `pages/configuracion/transportes.tsx` — Desvincular con modal, validación viajes activos
+- `lib/helpers/estados-helpers.ts` — ESTADO_VIAJE_DISPLAY (35 estados) + getEstadoDisplay()
+
+#### Bugs Resueltos (5):
+1. PostgREST "Could not embed" en ofertas_red_nodexia (2 FKs ambiguos → `!viaje_red_id`)
+2. Transportes vinculados veían sus propios viajes en Red Nodexia → filtro con relaciones_empresas
+3. RLS bloqueaba client-side updates de ofertas (no UPDATE policy) → API service role
+4. `handleAceptarOfertaDesdeModal` fallaba en 3 de 8 pasos (RLS + tabla inexistente) → API única
+5. DSP-20260211-004 datos corruptos (oferta pendiente, viaje sin transporte) → fix directo
+
+#### Decisiones Técnicas:
+- API route con service_role para aceptar ofertas Red Nodexia (bypasa RLS/triggers completamente)
+- FK hint `!viaje_red_id` como patrón estándar para queries con ofertas_red_nodexia
+- `relaciones_empresas` como fuente de vinculaciones para filtrar Red marketplace
+- Modal in-app en vez de browser alert para UX consistente
+- Desvincular transporte validando viajes activos antes de permitir acción
+
+---
+
 ## 📅 2026-02-11 (Martes) - Sesión 12
 
 ### Sesión 12 - Hardening + Red Nodexia + Esquema Definitivo Estados

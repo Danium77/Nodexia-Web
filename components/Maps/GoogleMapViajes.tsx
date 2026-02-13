@@ -40,9 +40,14 @@ const createTruckIcon = (estado: string, heading?: number | null, velocidad?: nu
     'camion_asignado': '#3b82f6',
     'confirmado_chofer': '#10b981',
     'en_transito_origen': '#a855f7',
-    'arribo_origen': '#06b6d4',
+    'ingresado_origen': '#06b6d4',
+    'cargando': '#f97316',
+    'cargado': '#6366f1',
+    'egreso_origen': '#8b5cf6',
     'en_transito_destino': '#f59e0b',
-    'arribo_destino': '#14b8a6',
+    'ingresado_destino': '#14b8a6',
+    'descargando': '#06b6d4',
+    'descargado': '#10b981',
     'completado': '#22c55e',
     'cancelado': '#ef4444'
   };

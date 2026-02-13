@@ -130,7 +130,7 @@ export default function TrackingGPS() {
           chofer_id
         `)
         .eq('chofer_id', choferData.id)
-        .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'en_transito_destino', 'arribo_origen', 'arribo_destino'])
+        .in('estado', ['camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'ingresado_origen', 'llamado_carga', 'cargando', 'cargado', 'egreso_origen', 'en_transito_destino', 'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'])
         .order('created_at', { ascending: false });
 
       console.log('📦 Viajes encontrados:', viajesData?.length || 0, viajesData);
@@ -227,10 +227,19 @@ export default function TrackingGPS() {
           user_email: user?.email
         });
 
+        // Obtener token de sesión para autenticación
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession?.access_token) {
+          setError('Sesión expirada. Por favor, cierra sesión y vuelve a iniciar.');
+          setTracking(false);
+          return;
+        }
+
         const response = await fetch('/api/gps/registrar-ubicacion', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentSession.access_token}`,
           },
           body: JSON.stringify({
             viaje_id: viajeSeleccionado,

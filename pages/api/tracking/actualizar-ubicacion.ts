@@ -139,8 +139,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .in('estado', [
         'confirmado_chofer',
         'en_transito_origen',
-        'arribo_origen',
-        'carga_completada',
+        'ingresado_origen',
+        'llamado_carga',
+        'cargando',
+        'cargado',
+        'egreso_origen',
         'en_transito_destino'
       ])
       .order('created_at', { ascending: false })
@@ -228,13 +231,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
 
         if (distanciaOrigen <= RADIO_PROXIMIDAD_KM) {
-          estado_detectado = 'arribo_origen';
+          estado_detectado = 'ingresado_origen';
 
           // Actualizar estado del viaje
           await supabaseAdmin
             .from('viajes_despacho')
             .update({
-              estado: 'arribo_origen',
+              estado: 'ingresado_origen',
               updated_at: new Date().toISOString()
             })
             .eq('id', viajeConDespacho.id);
@@ -255,13 +258,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
 
         if (distanciaDestino <= RADIO_PROXIMIDAD_KM) {
-          estado_detectado = 'arribo_destino';
+          estado_detectado = 'ingresado_destino';
 
           // Actualizar estado del viaje
           await supabaseAdmin
             .from('viajes_despacho')
             .update({
-              estado: 'arribo_destino',
+              estado: 'ingresado_destino',
               updated_at: new Date().toISOString()
             })
             .eq('id', viajeConDespacho.id);
@@ -270,7 +273,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           await supabaseAdmin
             .from('despachos')
             .update({
-              estado: 'arribo_destino',
+              estado: 'ingresado_destino',
               updated_at: new Date().toISOString()
             })
             .eq('id', viajeConDespacho.despacho_id);

@@ -187,7 +187,7 @@ const NotificationBell: React.FC = () => {
       case 'asignacion_viaje':
         return <TruckIcon className="h-5 w-5 text-blue-400" />;
       case 'cambio_estado':
-      case 'viaje_completado':
+      case 'viaje_completado':  // tipo de notificación (no estado)
         return <CheckIcon className="h-5 w-5 text-green-400" />;
       case 'documento_subido':
         return <DocumentTextIcon className="h-5 w-5 text-yellow-400" />;

@@ -1,0 +1,31 @@
+flowchart TD
+    LOGIN["Login Mobile"] --> DASH["Dashboard Chofer\nViajes Asignados"]
+    
+    DASH --> VIAJE["Ver Viaje Activo"]
+    
+    VIAJE --> CONFIRM["✅ Confirmar Viaje\nconfirmado_chofer"]
+    CONFIRM --> TRANSITO1["🚚 Iniciar Tránsito\nen_transito_origen\n+ GPS ON"]
+    TRANSITO1 --> ARRIBO1["📍 Arribo Planta\narribo_origen"]
+    
+    ARRIBO1 --> ESPERA_CA["⏳ Esperar ingreso\nControl Acceso"]
+    
+    ESPERA_CA --> EN_PLANTA["En Planta Origen\nSupervisor maneja"]
+    EN_PLANTA --> ESPERA_EGRESO["⏳ Esperar egreso\nControl Acceso"]
+    
+    ESPERA_EGRESO --> TRANSITO2["🚛 Tránsito a Destino\nen_transito_destino\n+ GPS ON"]
+    TRANSITO2 --> ARRIBO2["📍 Arribo Destino\narribo_destino"]
+    
+    ARRIBO2 --> ESPERA_CA2["⏳ Esperar ingreso destino\nControl Acceso"]
+    ESPERA_CA2 --> EN_PLANTA2["En Planta Destino\nSupervisor maneja"]
+    EN_PLANTA2 --> FIN["✅ Viaje Completado"]
+    
+    VIAJE --> INCID["⚠️ Reportar Incidencia"]
+    VIAJE --> DOC["📄 Subir Remito / Docs"]
+    VIAJE --> QR["📷 Escanear QR"]
+    
+    style CONFIRM fill:#22c55e,color:#fff
+    style TRANSITO1 fill:#6366f1,color:#fff
+    style TRANSITO2 fill:#14b8a6,color:#fff
+    style INCID fill:#f59e0b,color:#000
+    style FIN fill:#16a34a,color:#fff
+    style DASH fill:#1e293b,color:#fff

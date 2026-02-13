@@ -21,6 +21,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { NodexiaLogo } from '@/components/ui/NodexiaLogo';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function CargasEnRed() {
   const { user, userEmpresas } = useUserRole();
@@ -43,6 +44,7 @@ export default function CargasEnRed() {
   const [selectedViaje, setSelectedViaje] = useState<ViajeRedCompleto | null>(null);
   const [mensaje, setMensaje] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [successModal, setSuccessModal] = useState(false);
 
   // 🔥 NUEVO: Modal de asignación de recursos
   const [viajeParaAsignarRecursos, setViajeParaAsignarRecursos] = useState<any>(null);
@@ -107,12 +109,37 @@ export default function CargasEnRed() {
       const data = await obtenerViajesAbiertos();
       console.log(`📦 [cargas-en-red] Recibidos ${data.length} viajes de Red Nodexia`);
       
-      // 🔥 FILTRAR viajes donde YA tengo una oferta aceptada o el viaje ya fue asignado
+      // 🔥 FILTRAR viajes
       if (empresaTransporte?.empresa_id) {
+        // Obtener empresas directamente vinculadas a este transporte
+        const { data: relaciones } = await supabase
+          .from('relaciones_empresas')
+          .select('empresa_cliente_id')
+          .eq('empresa_transporte_id', empresaTransporte.empresa_id)
+          .eq('estado', 'activa');
+        
+        const empresasVinculadas = new Set(
+          (relaciones || []).map(r => r.empresa_cliente_id)
+        );
+        console.log(`🔗 [cargas-en-red] Empresas vinculadas a excluir:`, [...empresasVinculadas]);
+
         const viajesFiltrados = data.filter(viaje => {
-          // 🔥 CRÍTICO: Excluir viajes con estado_red 'asignado' o 'cerrado'
+          // Excluir viajes de empresas directamente vinculadas
+          if (empresasVinculadas.has(viaje.empresa_solicitante_id)) {
+            console.log(`❌ [cargas-en-red] Viaje ${viaje.id} EXCLUIDO - empresa vinculada directamente`);
+            return false;
+          }
+
+          // Para viajes asignados o cerrados: mostrar SOLO si mi oferta fue rechazada
           if (viaje.estado_red === 'asignado' || viaje.estado_red === 'cerrado') {
-            console.log(`❌ [cargas-en-red] Viaje ${viaje.id} EXCLUIDO - estado_red: ${viaje.estado_red}`);
+            const miOfertaRechazada = viaje.ofertas?.some(
+              (oferta: any) => oferta.transporte_id === empresaTransporte.empresa_id && oferta.estado_oferta === 'rechazada'
+            );
+            if (miOfertaRechazada) {
+              console.log(`ℹ️ [cargas-en-red] Viaje ${viaje.id} INCLUIDO - mi oferta fue rechazada`);
+              return true;
+            }
+            console.log(`❌ [cargas-en-red] Viaje ${viaje.id} EXCLUIDO - asignado/cerrado sin oferta mía rechazada`);
             return false;
           }
           
@@ -198,9 +225,9 @@ export default function CargasEnRed() {
         user!.id
       );
 
-      alert('¡Oferta enviada exitosamente! La planta evaluará tu propuesta.');
       setSelectedViaje(null);
       setMensaje('');
+      setSuccessModal(true);
       cargarViajes();
       
     } catch (err: any) {
@@ -499,11 +526,23 @@ export default function CargasEnRed() {
               </div>
             ) : (
               <div className="grid gap-4">
-                {filteredViajes.map((viaje) => (
+                {filteredViajes.map((viaje) => {
+              const esRechazado = getEstadoOferta(viaje) === 'rechazada';
+              return (
               <div
                 key={viaje.id}
-                className="bg-[#1b273b] rounded-lg border border-gray-800 hover:border-cyan-500/50 transition-all p-6"
+                className={`bg-[#1b273b] rounded-lg border transition-all p-6 ${
+                  esRechazado 
+                    ? 'border-red-500/30 opacity-70' 
+                    : 'border-gray-800 hover:border-cyan-500/50'
+                }`}
               >
+                {esRechazado && (
+                  <div className="mb-3 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2">
+                    <ExclamationTriangleIcon className="h-4 w-4 text-red-400 flex-shrink-0" />
+                    <p className="text-sm text-red-300">Este viaje ya fue asignado a otro transporte. Tu oferta no fue seleccionada.</p>
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-6">
                   {/* Info principal */}
                   <div className="flex-1 space-y-4">
@@ -618,8 +657,12 @@ export default function CargasEnRed() {
                           );
                         } else if (estadoOferta === 'rechazada') {
                           return (
-                            <div className="px-6 py-3 bg-red-600/50 text-gray-300 rounded-lg font-semibold">
-                              Oferta Rechazada
+                            <div className="text-center">
+                              <div className="px-6 py-3 bg-red-600/30 border border-red-500/40 text-red-300 rounded-lg font-semibold flex items-center gap-2 mb-2">
+                                <ExclamationTriangleIcon className="h-5 w-5" />
+                                No seleccionado
+                              </div>
+                              <p className="text-xs text-gray-500">La empresa eligió otro transporte</p>
                             </div>
                           );
                         }
@@ -638,12 +681,32 @@ export default function CargasEnRed() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
             )}
           </>
         )}
       </div>
+
+      {/* Modal de éxito */}
+      {successModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-6 max-w-md w-full mx-4 text-center">
+            <div className="flex justify-center mb-4">
+              <CheckCircleIcon className="h-14 w-14 text-green-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">¡Oferta enviada exitosamente!</h3>
+            <p className="text-gray-400 text-sm mb-6">La planta evaluará tu propuesta. Te notificaremos cuando haya una respuesta.</p>
+            <button
+              className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+              onClick={() => setSuccessModal(false)}
+            >
+              Aceptar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmación */}
       {selectedViaje && (

@@ -41,7 +41,7 @@ export function useRedNodexia() {
         .select(`
           *,
           requisitos:requisitos_viaje_red(*),
-          ofertas:ofertas_red_nodexia(
+          ofertas:ofertas_red_nodexia!viaje_red_id(
             id,
             transporte_id,
             estado_oferta,
@@ -59,7 +59,7 @@ export function useRedNodexia() {
             )
           )
         `)
-        .in('estado_red', ['abierto', 'con_ofertas'])
+        .in('estado_red', ['abierto', 'con_ofertas', 'asignado'])
         .order('fecha_publicacion', { ascending: false});
 
       // Aplicar filtros
@@ -100,7 +100,7 @@ export function useRedNodexia() {
         .select(`
           *,
           requisitos:requisitos_viaje_red(*),
-          ofertas:ofertas_red_nodexia(
+          ofertas:ofertas_red_nodexia!viaje_red_id(
             *,
             transporte:empresas!transporte_id(id, nombre, telefono, email)
           ),
@@ -146,7 +146,7 @@ export function useRedNodexia() {
         .select(`
           *,
           requisitos:requisitos_viaje_red(*),
-          ofertas:ofertas_red_nodexia(
+          ofertas:ofertas_red_nodexia!viaje_red_id(
             id,
             transporte_id,
             estado_oferta,

@@ -1,0 +1,83 @@
+erDiagram
+    EMPRESAS ||--o{ USUARIOS_EMPRESA : tiene
+    EMPRESAS ||--o{ CAMIONES : posee
+    EMPRESAS ||--o{ ACOPLADOS : posee
+    EMPRESAS ||--o{ CHOFERES : emplea
+    EMPRESAS ||--o{ UBICACIONES : opera
+    EMPRESAS ||--o{ RELACIONES_EMPRESAS : "cliente de"
+    EMPRESAS ||--o{ RELACIONES_EMPRESAS : "transporte de"
+    
+    DESPACHOS ||--o{ VIAJES_DESPACHO : contiene
+    DESPACHOS }o--|| UBICACIONES : origen
+    DESPACHOS }o--|| UBICACIONES : destino
+    
+    VIAJES_DESPACHO }o--o| CHOFERES : asignado
+    VIAJES_DESPACHO }o--o| CAMIONES : asignado
+    VIAJES_DESPACHO }o--o| ACOPLADOS : asignado
+    VIAJES_DESPACHO }o--o| EMPRESAS : id_transporte
+    
+    VIAJES_RED_NODEXIA ||--|| VIAJES_DESPACHO : publica
+    VIAJES_RED_NODEXIA ||--o{ OFERTAS_RED_NODEXIA : recibe
+    OFERTAS_RED_NODEXIA }o--|| EMPRESAS : ofertante
+    
+    VIAJES_DESPACHO ||--o{ UBICACIONES_CHOFERES : tracking
+    VIAJES_DESPACHO ||--o{ REGISTROS_ACCESO : "ingreso/egreso"
+    VIAJES_DESPACHO ||--o{ DOCUMENTOS_VIAJE : "remitos/fotos"
+    VIAJES_DESPACHO ||--o{ INCIDENCIAS_VIAJE : incidentes
+    
+    CHOFERES }o--o| USUARIOS : cuenta
+    USUARIOS_EMPRESA }o--|| USUARIOS : es
+    USUARIOS_EMPRESA }o--o| ROLES_EMPRESA : "tiene rol"
+    
+    DOCUMENTOS_ENTIDAD }o--|| EMPRESAS : "pertenece a"
+
+    EMPRESAS {
+        uuid id PK
+        string nombre
+        string cuit UK
+        enum tipo_empresa "planta-transporte-cliente-admin"
+        bool activa
+    }
+
+    DESPACHOS {
+        uuid id PK
+        string pedido_id "DSP-YYYYMMDD-NNN"
+        uuid origen_id FK
+        uuid destino_id FK
+        string estado
+        date scheduled_local_date
+        time scheduled_local_time
+        int cantidad_viajes_solicitados
+        enum origen_asignacion "directo-red_nodexia"
+    }
+
+    VIAJES_DESPACHO {
+        uuid id PK
+        uuid despacho_id FK
+        int numero_viaje
+        uuid id_transporte FK
+        uuid chofer_id FK
+        uuid camion_id FK
+        uuid acoplado_id FK
+        string estado
+        string estado_unidad "25 estados"
+        string estado_carga
+        timestamp scheduled_at
+        string remito_url
+    }
+
+    VIAJES_RED_NODEXIA {
+        uuid id PK
+        uuid viaje_id FK
+        uuid empresa_solicitante_id FK
+        decimal tarifa_ofrecida
+        enum estado_red "abierto-con_ofertas-asignado-cancelado"
+    }
+
+    OFERTAS_RED_NODEXIA {
+        uuid id PK
+        uuid viaje_red_id FK
+        uuid transporte_id FK
+        string mensaje
+        enum estado_oferta "pendiente-aceptada-rechazada"
+    }

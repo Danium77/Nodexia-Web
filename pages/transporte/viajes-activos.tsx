@@ -6,6 +6,7 @@ import { EstadoDualBadge, EstadosProgressBar } from '../../components/ui/EstadoD
 import { GoogleMapViajes } from '../../components/Maps/GoogleMapViajes';
 import { TimelineEstados } from '../../components/Transporte/TimelineEstados';
 import type { EstadoUnidadViaje } from '../../lib/types';
+import { getEstadoDisplay } from '../../lib/helpers/estados-helpers';
 import {
   TruckIcon,
   MapPinIcon,
@@ -111,7 +112,7 @@ const ViajesActivos = () => {
           )
         `)
         .eq('id_transporte', empresaId)
-        .in('estado', ['transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'arribo_origen', 'en_transito_destino', 'arribo_destino', 'confirmado', 'en_transito', 'en_planta', 'esperando_carga', 'cargando', 'carga_completa', 'en_ruta'])
+        .in('estado', ['transporte_asignado', 'camion_asignado', 'confirmado_chofer', 'en_transito_origen', 'ingresado_origen', 'llamado_carga', 'cargando', 'cargado', 'egreso_origen', 'en_transito_destino', 'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'])
         .not('despacho_id', 'is', null)
         .order('created_at', { ascending: false });
 
@@ -236,26 +237,11 @@ const ViajesActivos = () => {
   };
 
   const getEstadoBadge = (estado: string) => {
-    const estados: Record<string, { color: string; text: string; icon: any }> = {
-      pendiente: { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30', text: 'Pendiente', icon: ClockIcon },
-      camion_asignado: { color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', text: 'Camión Asignado', icon: TruckIcon },
-      confirmado_chofer: { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', text: 'Confirmado', icon: CheckCircleIcon },
-      en_transito_origen: { color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', text: '→ Origen', icon: TruckIcon },
-      arribo_origen: { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', text: 'En Origen', icon: MapPinIcon },
-      en_transito_destino: { color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', text: '→ Destino', icon: TruckIcon },
-      arribo_destino: { color: 'bg-orange-500/20 text-orange-400 border-orange-500/30', text: 'En Destino', icon: MapPinIcon },
-      entregado: { color: 'bg-green-500/20 text-green-400 border-green-500/30', text: 'Entregado', icon: CheckCircleIcon },
-      viaje_completado: { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', text: 'Viaje Completado', icon: CheckCircleIcon },
-      cancelado: { color: 'bg-red-500/20 text-red-400 border-red-500/30', text: 'Cancelado', icon: ExclamationTriangleIcon }
-    };
-
-    const config = estados[estado] || { color: 'bg-gray-500/20 text-gray-400 border-gray-500/30', text: estado, icon: ClockIcon };
-    const Icon = config.icon;
+    const display = getEstadoDisplay(estado);
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color} flex items-center gap-1`}>
-        <Icon className="h-3 w-3" />
-        {config.text}
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold border border-white/10 ${display.bgClass} ${display.textClass} flex items-center gap-1`}>
+        {display.label}
       </span>
     );
   };
@@ -515,14 +501,14 @@ const ViajesActivos = () => {
                   const tieneEstado = (estados: string[]) => estadosActivos.some(e => estados.includes(e));
                   
                   const indicadores = [
-                    { estados: ['asignado'], label: 'Asignado', color: 'blue', pulso: false },
-                    { estados: ['confirmado'], label: 'Confirmado', color: 'green', pulso: false },
-                    { estados: ['en_ruta_origen', 'en_transito_origen'], label: 'En Ruta', color: 'purple', pulso: true },
-                    { estados: ['arribo_origen', 'en_planta'], label: 'En Planta', color: 'cyan', pulso: false },
-                    { estados: ['en_ruta_destino', 'en_transito_destino'], label: 'A Destino', color: 'orange', pulso: true },
-                    { estados: ['arribo_destino'], label: 'En Destino', color: 'teal', pulso: false },
-                    { estados: ['completado', 'viaje_completado'], label: 'Completado', color: 'green', pulso: false, icon: 'check' },
-                    { estados: ['cancelado'], label: 'Cancelado', color: 'red', pulso: false, icon: 'x' }
+                    { estados: ['camion_asignado', 'transporte_asignado'], label: 'Asignado', color: 'blue', pulso: false },
+                    { estados: ['confirmado_chofer'], label: 'Confirmado', color: 'green', pulso: false },
+                    { estados: ['en_transito_origen'], label: '→ Origen', color: 'purple', pulso: true },
+                    { estados: ['ingresado_origen', 'llamado_carga', 'cargando', 'cargado'], label: 'En Planta', color: 'cyan', pulso: false },
+                    { estados: ['egreso_origen', 'en_transito_destino'], label: '→ Destino', color: 'orange', pulso: true },
+                    { estados: ['ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'], label: 'En Destino', color: 'teal', pulso: false },
+                    { estados: ['completado'], label: 'Completado', color: 'green', pulso: false, icon: 'check' },
+                    { estados: ['cancelado', 'cancelado_por_transporte'], label: 'Cancelado', color: 'red', pulso: false, icon: 'x' }
                   ];
 
                   const colorConfig: Record<string, { bg: string, glow: string, border: string }> = {

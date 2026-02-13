@@ -62,13 +62,13 @@ export default function DemoQR() {
     { estado: 'ingresado_planta', descripcion: 'Control de Acceso autoriza ingreso', actor: 'Control de Acceso', color: 'bg-green-100 text-green-800' },
     { estado: 'llamado_carga', descripcion: 'Supervisor llama camión a carga', actor: 'Supervisor de Carga', color: 'bg-yellow-100 text-yellow-800' },
     { estado: 'cargando', descripción: 'Supervisor inicia proceso de carga', actor: 'Supervisor de Carga', color: 'bg-orange-100 text-orange-800' },
-    { estado: 'carga_finalizada', descripcion: 'Supervisor completa carga con remito', actor: 'Supervisor de Carga', color: 'bg-purple-100 text-purple-800' },
-    { estado: 'egresado_planta', descripcion: 'Control de Acceso autoriza egreso', actor: 'Control de Acceso', color: 'bg-gray-100 text-gray-800' }
+    { estado: 'cargado', descripcion: 'Supervisor completa carga con remito', actor: 'Supervisor de Carga', color: 'bg-purple-100 text-purple-800' },
+    { estado: 'egreso_origen', descripcion: 'Control de Acceso autoriza egreso', actor: 'Control de Acceso', color: 'bg-gray-100 text-gray-800' }
   ];
 
   const codigosQR = [
     { codigo: 'QR-VJ2025001', viaje: 'VJ-2025-001', estado: 'confirmado', uso: 'Para probar ingreso' },
-    { codigo: 'QR-VJ2025002', viaje: 'VJ-2025-002', estado: 'carga_finalizada', uso: 'Para probar egreso' },
+    { codigo: 'QR-VJ2025002', viaje: 'VJ-2025-002', estado: 'cargado', uso: 'Para probar egreso' },
     { codigo: 'QR-VJ2025003', viaje: 'VJ-2025-003', estado: 'llamado_carga', uso: 'Para iniciar carga' }
   ];
 

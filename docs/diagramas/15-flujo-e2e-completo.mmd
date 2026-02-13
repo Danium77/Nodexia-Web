@@ -1,0 +1,74 @@
+sequenceDiagram
+    actor CP as 🏭 Coord. Planta
+    actor CT as 🚛 Coord. Transporte
+    actor CH as 🧑‍✈️ Chofer
+    actor CA as 🚧 Control Acceso
+    actor SC as 👷 Supervisor Carga
+    participant SYS as ⚙️ Sistema
+    
+    Note over CP: FASE 0 - Creación
+    CP->>SYS: Crear despacho + viajes
+    Note over SYS: estado = pendiente
+    
+    Note over CP: FASE 1a - Asignación
+    alt Asignación Directa
+        CP->>CT: Asignar transporte
+        Note over SYS: estado = transporte_asignado
+    else Red Nodexia
+        CP->>SYS: Publicar en Red
+        CT->>SYS: Enviar oferta
+        CP->>SYS: Aceptar oferta
+        Note over SYS: estado = transporte_asignado
+    end
+    
+    Note over CT: FASE 1b - Unidad
+    CT->>SYS: Asignar chofer + camión
+    Note over SYS: estado = camion_asignado
+    
+    CH->>SYS: Confirmar viaje
+    Note over SYS: estado = confirmado_chofer
+    
+    Note over CH: FASE 2 - Tránsito a Origen
+    CH->>SYS: Iniciar tránsito + GPS
+    Note over SYS: estado = en_transito_origen
+    CH->>SYS: Arribo planta
+    Note over SYS: estado = arribo_origen
+    
+    Note over CA: FASE 3 - Planta Origen
+    CA->>SYS: Escanear QR + Confirmar ingreso
+    Note over SYS: estado = ingresado_origen
+    Note over SYS: auto = en_playa_origen
+    
+    SC->>SYS: Llamar a carga
+    Note over SYS: estado = llamado_carga
+    SC->>SYS: Iniciar carga
+    Note over SYS: estado = cargando
+    SC->>SYS: Finalizar carga + remito
+    Note over SYS: estado = cargado
+    
+    Note over CA: FASE 4 - Egreso Origen
+    CA->>SYS: Validar docs + Confirmar egreso
+    Note over SYS: estado = egreso_origen
+    
+    Note over CH: FASE 5 - Tránsito a Destino
+    CH->>SYS: Iniciar tránsito destino + GPS
+    Note over SYS: estado = en_transito_destino
+    CH->>SYS: Arribo destino
+    Note over SYS: estado = arribo_destino
+    
+    Note over CA: FASE 6 - Planta Destino
+    CA->>SYS: Confirmar ingreso destino
+    Note over SYS: estado = ingresado_destino
+    SC->>SYS: Llamar descarga + Descargar
+    Note over SYS: estado = descargado
+    
+    Note over CA: FASE 7 - Egreso Destino
+    CA->>SYS: Confirmar egreso destino
+    Note over SYS: estado = egreso_destino
+    Note over SYS: auto = vacio
+    
+    Note over SYS: FASE 8 - Cierre
+    SYS->>SYS: Auto-completar viaje
+    Note over SYS: estado = viaje_completado
+    SYS->>SYS: Si todos completos
+    Note over SYS: despacho = completado

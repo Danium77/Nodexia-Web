@@ -24,6 +24,8 @@ const TransportesPage = () => {
   const [nuevoTransporte, setNuevoTransporte] = useState<Transporte | null>(null);
   const [mensaje, setMensaje] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmDesvincular, setConfirmDesvincular] = useState<string | null>(null); // id del transporte a desvincular
+  const [alertModal, setAlertModal] = useState<{ show: boolean; mensaje: string }>({ show: false, mensaje: '' });
 
   // Cargar transportes asociados al coordinador
   useEffect(() => {
@@ -283,6 +285,92 @@ const TransportesPage = () => {
     }
   };
 
+  // Desvincular transporte (cambiar estado de relación a inactiva)
+  const desvincularTransporte = async (transporteId: string) => {
+    try {
+      setLoading(true);
+      setMensaje('');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setMensaje('Error: Usuario no autenticado');
+        return;
+      }
+
+      const { data: usuarioEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user.id)
+        .eq('activo', true)
+        .single();
+
+      if (!usuarioEmpresa) {
+        setMensaje('Error: No se pudo obtener la empresa del usuario');
+        return;
+      }
+
+      // Verificar si hay viajes activos asignados a este transporte
+      // Estados finales según lib/estados/config.ts
+      const ESTADOS_FINALES = ['completado', 'cancelado', 'cancelado_por_transporte'];
+
+      const { data: todosViajes, error: viajesError } = await supabase
+        .from('viajes_despacho')
+        .select('id, numero_viaje, estado')
+        .eq('id_transporte', transporteId);
+
+      if (viajesError) {
+        console.error('Error consultando viajes:', viajesError);
+      }
+
+      console.log(`🔍 Viajes del transporte ${transporteId}:`, todosViajes?.length || 0, todosViajes?.map(v => v.estado));
+
+      // Filtrar viajes que NO están en estado final
+      const viajesActivos = (todosViajes || []).filter(v => !ESTADOS_FINALES.includes(v.estado));
+
+      if (viajesActivos.length > 0) {
+        const listaViajes = viajesActivos
+          .slice(0, 5)
+          .map(v => `Viaje #${v.numero_viaje || v.id.slice(0, 8)} (${v.estado})`)
+          .join(', ');
+        const extra = viajesActivos.length > 5 ? ` y ${viajesActivos.length - 5} más` : '';
+
+        setAlertModal({
+          show: true,
+          mensaje: `⚠️ No se puede desvincular: este transporte tiene ${viajesActivos.length} viaje(s) activo(s): ${listaViajes}${extra}. Esperá a que se completen o cancelalos antes de desvincular.`
+        });
+        setConfirmDesvincular(null);
+        return;
+      }
+
+      // Sin viajes activos → proceder con la desvinculación
+      const { error: updateError } = await supabase
+        .from('relaciones_empresas')
+        .update({
+          estado: 'inactiva',
+          fecha_fin: new Date().toISOString()
+        })
+        .eq('empresa_cliente_id', usuarioEmpresa.empresa_id)
+        .eq('empresa_transporte_id', transporteId)
+        .eq('estado', 'activa');
+
+      if (updateError) {
+        console.error('Error desvinculando transporte:', updateError);
+        setMensaje('Error al desvincular el transporte: ' + updateError.message);
+        return;
+      }
+
+      setMensaje('✅ Transporte desvinculado correctamente');
+      setConfirmDesvincular(null);
+      await cargarTransportesAsociados();
+
+    } catch (error) {
+      console.error('Error inesperado al desvincular:', error);
+      setMensaje('Error inesperado al desvincular el transporte');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AdminLayout pageTitle="Gestión de Transportes">
       <button
@@ -381,12 +469,40 @@ const TransportesPage = () => {
                   <td className="p-2">{t.telefono}</td>
                   <td className="p-2">{t.documentacion?.length > 0 ? t.documentacion.join(', ') : 'Sin documentación'}</td>
                   <td className="p-2">
-                    <button
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-                      onClick={() => router.push(`/configuracion/transportes/${t.id}`)}
-                    >
-                      Gestionar
-                    </button>
+                    <div className="flex gap-2 items-center">
+                      <button
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+                        onClick={() => router.push(`/configuracion/transportes/${t.id}`)}
+                      >
+                        Gestionar
+                      </button>
+                      {confirmDesvincular === t.id ? (
+                        <div className="flex gap-1 items-center">
+                          <span className="text-orange-400 text-xs">¿Confirmar?</span>
+                          <button
+                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs"
+                            onClick={() => desvincularTransporte(t.id)}
+                            disabled={loading}
+                          >
+                            Sí
+                          </button>
+                          <button
+                            className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs"
+                            onClick={() => setConfirmDesvincular(null)}
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                          onClick={() => setConfirmDesvincular(t.id)}
+                          title="Desvincular transporte de tu empresa"
+                        >
+                          Desvincular
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -394,6 +510,25 @@ const TransportesPage = () => {
           </table>
         )}
       </div>
+      {/* Modal de alerta */}
+      {alertModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-yellow-400 text-2xl flex-shrink-0">⚠️</span>
+              <p className="text-white text-sm leading-relaxed">{alertModal.mensaje}</p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded font-semibold"
+                onClick={() => setAlertModal({ show: false, mensaje: '' })}
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

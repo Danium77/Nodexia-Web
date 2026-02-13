@@ -11,7 +11,9 @@ import { EstadoDualBadge } from '../components/ui/EstadoDualBadge';
 import { NodexiaLogoBadge } from '../components/ui/NodexiaLogo';
 import AbrirRedNodexiaModal from '../components/Transporte/AbrirRedNodexiaModal';
 import VerEstadoRedNodexiaModal from '../components/Transporte/VerEstadoRedNodexiaModal';
-import { calcularEstadoOperativo, estaEnMovimiento, esFinal } from '../lib/estadosHelper';
+import { calcularEstadoOperativo, esEstadoEnMovimiento as estaEnMovimiento, esEstadoFinal as esFinal } from '../lib/estados';
+import { getEstadoDisplay } from '../lib/helpers/estados-helpers';
+import TimelineDespachoModal from '../components/Despachos/TimelineDespachoModal';
 
 interface EmpresaOption {
   id: string;
@@ -139,6 +141,11 @@ const CrearDespacho = () => {
   const [despachosPendingDelete, setDespachosPendingDelete] = useState<Set<string>>(new Set());
   const [forceRefresh, setForceRefresh] = useState(0); // Para forzar re-renders
 
+  // Estado para Timeline
+  const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
+  const [timelineDespachoId, setTimelineDespachoId] = useState('');
+  const [timelinePedidoId, setTimelinePedidoId] = useState('');
+
   // Cargar datos del usuario
   useEffect(() => {
     checkUser();
@@ -265,22 +272,9 @@ const CrearDespacho = () => {
           
           // 🔥 NUEVO: Contar solo viajes con estado asignado o estados superiores
           // IMPORTANTE: Incluir TODOS los estados desde transporte_asignado en adelante
+          // Estados según lib/estados/config.ts (17 estados válidos + cancelado)
           viajesAsignados = viajesData.filter(v => 
-            v.estado === 'asignado' || 
-            v.estado === 'transporte_asignado' || 
-            v.estado === 'camion_asignado' ||
-            v.estado === 'confirmado_chofer' ||
-            v.estado === 'en_transito_origen' ||
-            v.estado === 'arribo_origen' ||
-            v.estado === 'pausado' ||
-            v.estado === 'en_carga' ||
-            v.estado === 'en_transito' ||
-            v.estado === 'en_transito_destino' ||
-            v.estado === 'arribo_destino' ||
-            v.estado === 'en_descarga' ||
-            v.estado === 'entregado' ||
-            v.estado === 'completado' ||
-            v.estado === 'viaje_completado'
+            v.estado !== 'pendiente' && v.estado !== 'cancelado'
           ).length;
           
           
@@ -300,7 +294,9 @@ const CrearDespacho = () => {
           viajesConEstadoOperativo = viajesData.map(v => {
             // Red Nodexia: Si el viaje aún no está en movimiento físico (Fases 2-6),
             // los chofer_id/camion_id son datos stale → forzar como pendiente sin recursos.
-            const enRedPendiente = esRedNodexia && !estaEnMovimiento(v.estado) && !esFinal(v.estado);
+            // 🔥 FIX: Solo considerar "en Red pendiente" si NO tiene chofer asignado.
+            // Después de aceptar oferta + asignar unidad, chofer_id existe → no nullificar.
+            const enRedPendiente = esRedNodexia && !v.chofer_id && !estaEnMovimiento(v.estado) && !esFinal(v.estado);
             const estadoOp = calcularEstadoOperativo({
               estado_carga: enRedPendiente ? 'pendiente' : (v.estado || 'pendiente'),
               estado_unidad: v.estado,
@@ -728,139 +724,45 @@ const CrearDespacho = () => {
         return;
       }
 
-      // 1. Obtener datos del viaje en red para encontrar el viaje_despacho
-      const { data: viajeRed, error: viajeRedError } = await supabase
-        .from('viajes_red_nodexia')
-        .select('viaje_id, empresa_solicitante_id')
-        .eq('id', selectedViajeRedId)
-        .single();
+      console.log('🎯 [crear-despacho] Llamando API aceptar-oferta:', { ofertaId, transporteId, viajeRedId: selectedViajeRedId });
 
-      if (viajeRedError || !viajeRed) throw viajeRedError || new Error('No se encontró el viaje en red');
+      // Llamar API server-side que usa service role (evita problemas de RLS)
+      const response = await fetch('/api/red-nodexia/aceptar-oferta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ofertaId,
+          viajeRedId: selectedViajeRedId,
+          transporteId,
+          usuarioId: user?.id
+        })
+      });
 
+      const result = await response.json();
 
-      // 2. Obtener datos del viaje_despacho para encontrar el despacho_id
-      const { data: viajeDespacho, error: viajeDespachoError } = await supabase
-        .from('viajes_despacho')
-        .select('despacho_id, numero_viaje')
-        .eq('id', viajeRed.viaje_id)
-        .single();
-
-      if (viajeDespachoError || !viajeDespacho) throw viajeDespachoError || new Error('No se encontró el viaje de despacho');
-
-
-      // 3. Convertir transporteId (UUID de empresa) a transport_id (integer de tabla transportes)
-      const { data: transporteData, error: transporteError } = await supabase
-        .from('transportes')
-        .select('id, nombre')
-        .eq('empresa_id', transporteId)
-        .single();
-
-      if (transporteError) {
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al aceptar oferta');
       }
 
-      const transportIdFinal = transporteData?.id || null;
-      
+      console.log('✅ [crear-despacho] API aceptar-oferta OK:', result);
 
-      // 4. Actualizar estado de la oferta aceptada
-      const { error: ofertaError } = await supabase
-        .from('ofertas_red_nodexia')
-        .update({
-          estado_oferta: 'aceptada',
-          fecha_respuesta: new Date().toISOString()
-        })
-        .eq('id', ofertaId);
-
-      if (ofertaError) throw ofertaError;
-
-      // 5. Rechazar las demás ofertas
-      await supabase
-        .from('ofertas_red_nodexia')
-        .update({
-          estado_oferta: 'rechazada',
-          fecha_respuesta: new Date().toISOString()
-        })
-        .eq('viaje_red_id', selectedViajeRedId)
-        .neq('id', ofertaId);
-
-      // 6. Actualizar el viaje en red
-
-      const { error: updateRedError, data: updateRedData } = await supabase
-        .from('viajes_red_nodexia')
-        .update({
-          estado_red: 'asignado',
-          transporte_asignado_id: transporteId,
-          oferta_aceptada_id: ofertaId,
-          fecha_asignacion: new Date().toISOString(),
-          asignado_por: user?.id
-        })
-        .eq('id', selectedViajeRedId)
-        .select();
-
-      if (updateRedError) {
-        console.error('❌ [crear-despacho] Error actualizando viajes_red_nodexia:', updateRedError);
-        throw updateRedError;
-      }
-
-      if (!updateRedData || updateRedData.length === 0) {
-        console.error('⚠️ [crear-despacho] UPDATE no afectó ninguna fila - selectedViajeRedId podría ser incorrecto');
-      }
-
-      // 🔥 VERIFICAR que estado_red cambió correctamente
-      const { data: viajeRedVerificacion } = await supabase
-        .from('viajes_red_nodexia')
-        .select('id, estado_red, transporte_asignado_id')
-        .eq('id', selectedViajeRedId)
-        .single();
-      
-
-      // 7. Actualizar viaje_despacho con transporte asignado
-      const { error: updateViajeError } = await supabase
-        .from('viajes_despacho')
-        .update({
-          id_transporte: transporteId, // UUID de empresa
-          estado: 'transporte_asignado',
-          fecha_asignacion_transporte: new Date().toISOString(),
-          origen_asignacion: 'red_nodexia'
-        })
-        .eq('id', viajeRed.viaje_id);
-
-      if (updateViajeError) {
-        console.error('❌ Error actualizando viaje_despacho:', updateViajeError);
-        throw updateViajeError;
-      }
-
-      // 8. Actualizar despacho con transporte asignado
-      const { error: updateDespachoError } = await supabase
-        .from('despachos')
-        .update({
-          transport_id: transportIdFinal, // Integer o null
-          estado: 'asignado',
-          origen_asignacion: 'red_nodexia'
-        })
-        .eq('id', viajeDespacho.despacho_id);
-
-      if (updateDespachoError) {
-        console.error('❌ Error actualizando despacho:', updateDespachoError);
-        throw updateDespachoError;
-      }
-
+      const despachoId = result.despachoId;
 
       // Cerrar modal PRIMERO
       handleCloseVerEstado();
       
       // Mostrar éxito inmediato
-      setSuccessMsg('✅ Transporte asignado correctamente desde Red Nodexia. Actualizando vista...');
+      setSuccessMsg(`✅ ${result.transporteNombre} asignado correctamente desde Red Nodexia. Actualizando vista...`);
       
-      // 🔥 ESPERAR a que Supabase propague los cambios (aumentado a 2.5s para replica lag)
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      // Esperar a que Supabase propague los cambios
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Recargar despachos DESPUÉS de la espera
+      // Recargar despachos
       if (user?.id) {
         await fetchGeneratedDispatches(user.id);
         
-        // 🔥 FORZAR cambio de tab a "asignados" si el despacho está completo
-        // Verificar si todos los viajes del despacho están asignados
-        const despachoActualizado = generatedDispatches.find(d => d.id === viajeDespacho.despacho_id);
+        // Cambiar tab a "asignados"
+        const despachoActualizado = generatedDispatches.find(d => d.id === despachoId);
         if (despachoActualizado) {
           const cantidadTotal = despachoActualizado.cantidad_viajes_solicitados || 1;
           const cantidadAsignados = despachoActualizado.viajes_asignados || 0;
@@ -871,16 +773,15 @@ const CrearDespacho = () => {
           }
         }
         
-        // 🔥 Si el despacho estaba expandido, limpiar cache para forzar recarga
-        if (viajeDespacho.despacho_id && expandedDespachos.has(viajeDespacho.despacho_id)) {
+        // Si el despacho estaba expandido, limpiar cache para forzar recarga
+        if (despachoId && expandedDespachos.has(despachoId)) {
           setViajesDespacho(prev => {
             const newCache = { ...prev };
-            delete newCache[viajeDespacho.despacho_id];
+            delete newCache[despachoId];
             return newCache;
           });
-          // Recargar viajes del despacho expandido
-          await handleToggleExpandDespacho(viajeDespacho.despacho_id);
-          await handleToggleExpandDespacho(viajeDespacho.despacho_id); // Expandir de nuevo
+          await handleToggleExpandDespacho(despachoId);
+          await handleToggleExpandDespacho(despachoId);
         }
       }
       
@@ -1292,12 +1193,12 @@ const CrearDespacho = () => {
         ? (new Date(viajeActual.despachos.scheduled_local_date).getTime() - Date.now()) / (1000 * 60 * 60)
         : 999;
 
-      if (viajeActual.estado === 'en_transito') {
+      if (['en_transito_origen', 'en_transito_destino'].includes(viajeActual.estado)) {
         throw new Error('No se puede cancelar un viaje en tránsito');
       }
 
-      if (viajeActual.estado === 'entregado') {
-        throw new Error('No se puede cancelar un viaje ya entregado');
+      if (viajeActual.estado === 'completado') {
+        throw new Error('No se puede cancelar un viaje ya completado');
       }
 
       let advertencia = '';
@@ -1890,7 +1791,7 @@ const CrearDespacho = () => {
               <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
                 {generatedDispatches.filter(d => {
                   const cantidadAsignados = d.viajes_asignados || 0;
-                  const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
+                  const esCompletado = ['completado', 'cancelado'].includes(d.estado);
                   return cantidadAsignados === 0 && !(d as any).tiene_viajes_expirados && !esCompletado;
                 }).length}
               </span>
@@ -1909,7 +1810,7 @@ const CrearDespacho = () => {
                   const cantidadTotal = d.cantidad_viajes_solicitados || 1;
                   const cantidadAsignados = d.viajes_asignados || 0;
                   const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
+                  const esCompletado = ['completado', 'cancelado'].includes(d.estado);
                   return cantidadAsignados > 0 && viajesPendientes > 0 && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado;
                 }).length}
               </span>
@@ -1928,10 +1829,10 @@ const CrearDespacho = () => {
                   const cantidadTotal = d.cantidad_viajes_solicitados || 1;
                   const cantidadAsignados = d.viajes_asignados || 0;
                   const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
+                  const esCompletado = ['completado', 'cancelado'].includes(d.estado);
                   return (
                     ((cantidadAsignados > 0 && viajesPendientes === 0 && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado) ||
-                    (d.estado === 'asignado' && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado))
+                    (d.estado === 'transporte_asignado' && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado))
                   );
                 }).length}
               </span>
@@ -1946,7 +1847,7 @@ const CrearDespacho = () => {
             >
               ⏰ Demorados
               <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
-                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true && d.estado !== 'completado' && d.estado !== 'entregado').length}
+                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true && !['completado', 'cancelado'].includes(d.estado)).length}
               </span>
             </button>
             <button
@@ -1959,7 +1860,7 @@ const CrearDespacho = () => {
             >
               ❌ Expirados
               <span className="ml-2 px-2 py-0.5 bg-red-700 rounded text-xs">
-                {generatedDispatches.filter(d => (d as any).tiene_viajes_expirados === true && d.estado !== 'completado' && d.estado !== 'entregado').length}
+                {generatedDispatches.filter(d => (d as any).tiene_viajes_expirados === true && !['completado', 'cancelado'].includes(d.estado)).length}
               </span>
             </button>
             <button
@@ -1972,7 +1873,7 @@ const CrearDespacho = () => {
             >
               ✅ Completados
               <span className="ml-2 px-2 py-0.5 bg-emerald-700 rounded text-xs">
-                {generatedDispatches.filter(d => d.estado === 'completado' || d.estado === 'entregado').length}
+                {generatedDispatches.filter(d => d.estado === 'completado' || d.estado === 'cancelado').length}
               </span>
             </button>
           </div>
@@ -2015,14 +1916,14 @@ const CrearDespacho = () => {
                     // Flags de estado operativo calculados en runtime
                     const tieneDemorados = (d as any).tiene_viajes_demorados === true;
                     const tieneExpirados = (d as any).tiene_viajes_expirados === true;
-                    const esCompletado = d.estado === 'completado' || d.estado === 'entregado';
+                    const esCompletado = ['completado', 'cancelado'].includes(d.estado);
                     
                     let pasaFiltro = false;
                     let razon = '';
                     
                     if (activeTab === 'completados') {
                       pasaFiltro = esCompletado;
-                      razon = `estado completado/entregado`;
+                      razon = `estado completado/cancelado`;
                     } else if (activeTab === 'expirados') {
                       // Expirados: viajes sin recursos fuera de ventana (exclusivo)
                       pasaFiltro = tieneExpirados && !esCompletado;
@@ -2196,18 +2097,11 @@ const CrearDespacho = () => {
                             );
                           }
                           
-                          // Fallback a estado de BD
+                          // Fallback: usar display centralizado
+                          const display = getEstadoDisplay(dispatch.estado || 'pendiente');
                           return (
-                            <span className={`px-1 py-0.5 rounded text-xs whitespace-nowrap ${
-                              (dispatch.estado === 'Generado' || dispatch.estado === 'planificado' || dispatch.estado === 'pendiente_transporte') ? 'bg-orange-600 text-orange-100' :
-                              dispatch.estado === 'Ofrecido' ? 'bg-blue-600 text-blue-100' :
-                              (dispatch.estado === 'Asignado' || dispatch.estado === 'transporte_asignado') ? 'bg-green-600 text-green-100' :
-                              'bg-gray-600 text-gray-100'
-                            }`}>
-                              {dispatch.estado === 'planificado' ? 'Generado' : 
-                               dispatch.estado === 'pendiente_transporte' ? 'Pendiente Transporte' : 
-                               dispatch.estado === 'transporte_asignado' ? 'Transporte Asignado' :
-                               dispatch.estado}
+                            <span className={`px-1 py-0.5 rounded text-xs whitespace-nowrap ${display.bgClass} ${display.textClass}`}>
+                              {display.label}
                             </span>
                           );
                         })()}
@@ -2225,6 +2119,20 @@ const CrearDespacho = () => {
                               {expandedDespachos.has(dispatch.id) ? '▼' : '▶'} Viajes
                             </button>
                           )}
+
+                          {/* Botón Historial */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTimelineDespachoId(dispatch.id);
+                              setTimelinePedidoId(dispatch.pedido_id);
+                              setIsTimelineModalOpen(true);
+                            }}
+                            className="px-2 py-1 rounded-md bg-indigo-700 hover:bg-indigo-600 text-white text-xs transition-colors"
+                            title="Ver historial de eventos"
+                          >
+                            📜 Historial
+                          </button>
                           
                           {/* 🆕 Botones para tab Expirados */}
                           {activeTab === 'expirados' && (
@@ -2364,6 +2272,8 @@ const CrearDespacho = () => {
                                                 📱 {viaje.chofer.telefono || 'Sin teléfono'}
                                               </div>
                                             </div>
+                                          ) : viaje.transporte ? (
+                                            <span className="text-yellow-400 text-xs font-medium">⏳ Pendiente asignación</span>
                                           ) : (
                                             <span className="text-gray-500 text-xs">Sin asignar</span>
                                           )}
@@ -2380,6 +2290,8 @@ const CrearDespacho = () => {
                                                 {viaje.camion.marca} {viaje.camion.modelo}
                                               </div>
                                             </div>
+                                          ) : viaje.transporte ? (
+                                            <span className="text-yellow-400 text-xs font-medium">⏳ Pendiente asignación</span>
                                           ) : (
                                             <span className="text-gray-500 text-xs">Sin asignar</span>
                                           )}
@@ -2402,53 +2314,21 @@ const CrearDespacho = () => {
                                         </td>
                                         <td className="py-2 px-2">
                                           <div className="flex flex-col gap-1">
-                                            <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-                                              enRedPendiente
-                                                ? 'bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border border-cyan-500/30'
-                                                : viaje.estado === 'cancelado_por_transporte' || viaje.estado === 'cancelado' 
-                                                ? 'bg-red-900 text-red-200'
-                                                : viaje.estado === 'pausado'
-                                                ? 'bg-orange-900 text-orange-200'
-                                                : viaje.estado === 'camion_asignado'
-                                                ? 'bg-yellow-900 text-yellow-200'
-                                                : viaje.estado === 'confirmado_chofer'
-                                                ? 'bg-blue-900 text-blue-200'
-                                                : viaje.estado === 'en_transito_origen' || viaje.estado === 'en_transito_destino'
-                                                ? 'bg-purple-900 text-purple-200'
-                                                : viaje.estado === 'arribo_origen' || viaje.estado === 'arribo_destino'
-                                                ? 'bg-orange-900 text-orange-200'
-                                                : viaje.estado === 'entregado'
-                                                ? 'bg-green-900 text-green-200'
-                                                : viaje.estado === 'viaje_completado' || viaje.estado === 'completado'
-                                                ? 'bg-emerald-900 text-emerald-200'
-                                                : 'bg-gray-900 text-gray-200'
-                                            }`}>
-                                              {enRedPendiente
-                                                ? '🌐 En Red'
-                                                : viaje.estado === 'cancelado_por_transporte' 
-                                                ? '⚠️ Cancelado'
-                                                : viaje.estado === 'cancelado'
-                                                ? '❌ Cancelado'
-                                                : viaje.estado === 'pausado'
-                                                ? '⏸️ PAUSADO'
-                                                : viaje.estado === 'camion_asignado'
-                                                ? '🚛 Camión Asignado'
-                                                : viaje.estado === 'confirmado_chofer'
-                                                ? '✅ Confirmado'
-                                                : viaje.estado === 'en_transito_origen'
-                                                ? '🚚 → Origen'
-                                                : viaje.estado === 'arribo_origen'
-                                                ? '📍 En Origen'
-                                                : viaje.estado === 'en_transito_destino'
-                                                ? '🚚 → Destino'
-                                                : viaje.estado === 'arribo_destino'
-                                                ? '📍 En Destino'
-                                                : viaje.estado === 'entregado'
-                                                ? '✅ Entregado'
-                                                : viaje.estado === 'viaje_completado' || viaje.estado === 'completado'
-                                                ? '🏁 Completado'
-                                                : '⏳ Pendiente'}
-                                            </span>
+                                            {(() => {
+                                              if (enRedPendiente) {
+                                                return (
+                                                  <span className="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border border-cyan-500/30">
+                                                    🌐 En Red
+                                                  </span>
+                                                );
+                                              }
+                                              const display = getEstadoDisplay(viaje.estado || 'pendiente');
+                                              return (
+                                                <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${display.bgClass} ${display.textClass}`}>
+                                                  {display.label}
+                                                </span>
+                                              );
+                                            })()}
                                           </div>
                                         </td>
                                         <td className="py-2 px-2 text-gray-400 text-xs">
@@ -2678,6 +2558,14 @@ const CrearDespacho = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Timeline/Historial */}
+      <TimelineDespachoModal
+        isOpen={isTimelineModalOpen}
+        onClose={() => setIsTimelineModalOpen(false)}
+        despachoId={timelineDespachoId}
+        pedidoId={timelinePedidoId}
+      />
     </div>
   );
 };

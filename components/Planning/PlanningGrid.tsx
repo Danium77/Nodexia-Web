@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useReducer } from 'react';
 import { MapPinIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../../lib/supabaseClient';
-import { getColorEstadoOperativo, getIconoEstadoOperativo, getLabelEstadoOperativo } from '../../lib/estadosHelper';
+import { getColorEstadoOperativo, getIconoEstadoOperativo, getLabelEstadoOperativo } from '../../lib/estados';
 
 interface Dispatch {
   id: string;
@@ -104,26 +104,25 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
       'Descargando': 'bg-amber-600',
       'Descargado': 'bg-lime-600',
       'Terminado': 'bg-gray-700',
-      // snake_case estado_unidad values
+      // snake_case estado values — alineados con lib/estados/config.ts
       'pendiente': 'bg-gray-600',
       'transporte_asignado': 'bg-blue-600',
       'camion_asignado': 'bg-yellow-600',
       'confirmado_chofer': 'bg-cyan-600',
       'en_transito_origen': 'bg-indigo-600',
       'ingresado_origen': 'bg-green-600',
-      'en_playa_origen': 'bg-teal-600',
       'llamado_carga': 'bg-amber-600',
       'cargando': 'bg-orange-600',
+      'cargado': 'bg-emerald-600',
       'egreso_origen': 'bg-purple-600',
       'en_transito_destino': 'bg-pink-600',
-      'arribado_destino': 'bg-teal-700',
-      'ingresado_destino': 'bg-emerald-600',
+      'ingresado_destino': 'bg-teal-600',
       'llamado_descarga': 'bg-cyan-700',
       'descargando': 'bg-amber-600',
-      'entregado': 'bg-green-700',
-      'completado': 'bg-green-800',
+      'descargado': 'bg-lime-600',
+      'egreso_destino': 'bg-emerald-700',
+      'completado': 'bg-green-700',
       'cancelado': 'bg-red-600',
-      'vacio': 'bg-slate-500',
     };
     return colors[estado] || 'bg-slate-600';
   };
@@ -136,18 +135,16 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
       'confirmado_chofer': '✅ Confirmado',
       'en_transito_origen': '🚚 → Origen',
       'ingresado_origen': '🏭 En Planta',
-      'en_playa_origen': '⏸️ Playa Espera',
       'llamado_carga': '📢 Llamado Carga',
       'cargando': '⚙️ Cargando',
-      'egreso_origen': '🚪 Saliendo',
+      'cargado': '📦 Cargado',
+      'egreso_origen': '🚪 Egreso Origen',
       'en_transito_destino': '🚚 → Destino',
-      'arribo_origen': '📍 En Origen',
-      'arribado_destino': '📍 En Destino',
       'ingresado_destino': '🏁 Ingresado Destino',
       'llamado_descarga': '📢 Llamado Descarga',
       'descargando': '📤 Descargando',
-      'vacio': '⚪ Vacío',
-      'entregado': '✅ Entregado',
+      'descargado': '✅ Descargado',
+      'egreso_destino': '🚪 Egreso Destino',
       'completado': '🎉 Completado',
       'cancelado': '❌ Cancelado',
       // Legacy display-name compat

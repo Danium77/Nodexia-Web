@@ -180,30 +180,44 @@ export async function obtenerHistorialUbicaciones(viaje_id: UUID) {
 }
 
 /**
- * Cancela un viaje con motivo
+ * Cancela un viaje con motivo.
+ * Delega al endpoint centralizado que usa cambiarEstadoViaje().
  */
 export async function cancelarViaje(
   viaje_id: UUID,
   motivo: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
-      .from('estado_unidad_viaje')
-      .update({
-        estado_unidad: 'cancelado',
-        motivo_cancelacion: motivo,
-        fecha_cancelacion: new Date().toISOString(),
-      })
-      .eq('viaje_id', viaje_id);
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
 
-    if (error) {
+    if (!userId) {
+      return { success: false, error: 'No hay sesión activa' };
+    }
+
+    const response = await fetch(`/api/viajes/${viaje_id}/estado-unidad`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({
+        nuevo_estado: 'cancelado',
+        observaciones: motivo,
+        user_id: userId,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.exitoso) {
       return {
         success: false,
-        error: error.message,
+        error: result.mensaje || result.error || 'Error al cancelar viaje',
       };
     }
 
-    // También cancelar el estado de carga
+    // También cancelar el estado de carga si existe
     await supabase
       .from('estado_carga_viaje')
       .update({

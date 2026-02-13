@@ -1,9 +1,12 @@
 // pages/api/control-acceso/confirmar-accion.ts
-// API para confirmar ingreso o egreso después de validar QR
+// API thin route: confirmar ingreso o egreso después de validar QR
+// Usa: cambiarEstadoViaje() + notificarCambioEstado() — fuente de verdad centralizada
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import type { EstadoUnidadViaje } from '../../../lib/types';
+import { cambiarEstadoViaje } from '../../../lib/services/viajeEstado';
+import { notificarCambioEstado } from '../../../lib/services/notificaciones';
+import type { EstadoViajeType } from '../../../lib/estados';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -16,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { viaje_id, accion, usuario_id, observaciones, planta_id } = req.body;
+    const { viaje_id, accion, usuario_id, observaciones } = req.body;
 
     if (!viaje_id || !accion || !usuario_id) {
       return res.status(400).json({ 
@@ -25,18 +28,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // 1. Obtener el viaje desde viajes_despacho
+    // 1. Obtener estado actual del viaje
     const { data: viaje, error: viajeError } = await supabaseAdmin
       .from('viajes_despacho')
-      .select(`
-        *,
-        despacho:despachos!inner(
-          id,
-          pedido_id,
-          origen,
-          destino
-        )
-      `)
+      .select('id, estado, estado_unidad, numero_viaje, chofer_id, despacho_id')
       .eq('id', viaje_id)
       .single();
 
@@ -44,10 +39,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Viaje no encontrado' });
     }
 
-    const estadoActual = viaje.estado_unidad || viaje.estado;
-    let nuevoEstado: EstadoUnidadViaje;
-    
-    // Determinar el nuevo estado según el estado actual y acción
+    const estadoActual = viaje.estado || viaje.estado_unidad;
+
+    // 2. Determinar el nuevo estado según acción + estado actual
+    let nuevoEstado: EstadoViajeType;
+
     if (accion === 'ingreso') {
       if (estadoActual === 'en_transito_origen') {
         nuevoEstado = 'ingresado_origen';
@@ -61,8 +57,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else if (accion === 'egreso') {
       if (estadoActual === 'egreso_origen') {
         nuevoEstado = 'en_transito_destino';
-      } else if (estadoActual === 'vacio') {
-        nuevoEstado = 'disponible';
+      } else if (estadoActual === 'egreso_destino') {
+        nuevoEstado = 'completado';
       } else {
         return res.status(400).json({
           error: `No se puede egresar un viaje en estado: ${estadoActual}`
@@ -74,44 +70,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // 2. Usar la función RPC validar_transicion_estado_unidad para actualizar el estado
-    const { data: resultado, error: transicionError } = await supabaseAdmin
-      .rpc('validar_transicion_estado_unidad', {
-        p_viaje_id: viaje_id,
-        p_nuevo_estado: nuevoEstado,
-        p_observaciones: observaciones || `${accion === 'ingreso' ? 'Ingreso' : 'Egreso'} confirmado por Control de Acceso`
-      });
+    // 3. Cambiar estado via servicio centralizado (valida + sync despacho)
+    const obs = observaciones || `${accion === 'ingreso' ? 'Ingreso' : 'Egreso'} confirmado por Control de Acceso`;
+    const resultado = await cambiarEstadoViaje(supabaseAdmin, {
+      viaje_id,
+      nuevo_estado: nuevoEstado,
+      user_id: usuario_id,
+      observaciones: obs,
+    });
 
-    if (transicionError || !resultado) {
-      console.error('Error en transición de estado:', transicionError);
+    if (!resultado.exitoso) {
       return res.status(400).json({
-        error: 'No se pudo actualizar el estado',
-        details: transicionError?.message || 'Transición no válida'
+        error: resultado.mensaje,
+        details: `${estadoActual} → ${nuevoEstado}`
       });
     }
 
-    // 3. Crear registro de acceso
-    const { error: registroError } = await supabaseAdmin
+    // 4. Crear registro de acceso (auditoría)
+    await supabaseAdmin
       .from('registros_acceso')
       .insert({
-        viaje_id: viaje_id,
+        viaje_id,
         tipo: accion as 'ingreso' | 'egreso',
-        usuario_id: usuario_id,
-        observaciones: observaciones || `${accion === 'ingreso' ? 'Ingreso' : 'Egreso'} confirmado`,
+        usuario_id,
+        observaciones: obs,
         timestamp: new Date().toISOString()
+      })
+      .then(({ error }) => {
+        if (error) console.error('Error creando registro de acceso:', error);
       });
 
-    if (registroError) {
-      console.error('Error creando registro de acceso:', registroError);
-      // No fallar la operación por esto
-    }
-
-    // 4. Crear notificación para el chofer (opcional)
-    if (viaje.chofer_id) {
-      await crearNotificacionChofer(viaje.chofer_id, viaje, accion, nuevoEstado).catch(err => {
-        console.error('Error creando notificación:', err);
-      });
-    }
+    // 5. Notificar al chofer
+    await notificarCambioEstado(supabaseAdmin, viaje_id, nuevoEstado).catch(err => {
+      console.error('Error notificando chofer:', err);
+    });
 
     return res.status(200).json({
       success: true,
@@ -132,62 +124,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error: 'Error interno del servidor',
       details: error.message
     });
-  }
-}
-
-async function crearNotificacionChofer(choferId: string, viaje: any, accion: string, nuevoEstado: string) {
-  try {
-    // Buscar el usuario chofer
-    const { data: chofer } = await supabaseAdmin
-      .from('choferes')
-      .select('email')
-      .eq('id', choferId)
-      .single();
-
-    if (!chofer?.email) return;
-
-    const { data: usuarioChofer } = await supabaseAdmin
-      .from('usuarios')
-      .select('id')
-      .eq('email', chofer.email)
-      .maybeSingle();
-
-    if (!usuarioChofer) return;
-
-    let titulo, mensaje;
-    if (accion === 'ingreso') {
-      if (nuevoEstado === 'ingresado_origen') {
-        titulo = 'Ingreso a Planta Origen';
-        mensaje = `Ha ingresado a planta de origen. Viaje: ${viaje.numero_viaje}. Aguarde instrucciones de carga.`;
-      } else {
-        titulo = 'Ingreso a Destino';
-        mensaje = `Ha ingresado a planta destino. Viaje: ${viaje.numero_viaje}. Aguarde instrucciones de descarga.`;
-      }
-    } else {
-      if (nuevoEstado === 'en_transito_destino') {
-        titulo = 'Egreso Autorizado - Rumbo a Destino';
-        mensaje = `Puede egresar de planta. Diríjase al destino. Viaje: ${viaje.numero_viaje}`;
-      } else {
-        titulo = 'Viaje Completado';
-        mensaje = `Viaje ${viaje.numero_viaje} completado exitosamente. Unidad disponible.`;
-      }
-    }
-
-    await supabaseAdmin
-      .from('notificaciones')
-      .insert({
-        user_id: usuarioChofer.id,
-        tipo: 'cambio_estado',
-        titulo,
-        mensaje,
-        viaje_id: viaje.id,
-        metadata: {
-          estado_nuevo: nuevoEstado,
-          accion: accion
-        }
-      });
-
-  } catch (error) {
-    console.error('Error creando notificación chofer:', error);
   }
 }

@@ -36,10 +36,11 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
       'pendiente': 'bg-gray-600', 'transporte_asignado': 'bg-blue-600',
       'camion_asignado': 'bg-yellow-600', 'confirmado_chofer': 'bg-cyan-600',
       'en_transito_origen': 'bg-indigo-600', 'ingresado_origen': 'bg-green-600',
-      'en_playa_origen': 'bg-teal-600', 'llamado_carga': 'bg-amber-600',
-      'cargando': 'bg-orange-600', 'egreso_origen': 'bg-purple-600',
-      'en_transito_destino': 'bg-pink-600', 'arribado_destino': 'bg-teal-700',
-      'ingresado_destino': 'bg-emerald-600', 'entregado': 'bg-green-700',
+      'llamado_carga': 'bg-amber-600',
+      'cargando': 'bg-orange-600', 'cargado': 'bg-teal-600', 'egreso_origen': 'bg-purple-600',
+      'en_transito_destino': 'bg-pink-600', 'ingresado_destino': 'bg-emerald-600',
+      'llamado_descarga': 'bg-amber-700', 'descargando': 'bg-orange-700', 'descargado': 'bg-teal-700',
+      'egreso_destino': 'bg-green-700',
       'completado': 'bg-green-800', 'cancelado': 'bg-red-600',
     };
     return colors[estado] || 'bg-slate-600';
@@ -50,10 +51,11 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
       'pendiente': '⏳ Pendiente', 'transporte_asignado': '🚛 Transporte',
       'camion_asignado': '🚛 Camión', 'confirmado_chofer': '✅ Confirmado',
       'en_transito_origen': '🚚 → Origen', 'ingresado_origen': '🏭 En Planta',
-      'en_playa_origen': '⏸️ Playa', 'llamado_carga': '📢 Carga',
-      'cargando': '⚙️ Cargando', 'egreso_origen': '🚪 Saliendo',
-      'en_transito_destino': '🚚 → Destino', 'arribado_destino': '📍 Destino',
-      'ingresado_destino': '🏁 Destino', 'entregado': '✅ Entregado',
+      'llamado_carga': '📢 Carga',
+      'cargando': '⚙️ Cargando', 'cargado': '📦 Cargado', 'egreso_origen': '🚪 Saliendo',
+      'en_transito_destino': '🚚 → Destino', 'ingresado_destino': '🏁 Destino',
+      'llamado_descarga': '📢 Descarga', 'descargando': '⚙️ Descargando', 'descargado': '📦 Descargado',
+      'egreso_destino': '🚪 Egreso',
       'completado': '🎉 Completo', 'cancelado': '❌ Cancelado',
     };
     return labels[estado] || estado;

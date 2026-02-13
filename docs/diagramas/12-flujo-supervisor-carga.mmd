@@ -1,0 +1,18 @@
+flowchart TD
+    LOGIN["Login"] --> DASH["Dashboard\nSupervisor de Carga"]
+    
+    DASH --> COLA["Ver Cola de Espera\nviajes en_playa_origen"]
+    
+    COLA --> LLAMAR["📢 Llamar a Carga\nllamado_carga"]
+    LLAMAR --> INICIAR["⚙️ Iniciar Carga\nQR scan\ncargando"]
+    INICIAR --> CARGAR["📦 Cargando...\nRegistro peso/producto"]
+    CARGAR --> REMITO["📸 Subir Remito"]
+    REMITO --> FINALIZAR["✅ Finalizar Carga\ncargado"]
+    
+    FINALIZAR --> LISTO["Camión listo\npara egreso por CA"]
+    
+    style LLAMAR fill:#eab308,color:#000
+    style INICIAR fill:#f97316,color:#fff
+    style FINALIZAR fill:#22c55e,color:#fff
+    style DASH fill:#1e293b,color:#fff
+    style LISTO fill:#16a34a,color:#fff

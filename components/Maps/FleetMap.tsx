@@ -152,10 +152,10 @@ export default function FleetMap({
       let color = '#6366f1'; // Indigo por defecto
       if (unidad.estado === 'en_transito_origen' || unidad.estado === 'en_transito_destino') {
         color = '#10b981'; // Verde - en tránsito
-      } else if (unidad.estado === 'arribo_origen' || unidad.estado === 'arribo_destino') {
-        color = '#f59e0b'; // Amarillo - arribado
-      } else if (unidad.estado === 'carga_completada' || unidad.estado === 'descarga_completada') {
-        color = '#3b82f6'; // Azul - completado
+      } else if (unidad.estado === 'ingresado_origen' || unidad.estado === 'ingresado_destino') {
+        color = '#f59e0b'; // Amarillo - ingresado en planta
+      } else if (unidad.estado === 'cargado' || unidad.estado === 'descargado') {
+        color = '#3b82f6'; // Azul - carga/descarga completada
       }
 
       // Verificar si ya existe el marcador

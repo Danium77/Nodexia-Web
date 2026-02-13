@@ -1,108 +1,13 @@
 /**
- * Tipos Faltantes Identificados en el Testing
- * Este archivo define tipos que están siendo usados pero no definidos
+ * BRIDGE: Re-exports from canonical sources
+ * Este archivo existe solo para compatibilidad de imports existentes.
+ * Importar directamente de @/lib/types o @/types/network o @/types/superadmin.
  */
 
-// Tipos de Flota
-export interface Camion {
-  id: string;
-  patente: string;
-  marca?: string;
-  modelo?: string;
-  año?: number;
-  estado: 'activo' | 'mantenimiento' | 'inactivo';
-  id_transporte: string;
-  created_at?: string;
-  updated_at?: string;
-}
+// Re-export from canonical lib/types.ts
+export type { RolInterno as UserRole } from '../lib/types';
+export type { TipoEmpresa } from '../lib/types';
 
-export interface Acoplado {
-  id: string;
-  patente: string;
-  tipo: 'semi' | 'completo' | 'portacontenedor';
-  estado: 'activo' | 'mantenimiento' | 'inactivo';
-  id_transporte: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Tipos de Empresa
-export interface Empresa {
-  id: string;
-  nombre: string;
-  cuit?: string;
-  direccion?: string;
-  localidad?: string;
-  provincia?: string;
-  telefono?: string;
-  email?: string;
-  tipo_empresa: 'coordinador' | 'transporte' | 'ambos';
-  activo: boolean;
-  created_at?: string;
-  updated_at?: string;
-  configuracion_empresa?: ConfiguracionEmpresa;
-}
-
-export interface ConfiguracionEmpresa {
-  id: string;
-  id_empresa: string;
-  tipo_instalacion: 'planta' | 'cliente';
-  permite_recepcionar: boolean;
-  permite_despachar: boolean;
-  requiere_documentacion_especial: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Tipos de Roles y Auth
-// Roles simplificados con interpretación contextual
-export type UserRole = 
-  | 'admin_nodexia'      // Super admin global
-  | 'coordinador'        // Coordinador (contextual según tipo_empresa)
-  | 'control_acceso'     // Control de Acceso (solo planta)
-  | 'chofer'             // Chofer (solo transporte)
-  | 'supervisor'         // Supervisor (contextual según tipo_empresa)
-  | 'administrativo';    // Administrativo (contextual)
-
-// Tipos de empresa
-export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'sistema' | 'ambos';
-
-export interface Role {
-  id: string;
-  name: UserRole;
-  description?: string;
-  permisos?: Record<string, boolean>;
-}
-
-export interface Usuario {
-  id: string;
-  email: string;
-  nombre?: string;
-  apellido?: string;
-  roles?: Role[];
-  empresas?: Empresa[];
-  activo: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Tipos de Viajes y Despachos
-export interface Viaje {
-  id: string;
-  pedido_id: string;
-  origen: string;
-  destino: string;
-  estado: string;
-  fecha_despacho?: string;
-  id_transporte?: string;
-  chofer_id?: string;
-  camion_id?: string;
-  acoplado_id?: string;
-  observaciones?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Re-exportar tipos existentes si es necesario
+// Re-export domain-specific types
 export * from './superadmin';
 export * from './network';

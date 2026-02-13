@@ -256,7 +256,7 @@ const CoordinatorDashboard = () => {
         .from('viajes_despacho')
         .select('id', { count: 'exact', head: true })
         .in('despacho_id', despachoIds)
-        .in('estado_carga', ['en_transito_destino', 'arribo_destino']);
+        .in('estado_carga', ['en_transito_destino', 'ingresado_destino']);
 
       return count || 0;
     } catch (error) {
@@ -426,13 +426,27 @@ const CoordinatorDashboard = () => {
   };
 
   const getEstadoBadge = (estado: string) => {
-    const badges = {
-      'pendiente_transporte': 'bg-orange-600 text-orange-100',
-      'transporte_asignado': 'bg-green-600 text-green-100',
-      'en_transito': 'bg-blue-600 text-blue-100',
-      'entregado': 'bg-gray-600 text-gray-100'
+    const badges: Record<string, string> = {
+      'pendiente': 'bg-gray-600 text-gray-100',
+      'transporte_asignado': 'bg-blue-600 text-blue-100',
+      'camion_asignado': 'bg-yellow-600 text-yellow-100',
+      'confirmado_chofer': 'bg-blue-700 text-blue-100',
+      'en_transito_origen': 'bg-purple-600 text-purple-100',
+      'ingresado_origen': 'bg-cyan-600 text-cyan-100',
+      'llamado_carga': 'bg-amber-600 text-amber-100',
+      'cargando': 'bg-orange-600 text-orange-100',
+      'cargado': 'bg-indigo-600 text-indigo-100',
+      'egreso_origen': 'bg-violet-600 text-violet-100',
+      'en_transito_destino': 'bg-purple-600 text-purple-100',
+      'ingresado_destino': 'bg-teal-600 text-teal-100',
+      'llamado_descarga': 'bg-amber-600 text-amber-100',
+      'descargando': 'bg-cyan-600 text-cyan-100',
+      'descargado': 'bg-emerald-600 text-emerald-100',
+      'egreso_destino': 'bg-emerald-700 text-emerald-100',
+      'completado': 'bg-green-700 text-green-100',
+      'cancelado': 'bg-red-600 text-red-100',
     };
-    return badges[estado as keyof typeof badges] || 'bg-gray-600 text-gray-100';
+    return badges[estado] || 'bg-gray-600 text-gray-100';
   };
 
   const getPrioridadBadge = (prioridad: string) => {

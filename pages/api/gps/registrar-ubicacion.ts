@@ -26,15 +26,28 @@ export default async function handler(
   }
 
   try {
-    // Crear cliente de Supabase con autenticación
-    const supabase = createServerSupabaseClient({ req, res });
+    // Verificar autenticación: preferir Bearer token, fallback a cookies
+    let userId: string | null = null;
 
-    // Verificar autenticación
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+      if (!error && user) {
+        userId = user.id;
+      }
+    }
 
-    if (!session) {
+    // Fallback: intentar cookies con createServerSupabaseClient
+    if (!userId) {
+      const supabase = createServerSupabaseClient({ req, res });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        userId = session.user.id;
+      }
+    }
+
+    if (!userId) {
       return res.status(401).json({ error: 'No autorizado' });
     }
 
@@ -96,8 +109,7 @@ export default async function handler(
     console.log(`📍 Procesando GPS - Viaje: ${viajeData.numero_viaje}, Estado: ${viajeData.estado}, Chofer: ${chofer_id}`);
 
     // Verificar que el usuario autenticado sea el chofer del viaje
-    // 🔥 TEMPORAL: Solo verificar si hay sesión
-    if (session) {
+    if (userId) {
       const { data: choferData, error: choferError } = await supabaseAdmin
         .from('choferes')
         .select('email')
@@ -109,17 +121,19 @@ export default async function handler(
         return res.status(403).json({ error: 'No autorizado', details: 'Chofer no encontrado' });
       }
 
-      if (choferData.email !== session.user.email) {
-        console.error('❌ Email mismatch:', { chofer: choferData.email, session: session.user.email });
+      // Obtener email del usuario autenticado
+      const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
+      const userEmail = authUser?.email;
+
+      if (userEmail && choferData.email !== userEmail) {
+        console.error('❌ Email mismatch:', { chofer: choferData.email, user: userEmail });
         return res.status(403).json({ 
           error: 'No puedes enviar ubicación de un viaje que no es tuyo',
-          details: `Viaje asignado a ${choferData.email}, pero sesión es ${session.user.email}`
+          details: `Viaje asignado a ${choferData.email}, pero sesión es ${userEmail}`
         });
       }
       
-      console.log('✅ Auth OK:', session.user.email);
-    } else {
-      console.warn('⚠️ Permitiendo sin sesión (solo desarrollo)');
+      console.log('✅ Auth OK:', userEmail || userId);
     }
 
     // Insertar ubicación en la base de datos usando admin client

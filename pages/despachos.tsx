@@ -74,10 +74,10 @@ const DespachosPage: React.FC = () => {
                     </div>
                     <div className="text-sm">
                       <span className={`px-2 py-1 rounded text-xs ${
-                        d.estado === 'planificado' ? 'bg-yellow-600 text-yellow-100' :
-                        d.estado === 'asignado' ? 'bg-blue-600 text-blue-100' :
-                        d.estado === 'en_ruta' ? 'bg-purple-600 text-purple-100' :
-                        d.estado === 'entregado' ? 'bg-green-600 text-green-100' :
+                        d.estado === 'pendiente' ? 'bg-yellow-600 text-yellow-100' :
+                        d.estado === 'transporte_asignado' ? 'bg-blue-600 text-blue-100' :
+                        d.estado === 'en_transito_origen' || d.estado === 'en_transito_destino' ? 'bg-purple-600 text-purple-100' :
+                        d.estado === 'completado' ? 'bg-green-600 text-green-100' :
                         d.estado === 'cancelado' ? 'bg-red-600 text-red-100' :
                         'bg-gray-600 text-gray-100'
                       }`}>

@@ -1,0 +1,23 @@
+sequenceDiagram
+    actor CP as 🏭 Coord. Planta
+    participant DB as 📦 Supabase
+    actor CT as 🚛 Coord. Transporte
+    actor CH as 🧑‍✈️ Chofer
+    
+    Note over CP: CREACION
+    CP->>DB: INSERT despacho + viaje(s)
+    Note over DB: estado = pendiente<br/>origen_asignacion = directo
+    
+    Note over CP: ASIGNACION
+    CP->>DB: UPDATE viaje SET id_transporte = X
+    Note over DB: estado = transporte_asignado
+    
+    CT->>DB: GET viajes WHERE id_transporte = mi_empresa
+    Note over CT: Ve en Despachos Ofrecidos
+    
+    CT->>DB: POST /api/transporte/asignar-unidad
+    Note over DB: chofer_id, camion_id, acoplado_id<br/>estado = camion_asignado
+    
+    CH->>DB: POST /api/viajes/id/estado-unidad
+    Note over DB: estado = confirmado_chofer
+    Note over CH: Continua flujo operativo

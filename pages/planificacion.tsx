@@ -12,7 +12,7 @@ import DayView from '../components/Planning/DayView';
 import MonthView from '../components/Planning/MonthView';
 import ViajesExpiradosModal from '../components/Modals/ViajesExpiradosModal';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { calcularEstadoOperativo } from '../lib/estadosHelper';
+import { calcularEstadoOperativo } from '../lib/estados';
 
 type TabType = 'planning' | 'tracking';
 
@@ -283,7 +283,7 @@ const PlanificacionPage = () => {
               estado,
               estado_carga,
               estado_unidad,
-              transport_id,
+              id_transporte,
               camion_id,
               chofer_id,
               observaciones,
@@ -307,15 +307,15 @@ const PlanificacionPage = () => {
         // 🔍 DEBUG: Ver datos crudos de viajes
         if (viajesData && viajesData.length > 0) {
           console.log('🔍 Primer viaje crudo:', viajesData[0]);
-          console.log('  - transport_id:', viajesData[0].transport_id);
+          console.log('  - id_transporte:', viajesData[0].id_transporte);
           console.log('  - camion_id:', viajesData[0].camion_id);
           console.log('  - chofer_id:', viajesData[0].chofer_id);
         }
 
         // 2.5. Cargar datos de transportes, choferes y camiones de los VIAJES
         const viajeTransporteIds = (viajesData || [])
-          .filter(v => v.transport_id)
-          .map(v => v.transport_id);
+          .filter(v => v.id_transporte)
+          .map(v => v.id_transporte);
         const viajeChoferIds = (viajesData || [])
           .filter(v => v.chofer_id)
           .map(v => v.chofer_id);
@@ -432,7 +432,7 @@ const PlanificacionPage = () => {
           const ubicacionDestino = despachoPadre?.destino_id ? ubicacionesMap[despachoPadre.destino_id] : null;
           
           // Obtener datos del viaje (prioridad 1) desde los maps cargados al inicio
-          const transporteViaje = viaje.transport_id ? transportesMap[viaje.transport_id] : null;
+          const transporteViaje = viaje.id_transporte ? transportesMap[viaje.id_transporte] : null;
           const camionViaje = viaje.camion_id ? camionesMap[viaje.camion_id] : null;
           const choferViaje = viaje.chofer_id ? choferesMap[viaje.chofer_id] : null;
           
@@ -447,7 +447,7 @@ const PlanificacionPage = () => {
           const choferFinal = choferViaje || choferDespacho;
           
           console.log('🔍 [Mapeo] Viaje:', viaje.id, viaje.numero_viaje);
-          console.log('  - viaje: transport:', viaje.transport_id, 'camion:', viaje.camion_id, 'chofer:', viaje.chofer_id);
+          console.log('  - viaje: transport:', viaje.id_transporte, 'camion:', viaje.camion_id, 'chofer:', viaje.chofer_id);
           console.log('  - despacho: transport:', despachoPadre?.transport_id, 'truck:', despachoPadre?.truck_id, 'driver:', despachoPadre?.driver_id);
           console.log('  - FINAL: transport:', transporteFinal?.nombre, 'camion:', camionFinal?.patente, 'chofer:', choferFinal?.nombre_completo);
           
@@ -520,7 +520,7 @@ const PlanificacionPage = () => {
             scheduled_local_time: despachoPadre?.scheduled_local_time,
             type: tipo,
             prioridad: despachoPadre?.prioridad || 'Media',
-            transport_id: viaje.transport_id || despachoPadre?.transport_id,
+            transport_id: viaje.id_transporte || despachoPadre?.transport_id,
             despacho_id: viaje.despacho_id,
             observaciones: viaje.observaciones,
             // 🔥 Datos con prioridad: viaje > despacho padre

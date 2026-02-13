@@ -15,11 +15,10 @@ import {
   CameraIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { actualizarEstadoCarga } from '../lib/api/estado-carga';
 import { actualizarEstadoUnidad } from '../lib/api/estado-unidad';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
 import { supabase } from '../lib/supabaseClient';
-import type { EstadoUnidadViaje, EstadoCargaViaje } from '../lib/types';
+import type { EstadoUnidadViaje } from '../lib/types';
 
 // ─── Tipos ──────────────────────────────────────────────────────
 interface ViajeParaCarga {
@@ -52,7 +51,7 @@ const ESTADO_COLORS: Record<string, string> = {
 };
 
 // Estados que interesan al supervisor: carga en origen + descarga en destino
-const ESTADOS_CARGA = ['ingresado_origen', 'en_playa_origen', 'llamado_carga', 'cargando', 'cargado'];
+const ESTADOS_CARGA = ['ingresado_origen', 'llamado_carga', 'cargando', 'cargado'];
 const ESTADOS_DESCARGA = ['ingresado_destino', 'llamado_descarga', 'descargando', 'descargado'];
 const ESTADOS_SUPERVISOR = [...ESTADOS_CARGA, ...ESTADOS_DESCARGA];
 
@@ -205,35 +204,19 @@ export default function SupervisorCarga() {
     return () => clearInterval(interval);
   }, [cargarViajes]);
 
-  // ─── Actualizar ambos estados (unidad + carga) ────────────────
-  const actualizarEstadoDual = async (
+  // ─── Actualizar estado (centralizado via service layer) ─────
+  // cambiarEstadoViaje() sincroniza automáticamente:
+  //   viajes_despacho + despachos + estado_unidad_viaje + estado_carga_viaje
+  const actualizarEstado = async (
     viajeId: string,
-    estadoUnidad: EstadoUnidadViaje,
-    estadoCarga: EstadoCargaViaje,
-    datosExtra?: { datos_carga?: Record<string, any> }
+    nuevoEstado: string,
   ): Promise<{ success: boolean; error?: string }> => {
-    // 1. Actualizar estado_unidad (también sync viajes_despacho.estado)
-    const resUnidad = await actualizarEstadoUnidad({
+    const result = await actualizarEstadoUnidad({
       viaje_id: viajeId,
-      nuevo_estado: estadoUnidad,
+      nuevo_estado: nuevoEstado as EstadoUnidadViaje,
     });
 
-    if (!resUnidad.success) {
-      return { success: false, error: resUnidad.error || 'Error actualizando estado unidad' };
-    }
-
-    // 2. Actualizar estado_carga
-    const resCarga = await actualizarEstadoCarga({
-      viaje_id: viajeId,
-      nuevo_estado: estadoCarga,
-      ...(datosExtra || {}),
-    });
-
-    if (!resCarga.success) {
-      console.warn('[supervisor-carga] estado_unidad OK pero estado_carga falló:', resCarga.error);
-    }
-
-    return { success: true };
+    return result;
   };
 
   // ─── Acciones del Supervisor ───────────────────────────────────
@@ -253,10 +236,9 @@ export default function SupervisorCarga() {
     setLoadingAction(viajeId);
     try {
       console.log('📢 [supervisor-carga] Llamando a carga viaje:', viajeId);
-      const result = await actualizarEstadoDual(
+      const result = await actualizarEstado(
         viajeId,
-        'llamado_carga' as EstadoUnidadViaje,
-        'llamado_carga' as EstadoCargaViaje
+        'llamado_carga',
       );
 
       if (result.success) {
@@ -280,10 +262,9 @@ export default function SupervisorCarga() {
     setLoadingAction(viaje.id);
     try {
       console.log('⚙️ [supervisor-carga] Iniciando carga viaje:', viaje.id);
-      const result = await actualizarEstadoDual(
+      const result = await actualizarEstado(
         viaje.id,
-        'cargando' as EstadoUnidadViaje,
-        'cargando' as EstadoCargaViaje
+        'cargando',
       );
 
       if (result.success) {
@@ -394,11 +375,9 @@ export default function SupervisorCarga() {
       }
 
       console.log('✅ [supervisor-carga] Finalizando carga viaje:', viajeId);
-      const result = await actualizarEstadoDual(
+      const result = await actualizarEstado(
         viajeId,
-        'cargado' as EstadoUnidadViaje,
-        'cargado' as EstadoCargaViaje,
-        remitoUrl ? { datos_carga: { remito_url: remitoUrl } } : undefined
+        'cargado',
       );
 
       if (result.success) {
@@ -425,10 +404,9 @@ export default function SupervisorCarga() {
     setLoadingAction(viajeId);
     try {
       console.log('📢 [supervisor-carga] Llamando a descarga viaje:', viajeId);
-      const result = await actualizarEstadoDual(
+      const result = await actualizarEstado(
         viajeId,
-        'llamado_descarga' as EstadoUnidadViaje,
-        'llamado_descarga' as EstadoCargaViaje
+        'llamado_descarga',
       );
 
       if (result.success) {
@@ -450,10 +428,9 @@ export default function SupervisorCarga() {
     setLoadingAction(viaje.id);
     try {
       console.log('⬇️ [supervisor-carga] Iniciando descarga viaje:', viaje.id);
-      const result = await actualizarEstadoDual(
+      const result = await actualizarEstado(
         viaje.id,
-        'descargando' as EstadoUnidadViaje,
-        'descargando' as EstadoCargaViaje
+        'descargando',
       );
 
       if (result.success) {
@@ -476,10 +453,9 @@ export default function SupervisorCarga() {
     setLoadingAction(viajeId);
     try {
       console.log('✅ [supervisor-carga] Finalizando descarga viaje:', viajeId);
-      const result = await actualizarEstadoDual(
+      const result = await actualizarEstado(
         viajeId,
-        'descargado' as EstadoUnidadViaje,
-        'descargado' as EstadoCargaViaje
+        'descargado',
       );
 
       if (result.success) {
@@ -588,7 +564,7 @@ export default function SupervisorCarga() {
 
   // ─── Filtros por Tab ───────────────────────────────────────────
   const viajesEnPlanta = viajes.filter(v =>
-    ['ingresado_origen', 'en_playa_origen', 'ingresado_destino'].includes(v.estado)
+    ['ingresado_origen', 'ingresado_destino'].includes(v.estado)
   );
 
   const viajesEnProceso = viajes.filter(v =>
@@ -624,7 +600,7 @@ export default function SupervisorCarga() {
       );
     }
 
-    if (['ingresado_origen', 'en_playa_origen'].includes(v.estado)) {
+    if (v.estado === 'ingresado_origen') {
       return (
         <button
           onClick={() => llamarACarga(v.id)}

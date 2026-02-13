@@ -1,6 +1,96 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 11-Feb-2026 (Sesión 12)
+**Actualizado:** 13-Feb-2026 (Cierre Sesión 17)
+
+---
+
+## ✅ COMPLETADAS (Sesiones 16-17 — 13-Feb-2026)
+
+### Centralización Completa de Estados ✅
+**Completado por:** Opus directamente - Sesiones 16-17
+**Alcance:** Reestructuración arquitectónica del sistema de estados para escalabilidad de equipo
+
+#### 1. Sistema de estados centralizado ✅
+- `lib/estados/config.ts` — 17+1 estados, TRANSICIONES_VALIDAS, ROLES_AUTORIZADOS, ESTADO_DISPLAY
+- `lib/estados/index.ts` — Re-exports
+- Legacy mapping en getEstadoDisplay() para backward compatibility
+
+#### 2. Services layer ✅
+- `lib/services/viajeEstado.ts` — cambiarEstadoViaje() sincroniza 3 tablas + timestamps automáticos
+- `lib/services/notificaciones.ts` — notificarCambioEstado() centralizado
+- ESTADO_A_TIMESTAMP: cada estado popula su columna timestamp en estado_unidad_viaje
+
+#### 3. Purga de estados obsoletos (30+ archivos) ✅
+- Eliminados del código ejecutable: arribo_origen, arribo_destino, en_playa_origen, viaje_completado, entregado, vacio, disponible_carga, etc.
+- Solo permanecen en: config.ts legacy mapping (intencional), SQL histórico, tipo de notificación
+
+#### 4. Migración confirmar-accion.ts ✅
+- Antes: RPC validar_transicion_estado_unidad (desync risk)
+- Ahora: cambiarEstadoViaje() + notificarCambioEstado()
+
+#### 5. cancelarViaje() centralizado ✅
+- Antes: update directo en estado_unidad_viaje
+- Ahora: ruta via API → cambiarEstadoViaje()
+
+#### 6. Lectura estandarizada ✅
+- Todos: `estado || estado_unidad` (estado es canónico)
+- estados-camiones.tsx: .in('estado') en vez de .in('estado_unidad')
+
+#### 7. SQL Migration 058 + 059 ✅ EJECUTADAS
+- 058: Migración de estados legacy, tabla paradas, CHECK constraints
+- 059: Unificar estado_unidad_viaje, sync con viajes_despacho.estado
+
+#### 8. 56 tests automatizados ✅
+- `__tests__/lib/estados-config.test.ts`
+- Completeness, transitions, happy-path, roles, legacy mapping, graph integrity (BFS)
+
+#### 9. 0 TypeScript errors ✅
+
+---
+
+## ✅ COMPLETADAS (Sesión 14 — 12-Feb-2026)
+
+### Fix: DSP-20260211-004 Chofer/Camión No Muestra ✅
+**Completado por:** Opus directamente - Sesión 14
+**Causa raíz dual:**
+1. `AsignarUnidadModal` usaba client-side Supabase → RLS bloqueaba UPDATE
+2. `enRedPendiente` en crear-despacho.tsx nullificaba `chofer_id` incluso cuando ya estaba asignado
+**Archivos creados:** `pages/api/transporte/asignar-unidad.ts` (~104 líneas, service role)
+**Archivos modificados:**
+- `components/Transporte/AsignarUnidadModal.tsx` — Usa API route en vez de Supabase directo
+- `pages/crear-despacho.tsx` — `enRedPendiente` ahora chequea `!v.chofer_id` + display intermedio "⏳ Pendiente asignación"
+
+### Feature: Historial/Timeline de Eventos ✅
+**Completado por:** Opus directamente - Sesión 14
+**Archivos creados:**
+- `sql/migrations/055_historial_despachos.sql` — Tabla para eventos custom (⚠️ pendiente ejecución)
+- `pages/api/despachos/timeline.ts` — API que construye timeline híbrido (timestamps existentes + tabla historial)
+- `components/Despachos/TimelineDespachoModal.tsx` — Modal con filtros por tipo, agrupación por fecha, timestamps relativos
+**Archivos modificados:**
+- `pages/crear-despacho.tsx` — Import + state + botón 📜 Historial + modal rendering
+- `pages/api/red-nodexia/aceptar-oferta.ts` — Escribe al historial al aceptar oferta
+- `pages/api/transporte/asignar-unidad.ts` — Escribe al historial al asignar unidad
+
+### TASK-S26: Fase 5 — Destino con Nodexia ✅
+**Completado por:** Opus directamente - Sesión 14
+**Hallazgo:** Fase 5 ya estaba implementada (estados, transiciones, UI, supervisor descarga) — solo faltaba auto-detección de `tipo_operacion`
+**Archivos modificados:**
+- `pages/control-acceso.tsx` — Auto-detecta envio/recepcion por `empresa_id` de ubicación + security check permite empresa destino
+
+### TASK-S27: Cierre Automático del Viaje ✅
+**Completado por:** Ya implementado en Sesión 13
+**Confirmado en Sesión 14:**
+- `vacío → viaje_completado` automático (estado-unidad.ts paso 4)
+- Despacho → `completado` cuando todos viajes terminan (paso 5)
+- Despacho → `cancelado` cuando todos viajes cancelados
+
+### Polish para Demo ✅
+**Completado por:** Opus directamente - Sesión 14
+**Fixes:**
+1. `viajes-activos.tsx` — Query incluye Phase 5 states (viajes no desaparecen mid-journey)
+2. `chofer/viajes.tsx` — Alias `arribo_destino` para que chofer no quede sin acciones
+3. `despachos-ofrecidos.tsx` — Phase 5 states excluidos de tab "pendientes"
+4. `estado-unidad.ts` — `arribo_destino → vacio` permitido (shortcut non-Nodexia destinations)
 
 ---
 
@@ -184,27 +274,32 @@
 
 ---
 
-## 🎯 PRÓXIMAS TAREAS (Sesión 12 — Próxima)
+## 🎯 PRÓXIMAS TAREAS (Sesión 18+)
 
 ### REFERENCIA: Esquema General
 **Archivo:** `docs/ESQUEMA-GENERAL-NODEXIA.md`
 - Mapa completo de 6 fases, roles, estados, API routes, tablas
 - Consultar antes de cada sesión para contexto
 
-### TASK-S26: Fase 5 — Destino con Nodexia (Prioridad ALTA)
-- CA debe poder registrar ingreso Y egreso en destino (no solo origen)
-- Supervisor de descarga (reutilizar supervisor-carga adaptado)
-- Estados: ingresado_destino → llamado_descarga → descargando → descargado → egreso_destino
+### ⚠️ PENDIENTE: Ejecutar Migraciones 055 + 056
+- `sql/migrations/055_historial_despachos.sql` — Tabla historial_despachos
+- `sql/migrations/056_fix_rls_viajes_red_rechazados.sql` — RLS transportes rechazados
 
-### TASK-S27: Cierre Automático del Viaje (Prioridad ALTA)
-- Transición vacío → viaje_completado (automática o manual)
-- Cierre de despacho cuando todos los viajes están completados
-- Actualización del estado del despacho
+### DEUDA TÉCNICA (Post-centralización estados):
 
-### TASK-S28: Sincronización Estado Viaje en Despachos (Prioridad ALTA)
-- La línea del viaje en crear-despacho mostraba "Pendiente" para estados no mapeados
-- Verificar que TODOS los estados nuevos tengan label correcto
-- Sincronizar estado del despacho padre con progreso de viajes
+#### 1. Centralizar estado_carga_viaje (Prioridad MEDIA)
+- Crear service análogo a viajeEstado.ts para operaciones de carga
+- supervisor-carga.tsx hace updates directos → migrar a service
+- actualizarEstadoDual() tiene error silencioso si carga falla → fix
+
+#### 2. Renombrar prop estado_unidad → estado (Prioridad BAJA)
+- Interfaz ViajeEstado en estados-camiones.tsx usa `estado_unidad` como prop name
+- Cosmético pero limpia deuda técnica en componentes downstream
+
+#### 3. Deprecar lib/estadosHelper.ts (Prioridad BAJA)
+- Actualmente es bridge que re-exporta desde lib/estados/config.ts
+- calcularEstadoOperativo() aún usa estado_unidad como fallback
+- Migrar importadores a lib/estados directamente
 
 ### TASK-S23: Definir Circuito de Incidencias (Prioridad MEDIA)
 - Quién crea incidencias: Control de Acceso
@@ -212,16 +307,22 @@
 - Estados: abierta → en_revision → resuelta/cerrada
 - Notificaciones: al crear, al resolver
 
-### TASK-S24: Deploy Staging (Prioridad MEDIA)
+### TASK-S24: Deploy Staging (Prioridad ALTA — Demo 18-Feb)
 - Build de producción
 - Variables de entorno en Vercel (apuntar a BD prod)
 - Replicar schema de dev a prod (migraciones SQL manuales)
 - ⚠️ BD dev y prod son SEPARADAS — solo se deploya código + schema
 
-### TASK-S25: Polish para Demo (Prioridad MEDIA)
-- Probar todos los dashboards con data real
+### TASK-S25: Testing con Data Real (Prioridad ALTA — Demo 18-Feb)
+- Probar flujo E2E completo incluyendo Fase 5 destino
 - Fix bugs visuales o de UX restantes
+- Verificar timeline/historial con datos reales
 - Preparar datos para demo presentación 18-Feb
+
+### ⚠️ RLS Gap: ofertas_red_nodexia UPDATE Policy (Post-MVP)
+- Tabla tiene INSERT + SELECT policies pero NO UPDATE policy
+- Actualmente bypaseado por API service role
+- Debe agregarse para seguridad en producción
 
 ### ⚠️ SEGURIDAD API (Post-MVP, ANTES de producción real)
 - **Documento:** `docs/PENDIENTE-CRITICO-SEGURIDAD-API.md`

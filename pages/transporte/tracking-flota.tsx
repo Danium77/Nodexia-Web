@@ -107,10 +107,17 @@ export default function TrackingFlota() {
               'transporte_asignado',
               'confirmado_chofer',
               'en_transito_origen',
-              'arribo_origen',
-              'carga_completada',
+              'ingresado_origen',
+              'llamado_carga',
+              'cargando',
+              'cargado',
+              'egreso_origen',
               'en_transito_destino',
-              'arribo_destino'
+              'ingresado_destino',
+              'llamado_descarga',
+              'descargando',
+              'descargado',
+              'egreso_destino'
             ])
             .order('created_at', { ascending: false })
             .limit(1)

@@ -1,0 +1,25 @@
+flowchart TD
+    LOGIN["Login"] --> DASH["Dashboard\nKPIs, Alertas, Mapa"]
+    
+    DASH --> CREAR["Crear Despacho"]
+    DASH --> PLAN["Planificación\nGrilla semana/día/mes"]
+    DASH --> TRACK["Tracking\nMapa en vivo"]
+    DASH --> RED_N["Red Nodexia\nPublicar / Ofertas"]
+    DASH --> STATS["Estadísticas"]
+    
+    CREAR --> DESP_PEND["Despacho Pendiente"]
+    DESP_PEND --> ASIG_DIR["Asignar Transporte\nDirecto"]
+    DESP_PEND --> ASIG_RED["Publicar en Red\nNodexia"]
+    
+    ASIG_DIR --> ESPERA_T["Esperar asignación\nde unidad"]
+    ASIG_RED --> ESPERA_O["Esperar ofertas"]
+    ESPERA_O --> ACEPTAR["Aceptar oferta"]
+    ACEPTAR --> ESPERA_T
+    
+    ESPERA_T --> MONIT["Monitorear progreso\nen Planificación/Tracking"]
+    
+    style CREAR fill:#3b82f6,color:#fff
+    style ASIG_DIR fill:#22c55e,color:#fff
+    style ASIG_RED fill:#a855f7,color:#fff
+    style DASH fill:#1e293b,color:#fff
+    style LOGIN fill:#64748b,color:#fff

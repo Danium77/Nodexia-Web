@@ -1,0 +1,36 @@
+flowchart LR
+    subgraph "viaje.estado_unidad"
+        V_PEND["pendiente"]
+        V_TRANS["transporte_asignado"]
+        V_CAM["camion_asignado"]
+        V_CONF["confirmado_chofer"]
+        V_TRANSIT["en_transito_origen\nhasta\negreso_destino / vacio"]
+        V_COMP["viaje_completado"]
+    end
+    
+    subgraph "despacho.estado"
+        D_PEND["pendiente"]
+        D_TRANS["transporte_asignado"]
+        D_CAM["camion_asignado"]
+        D_TRANSIT["en_transito"]
+        D_COMP["completado"]
+    end
+    
+    V_PEND -->|"mapea a"| D_PEND
+    V_TRANS -->|"mapea a"| D_TRANS
+    V_CAM -->|"mapea a"| D_CAM
+    V_CONF -->|"mapea a"| D_CAM
+    V_TRANSIT -->|"mapea a"| D_TRANSIT
+    V_COMP -->|"mapea a"| D_COMP
+
+    style V_PEND fill:#6b7280,color:#fff
+    style V_TRANS fill:#3b82f6,color:#fff
+    style V_CAM fill:#3b82f6,color:#fff
+    style V_CONF fill:#3b82f6,color:#fff
+    style V_TRANSIT fill:#f97316,color:#fff
+    style V_COMP fill:#22c55e,color:#fff
+    style D_PEND fill:#6b7280,color:#fff
+    style D_TRANS fill:#3b82f6,color:#fff
+    style D_CAM fill:#3b82f6,color:#fff
+    style D_TRANSIT fill:#f97316,color:#fff
+    style D_COMP fill:#22c55e,color:#fff

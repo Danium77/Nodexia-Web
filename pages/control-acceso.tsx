@@ -143,7 +143,7 @@ export default function ControlAcceso() {
       // Paso 1: Buscar el despacho por código
       const { data: despacho, error: despachoError } = await supabase
         .from('despachos')
-        .select('id, pedido_id, origen, destino, created_by, estado')
+        .select('id, pedido_id, origen, destino, origen_id, destino_id, created_by, estado')
         .ilike('pedido_id', `%${codigoBusqueda}%`)
         .maybeSingle();
 
@@ -163,31 +163,49 @@ export default function ControlAcceso() {
         return;
       }
 
-      // Paso 2: Verificar que el despacho pertenece a la empresa del usuario
-      // Obtener la empresa del usuario que creó el despacho
-      const { data: usuarioDespacho, error: usuarioError } = await supabase
-        .from('usuarios_empresa')
-        .select('empresa_id')
-        .eq('user_id', despacho.created_by)
-        .single();
+      // Paso 2: Obtener ubicaciones con empresa_id para detectar tipo de operación
+      // Usar origen_id/destino_id (UUIDs) si existen, fallback a origen/destino (texto)
+      const origenRef = despacho.origen_id || despacho.origen;
+      const destinoRef = despacho.destino_id || despacho.destino;
+      const ubicacionIds = [origenRef, destinoRef].filter(Boolean);
 
-      if (usuarioError || !usuarioDespacho || usuarioDespacho.empresa_id !== empresaId) {
-        console.error('❌ [control-acceso] Despacho no pertenece a esta empresa');
-        setMessage('❌ Este despacho no pertenece a su empresa');
-        setViaje(null);
-        setLoading(false);
-        return;
+      const { data: ubicaciones, error: ubicacionesError } = ubicacionIds.length > 0
+        ? await supabase
+            .from('ubicaciones')
+            .select('id, nombre, tipo, empresa_id')
+            .in('id', ubicacionIds)
+        : { data: [], error: null };
+
+      if (ubicacionesError) {
+        console.warn('⚠️ [control-acceso] Error cargando ubicaciones:', ubicacionesError);
       }
 
+      // Paso 2.5: Verificar que el despacho pertenece a la empresa del usuario
+      // Permitimos acceso si la empresa es origen O destino
+      const origenUbicacionCheck = ubicaciones?.find(u => u.id === origenRef);
+      const destinoUbicacionCheck = ubicaciones?.find(u => u.id === destinoRef);
+      const esOrigen = origenUbicacionCheck?.empresa_id === empresaId;
+      const esDestino = destinoUbicacionCheck?.empresa_id === empresaId;
 
-      // Paso 2.5: Obtener nombres de ubicaciones
-      const { data: ubicaciones, error: ubicacionesError } = await supabase
-        .from('ubicaciones')
-        .select('id, nombre, tipo')
-        .in('id', [despacho.origen, despacho.destino]);
+      if (!esOrigen && !esDestino) {
+        // Fallback: verificar por created_by (compatibilidad)
+        const { data: usuarioDespacho } = await supabase
+          .from('usuarios_empresa')
+          .select('empresa_id')
+          .eq('user_id', despacho.created_by)
+          .single();
 
-      const origenUbicacion = ubicaciones?.find(u => u.id === despacho.origen);
-      const destinoUbicacion = ubicaciones?.find(u => u.id === despacho.destino);
+        if (!usuarioDespacho || usuarioDespacho.empresa_id !== empresaId) {
+          console.error('❌ [control-acceso] Despacho no pertenece a esta empresa (ni origen ni destino)');
+          setMessage('❌ Este despacho no pertenece a su empresa');
+          setViaje(null);
+          setLoading(false);
+          return;
+        }
+      }
+
+      const origenUbicacion = ubicaciones?.find(u => u.id === origenRef);
+      const destinoUbicacion = ubicaciones?.find(u => u.id === destinoRef);
 
       // Paso 3: Buscar viaje con relaciones nativas de Supabase
       
@@ -265,8 +283,10 @@ export default function ControlAcceso() {
       } : null;
 
 
-      const tipoOp: 'envio' | 'recepcion' = 'envio';
-      const estadoUnidad = viajeData.estado_unidad || viajeData.estado || 'pendiente';
+      // 🔥 Auto-detectar tipo de operación basado en empresa del usuario
+      const tipoOp: 'envio' | 'recepcion' = esDestino && !esOrigen ? 'recepcion' : 'envio';
+      console.log(`🏢 Tipo operación detectado: ${tipoOp} (esOrigen=${esOrigen}, esDestino=${esDestino})`);
+      const estadoUnidad = viajeData.estado || viajeData.estado_unidad || 'pendiente';
 
       const viajeCompleto: ViajeQR = {
         id: viajeData.id,
@@ -347,7 +367,7 @@ export default function ControlAcceso() {
 
       // Determinar el nuevo estado según el tipo de operación
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'en_playa_origen' : 'ingresado_destino';
+        viaje.tipo_operacion === 'envio' ? 'ingresado_origen' : 'ingresado_destino';
       
 
       const result = await actualizarEstadoUnidad({
@@ -434,7 +454,7 @@ export default function ControlAcceso() {
 
         setViaje({
           ...viaje,
-          estado_unidad: autoCompletado ? 'viaje_completado' : nuevoEstado,
+          estado_unidad: autoCompletado ? 'completado' : nuevoEstado,
         });
 
         // Recargar historial
@@ -738,7 +758,7 @@ export default function ControlAcceso() {
                   </div>
                 )}
 
-                {viaje.estado_unidad === 'en_playa_origen' && viaje.tipo_operacion === 'envio' && (
+                {viaje.estado_unidad === 'ingresado_origen' && viaje.tipo_operacion === 'envio' && (
                   <div className="mb-6 bg-yellow-900/30 border border-yellow-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-yellow-600 rounded-lg">
@@ -752,7 +772,7 @@ export default function ControlAcceso() {
                   </div>
                 )}
 
-                {viaje.estado_unidad === 'egreso_origen' && viaje.tipo_operacion === 'envio' && !viaje.documentacion_validada && (
+                {(viaje.estado_unidad === 'cargado' || viaje.estado_unidad === 'egreso_origen') && viaje.tipo_operacion === 'envio' && !viaje.documentacion_validada && (
                   <div className="mb-6 bg-purple-900/30 border border-purple-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-purple-600 rounded-lg">
@@ -780,7 +800,7 @@ export default function ControlAcceso() {
                   </div>
                 )}
 
-                {(viaje.estado_unidad === 'arribado_destino' || viaje.estado_unidad === 'arribo_destino') && viaje.tipo_operacion === 'recepcion' && (
+                {viaje.estado_unidad === 'en_transito_destino' && viaje.tipo_operacion === 'recepcion' && (
                   <div className="mb-6 bg-teal-900/30 border border-teal-700 rounded-xl p-4">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-teal-600 rounded-lg">
@@ -840,8 +860,8 @@ export default function ControlAcceso() {
                 <div className="border-t border-slate-700 pt-6">
                   <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Acciones Disponibles</p>
                   <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó */}
-                    {((viaje.tipo_operacion === 'envio' && (viaje.estado_unidad === 'en_transito_origen' || viaje.estado_unidad === 'arribo_origen')) ||
-                      (viaje.tipo_operacion === 'recepcion' && (viaje.estado_unidad === 'en_transito_destino' || viaje.estado_unidad === 'arribo_destino' || viaje.estado_unidad === 'arribado_destino'))) && (
+                    {((viaje.tipo_operacion === 'envio' && ['en_transito_origen', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer'].includes(viaje.estado_unidad)) ||
+                      (viaje.tipo_operacion === 'recepcion' && ['en_transito_destino'].includes(viaje.estado_unidad))) && (
                       <button
                         onClick={confirmarIngreso}
                         disabled={loading}
@@ -853,19 +873,19 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Asignar Playa de Espera - Solo en origen después del ingreso */}
-                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'en_playa_origen' && (
+                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'ingresado_origen' && (
                       <button
                         onClick={() => {
                           const playa = prompt('Número de playa de espera:');
                           if (playa) {
                             actualizarEstadoUnidad({
                               viaje_id: viaje.id,
-                              nuevo_estado: 'en_playa_origen',
+                              nuevo_estado: 'ingresado_origen',
                               observaciones: `Asignado a playa ${playa}`,
                             }).then(result => {
                               if (result.success) {
                                 setMessage(`✅ Camión asignado a playa ${playa}`);
-                                setViaje({...viaje, estado_unidad: 'en_playa_origen'});
+                                setViaje({...viaje, estado_unidad: 'ingresado_origen'});
                               } else {
                                 setMessage(`❌ ${result.error}`);
                               }
@@ -881,7 +901,7 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Validar Documentación - Solo en origen después de carga completada */}
-                    {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'egreso_origen' && (
+                    {viaje.tipo_operacion === 'envio' && (viaje.estado_unidad === 'cargado' || viaje.estado_unidad === 'egreso_origen') && (
                       <button
                         onClick={async () => {
                           setLoading(true);
@@ -911,7 +931,7 @@ export default function ControlAcceso() {
                     )}
 
                     {/* Confirmar Egreso - Solo si documentación está validada o es en destino */}
-                    {((viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'egreso_origen' && viaje.documentacion_validada) ||
+                    {((viaje.tipo_operacion === 'envio' && (viaje.estado_unidad === 'cargado' || viaje.estado_unidad === 'egreso_origen') && viaje.documentacion_validada) ||
                       (viaje.tipo_operacion === 'recepcion' && (viaje.estado_unidad === 'descargado' || viaje.estado_unidad === 'egreso_destino'))) && (
                       <button
                         onClick={confirmarEgreso}

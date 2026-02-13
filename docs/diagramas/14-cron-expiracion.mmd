@@ -1,0 +1,39 @@
+flowchart TD
+    CRON["⏰ pg_cron\ncada 5 min"] --> FUNC["marcar_viajes_expirados"]
+    EDGE["☁️ Edge Function\ncada 15 min"] --> FUNC
+    
+    FUNC --> CHECK{"¿Viaje cumple\nTODAS las condiciones?"}
+    
+    CHECK -->|"SÍ"| EXPIRE["estado = expirado"]
+    CHECK -->|"NO"| SKIP["❌ No tocar"]
+    
+    EXPIRE --> DESP_CHECK{"¿TODOS los viajes\ndel despacho expirados?"}
+    DESP_CHECK -->|"SÍ"| DESP_EXP["despacho = expirado"]
+    DESP_CHECK -->|"NO"| DESP_OK["despacho sin cambios"]
+    
+    subgraph CONDICIONES["Condiciones para expirar - TODAS deben cumplirse"]
+        C1["1. chofer_id IS NULL\nOR camion_id IS NULL"]
+        C2["2. scheduled_at menor a\nNOW - 2 horas"]
+        C3["3. estado NO está en\nlista protegida"]
+    end
+    
+    subgraph PROTEGIDOS["Estados PROTEGIDOS - NO se expiran"]
+        P1["Planta Origen:\ningresado_origen, en_playa_origen\nllamado_carga, cargando\ncargado, egreso_origen"]
+        P2["Tránsito:\nen_transito_origen, arribo_origen\nen_transito_destino, arribo_destino\narribado_destino"]
+        P3["Planta Destino:\ningresado_destino, llamado_descarga\ndescargando, descargado\negreso_destino"]
+        P4["Finales:\nvacio, viaje_completado\ncompletado, cancelado"]
+    end
+    
+    subgraph VULNERABLES["Estados VULNERABLES - Pueden expirarse"]
+        V1["pendiente"]
+        V2["transporte_asignado"]
+        V3["camion_asignado"]
+        V4["confirmado_chofer"]
+        V5["fuera_de_horario"]
+    end
+
+    style EXPIRE fill:#ef4444,color:#fff
+    style SKIP fill:#22c55e,color:#fff
+    style PROTEGIDOS fill:#dcfce7,stroke:#22c55e
+    style VULNERABLES fill:#fef2f2,stroke:#ef4444
+    style CONDICIONES fill:#fef9c3,stroke:#eab308

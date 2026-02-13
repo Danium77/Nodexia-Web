@@ -1,0 +1,29 @@
+sequenceDiagram
+    actor CP as 🏭 Coord. Planta
+    participant DB as 📦 Supabase
+    participant RED as 🌐 Red Nodexia
+    actor CT as 🚛 Coord. Transporte
+    actor CH as 🧑‍✈️ Chofer
+    
+    Note over CP: CREACION
+    CP->>DB: INSERT despacho + viaje(s)
+    CP->>RED: Publicar viaje (useRedNodexia)
+    Note over RED: INSERT viajes_red_nodexia<br/>estado_red = abierto
+    
+    Note over CT: MARKETPLACE
+    CT->>RED: Ver Cargas en Red
+    CT->>RED: Enviar oferta
+    Note over RED: INSERT ofertas_red_nodexia<br/>estado_red = con_ofertas
+    
+    Note over CP: SELECCION
+    CP->>RED: Revisar ofertas
+    CP->>DB: POST /api/red-nodexia/aceptar-oferta
+    Note over DB: oferta = aceptada<br/>otras = rechazada<br/>viaje_red = asignado<br/>viaje_despacho = transporte_asignado<br/>origen_asignacion = red_nodexia
+    
+    Note over CT: ASIGNACION UNIDAD
+    CT->>DB: POST /api/transporte/asignar-unidad
+    Note over DB: estado = camion_asignado
+    
+    CH->>DB: POST /api/viajes/id/estado-unidad
+    Note over DB: estado = confirmado_chofer
+    Note over CH: Continua flujo operativo

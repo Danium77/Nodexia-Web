@@ -158,8 +158,8 @@ describe('Validaciones de transiciones de estados', () => {
   } = require('@/lib/services/estadosService');
 
   describe('validarTransicionLocal', () => {
-    it('debe permitir transición válida de unidad: asignado -> confirmado_chofer', () => {
-      const resultado = validarTransicionLocal('unidad', 'asignado', 'confirmado_chofer');
+    it('debe permitir transición válida de unidad: camion_asignado -> confirmado_chofer', () => {
+      const resultado = validarTransicionLocal('unidad', 'camion_asignado', 'confirmado_chofer');
       expect(resultado.valido).toBe(true);
     });
 
@@ -168,28 +168,28 @@ describe('Validaciones de transiciones de estados', () => {
       expect(resultado.valido).toBe(false);
     });
 
-    it('debe permitir cancelación desde estado en_incidencia', () => {
-      const resultado = validarTransicionLocal('unidad', 'en_incidencia', 'cancelado');
+    it('debe permitir cancelación desde estado confirmado_chofer', () => {
+      const resultado = validarTransicionLocal('unidad', 'confirmado_chofer', 'cancelado');
       expect(resultado.valido).toBe(true);
     });
   });
 
   describe('getProximosEstadosPermitidos', () => {
     it('debe retornar estados siguientes permitidos', () => {
-      const proximos = getProximosEstadosPermitidos('unidad', 'asignado');
+      const proximos = getProximosEstadosPermitidos('unidad', 'camion_asignado');
       expect(proximos).toContain('confirmado_chofer');
       expect(proximos).toContain('cancelado');
     });
 
     it('debe retornar array vacío para estados finales', () => {
-      const proximos = getProximosEstadosPermitidos('unidad', 'viaje_completado');
+      const proximos = getProximosEstadosPermitidos('unidad', 'completado');
       expect(proximos).toEqual([]);
     });
   });
 
   describe('esEstadoFinal', () => {
-    it('debe identificar viaje_completado como final', () => {
-      const esFinal = esEstadoFinal('unidad', 'viaje_completado');
+    it('debe identificar completado como final', () => {
+      const esFinal = esEstadoFinal('unidad', 'completado');
       expect(esFinal).toBe(true);
     });
 

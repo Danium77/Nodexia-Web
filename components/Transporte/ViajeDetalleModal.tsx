@@ -65,13 +65,26 @@ interface Documento {
   uploaded_at: string;
 }
 
+// Estados alineados con lib/estados/config.ts (17 + cancelado)
 const ESTADOS = [
   { value: 'pendiente', label: 'Pendiente', color: 'gray', emoji: '⏳' },
-  { value: 'transporte_asignado', label: 'Asignado', color: 'blue', emoji: '📦' },
-  { value: 'cargando', label: 'Cargando', color: 'yellow', emoji: '⬆️' },
-  { value: 'en_camino', label: 'En Camino', color: 'cyan', emoji: '🚛' },
-  { value: 'descargando', label: 'Descargando', color: 'orange', emoji: '⬇️' },
-  { value: 'completado', label: 'Completado', color: 'green', emoji: '🏁' }
+  { value: 'transporte_asignado', label: 'Transporte Asignado', color: 'blue', emoji: '📋' },
+  { value: 'camion_asignado', label: 'Camión Asignado', color: 'yellow', emoji: '🚛' },
+  { value: 'confirmado_chofer', label: 'Confirmado', color: 'blue', emoji: '✅' },
+  { value: 'en_transito_origen', label: 'En Tránsito a Origen', color: 'purple', emoji: '🚚' },
+  { value: 'ingresado_origen', label: 'Ingresado Origen', color: 'cyan', emoji: '🏭' },
+  { value: 'llamado_carga', label: 'Llamado a Carga', color: 'amber', emoji: '📢' },
+  { value: 'cargando', label: 'Cargando', color: 'orange', emoji: '⚙️' },
+  { value: 'cargado', label: 'Cargado', color: 'indigo', emoji: '📦' },
+  { value: 'egreso_origen', label: 'Egreso Origen', color: 'violet', emoji: '🚪' },
+  { value: 'en_transito_destino', label: 'En Tránsito a Destino', color: 'purple', emoji: '🚚' },
+  { value: 'ingresado_destino', label: 'Ingresado Destino', color: 'teal', emoji: '🏁' },
+  { value: 'llamado_descarga', label: 'Llamado a Descarga', color: 'amber', emoji: '📢' },
+  { value: 'descargando', label: 'Descargando', color: 'cyan', emoji: '📤' },
+  { value: 'descargado', label: 'Descargado', color: 'emerald', emoji: '✅' },
+  { value: 'egreso_destino', label: 'Egreso Destino', color: 'emerald', emoji: '🚪' },
+  { value: 'completado', label: 'Completado', color: 'green', emoji: '🏆' },
+  { value: 'cancelado', label: 'Cancelado', color: 'red', emoji: '❌' },
 ];
 
 const ViajeDetalleModal: React.FC<ViajeDetalleModalProps> = ({
