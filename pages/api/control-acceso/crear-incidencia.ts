@@ -2,8 +2,9 @@
 // API para crear incidencia cuando Control de Acceso detecta problemas de documentación
 // TASK-S06: Reescritura completa — tabla incidencias_viaje con columnas correctas
 
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 // Tipos válidos según CHECK en incidencias_viaje
 const TIPOS_VALIDOS = [
@@ -30,16 +31,10 @@ function determinarSeveridad(tipo: TipoIncidencia): Severidad {
   return map[tipo] || 'media';
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, { userId }) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
-
-  // Auth obligatorio
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No autenticado' });
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) return res.status(401).json({ error: 'No autorizado' });
 
   try {
     const { viaje_id, tipo_incidencia, descripcion, severidad } = req.body;
@@ -84,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       viaje_id,
       tipo_incidencia,
       descripcion: descripcion.trim(),
-      reportado_por: user.id,
+      reportado_por: userId,
     };
 
     // Intentar con schema nuevo primero (migración 053)
@@ -105,14 +100,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!result1.error) {
       incidencia = result1.data;
     } else {
-      console.warn('Intento 1 falló (schema nuevo), probando schema viejo:', result1.error.message);
-
       // Intento 2: Schema viejo (estado_resolucion, fecha_reporte, sin severidad)
       const insertDataViejo: Record<string, any> = {
         viaje_id,
         tipo_incidencia,
         descripcion: descripcion.trim(),
-        reportado_por: user.id,
+        reportado_por: userId,
         estado_resolucion: 'pendiente',
         fecha_reporte: new Date().toISOString(),
       };
@@ -135,7 +128,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (insertError || !incidencia) {
-      console.error('Error insertando incidencia:', insertError);
       throw insertError || new Error('No se pudo crear la incidencia');
     }
 
@@ -149,10 +141,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error: any) {
-    console.error('Error creando incidencia:', error);
     return res.status(500).json({
       error: 'Error interno del servidor',
       details: error.message,
     });
   }
-}
+});

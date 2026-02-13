@@ -1,7 +1,8 @@
 // pages/api/upload-remito.ts
 // API route to upload remito photos using service_role (bypasses RLS)
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import type { NextApiResponse } from 'next';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 import formidable from 'formidable';
 import fs from 'fs';
 
@@ -11,29 +12,12 @@ export const config = {
   },
 };
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, { userId }) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // Verify auth
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: 'No authorization header' });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-
     // Parse form data
     const form = formidable({ maxFileSize: 10 * 1024 * 1024 }); // 10MB max
     const [fields, files] = await form.parse(req);
@@ -61,7 +45,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
     if (uploadError) {
-      console.error('Upload error:', uploadError);
       return res.status(500).json({ error: `Upload failed: ${uploadError.message}` });
     }
 
@@ -71,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .getPublicUrl(fileName);
 
     // Save record in documentos_viaje_seguro using admin client
-    const { error: dbError } = await supabaseAdmin
+    await supabaseAdmin
       .from('documentos_viaje_seguro')
       .insert({
         viaje_id: viajeId,
@@ -80,13 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         file_url: urlData.publicUrl,
         storage_path: fileName,
         fecha_emision: new Date().toISOString(),
-        subido_por: user.id,
+        subido_por: userId,
       });
-
-    if (dbError) {
-      console.warn('DB insert warning:', dbError);
-      // Don't block — file is already uploaded
-    }
 
     // Cleanup temp file
     fs.unlinkSync(file.filepath);
@@ -96,7 +74,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       url: urlData.publicUrl,
     });
   } catch (error: any) {
-    console.error('Upload remito error:', error);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
-}
+});

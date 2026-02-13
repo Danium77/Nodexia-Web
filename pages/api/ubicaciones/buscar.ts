@@ -1,12 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import type { NextApiResponse } from 'next';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 import type { UbicacionAutocomplete } from '@/types/ubicaciones';
-
-// 🔥 Usar Service Role Key para acceso completo desde el servidor
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 /**
  * API: Buscar ubicaciones para autocomplete
@@ -14,10 +9,11 @@ const supabaseAdmin = createClient(
  * 
  * Busca SOLO ubicaciones vinculadas a la empresa del usuario
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<UbicacionAutocomplete[] | { error: string }>
-) {
+export default withAuth(async (
+  req,
+  res: NextApiResponse<UbicacionAutocomplete[] | { error: string }>,
+  { empresaId }
+) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -32,40 +28,11 @@ export default async function handler(
 
     const termino = (q as string) || '';
 
-    console.log(`🔍 Buscando ubicaciones: tipo=${tipo}, termino="${termino}"`);
-
-    // Obtener el usuario autenticado
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      console.log('❌ No hay token de autenticación');
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !user) {
-      console.log('❌ Token inválido o usuario no encontrado');
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-
-    console.log('✅ Usuario autenticado:', user.id);
-
-    // Obtener empresa del usuario
-    const { data: usuarioEmpresa, error: userEmpresaError } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select('empresa_id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (userEmpresaError || !usuarioEmpresa) {
-      console.log('⚠️ Usuario sin empresa asignada');
+    if (!empresaId) {
       return res.status(404).json({ error: 'Usuario sin empresa asignada' });
     }
 
-    console.log('✅ Empresa del usuario:', usuarioEmpresa.empresa_id);
-
-    // 🔥 Buscar ubicaciones VINCULADAS a la empresa del usuario
+    // Buscar ubicaciones VINCULADAS a la empresa del usuario
     let query = supabaseAdmin
       .from('empresa_ubicaciones')
       .select(`
@@ -79,7 +46,7 @@ export default async function handler(
           cuit
         )
       `)
-      .eq('empresa_id', usuarioEmpresa.empresa_id)
+      .eq('empresa_id', empresaId)
       .eq('activo', true);
 
     // Filtrar por tipo de ubicación si es necesario
@@ -92,7 +59,6 @@ export default async function handler(
     const { data: vinculos, error } = await query.limit(50);
     
     if (error) {
-      console.error('❌ Error buscando vínculos:', error);
       return res.status(500).json({ error: 'Error al buscar ubicaciones' });
     }
 
@@ -112,16 +78,10 @@ export default async function handler(
         u.cuit?.includes(termino)
       );
     }
-
-    console.log(`✅ Encontradas ${resultados.length} ubicaciones vinculadas`);
-    if (resultados.length > 0) {
-      console.log('Primera ubicación:', resultados[0]);
-    }
     
     return res.status(200).json(resultados);
 
   } catch (error) {
-    console.error('❌ Error en API buscar ubicaciones:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
-}
+});

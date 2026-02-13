@@ -1,29 +1,12 @@
 // pages/api/chofer/viajes.ts
 // API Route para obtener viajes del chofer - bypasea RLS
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import type { NextApiResponse } from 'next';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, { user }) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
-  }
-
-  // Verificar autenticación
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No autorizado' });
-  }
-
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-
-  if (authError || !user) {
-    return res.status(401).json({ error: 'Token inválido' });
   }
 
   try {
@@ -89,7 +72,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .order('created_at', { ascending: false });
 
     if (viajesError) {
-      console.error('Error obteniendo viajes:', viajesError);
       return res.status(500).json({ error: 'Error obteniendo viajes', details: viajesError.message });
     }
 
@@ -99,7 +81,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       count: viajes?.length || 0
     });
   } catch (err: unknown) {
-    console.error('Error en API chofer/viajes:', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
-}
+});

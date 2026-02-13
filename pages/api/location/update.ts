@@ -4,8 +4,9 @@
  * El chofer envía su ubicación desde la app móvil cada X minutos
  */
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import type { NextApiResponse } from 'next';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 interface LocationUpdateRequest {
   chofer_id: string;
@@ -20,20 +21,12 @@ interface LocationUpdateRequest {
   timestamp?: string; // ISO string
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, { userId }) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const supabase = createPagesServerClient({ req, res });
-
-    // Verificar autenticación
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-
     const locationData: LocationUpdateRequest = req.body;
 
     // Validaciones básicas
@@ -52,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Verificar que el usuario es el chofer o tiene permisos
-    const { data: chofer, error: choferError } = await supabase
+    const { data: chofer, error: choferError } = await supabaseAdmin
       .from('choferes')
       .select('id, email')
       .eq('id', locationData.chofer_id)
@@ -62,18 +55,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Chofer no encontrado' });
     }
 
+    // Obtener email del usuario autenticado
+    const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
+
     // Verificar que el usuario autenticado es el chofer
-    if (session.user.email !== chofer.email) {
+    if (authUser?.email !== chofer.email) {
       // O verificar si es coordinador/admin
-      const { data: userRole } = await supabase
-        .from('usuarios_empresas')
-        .select('roles_empresa(nombre)')
-        .eq('user_id', session.user.id)
+      const { data: userRole } = await supabaseAdmin
+        .from('usuarios_empresa')
+        .select('rol_interno')
+        .eq('user_id', userId)
         .single();
 
-      const isAuthorized = userRole?.roles_empresa?.some(
-        (r: any) => ['coordinador_logistica', 'admin', 'super_admin'].includes(r.nombre)
-      );
+      const isAuthorized = userRole && ['coordinador', 'admin_nodexia', 'supervisor'].includes(userRole.rol_interno);
 
       if (!isAuthorized) {
         return res.status(403).json({ error: 'No autorizado para actualizar esta ubicación' });
@@ -81,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Insertar ubicación
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('ubicaciones_choferes')
       .insert({
         chofer_id: locationData.chofer_id,
@@ -99,7 +93,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (error) {
-      console.error('Error insertando ubicación:', error);
       return res.status(500).json({ error: 'Error al guardar ubicación', details: error.message });
     }
 
@@ -110,10 +103,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error) {
-    console.error('Error en /api/location/update:', error);
     return res.status(500).json({ 
       error: 'Error interno del servidor',
       details: error instanceof Error ? error.message : 'Error desconocido'
     });
   }
-}
+});

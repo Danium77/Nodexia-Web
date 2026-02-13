@@ -2,23 +2,13 @@
 // API para obtener documentos detallados de los recursos de un viaje
 // Usa supabaseAdmin para bypasear RLS (control-acceso no tiene acceso directo a documentos_entidad)
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { withAuth } from '../../../lib/middleware/withAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
-  }
-
-  // Auth
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ error: 'No autorizado' });
-  }
-
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) {
-    return res.status(401).json({ error: 'Token inválido' });
   }
 
   const { chofer_id, camion_id, acoplado_id } = req.query;
@@ -84,7 +74,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
   } catch (error: any) {
-    console.error('Error obteniendo documentos detalle:', error);
     return res.status(500).json({ error: 'Error interno', details: error.message });
   }
-}
+});
