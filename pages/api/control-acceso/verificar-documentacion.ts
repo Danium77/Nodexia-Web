@@ -2,8 +2,8 @@
 // Verifica el estado de documentación de los recursos de un viaje
 // Consulta documentos_entidad directamente (evita RPCs con bugs de FK)
 
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 // Documentos críticos requeridos por tipo de entidad
 // Para chofer: depende de si es autónomo o bajo relación de dependencia
@@ -221,20 +221,9 @@ async function verificarEntidad(
   };
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, _authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
-  }
-
-  // Auth
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ error: 'No autorizado' });
-  }
-
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) {
-    return res.status(401).json({ error: 'Token inválido' });
   }
 
   const { chofer_id, camion_id, acoplado_id } = req.query;
@@ -363,7 +352,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ success: true, data: result });
   } catch (error: any) {
-    console.error('Error verificando documentación:', error);
     return res.status(500).json({ error: 'Error interno', details: error.message });
   }
-}
+}, { roles: ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'] });

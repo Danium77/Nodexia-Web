@@ -1,9 +1,10 @@
 // pages/api/admin/listar-empresas.ts
 // API para obtener lista de empresas con sus IDs
 
+import { withAuth } from '../../../lib/middleware/withAuth';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
-export default async function handler(req: any, res: any) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -35,4 +36,4 @@ export default async function handler(req: any, res: any) {
       error: error.message
     });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

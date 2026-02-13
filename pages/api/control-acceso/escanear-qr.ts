@@ -1,15 +1,10 @@
 // pages/api/control-acceso/escanear-qr.ts
 // API para escanear QR y validar datos en Control de Acceso
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, _authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -136,13 +131,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Error en escanear QR:', error);
     return res.status(500).json({
       error: 'Error interno del servidor',
       details: error.message
     });
   }
-}
+}, { roles: ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'] });
 
 async function verificarDocumentacion(_viaje: any) {
   // Simular verificación de documentación

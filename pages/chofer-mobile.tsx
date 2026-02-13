@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { fetchWithAuth } from '../lib/api/fetchWithAuth';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -188,15 +189,13 @@ export default function ChoferMobile() {
           app_version: '1.0.0'
         };
 
-        const response = await fetch('/api/tracking/actualizar-ubicacion', {
+        const response = await fetchWithAuth('/api/tracking/actualizar-ubicacion', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(trackingData)
         });
 
         if (response.ok) {
           const result = await response.json();
-          console.log('📍 Ubicación enviada:', result);
           setLastLocationSent(new Date());
           
           // Si el servidor detectó arribo, actualizar estado local
@@ -445,13 +444,11 @@ export default function ChoferMobile() {
       addDebugLog(`🔵 Confirmando viaje...`);
       
       // Llamar a la API - actualizar a confirmado_chofer (sistema dual)
-      const response = await fetch('/api/viajes/actualizar-estado', {
+      const response = await fetchWithAuth('/api/viajes/actualizar-estado', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           viaje_id: viajeActivo.id,
-          nuevo_estado: 'confirmado_chofer',
-          user_id: user.id
+          nuevo_estado: 'confirmado_chofer'
         })
       });
 
@@ -491,13 +488,11 @@ export default function ChoferMobile() {
       setLoading(true);
       
       // El chofer inicia el viaje hacia origen
-      const response = await fetch('/api/viajes/actualizar-estado', {
+      const response = await fetchWithAuth('/api/viajes/actualizar-estado', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           viaje_id: viajeActivo.id,
-          nuevo_estado: 'en_transito_origen',
-          user_id: user.id
+          nuevo_estado: 'en_transito_origen'
         })
       });
 
@@ -533,13 +528,11 @@ export default function ChoferMobile() {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/viajes/actualizar-estado', {
+      const response = await fetchWithAuth('/api/viajes/actualizar-estado', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           viaje_id: viajeActivo.id,
-          nuevo_estado: 'en_transito_destino',
-          user_id: user.id
+          nuevo_estado: 'en_transito_destino'
         })
       });
 
@@ -571,13 +564,11 @@ export default function ChoferMobile() {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/viajes/actualizar-estado', {
+      const response = await fetchWithAuth('/api/viajes/actualizar-estado', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           viaje_id: viajeActivo.id,
-          nuevo_estado: 'ingresado_destino',
-          user_id: user.id
+          nuevo_estado: 'ingresado_destino'
         })
       });
 
@@ -809,9 +800,8 @@ export default function ChoferMobile() {
       console.log('📦 Tracking data:', trackingData);
       console.log('👤 ChoferData completo:', choferData);
 
-      const response = await fetch('/api/tracking/actualizar-ubicacion', {
+      const response = await fetchWithAuth('/api/tracking/actualizar-ubicacion', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(trackingData)
       });
 

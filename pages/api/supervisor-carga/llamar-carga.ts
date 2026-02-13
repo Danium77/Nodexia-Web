@@ -2,28 +2,24 @@
 // API para que el supervisor llame a un camión a cargar
 // ─── Ruta thin: delega lógica a servicios ───
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cambiarEstadoViaje } from '@/lib/services/viajeEstado';
 import { notificarCambioEstado } from '@/lib/services/notificaciones';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    const { viaje_id, usuario_id, posicion_carga, observaciones } = req.body;
+    const { viaje_id, posicion_carga, observaciones } = req.body;
+    const usuario_id = authCtx.userId;
 
-    if (!viaje_id || !usuario_id) {
+    if (!viaje_id) {
       return res.status(400).json({
         error: 'Datos requeridos faltantes',
-        required: ['viaje_id', 'usuario_id'],
+        required: ['viaje_id'],
       });
     }
 
@@ -68,4 +64,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: error.message,
     });
   }
-}
+}, { roles: ['supervisor', 'coordinador', 'control_acceso'] });

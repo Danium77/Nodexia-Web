@@ -1,14 +1,10 @@
 // pages/api/gps/ubicaciones-historicas.ts
 // API endpoint para obtener historial de ubicaciones GPS de un viaje
 
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -51,4 +47,4 @@ export default async function handler(
     console.error('Error en ubicaciones-historicas:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
-}
+});

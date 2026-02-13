@@ -1,8 +1,8 @@
 // pages/api/admin/reenviar-invitacion.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { withAuth } from '../../../lib/middleware/withAuth';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -84,4 +84,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: error.message
     });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

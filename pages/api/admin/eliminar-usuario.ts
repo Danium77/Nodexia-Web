@@ -1,5 +1,5 @@
 // pages/api/admin/eliminar-usuario.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { withAuth } from '../../../lib/middleware/withAuth';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
 interface EliminarUsuarioRequest {
@@ -21,10 +21,7 @@ interface EliminarUsuarioResponse {
   error?: string;
 }
 
-export default async function handler(
-  req: NextApiRequest, 
-  res: NextApiResponse<EliminarUsuarioResponse>
-) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({
       success: false,
@@ -194,4 +191,4 @@ export default async function handler(
       error: error.message
     });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

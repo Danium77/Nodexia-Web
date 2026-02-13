@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
 import type { Ubicacion, UbicacionFormData } from '../../types/ubicaciones';
 
 interface CrearUbicacionModalProps {
@@ -165,11 +166,8 @@ export default function CrearUbicacionModal({ isOpen, onClose, ubicacion }: Crea
       if (ubicacion) {
         // Actualizar ubicación existente usando API
         console.log('🔄 Actualizando ubicación existente...');
-        const response = await fetch('/api/ubicaciones/actualizar', {
+        const response = await fetchWithAuth('/api/ubicaciones/actualizar', {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             id: ubicacion.id,
             ...formData
@@ -186,11 +184,8 @@ export default function CrearUbicacionModal({ isOpen, onClose, ubicacion }: Crea
       } else {
         // Crear nueva ubicación usando API
         console.log('➕ Creando nueva ubicación...');
-        const response = await fetch('/api/ubicaciones/crear', {
+        const response = await fetchWithAuth('/api/ubicaciones/crear', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify(formData)
         });
 

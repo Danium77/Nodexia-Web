@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
 import { useGPSTracking } from '../../lib/hooks/useGPSTracking';
 import {
   TruckIcon,
@@ -145,12 +146,10 @@ const ChoferViajesPage = () => {
       setUpdatingViaje(viajeId);
 
       // Llamar a la API que valida permisos y actualiza
-      const response = await fetch(`/api/viajes/${viajeId}/estado-unidad`, {
+      const response = await fetchWithAuth(`/api/viajes/${viajeId}/estado-unidad`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nuevo_estado: nuevoEstado,
-          user_id: user.id,
           observaciones: null
         })
       });

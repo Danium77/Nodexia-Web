@@ -1,19 +1,15 @@
 // pages/api/notificaciones/marcar-leida.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '../../../lib/supabaseClient';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST' && req.method !== 'PATCH') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    const { notificacion_id, user_id, marcar_todas } = req.body;
-
-    // Validaciones
-    if (!user_id) {
-      return res.status(400).json({ error: 'user_id es requerido' });
-    }
+    const { notificacion_id, marcar_todas } = req.body;
+    const user_id = authCtx.userId;
 
     if (!marcar_todas && !notificacion_id) {
       return res.status(400).json({ error: 'notificacion_id es requerido o usar marcar_todas' });
@@ -21,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Si es marcar todas como leídas
     if (marcar_todas) {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('notificaciones')
         .update({ 
           leida: true,
@@ -31,7 +27,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq('leida', false);
 
       if (error) {
-        console.error('Error marcando todas como leídas:', error);
         return res.status(500).json({ error: error.message });
       }
 
@@ -43,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Marcar una notificación específica
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('notificaciones')
       .update({ 
         leida: true,
@@ -55,7 +50,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (error) {
-      console.error('Error marcando notificación:', error);
       return res.status(500).json({ error: error.message });
     }
 
@@ -70,10 +64,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Error en API marcar-leida:', error);
     return res.status(500).json({ 
       error: 'Error interno del servidor',
       details: error.message 
     });
   }
-}
+});

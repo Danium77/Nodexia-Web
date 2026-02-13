@@ -2,6 +2,7 @@
 // Componente de mapa con Leaflet para tracking de viajes en tiempo real
 
 import { useEffect, useState, useRef } from 'react';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
 import dynamic from 'next/dynamic';
 import { Truck, MapPin, Navigation, Activity, Clock, Gauge } from 'lucide-react';
 import { EstadoDualBadge } from '@/components/ui/EstadoDualBadge';
@@ -227,7 +228,7 @@ export function GoogleMapViajes({
       const historico: Record<number, UbicacionHistorica[]> = {};
       
       for (const viaje of viajes) {
-        const response = await fetch(`/api/gps/ubicaciones-historicas?viaje_id=${viaje.id}`);
+        const response = await fetchWithAuth(`/api/gps/ubicaciones-historicas?viaje_id=${viaje.id}`);
         if (response.ok) {
           const data = await response.json();
           if (data.ubicaciones && data.ubicaciones.length > 0) {
@@ -247,7 +248,7 @@ export function GoogleMapViajes({
       const stats: Record<number, EstadisticasViaje> = {};
       
       for (const viaje of viajes) {
-        const response = await fetch(`/api/gps/estadisticas-viaje?viaje_id=${viaje.id}`);
+        const response = await fetchWithAuth(`/api/gps/estadisticas-viaje?viaje_id=${viaje.id}`);
         if (response.ok) {
           const data = await response.json();
           if (data.tiene_datos) {

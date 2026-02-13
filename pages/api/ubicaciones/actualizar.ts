@@ -1,10 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, _authCtx) => {
   if (req.method !== 'PUT') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -56,9 +53,8 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('Error general en actualizar ubicación:', error);
     return res.status(500).json({ 
       error: error.message || 'Error interno del servidor' 
     });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

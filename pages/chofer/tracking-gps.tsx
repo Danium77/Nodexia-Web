@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
 import {
   MapPinIcon,
   TruckIcon,
@@ -381,7 +382,7 @@ export default function TrackingGPS() {
     if (!viajeSeleccionado) return;
     
     try {
-      const response = await fetch(`/api/gps/estadisticas-viaje?viaje_id=${viajeSeleccionado}`);
+      const response = await fetchWithAuth(`/api/gps/estadisticas-viaje?viaje_id=${viajeSeleccionado}`);
       if (response.ok) {
         const data = await response.json();
         if (data.tiene_datos) {

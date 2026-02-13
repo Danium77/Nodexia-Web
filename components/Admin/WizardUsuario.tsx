@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
 import { getRolDisplayName } from '../../lib/utils/roleHelpers';
 import { ROLES_BY_TIPO, RolInterno, TipoEmpresa, ROL_INTERNO_LABELS } from '../../lib/types';
 import {
@@ -567,11 +568,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
         // MODO EDICIÓN
         console.log('📝 Actualizando usuario existente...');
 
-        const response = await fetch('/api/admin/actualizar-usuario', {
+        const response = await fetchWithAuth('/api/admin/actualizar-usuario', {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             user_id: initialData.user_id,
             nombre_completo: formData.nombre_completo,
@@ -618,11 +616,8 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
         const rolInterno = formData.rol as RolInterno;
 
       // Enviar invitación usando el nuevo API formal
-      const response = await fetch('/api/admin/nueva-invitacion', {
+      const response = await fetchWithAuth('/api/admin/nueva-invitacion', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           email: formData.email,
           nombre: nombre,

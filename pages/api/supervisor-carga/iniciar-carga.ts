@@ -2,28 +2,24 @@
 // API para iniciar carga después de escanear QR del chofer
 // ─── Ruta thin: delega lógica a servicios ───
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cambiarEstadoViaje } from '@/lib/services/viajeEstado';
 import { notificarCambioEstado } from '@/lib/services/notificaciones';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    const { qr_code, usuario_id, observaciones_inicio } = req.body;
+    const { qr_code, observaciones_inicio } = req.body;
+    const usuario_id = authCtx.userId;
 
-    if (!qr_code || !usuario_id) {
+    if (!qr_code) {
       return res.status(400).json({
         error: 'Datos requeridos faltantes',
-        required: ['qr_code', 'usuario_id'],
+        required: ['qr_code'],
       });
     }
 
@@ -95,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: error.message,
     });
   }
-}
+}, { roles: ['supervisor', 'coordinador', 'control_acceso'] });
 
 function getAccionesSugeridas(estadoActual: string) {
   const sugerencias: Record<string, string> = {

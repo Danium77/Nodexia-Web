@@ -3,16 +3,11 @@
 // Delega a ViajeEstadoService
 // ============================================================================
 
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { asignarUnidad } from '../../../lib/services/viajeEstado';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -30,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       chofer_id: choferId,
       camion_id: camionId,
       acoplado_id: acopladoId,
-      user_id: '', // No requerido para asignación
+      user_id: authCtx.userId,
       unidad_nombre: unidadNombre,
       pedido_id: pedidoId,
     });
@@ -47,9 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (err: unknown) {
-    console.error('💥 [API asignar-unidad] Error:', err);
     return res.status(500).json({
       error: err instanceof Error ? err.message : 'Error interno del servidor'
     });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

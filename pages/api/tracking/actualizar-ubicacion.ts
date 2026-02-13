@@ -1,20 +1,8 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-
-// Usar service role para bypass RLS (la app móvil enviará token JWT propio)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 interface TrackingData {
-  chofer_id: string;
+  chofer_id?: string; // Ahora opcional — se verifica contra el token
   latitud: number;
   longitud: number;
   timestamp?: string;
@@ -25,27 +13,26 @@ interface TrackingData {
   app_version?: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log('🚀 [Tracking API] Inicio de request');
-  
+export default withAuth(async (req, res, authCtx) => {
   // Solo permitir POST
   if (req.method !== 'POST') {
-    console.log('❌ [Tracking API] Método no permitido:', req.method);
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
     const data: TrackingData = req.body;
-    console.log('📦 [Tracking API] Data recibida:', {
-      chofer_id: data.chofer_id,
-      latitud: data.latitud,
-      longitud: data.longitud,
-      timestamp: data.timestamp
-    });
 
-    // Validaciones básicas
-    if (!data.chofer_id) {
-      return res.status(400).json({ error: 'chofer_id es requerido' });
+    // Obtener chofer_id del usuario autenticado
+    const { data: chofer } = await supabaseAdmin
+      .from('choferes')
+      .select('id')
+      .eq('user_id', authCtx.userId)
+      .single();
+
+    const chofer_id = chofer?.id || data.chofer_id;
+
+    if (!chofer_id) {
+      return res.status(400).json({ error: 'No se pudo determinar el chofer' });
     }
 
     if (typeof data.latitud !== 'number' || typeof data.longitud !== 'number') {
@@ -64,20 +51,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         error: `Longitud fuera del rango de Argentina: ${data.longitud}`
       });
     }
-
-    // Validar que el chofer exista
-    const { data: chofer, error: choferError } = await supabaseAdmin
-      .from('choferes')
-      .select('id')
-      .eq('id', data.chofer_id)
-      .single();
-
-    if (choferError || !chofer) {
-      console.error('❌ Chofer no encontrado:', data.chofer_id, choferError);
-      return res.status(404).json({ error: 'Chofer no encontrado' });
-    }
-
-    console.log('✅ Chofer validado:', chofer.id);
 
     // Validaciones opcionales
     if (data.velocidad !== undefined) {
@@ -104,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Insertar en tracking_gps
     const insertData: any = {
-      chofer_id: data.chofer_id,
+      chofer_id,
       latitud: data.latitud,
       longitud: data.longitud,
       timestamp: data.timestamp || new Date().toISOString(),
@@ -122,20 +95,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (insertError) {
-      console.error('Error al insertar tracking:', insertError);
       return res.status(500).json({
         error: 'Error al guardar ubicación',
         details: insertError.message
       });
     }
 
-    console.log('✅ Ubicación insertada en tracking_gps:', trackingData.id);
-
     // Verificar si el chofer está en viaje activo
     const { data: viajeActivo, error: viajeError } = await supabaseAdmin
       .from('viajes_despacho')
       .select('id, estado, despacho_id')
-      .eq('chofer_id', data.chofer_id)
+      .eq('chofer_id', chofer_id)
       .in('estado', [
         'confirmado_chofer',
         'en_transito_origen',
@@ -151,15 +121,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .maybeSingle();
 
     if (viajeError) {
-      console.error('❌ Error buscando viaje activo:', viajeError);
+      // Error no crítico, continuar
     }
 
     // 🔥 NUEVO: Si hay viaje activo, también insertar en ubicaciones_choferes
     if (viajeActivo) {
-      console.log('🚛 Viaje activo encontrado:', viajeActivo.id, '- Insertando en ubicaciones_choferes');
-      
       const ubicacionData = {
-        chofer_id: data.chofer_id,
+        chofer_id,
         viaje_id: viajeActivo.id,
         latitude: data.latitud,
         longitude: data.longitud,
@@ -174,10 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .insert(ubicacionData);
 
       if (ubicacionError) {
-        console.error('❌ Error insertando en ubicaciones_choferes:', ubicacionError);
-        // No fallar la request, solo logear el error
-      } else {
-        console.log('✅ Ubicación también insertada en ubicaciones_choferes');
+        // No fallar la request, error no crítico
       }
     }
 
@@ -291,10 +256,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
   } catch (error: any) {
-    console.error('Error en actualizar-ubicacion:', error);
     return res.status(500).json({
       error: 'Error interno del servidor',
       message: error.message
     });
   }
-}
+});

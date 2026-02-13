@@ -2,29 +2,25 @@
 // API thin route: confirmar ingreso o egreso después de validar QR
 // Usa: cambiarEstadoViaje() + notificarCambioEstado() — fuente de verdad centralizada
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { cambiarEstadoViaje } from '../../../lib/services/viajeEstado';
 import { notificarCambioEstado } from '../../../lib/services/notificaciones';
 import type { EstadoViajeType } from '../../../lib/estados';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    const { viaje_id, accion, usuario_id, observaciones } = req.body;
+    const { viaje_id, accion, observaciones } = req.body;
+    const usuario_id = authCtx.userId;
 
-    if (!viaje_id || !accion || !usuario_id) {
+    if (!viaje_id || !accion) {
       return res.status(400).json({ 
         error: 'Datos requeridos faltantes',
-        required: ['viaje_id', 'accion', 'usuario_id']
+        required: ['viaje_id', 'accion']
       });
     }
 
@@ -119,10 +115,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('Error confirmando acción:', error);
     return res.status(500).json({
       error: 'Error interno del servidor',
       details: error.message
     });
   }
-}
+}, { roles: ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'] });

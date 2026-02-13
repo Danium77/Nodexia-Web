@@ -1,8 +1,8 @@
 // pages/api/admin/verificar-invitaciones.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { withAuth } from '../../../lib/middleware/withAuth';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -61,4 +61,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       details: error.message
     });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

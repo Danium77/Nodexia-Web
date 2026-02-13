@@ -1,7 +1,7 @@
 // pages/api/gps/estadisticas-viaje.ts
 // API endpoint para calcular estadísticas de un viaje basado en GPS
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 // Función para calcular distancia entre dos puntos en kilómetros (fórmula de Haversine)
@@ -22,10 +22,7 @@ function calcularDistancia(
   return R * c;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -120,4 +117,4 @@ export default async function handler(
     console.error('Error calculando estadísticas:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
-}
+});

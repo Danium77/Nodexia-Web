@@ -2,37 +2,30 @@
 // API para actualizar el estado del viaje
 // Delega a ViajeEstadoService
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '../../../../lib/middleware/withAuth';
+import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { cambiarEstadoViaje } from '../../../../lib/services/viajeEstado';
 import { notificarCambioEstado } from '../../../../lib/services/notificaciones';
 import type { EstadoViajeType } from '../../../../lib/estados';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   const { id: viajeId } = req.query;
-  const { nuevo_estado, observaciones, user_id } = req.body;
+  const { nuevo_estado, observaciones } = req.body;
+  const user_id = authCtx.userId;
 
-  if (!viajeId || !nuevo_estado || !user_id) {
+  if (!viajeId || !nuevo_estado) {
     return res.status(400).json({
       exitoso: false,
-      mensaje: 'Parámetros faltantes: nuevo_estado y user_id son requeridos'
+      mensaje: 'Parámetros faltantes: nuevo_estado es requerido'
     });
   }
 
   try {
-    const result = await cambiarEstadoViaje(supabase, {
+    const result = await cambiarEstadoViaje(supabaseAdmin, {
       viaje_id: viajeId as string,
       nuevo_estado: nuevo_estado as EstadoViajeType,
       user_id,
@@ -44,7 +37,7 @@ export default async function handler(
     }
 
     // Notificar al chofer
-    await notificarCambioEstado(supabase, viajeId as string, nuevo_estado as EstadoViajeType);
+    await notificarCambioEstado(supabaseAdmin, viajeId as string, nuevo_estado as EstadoViajeType);
 
     return res.status(200).json(result);
 
@@ -56,4 +49,4 @@ export default async function handler(
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}
+});

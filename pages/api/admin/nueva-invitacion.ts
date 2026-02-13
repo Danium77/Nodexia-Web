@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
+import { withAuth } from '../../../lib/middleware/withAuth'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
 import { validateRoleForCompany } from '../../../lib/validators/roleValidator'
 // import { sendActivationEmail } from '../../../lib/email/sendActivationEmail'
@@ -14,10 +14,7 @@ interface NuevaInvitacionRequest {
   departamento?: string;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -321,4 +318,4 @@ export default async function handler(
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

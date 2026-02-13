@@ -1,18 +1,10 @@
 // pages/api/viajes/[id]/estados.ts
 // API para obtener estados completos de un viaje
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '../../../../lib/middleware/withAuth';
+import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -25,7 +17,7 @@ export default async function handler(
 
   try {
     // Obtener estados completos desde la vista
-    const { data: viaje, error } = await supabase
+    const { data: viaje, error } = await supabaseAdmin
       .from('vista_estado_viaje_completo')
       .select('*')
       .eq('viaje_id', viajeId)
@@ -40,13 +32,13 @@ export default async function handler(
     }
 
     // Obtener próximos estados válidos para unidad
-    const { data: proximosUnidad } = await supabase.rpc(
+    const { data: proximosUnidad } = await supabaseAdmin.rpc(
       'obtener_proximos_estados_unidad',
       { p_estado_actual: viaje.estado_unidad }
     );
 
     // Obtener próximos estados válidos para carga
-    const { data: proximosCarga } = await supabase.rpc(
+    const { data: proximosCarga } = await supabaseAdmin.rpc(
       'obtener_proximos_estados_carga',
       { p_estado_actual: viaje.estado_carga }
     );
@@ -123,4 +115,4 @@ export default async function handler(
       mensaje: error.message
     });
   }
-}
+});

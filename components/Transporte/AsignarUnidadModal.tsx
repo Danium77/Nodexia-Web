@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { TruckIcon, XMarkIcon, MapPinIcon, ClockIcon, CheckCircleIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
 import RouteMap from '../Maps/RouteMap';
@@ -314,9 +315,8 @@ export default function AsignarUnidadModal({
         });
 
         if (entidades.length > 0) {
-          const docRes = await fetch('/api/documentacion/estado-batch', {
+          const docRes = await fetchWithAuth('/api/documentacion/estado-batch', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ entidades }),
           });
           if (docRes.ok) {
@@ -368,9 +368,8 @@ export default function AsignarUnidadModal({
 
       if (viajeId) {
         // � Usar API route con service_role para bypasear RLS
-        const response = await fetch('/api/transporte/asignar-unidad', {
+        const response = await fetchWithAuth('/api/transporte/asignar-unidad', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             viajeId,
             despachoId: despacho.id,
@@ -386,12 +385,10 @@ export default function AsignarUnidadModal({
         if (!response.ok) {
           throw new Error(result.error || 'Error al asignar unidad');
         }
-        console.log('✅ Unidad asignada via API:', result);
       } else {
         // Crear nuevo viaje (caso raro — normalmente el viaje ya existe)
-        const response = await fetch('/api/transporte/asignar-unidad', {
+        const response = await fetchWithAuth('/api/transporte/asignar-unidad', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             viajeId: null,
             despachoId: despacho.id,

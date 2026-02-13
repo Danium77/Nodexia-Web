@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminLayout from '../components/layout/AdminLayout';
 import { supabase } from '../lib/supabaseClient';
+import { fetchWithAuth } from '../lib/api/fetchWithAuth';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
 import {
   BellIcon,
@@ -126,12 +127,10 @@ const NotificacionesPage: React.FC = () => {
 
   const handleMarcarLeida = async (notifId: string) => {
     try {
-      const response = await fetch('/api/notificaciones/marcar-leida', {
+      const response = await fetchWithAuth('/api/notificaciones/marcar-leida', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          notificacion_id: notifId,
-          user_id: user?.id 
+          notificacion_id: notifId
         })
       });
 
@@ -150,11 +149,9 @@ const NotificacionesPage: React.FC = () => {
     if (!confirm('¿Marcar todas las notificaciones como leídas?')) return;
 
     try {
-      const response = await fetch('/api/notificaciones/marcar-leida', {
+      const response = await fetchWithAuth('/api/notificaciones/marcar-leida', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          user_id: user?.id,
           marcar_todas: true
         })
       });

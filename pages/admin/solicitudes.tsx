@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import Sidebar from '../../components/layout/Sidebar';
 import { supabase } from '../../lib/supabaseClient';
+import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
 import {
   DocumentTextIcon,
   ClockIcon,
@@ -165,9 +166,8 @@ export default function GestionSolicitudes() {
     const passwordTemporal = generarPassword();
 
     try {
-      const response = await fetch('/api/solicitudes/aprobar', {
+      const response = await fetchWithAuth('/api/solicitudes/aprobar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           solicitud_id: solicitudSeleccionada.id,
           rol_inicial: rolInicial,

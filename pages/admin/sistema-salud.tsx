@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/shadcn-compat';
 import { Button } from '@/components/ui/Button';
 import { 
@@ -52,7 +53,7 @@ export default function SistemaSaludPage() {
   const loadReport = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/sistema-salud');
+      const response = await fetchWithAuth('/api/admin/sistema-salud');
       if (!response.ok) throw new Error('Error al cargar reporte');
       const data: SyncReport = await response.json();
       setReport(data);
@@ -67,7 +68,7 @@ export default function SistemaSaludPage() {
   const runRepair = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/sistema-salud/repair', {
+      const response = await fetchWithAuth('/api/admin/sistema-salud/repair', {
         method: 'POST'
       });
       if (!response.ok) throw new Error('Error al reparar');

@@ -3,13 +3,8 @@
 // Construye timeline híbrido: timestamps existentes + historial_despachos
 // ============================================================================
 
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 interface TimelineEvent {
   id: string;
@@ -23,7 +18,7 @@ interface TimelineEvent {
   metadata?: any;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, _authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -302,7 +297,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (err: any) {
-    console.error('💥 [API timeline-despacho] Error:', err);
     return res.status(500).json({ error: err.message || 'Error interno del servidor' });
   }
-}
+});

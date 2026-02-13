@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
 import {
   XMarkIcon,
   ClockIcon,
@@ -68,7 +69,7 @@ export default function TimelineDespachoModal({
       setLoading(true);
       setError('');
 
-      const response = await fetch(`/api/despachos/timeline?despachoId=${despachoId}`);
+      const response = await fetchWithAuth(`/api/despachos/timeline?despachoId=${despachoId}`);
       const data = await response.json();
 
       if (!response.ok) {

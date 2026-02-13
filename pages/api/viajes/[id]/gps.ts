@@ -1,18 +1,10 @@
 // pages/api/viajes/[id]/gps.ts
 // API para registrar ubicación GPS del chofer
 
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '../../../../lib/middleware/withAuth';
+import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -24,21 +16,21 @@ export default async function handler(
     velocidad_kmh,
     precision_metros,
     rumbo_grados,
-    user_id,
     dispositivo_info
   } = req.body;
+  const user_id = authCtx.userId;
 
   // Validar parámetros obligatorios
-  if (!viajeId || !latitud || !longitud || !user_id) {
+  if (!viajeId || !latitud || !longitud) {
     return res.status(400).json({
       error: 'Parámetros faltantes',
-      requeridos: ['latitud', 'longitud', 'user_id']
+      requeridos: ['latitud', 'longitud']
     });
   }
 
   try {
-    // Obtener chofer_id del user_id
-    const { data: chofer, error: errorChofer } = await supabase
+    // Obtener chofer_id del user_id (del token)
+    const { data: chofer, error: errorChofer } = await supabaseAdmin
       .from('choferes')
       .select('id')
       .eq('user_id', user_id)
@@ -52,7 +44,7 @@ export default async function handler(
     }
 
     // Registrar ubicación
-    const { data: ubicacionId, error } = await supabase.rpc(
+    const { data: ubicacionId, error } = await supabaseAdmin.rpc(
       'registrar_ubicacion_gps',
       {
         p_viaje_id: viajeId,
@@ -87,4 +79,4 @@ export default async function handler(
       mensaje: error.message
     });
   }
-}
+});

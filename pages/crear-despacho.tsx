@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { fetchWithAuth } from '../lib/api/fetchWithAuth';
 import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import AssignTransportModal from '../components/Modals/AssignTransportModal';
@@ -727,14 +728,12 @@ const CrearDespacho = () => {
       console.log('🎯 [crear-despacho] Llamando API aceptar-oferta:', { ofertaId, transporteId, viajeRedId: selectedViajeRedId });
 
       // Llamar API server-side que usa service role (evita problemas de RLS)
-      const response = await fetch('/api/red-nodexia/aceptar-oferta', {
+      const response = await fetchWithAuth('/api/red-nodexia/aceptar-oferta', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ofertaId,
           viajeRedId: selectedViajeRedId,
-          transporteId,
-          usuarioId: user?.id
+          transporteId
         })
       });
 

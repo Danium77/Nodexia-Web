@@ -3,28 +3,22 @@
 // Ejecuta con service role para evitar problemas de RLS
 // ============================================================================
 
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { ofertaId, viajeRedId, transporteId, usuarioId } = req.body;
+  const { ofertaId, viajeRedId, transporteId } = req.body;
+  const usuarioId = authCtx.userId;
 
-  if (!ofertaId || !viajeRedId || !transporteId || !usuarioId) {
-    return res.status(400).json({ error: 'Faltan parámetros requeridos: ofertaId, viajeRedId, transporteId, usuarioId' });
+  if (!ofertaId || !viajeRedId || !transporteId) {
+    return res.status(400).json({ error: 'Faltan parámetros requeridos: ofertaId, viajeRedId, transporteId' });
   }
 
   try {
-    console.log('🎯 [API aceptar-oferta] Inicio:', { ofertaId, viajeRedId, transporteId, usuarioId });
-
     // 1. Obtener datos del viaje en red
     const { data: viajeRed, error: viajeRedError } = await supabaseAdmin
       .from('viajes_red_nodexia')
@@ -33,7 +27,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (viajeRedError || !viajeRed) {
-      console.error('❌ No se encontró viaje en red:', viajeRedError);
       return res.status(404).json({ error: 'No se encontró el viaje en Red Nodexia' });
     }
 
@@ -45,7 +38,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (viajeDespachoError || !viajeDespacho) {
-      console.error('❌ No se encontró viaje de despacho:', viajeDespachoError);
       return res.status(404).json({ error: 'No se encontró el viaje de despacho' });
     }
 
@@ -59,10 +51,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('id', ofertaId);
 
     if (ofertaError) {
-      console.error('❌ Error actualizando oferta:', ofertaError);
       return res.status(500).json({ error: 'Error al actualizar la oferta: ' + ofertaError.message });
     }
-    console.log('✅ Oferta aceptada');
 
     // 4. Rechazar las demás ofertas
     const { error: rechazarError } = await supabaseAdmin
@@ -75,10 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .neq('id', ofertaId);
 
     if (rechazarError) {
-      console.error('⚠️ Error rechazando otras ofertas:', rechazarError);
       // No fatal — continuamos
-    } else {
-      console.log('✅ Otras ofertas rechazadas');
     }
 
     // 5. Actualizar viaje en red
@@ -94,10 +81,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('id', viajeRedId);
 
     if (updateRedError) {
-      console.error('❌ Error actualizando viaje red:', updateRedError);
       return res.status(500).json({ error: 'Error al actualizar viaje en red: ' + updateRedError.message });
     }
-    console.log('✅ Viaje red actualizado a asignado');
 
     // 6. Actualizar viaje_despacho con transporte asignado
     const { error: updateViajeError } = await supabaseAdmin
@@ -111,10 +96,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('id', viajeRed.viaje_id);
 
     if (updateViajeError) {
-      console.error('❌ Error actualizando viaje_despacho:', updateViajeError);
       return res.status(500).json({ error: 'Error al asignar transporte al viaje: ' + updateViajeError.message });
     }
-    console.log('✅ Viaje despacho actualizado: transporte_asignado');
 
     // 7. Actualizar despacho
     const { error: updateDespachoError } = await supabaseAdmin
@@ -126,10 +109,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('id', viajeDespacho.despacho_id);
 
     if (updateDespachoError) {
-      console.error('❌ Error actualizando despacho:', updateDespachoError);
       return res.status(500).json({ error: 'Error al actualizar despacho: ' + updateDespachoError.message });
     }
-    console.log('✅ Despacho actualizado a asignado');
 
     // 8. Obtener nombre del transporte para mostrar en UI
     const { data: empresa } = await supabaseAdmin
@@ -150,11 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         empresa_id: transporteId,
         metadata: { ofertaId, viajeRedId, origenAsignacion: 'red_nodexia' }
       })
-      .then(({ error: histError }) => {
-        if (histError) console.error('⚠️ Error registrando historial:', histError);
-      });
-
-    console.log('🎉 [API aceptar-oferta] Proceso completado exitosamente');
+      .then(() => { /* historial registrado */ });
 
     return res.status(200).json({
       success: true,
@@ -165,7 +142,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
   } catch (error: any) {
-    console.error('❌ [API aceptar-oferta] Error inesperado:', error);
     return res.status(500).json({ error: error.message || 'Error inesperado' });
   }
-}
+}, { roles: ['coordinador', 'admin_nodexia'] });

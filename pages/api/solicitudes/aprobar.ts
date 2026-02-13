@@ -1,16 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-
-// Usar SERVICE_ROLE_KEY para crear usuarios
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 interface AprobarSolicitudRequest {
   solicitud_id: string;
@@ -18,10 +7,7 @@ interface AprobarSolicitudRequest {
   password_temporal: string;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default withAuth(async (req, res, _authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -32,8 +18,6 @@ export default async function handler(
     return res.status(400).json({ error: 'Faltan parámetros requeridos' });
   }
 
-  console.log('[Aprobar] Iniciando proceso para solicitud:', solicitud_id);
-
   let empresaCreada: any = null;
   let usuarioCreado: any = null;
   let usuarioRegistroCreado = false;
@@ -41,7 +25,6 @@ export default async function handler(
 
   try {
     // PASO 1: Obtener datos de la solicitud
-    console.log('[Aprobar] PASO 1: Obteniendo solicitud...');
     const { data: solicitud, error: errorSolicitud } = await supabaseAdmin
       .from('solicitudes_registro')
       .select('*')
@@ -56,10 +39,7 @@ export default async function handler(
       throw new Error(`La solicitud ya fue procesada (estado: ${solicitud.estado})`);
     }
 
-    console.log('[Aprobar] Solicitud encontrada:', solicitud.nombre_completo);
-
     // PASO 2: Crear empresa
-    console.log('[Aprobar] PASO 2: Creando empresa...');
     const { data: empresa, error: errorEmpresa } = await supabaseAdmin
       .from('empresas')
       .insert({
@@ -76,10 +56,8 @@ export default async function handler(
     }
 
     empresaCreada = empresa;
-    console.log('[Aprobar] Empresa creada con ID:', empresa.id);
 
     // PASO 3: Crear usuario en auth.users
-    console.log('[Aprobar] PASO 3: Creando usuario en auth...');
     const { data: authUser, error: errorAuth } = await supabaseAdmin.auth.admin.createUser({
       email: solicitud.email,
       password: password_temporal,
@@ -96,10 +74,8 @@ export default async function handler(
     }
 
     usuarioCreado = authUser.user;
-    console.log('[Aprobar] Usuario auth creado con ID:', authUser.user.id);
 
     // PASO 4: Crear registro en tabla usuarios
-    console.log('[Aprobar] PASO 4: Creando registro en usuarios...');
     const { error: errorUsuario } = await supabaseAdmin
       .from('usuarios')
       .insert({
@@ -115,10 +91,8 @@ export default async function handler(
     }
 
     usuarioRegistroCreado = true;
-    console.log('[Aprobar] Registro usuarios creado');
 
     // PASO 5: Crear relación usuarios_empresa
-    console.log('[Aprobar] PASO 5: Creando relación usuarios_empresa...');
     const { error: errorRelacion } = await supabaseAdmin
       .from('usuarios_empresa')
       .insert({
@@ -133,10 +107,8 @@ export default async function handler(
     }
 
     relacionCreada = true;
-    console.log('[Aprobar] Relación usuarios_empresa creada');
 
     // PASO 6: Actualizar solicitud a aprobada
-    console.log('[Aprobar] PASO 6: Actualizando solicitud a aprobada...');
     const notasAdmin = `APROBADA - Empresa: ${empresa.nombre} (ID: ${empresa.id}) | Usuario: ${solicitud.email} (ID: ${authUser.user.id}) | Rol: ${rol_inicial} | Password temporal: ${password_temporal}`;
 
     const { error: errorUpdate } = await supabaseAdmin
@@ -150,8 +122,6 @@ export default async function handler(
     if (errorUpdate) {
       throw new Error(`Error actualizando solicitud: ${errorUpdate.message}`);
     }
-
-    console.log('[Aprobar] ✅ Proceso completado exitosamente');
 
     return res.status(200).json({
       success: true,
@@ -170,13 +140,9 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('[Aprobar] ❌ Error en el proceso:', error.message);
-
     // ROLLBACK: Intentar limpiar los registros creados
-    console.log('[Aprobar] Iniciando rollback...');
 
     if (relacionCreada && usuarioCreado) {
-      console.log('[Aprobar] Eliminando relación usuarios_empresa...');
       await supabaseAdmin
         .from('usuarios_empresa')
         .delete()
@@ -184,7 +150,6 @@ export default async function handler(
     }
 
     if (usuarioRegistroCreado && usuarioCreado) {
-      console.log('[Aprobar] Eliminando registro usuarios...');
       await supabaseAdmin
         .from('usuarios')
         .delete()
@@ -192,23 +157,19 @@ export default async function handler(
     }
 
     if (usuarioCreado) {
-      console.log('[Aprobar] Eliminando usuario auth...');
       await supabaseAdmin.auth.admin.deleteUser(usuarioCreado.id);
     }
 
     if (empresaCreada) {
-      console.log('[Aprobar] Eliminando empresa...');
       await supabaseAdmin
         .from('empresas')
         .delete()
         .eq('id', empresaCreada.id);
     }
 
-    console.log('[Aprobar] Rollback completado');
-
     return res.status(500).json({
       error: error.message || 'Error al aprobar solicitud',
       details: error.toString()
     });
   }
-}
+}, { roles: ['admin_nodexia'] });
