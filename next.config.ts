@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Fijar distDir para compatibilidad con Vercel (Next.js 16 cambió el default a "next")
-  distDir: '.next',
   // 🔥 DESHABILITADO en dev para evitar doble montaje de componentes que causa reloads
   reactStrictMode: process.env.NODE_ENV === 'production',
   
