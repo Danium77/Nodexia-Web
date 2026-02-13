@@ -16,7 +16,7 @@ SELECT
     d.pedido_id,
     d.origen,
     d.destino,
-    d.scheduled_date_time AS fecha_programada,
+    d.scheduled_at AS fecha_programada,
     v.transport_id,
     t.nombre_comercial AS transporte_nombre,
     v.chofer_id,
@@ -26,7 +26,7 @@ SELECT
     v.estado,
     v.fecha_creacion,
     v.updated_at AS fecha_expiracion,
-    EXTRACT(EPOCH FROM (v.updated_at - d.scheduled_date_time))/3600 AS horas_despues_programado,
+    EXTRACT(EPOCH FROM (v.updated_at - d.scheduled_at))/3600 AS horas_despues_programado,
     CASE
         WHEN v.chofer_id IS NULL AND v.camion_id IS NULL THEN 'Sin recursos'
         WHEN v.chofer_id IS NULL THEN 'Sin chofer'

@@ -370,6 +370,8 @@ WHEN (NEW.estado = 'arribo_destino')
 EXECUTE FUNCTION trigger_notificar_arribo_destino();
 
 -- Función limpiar notificaciones (026)
+-- DROP necesario: PROD tiene esta función con RETURNS integer, no se puede cambiar con CREATE OR REPLACE
+DROP FUNCTION IF EXISTS limpiar_notificaciones_antiguas();
 CREATE OR REPLACE FUNCTION limpiar_notificaciones_antiguas()
 RETURNS void
 LANGUAGE plpgsql
