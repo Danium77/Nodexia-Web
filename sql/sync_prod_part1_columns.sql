@@ -69,6 +69,10 @@ END $$;
 ALTER TABLE viajes_despacho
   ADD COLUMN IF NOT EXISTS parada_actual INTEGER DEFAULT 1;
 
+-- === VIAJES_DESPACHO: columna scheduled_at (fecha programada del viaje) ===
+ALTER TABLE viajes_despacho
+  ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
+
 -- === USUARIOS_EMPRESA: columna dni (migración 021) ===
 ALTER TABLE usuarios_empresa
   ADD COLUMN IF NOT EXISTS dni TEXT;
