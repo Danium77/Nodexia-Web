@@ -186,8 +186,8 @@ const DespachosOfrecidos = () => {
             scheduled_local_time,
             prioridad,
             created_at,
-            origen_ubicacion:ubicaciones!despachos_origen_id_fkey(ciudad, provincia),
-            destino_ubicacion:ubicaciones!despachos_destino_id_fkey(ciudad, provincia, latitud, longitud)
+            origen_ubicacion:ubicaciones!fk_despachos_origen_ubicacion(ciudad, provincia),
+            destino_ubicacion:ubicaciones!fk_despachos_destino_ubicacion(ciudad, provincia, latitud, longitud)
           ),
           estado_unidad_viaje (
             estado_unidad,
