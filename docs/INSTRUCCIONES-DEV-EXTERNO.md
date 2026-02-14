@@ -47,10 +47,7 @@ Te voy a enviar por **mensaje privado/email** el archivo `CREDENCIALES-DEV.md` q
 3. Abrir en navegador:  
    http://localhost:3000
 
-4. **Probar con usuarios demo**:
-   - Coordinador: `coordinador.demo@nodexia.com` / `Demo2024!`
-   - Admin: `admin.demo@nodexia.com` / `Demo2024!`
-   - Transportista: `transporte.demo@nodexia.com` / `Demo2024!`
+4. **Probar con usuarios demo** (credenciales en el archivo `CREDENCIALES-DEV.md` que te enviamos por mensaje privado)
 
 ## 📚 Paso 5: Explorar Documentación
 

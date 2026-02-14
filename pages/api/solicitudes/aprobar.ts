@@ -109,7 +109,7 @@ export default withAuth(async (req, res, _authCtx) => {
     relacionCreada = true;
 
     // PASO 6: Actualizar solicitud a aprobada
-    const notasAdmin = `APROBADA - Empresa: ${empresa.nombre} (ID: ${empresa.id}) | Usuario: ${solicitud.email} (ID: ${authUser.user.id}) | Rol: ${rol_inicial} | Password temporal: ${password_temporal}`;
+    const notasAdmin = `APROBADA - Empresa: ${empresa.nombre} (ID: ${empresa.id}) | Usuario: ${solicitud.email} (ID: ${authUser.user.id}) | Rol: ${rol_inicial}`;
 
     const { error: errorUpdate } = await supabaseAdmin
       .from('solicitudes_registro')
