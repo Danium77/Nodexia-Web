@@ -4,6 +4,58 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-14 (Sábado) - Sesión 19
+
+### Sesión 19 - Security Hardening + DB Sync PROD + Deploy + PROD Testing
+
+**Tiempo:** ~6 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO/Tester)
+
+#### Logros:
+1. ✅ Security Hardening completado: 55/55 API routes con `withAuth` middleware
+2. ✅ Eliminación total de `withAdminAuth` (reemplazado por `withAuth({ roles: [...] })`)
+3. ✅ DB PROD ↔ DEV sync: 6 scripts SQL creados y ejecutados (5 rondas de fixes)
+4. ✅ Migración empresa_id en choferes/camiones/acoplados (legacy id_transporte → empresa_id)
+5. ✅ Columnas adicionales sincronizadas (despachos, viajes_despacho, camiones, acoplados)
+6. ✅ Security P0: delete-despacho auth, passwords en docs, password_temporal audit trail
+7. ✅ Vercel cleanup: proyecto roto eliminado, deploy exitoso www.nodexiaweb.com
+8. ✅ Security/code audit: score 6.5→7.5 seguridad, 7.5 estructura
+9. ✅ PROD testing: despacho creado, viaje generado, transporte asignado, unidad asignada
+10. ✅ Fix PROD: scheduled_at column missing en viajes_despacho
+11. ✅ Fix PROD: FK constraint names despachos↔ubicaciones (despachos-ofrecidos.tsx)
+
+#### Scripts SQL creados (6):
+- `sql/sync_prod_part1_columns.sql` — ALTER TABLE additions
+- `sql/sync_prod_part2_tables.sql` — 12 missing tables
+- `sql/sync_prod_part3_indexes.sql` — ~60 indexes
+- `sql/sync_prod_part4_functions.sql` — ~30 functions + triggers
+- `sql/sync_prod_part5_views.sql` — 10 views
+- `sql/sync_prod_part6_security.sql` — RLS + security
+
+#### Archivos Modificados:
+- `pages/api/admin/delete-despacho.ts` — x-admin-secret → withAuth
+- `docs/INSTRUCCIONES-DEV-EXTERNO.md` — Removed hardcoded passwords
+- `pages/api/solicitudes/aprobar.ts` — Removed password_temporal
+- `pages/transporte/despachos-ofrecidos.tsx` — FK constraint names fixed
+- `sql/sync_prod_part1_columns.sql` — Added scheduled_at column
+
+#### Commits:
+- `f08d0ce` — Phase 4 security hardening
+- `8a2654f` — 6 SQL sync scripts
+- `86812fb`, `3b7915a`, `d70d8b0`, `cc391b1` — Script fixes iterativos
+- `aa2ce0e` — Security P0 fixes
+- `002a822` — Fix scheduled_at column
+- `1b7dd24` — Fix FK constraint names despachos↔ubicaciones
+
+#### Estado PROD al cierre:
+- Despacho DSP-20260214-001 creado con viaje ✅
+- Transporte Logística Expres asignado ✅
+- Unidad operativa (chofer Walter + camión) creada ✅
+- Viaje asignado a unidad ✅
+- Pendiente: Chofer confirmar viaje desde chofer-mobile
+
+---
+
 ## 📅 2026-02-13 (Viernes) - Sesiones 16-17
 
 ### Sesiones 16-17 - Centralización Completa de Estados

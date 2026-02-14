@@ -1,6 +1,58 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 13-Feb-2026 (Sesión 18 — Cleanup completado)
+**Actualizado:** 14-Feb-2026 (Sesión 19 — Security Hardening + DB Sync PROD + Deploy)
+
+---
+
+## 🔄 EN PROGRESO
+
+### Testing E2E en PROD
+**Estado:** Parcialmente validado
+**Validado:**
+- ✅ Crear despacho (DSP-20260214-001)
+- ✅ Generar viaje automáticamente
+- ✅ Asignar transporte (Logística Expres)
+- ✅ Crear unidad operativa (chofer+camión) en Flota
+- ✅ Asignar unidad a viaje desde Despachos Ofrecidos
+- ✅ Viaje visible en Despachos Ofrecidos del transporte
+**Pendiente:**
+- ⬜ Chofer confirma viaje desde chofer-mobile
+- ⬜ GPS tracking en PROD
+- ⬜ Flujo completo hasta completado
+- ⬜ Control de acceso en PROD
+
+### Security P1
+**Estado:** Pendiente
+- ⬜ Rate limiting middleware
+- ⬜ CORS middleware para mobile apps
+
+---
+
+## ✅ COMPLETADAS (Sesión 19 — 14-Feb-2026)
+
+### Security Hardening — 55/55 API Routes ✅
+**Completado por:** Opus (Fases 1-4, sesiones previas + sesión 19)
+**Alcance:** TODAS las API routes ahora usan `withAuth` middleware
+- Phase 1-3: Bulk migration of routes to withAuth
+- Phase 4: Eliminated `withAdminAuth` (replaced with `withAuth({ roles: [...] })`)
+
+### DB Sync PROD ↔ DEV ✅
+**Completado por:** Opus + Usuario
+**Scripts:** 6 SQL scripts (columns, tables, indexes, functions, views, security)
+**Fix rounds:** 5 iteraciones por diferencias PROD vs DEV
+**Additional:** empresa_id migration, extra columns sync
+
+### Security P0 Fixes ✅ (commit `aa2ce0e`)
+1. delete-despacho.ts — x-admin-secret → withAuth
+2. INSTRUCCIONES-DEV-EXTERNO.md — Removed hardcoded passwords
+3. solicitudes/aprobar.ts — Removed password_temporal from audit
+
+### PROD Fixes ✅ (commits `002a822`, `1b7dd24`)
+1. viajes_despacho.scheduled_at — Column missing → ALTER TABLE
+2. despachos-ofrecidos.tsx — FK constraint names fixed
+
+### Vercel Cleanup ✅
+- Deleted broken `nodexia-web`, kept `nodexia-web-j6wl` → www.nodexiaweb.com
 
 ---
 

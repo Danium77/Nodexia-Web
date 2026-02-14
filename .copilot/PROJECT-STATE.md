@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 13-Feb-2026 (Sesión 18 — Cleanup + Prep Deploy)
+**Última actualización:** 14-Feb-2026 (Sesión 19 — Security Hardening + DB Sync PROD + Deploy Vercel)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 18-Feb-2026 (5 días)
+**Próxima presentación:** 18-Feb-2026 (4 días)
 
 ---
 
@@ -11,7 +11,7 @@
 
 - **Fase:** Pre-MVP (Días 1-9 completados, adelantados al plan)
 - **Stack:** Next.js 16 + React 19 + Supabase + TypeScript + Tailwind v4
-- **Deployado:** No (desarrollo local)
+- **Deployado:** SÍ — Vercel (`nodexia-web-j6wl`) → www.nodexiaweb.com
 - **Tests:** 4 archivos (56 tests para sistema de estados centralizados)
 - **Migraciones BD:** 112 archivos (058 + 059 ejecutadas, 055 + 056 pendientes)
 - **BD lista para documentación:** SÍ (3 tablas + 7 funciones + 3 triggers + 6 RLS + 14 indexes)
@@ -34,7 +34,14 @@
 - **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
 - **Sync estado_carga_viaje:** cambiarEstadoViaje() sincroniza automáticamente estado_carga_viaje (elimina actualizarEstadoDual)
 - **Vercel Config:** vercel.json creado (región gru1, pnpm, API maxDuration 30s)
-- **Git:** Pusheado a GitHub main (commit b582da2)
+- **Git:** Pusheado a GitHub main (commit 1b7dd24)
+- **Vercel:** Proyecto `nodexia-web-j6wl` → www.nodexiaweb.com (proyecto roto `nodexia-web` eliminado)
+- **PROD Supabase:** `lkdcofsfjnltuzzzwoir` — Schema sincronizado con DEV
+- **DEV Supabase:** `yllnzkjpvaukeeqzuxit`
+- **Security Hardening (Sesión 19):** 55/55 API routes con `withAuth` middleware, `withAdminAuth` eliminado
+- **DB Sync PROD (Sesión 19):** 6 scripts SQL ejecutados (columns, tables, indexes, functions, views, security)
+- **Security P0 Fixes (Sesión 19):** delete-despacho migrado a withAuth, passwords removidos de docs, password_temporal removido de audit trail
+- **PROD Testing (Sesión 19):** Despacho creado, viaje generado, transporte asignado, unidad asignada — flujo parcialmente validado E2E en PROD
 - **Codebase Cleanup (Sesión 18):**
   - scripts/ archivado (196→5 operativos)
   - sql/ archivado (229 root→0, 124→36 migraciones canónicas)
@@ -228,7 +235,7 @@ components/
 10. **✅ RESUELTO: Por vencer bloqueaba acceso** — API recalcula vigencia real desde fecha_vencimiento + evalúa por tipo requerido
 11. **✅ RESUELTO: Migración 053 (incidencias_viaje)** — Ejecutada por usuario
 12. **✅ RESUELTO: Migración 054 (documentos_entidad)** — Ejecutada por usuario
-13. **🔴 PENDIENTE CRÍTICO: Pase de seguridad API** — 23+ endpoints sin auth o sin scope. Ver docs/PENDIENTE-CRITICO-SEGURIDAD-API.md. DEBE completarse ANTES de producción.
+13. **✅ RESUELTO: Pase de seguridad API** — 55/55 API routes ahora usan `withAuth` middleware (Fases 1-4, Sesión 19). `withAdminAuth` eliminado.
 14. **✅ RESUELTO: Chofer 0 viajes** — RLS bloqueaba queries → API route con service_role
 15. **✅ RESUELTO: RPC actualizar_estado_unidad** — No existía → TRANSICIONES_VALIDAS en JS
 16. **✅ RESUELTO: Tab filtering crear-despacho** — fuera_de_horario excluía despachos → removida exclusión
@@ -253,6 +260,29 @@ components/
 ---
 
 ## 🔄 ÚLTIMA ACTIVIDAD
+
+**Sesión 14-Feb-2026 (Sesión 19 — Security Hardening + DB Sync PROD + Deploy):**
+
+### Contexto:
+- Hardening de seguridad: 55/55 API routes con `withAuth` middleware (4 fases)
+- Eliminación de `withAdminAuth` (reemplazado por `withAuth({ roles: [...] })`)
+- Sincronización BD PROD ↔ DEV: 6 scripts SQL creados y ejecutados
+- 5 rondas de fixes iterativos en scripts SQL por diferencias PROD vs DEV
+- Migración `empresa_id` en choferes/camiones/acoplados (desde legacy `id_transporte`)
+- Security P0: delete-despacho.ts, passwords en docs, password_temporal
+- Deploy a Vercel: proyecto roto eliminado, deploy exitoso en `nodexia-web-j6wl`
+- Testing PROD: despacho + viaje creados, transporte asignado, unidad asignada
+- Fixes PROD: `scheduled_at` faltante en viajes_despacho, FK names en despachos↔ubicaciones
+
+### Commits:
+- `f08d0ce` — Phase 4 security hardening
+- `8a2654f` — 6 SQL sync scripts
+- `86812fb`, `3b7915a`, `d70d8b0`, `cc391b1` — Script fixes iterativos
+- `aa2ce0e` — Security P0 fixes
+- `002a822` — Fix scheduled_at column
+- `1b7dd24` — Fix FK constraint names despachos↔ubicaciones
+
+---
 
 **Sesión 13-Feb-2026 (Sesiones 16-17 — Centralización de Estados Completa):**
 
@@ -323,13 +353,12 @@ control-acceso.tsx, confirmar-accion.ts, lib/api/estado-unidad.ts, lib/estadosHe
 - `sql/migrations/055_historial_despachos.sql` — Tabla historial_despachos
 - `sql/migrations/056_fix_rls_viajes_red_rechazados.sql` — RLS transportes rechazados
 
-**Próximos pasos (quedan 5 días):**
-- Centralizar estado_carga_viaje (service análogo para carga)
-- Fix actualizarEstadoDual() en supervisor-carga.tsx (error silencioso si carga falla)
-- Renombrar prop estado_unidad → estado en interfaz ViajeEstado
+**Próximos pasos (quedan 4 días):**
+- Continuar testing E2E en PROD (chofer confirma viaje, tracking GPS, flujo completo)
+- Security P1: Rate limiting middleware, CORS para mobile
+- Code structure P2: Extraer lógica de modals, split lib/types.ts
 - TASK-S23: Circuito de incidencias
-- TASK-S24: Deploy staging (Vercel)
-- TASK-S25: Testing con data real
+- Verificar DEV FK names = PROD FK names (despachos↔ubicaciones)
 
 ---
 
