@@ -76,7 +76,7 @@ export default withAuth(async (req, res, { userId }) => {
     // Verificar que el usuario autenticado sea el chofer del viaje
     const { data: choferData, error: choferError } = await supabaseAdmin
       .from('choferes')
-      .select('email')
+      .select('id, usuario_id')
       .eq('id', chofer_id)
       .single();
 
@@ -84,11 +84,8 @@ export default withAuth(async (req, res, { userId }) => {
       return res.status(403).json({ error: 'No autorizado', details: 'Chofer no encontrado' });
     }
 
-    // Obtener email del usuario autenticado
-    const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(userId);
-    const userEmail = authUser?.email;
-
-    if (userEmail && choferData.email !== userEmail) {
+    // Verificar por usuario_id (vinculación directa chofer ↔ auth user)
+    if (choferData.usuario_id !== userId) {
       return res.status(403).json({ 
         error: 'No puedes enviar ubicación de un viaje que no es tuyo'
       });
