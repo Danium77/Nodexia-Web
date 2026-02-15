@@ -4,6 +4,47 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-15 (Domingo) - Sesión 22
+
+### Sesión 22 - Testing E2E PROD — 8 Bugs Fix Intensivo
+
+**Tiempo:** ~4 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO/Tester E2E)
+
+#### Logros:
+1. ✅ Fix: id_transporte NULL al vincular chofer (commit `8f9e73f`)
+2. ✅ Fix: Re-vincular chofer existente por DNI en vez de duplicar (commit `b057bde`)
+3. ✅ Fix: Panel de estados LED muestra todos los viajes con campo estado principal (commit `d1d566b`)
+4. ✅ Fix: CHECK constraint viajes_despacho actualizado a 17+1 estados (SQL ejecutado en PROD)
+5. ✅ Fix: cambiarEstadoViaje() ahora escribe timestamps + historial_despachos (commit `ca0b7f5`)
+6. ✅ Feat: Botones Maps siempre visibles con fallback a dirección (commit `f5ae794`)
+7. ✅ Feat: Campos lat/lng en CrearUbicacionModal (commit `f5ae794`)
+8. ✅ Fix: GPS tracking auth — usuario_id en vez de email inexistente (commit `716e5c3`)
+
+#### Archivos Modificados (8):
+- `lib/hooks/useChoferes.tsx` — addChofer: set id_transporte + re-link por DNI
+- `pages/transporte/choferes.tsx` — Removido id_transporte=currentUserId, limpieza
+- `pages/transporte/viajes-activos.tsx` — Estados panel: todos viajes, campo estado
+- `lib/services/viajeEstado.ts` — Timestamps + historial + descripciones
+- `pages/chofer-mobile.tsx` — Maps buttons siempre visibles
+- `components/Modals/CrearUbicacionModal.tsx` — Campos lat/lng
+- `pages/api/gps/registrar-ubicacion.ts` — Auth por usuario_id
+- `sql/fix_viajes_despacho_estado_unidad_check.sql` — CREADO (ejecutado PROD)
+
+#### Commits (6):
+- `8f9e73f` — fix: Set id_transporte on chofer insert
+- `b057bde` — fix: Re-vincular chofer existente
+- `d1d566b` — fix: Panel estados todos los viajes
+- `ca0b7f5` — fix: Historial + timestamps estado viaje
+- `f5ae794` — feat: Maps nav + campos coordenadas
+- `716e5c3` — fix: GPS tracking auth usuario_id
+
+#### Estado al cierre:
+- Flujo E2E validado hasta GPS tracking (auth fix pendiente re-test usuario)
+- 3 días para presentación (18-Feb-2026)
+
+---
+
 ## 📅 2026-02-14 (Sábado) - Sesión 19
 
 ### Sesión 19 - Security Hardening + DB Sync PROD + Deploy + PROD Testing

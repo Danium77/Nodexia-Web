@@ -154,6 +154,37 @@ Registro de decisiones arquitectónicas y técnicas importantes.
 
 ---
 
+## DEC-012: Chofer Re-Link por UPDATE en vez de INSERT (15-Feb-2026)
+
+**Contexto:** Chofer desvinculado (empresa_id=NULL) al intentar re-vincular daba error "DNI duplicado"  
+**Problema:** INSERT fallaba porque el registro con ese DNI ya existía (desactivado pero presente)  
+**Decisión:** Al vincular chofer, primero buscar por DNI. Si existe → UPDATE (re-link con empresa_id). Si no → INSERT.  
+**Impacto:** Preserva historial, IDs, y datos del chofer original al re-vincular  
+**Responsable:** Opus
+
+---
+
+## DEC-013: Botones Maps Siempre Visibles con Fallback (15-Feb-2026)
+
+**Contexto:** Chofer-mobile no mostraba botones de navegación porque ubicaciones PROD no tenían coordenadas  
+**Problema:** Rendering condicionado a `latitud && longitud` ocultaba los botones  
+**Decisión:** Botones siempre visibles. Si hay coordenadas → abrir Maps con lat/lng. Si no → abrir Maps con búsqueda por dirección.  
+**Impacto:** Mejor UX — chofer siempre puede navegar independiente de calidad de datos  
+**Responsable:** Opus
+
+---
+
+## DEC-014: Auth Chofer por usuario_id, No por Email (15-Feb-2026)
+
+**Contexto:** GPS tracking fallaba porque verificaba propiedad del viaje comparando `chofer.email` (inexistente)  
+**Problema:** Tabla choferes NO tiene columna email. La vinculación correcta es `choferes.usuario_id ↔ auth.users.id`  
+**Decisión:** Toda verificación de propiedad chofer↔usuario debe usar `chofer.usuario_id === authUserId`  
+**REGLA:** Nunca usar email para vincular chofer con usuario de auth. El campo es `usuario_id`.  
+**Impacto:** GPS tracking y cualquier verificación futura funciona correctamente  
+**Responsable:** Opus
+
+---
+
 ## Template para futuras decisiones:
 
 ```markdown

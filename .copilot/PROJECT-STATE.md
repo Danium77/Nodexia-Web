@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 14-Feb-2026 (Sesión 19 — Security Hardening + DB Sync PROD + Deploy Vercel)
+**Última actualización:** 15-Feb-2026 (Sesión 22 — Testing E2E PROD — 8 Bugs Fix)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 18-Feb-2026 (4 días)
+**Próxima presentación:** 18-Feb-2026 (3 días)
 
 ---
 
@@ -28,7 +28,7 @@
 - **Esquema Definitivo Estados:** 17 estados + cancelado en `lib/estados/config.ts` (FUENTE ÚNICA DE VERDAD)
 - **Estados (17+1):** pendiente, transporte_asignado, camion_asignado, confirmado_chofer, en_transito_origen, ingresado_origen, llamado_carga, cargando, cargado, egreso_origen, en_transito_destino, ingresado_destino, llamado_descarga, descargando, descargado, egreso_destino, completado (+cancelado)
 - **Display Centralizado:** `ESTADO_DISPLAY` + `getEstadoDisplay()` con legacy mapping en `lib/estados/config.ts`
-- **Despacho Sync:** `cambiarEstadoViaje()` sincroniza 3 tablas: viajes_despacho + despachos + estado_unidad_viaje
+- **Despacho Sync:** `cambiarEstadoViaje()` sincroniza 3 tablas: viajes_despacho + despachos + estado_unidad_viaje + escribe timestamps + inserta historial
 - **Services Layer:** `lib/services/viajeEstado.ts` (cambiarEstadoViaje, asignarUnidad) + `lib/services/notificaciones.ts` (notificarCambioEstado)
 - **Thin API Routes:** API routes delegan a services layer (no lógica directa en handlers)
 - **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
@@ -261,26 +261,42 @@ components/
 
 ## 🔄 ÚLTIMA ACTIVIDAD
 
-**Sesión 14-Feb-2026 (Sesión 19 — Security Hardening + DB Sync PROD + Deploy):**
+**Sesión 15-Feb-2026 (Sesión 22 — Testing E2E PROD — 8 Bugs Fix):**
 
 ### Contexto:
-- Hardening de seguridad: 55/55 API routes con `withAuth` middleware (4 fases)
-- Eliminación de `withAdminAuth` (reemplazado por `withAuth({ roles: [...] })`)
-- Sincronización BD PROD ↔ DEV: 6 scripts SQL creados y ejecutados
-- 5 rondas de fixes iterativos en scripts SQL por diferencias PROD vs DEV
-- Migración `empresa_id` en choferes/camiones/acoplados (desde legacy `id_transporte`)
-- Security P0: delete-despacho.ts, passwords en docs, password_temporal
-- Deploy a Vercel: proyecto roto eliminado, deploy exitoso en `nodexia-web-j6wl`
-- Testing PROD: despacho + viaje creados, transporte asignado, unidad asignada
-- Fixes PROD: `scheduled_at` faltante en viajes_despacho, FK names en despachos↔ubicaciones
+- Testing E2E intensivo en PROD del flujo completo chofer↔viaje
+- Cada paso del flujo reveló bugs que se corrigieron y deployaron inmediatamente
+- Total: 8 bugs encontrados y resueltos, 6 commits, todos en PROD
+
+### Bugs corregidos:
+1. id_transporte NULL al vincular chofer → set id_transporte = empresa_id (commit `8f9e73f`)
+2. Duplicate DNI al re-vincular → UPDATE en vez de INSERT (commit `b057bde`)
+3. Panel LEDs no enciende → usar todos los viajes + campo estado principal (commit `d1d566b`)
+4. CHECK constraint confirmar viaje → SQL fix 17+1 estados en PROD (commit `ca0b7f5`)
+5. Historial no registra cambios → timestamps + historial_despachos insert (commit `ca0b7f5`)
+6. Maps botones no visibles → siempre visibles + fallback dirección (commit `f5ae794`)
+7. Sin campos coordenadas → lat/lng en CrearUbicacionModal (commit `f5ae794`)
+8. GPS tracking auth → usuario_id en vez de email inexistente (commit `716e5c3`)
+
+### Flujo E2E validado en PROD:
+- ✅ Vincular/desvincular chofer
+- ✅ Crear despacho + viaje
+- ✅ Asignar transporte + unidad operativa
+- ✅ Chofer confirmar viaje
+- ✅ Chofer iniciar viaje → estado actualiza en todas las pantallas
+- ✅ Panel LEDs refleja estados correctos
+- ✅ Historial registra eventos
+- ✅ Navegación Maps funciona
+- ⬜ GPS tracking (auth fix deployado, pendiente re-test)
+- ⬜ Flujo completo hasta completado
 
 ### Commits:
-- `f08d0ce` — Phase 4 security hardening
-- `8a2654f` — 6 SQL sync scripts
-- `86812fb`, `3b7915a`, `d70d8b0`, `cc391b1` — Script fixes iterativos
-- `aa2ce0e` — Security P0 fixes
-- `002a822` — Fix scheduled_at column
-- `1b7dd24` — Fix FK constraint names despachos↔ubicaciones
+- `8f9e73f` — fix: Set id_transporte on chofer insert
+- `b057bde` — fix: Re-vincular chofer existente
+- `d1d566b` — fix: Panel estados todos los viajes
+- `ca0b7f5` — fix: Historial + timestamps estado viaje
+- `f5ae794` — feat: Maps nav + campos coordenadas
+- `716e5c3` — fix: GPS tracking auth usuario_id
 
 ---
 
