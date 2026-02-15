@@ -312,7 +312,7 @@ const ViajesActivos = () => {
             <div>
               <p className="text-gray-400 text-[9px]">Tránsito</p>
               <p className="text-sm font-bold text-white">
-                {viajes.filter(v => v.estado === 'en_transito' || v.estado === 'en_ruta').length}
+                {viajes.filter(v => ['en_transito_origen', 'en_transito_destino', 'egreso_origen'].includes(v.estado)).length}
               </p>
             </div>
             <TruckIcon className="h-4 w-4 text-purple-400" />
@@ -322,7 +322,7 @@ const ViajesActivos = () => {
             <div>
               <p className="text-gray-400 text-[9px]">Planta</p>
               <p className="text-sm font-bold text-white">
-                {viajes.filter(v => v.estado === 'en_planta' || v.estado === 'esperando_carga' || v.estado === 'cargando').length}
+                {viajes.filter(v => ['ingresado_origen', 'llamado_carga', 'cargando', 'cargado', 'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado'].includes(v.estado)).length}
               </p>
             </div>
             <MapPinIcon className="h-4 w-4 text-cyan-400" />
@@ -332,7 +332,7 @@ const ViajesActivos = () => {
             <div>
               <p className="text-gray-400 text-[9px]">Confirm.</p>
               <p className="text-sm font-bold text-white">
-                {viajes.filter(v => v.estado === 'confirmado' || v.estado === 'camion_asignado').length}
+                {viajes.filter(v => ['confirmado_chofer', 'camion_asignado', 'transporte_asignado'].includes(v.estado)).length}
               </p>
             </div>
             <CheckCircleIcon className="h-4 w-4 text-green-400" />
@@ -349,8 +349,16 @@ const ViajesActivos = () => {
             <option value="todos">Todos los estados</option>
             <option value="camion_asignado">Asignado</option>
             <option value="confirmado_chofer">Confirmado</option>
-            <option value="en_transito_origen">En Tránsito</option>
-            <option value="arribo_origen">En Planta</option>
+            <option value="en_transito_origen">→ Origen</option>
+            <option value="ingresado_origen">En Planta Origen</option>
+            <option value="llamado_carga">Llamado a Carga</option>
+            <option value="cargando">Cargando</option>
+            <option value="cargado">Cargado</option>
+            <option value="en_transito_destino">→ Destino</option>
+            <option value="ingresado_destino">En Planta Destino</option>
+            <option value="llamado_descarga">Llamado a Descarga</option>
+            <option value="descargando">Descargando</option>
+            <option value="descargado">Descargado</option>
           </select>
         </div>
 
@@ -504,10 +512,16 @@ const ViajesActivos = () => {
                     { estados: ['camion_asignado', 'transporte_asignado'], label: 'Asignado', color: 'blue', pulso: false },
                     { estados: ['confirmado_chofer'], label: 'Confirmado', color: 'green', pulso: false },
                     { estados: ['en_transito_origen'], label: '→ Origen', color: 'purple', pulso: true },
-                    { estados: ['ingresado_origen', 'llamado_carga', 'cargando', 'cargado'], label: 'En Planta', color: 'cyan', pulso: false },
-                    { estados: ['egreso_origen', 'en_transito_destino'], label: '→ Destino', color: 'orange', pulso: true },
-                    { estados: ['ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'], label: 'En Destino', color: 'teal', pulso: false },
-                    { estados: ['completado'], label: 'Completado', color: 'green', pulso: false, icon: 'check' },
+                    { estados: ['ingresado_origen'], label: 'En Planta Origen', color: 'cyan', pulso: false },
+                    { estados: ['llamado_carga'], label: 'Llamado a Carga', color: 'yellow', pulso: true },
+                    { estados: ['cargando'], label: 'Cargando', color: 'orange', pulso: true },
+                    { estados: ['cargado'], label: 'Cargado', color: 'lime', pulso: false },
+                    { estados: ['egreso_origen', 'en_transito_destino'], label: '→ Destino', color: 'purple', pulso: true },
+                    { estados: ['ingresado_destino'], label: 'En Planta Destino', color: 'teal', pulso: false },
+                    { estados: ['llamado_descarga'], label: 'Llamado Descarga', color: 'yellow', pulso: true },
+                    { estados: ['descargando'], label: 'Descargando', color: 'orange', pulso: true },
+                    { estados: ['descargado'], label: 'Descargado', color: 'lime', pulso: false },
+                    { estados: ['egreso_destino', 'completado'], label: 'Completado', color: 'green', pulso: false, icon: 'check' },
                     { estados: ['cancelado', 'cancelado_por_transporte'], label: 'Cancelado', color: 'red', pulso: false, icon: 'x' }
                   ];
 
@@ -517,6 +531,8 @@ const ViajesActivos = () => {
                     purple: { bg: 'bg-gradient-to-br from-purple-400 to-purple-600', glow: 'shadow-[0_0_16px_rgba(168,85,247,0.9)]', border: 'border-purple-300' },
                     cyan: { bg: 'bg-gradient-to-br from-cyan-400 to-cyan-600', glow: 'shadow-[0_0_16px_rgba(6,182,212,0.9)]', border: 'border-cyan-300' },
                     orange: { bg: 'bg-gradient-to-br from-orange-400 to-orange-600', glow: 'shadow-[0_0_16px_rgba(251,146,60,0.9)]', border: 'border-orange-300' },
+                    yellow: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', glow: 'shadow-[0_0_16px_rgba(250,204,21,0.9)]', border: 'border-yellow-300' },
+                    lime: { bg: 'bg-gradient-to-br from-lime-400 to-lime-600', glow: 'shadow-[0_0_16px_rgba(163,230,53,0.9)]', border: 'border-lime-300' },
                     teal: { bg: 'bg-gradient-to-br from-teal-400 to-teal-600', glow: 'shadow-[0_0_16px_rgba(20,184,166,0.9)]', border: 'border-teal-300' },
                     red: { bg: 'bg-gradient-to-br from-red-400 to-red-600', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.9)]', border: 'border-red-300' }
                   };
@@ -558,6 +574,14 @@ const ViajesActivos = () => {
                         <span className={`text-xs font-medium transition-colors flex-1 ${activo ? 'text-white' : 'text-gray-500'}`}>
                           {ind.label}
                         </span>
+                        {(() => {
+                          const count = estadosActivos.filter(e => ind.estados.includes(e)).length;
+                          return count > 0 ? (
+                            <span className="text-[9px] font-bold text-white bg-gray-600 px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                              {count}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     );
                   });

@@ -992,6 +992,37 @@ export default function SupervisorCarga() {
             <p className="text-xs text-slate-500">Carga y descarga en curso</p>
           </div>
 
+          {/* Scanner QR inline — para escanear cuando el chofer se presenta */}
+          <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-3">
+              <QrCodeIcon className="h-5 w-5 text-yellow-500 shrink-0" />
+              <input
+                type="text"
+                placeholder="Escanear QR del despacho o ingresar N° de viaje..."
+                value={qrCode}
+                onChange={(e) => setQrCode(e.target.value)}
+                className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none placeholder-slate-400"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    escanearQR();
+                    setActiveTab('scanner');
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  escanearQR();
+                  setActiveTab('scanner');
+                }}
+                disabled={loadingScanner || !qrCode.trim()}
+                className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-500 disabled:opacity-50 transition-colors flex items-center gap-2 shrink-0"
+              >
+                <QrCodeIcon className="h-4 w-4" />
+                Buscar
+              </button>
+            </div>
+          </div>
+
           {viajesEnProceso.length === 0 ? (
             <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
               <PlayIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
