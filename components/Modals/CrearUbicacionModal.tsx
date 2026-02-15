@@ -80,6 +80,8 @@ export default function CrearUbicacionModal({ isOpen, onClose, ubicacion }: Crea
         provincia: ubicacion.provincia || 'Buenos Aires',
         pais: ubicacion.pais || 'Argentina',
         codigo_postal: ubicacion.codigo_postal || '',
+        latitud: ubicacion.latitud,
+        longitud: ubicacion.longitud,
         telefono: ubicacion.telefono || '',
         email: ubicacion.email || '',
         contacto_nombre: ubicacion.contacto_nombre || '',
@@ -378,6 +380,41 @@ export default function CrearUbicacionModal({ isOpen, onClose, ubicacion }: Crea
                 className="w-full px-4 py-2 bg-[#0a0e1a] border border-slate-600 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="Ej: 5900"
               />
+            </div>
+
+            {/* Coordenadas */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                📍 Coordenadas GPS
+                <span className="text-slate-500 text-xs ml-2">
+                  (para navegación en Maps)
+                </span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.latitud ?? ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, latitud: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full px-4 py-2 bg-[#0a0e1a] border border-slate-600 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="Latitud (ej: -34.6037)"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.longitud ?? ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, longitud: e.target.value ? parseFloat(e.target.value) : undefined }))}
+                    className="w-full px-4 py-2 bg-[#0a0e1a] border border-slate-600 rounded-lg text-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="Longitud (ej: -58.3816)"
+                  />
+                </div>
+              </div>
+              <p className="text-slate-500 text-xs mt-1">
+                Tip: Buscá la ubicación en Google Maps, hacé click derecho y copiá las coordenadas.
+              </p>
             </div>
 
             {/* Teléfono */}

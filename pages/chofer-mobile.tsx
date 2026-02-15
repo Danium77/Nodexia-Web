@@ -1000,18 +1000,22 @@ export default function ChoferMobile() {
                       {viajeActivo.despachos.origen_provincia}
                     </p>
                   )}
-                  {viajeActivo.despachos.origen_latitud && viajeActivo.despachos.origen_longitud && (
-                    <button
-                      onClick={() => {
-                        const url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.origen_latitud},${viajeActivo.despachos.origen_longitud}`;
-                        window.open(url, '_blank');
-                      }}
-                      className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
-                    >
-                      <MapPinIcon className="h-4 w-4" />
-                      <span>Abrir en Maps</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      let url: string;
+                      if (viajeActivo.despachos.origen_latitud && viajeActivo.despachos.origen_longitud) {
+                        url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.origen_latitud},${viajeActivo.despachos.origen_longitud}`;
+                      } else {
+                        const query = encodeURIComponent(`${viajeActivo.despachos.origen}, ${viajeActivo.despachos.origen_ciudad || ''} ${viajeActivo.despachos.origen_provincia || ''} Argentina`);
+                        url = `https://www.google.com/maps/dir/?api=1&destination=${query}`;
+                      }
+                      window.open(url, '_blank');
+                    }}
+                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
+                  >
+                    <MapPinIcon className="h-4 w-4" />
+                    <span>Navegar al Origen</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1035,18 +1039,22 @@ export default function ChoferMobile() {
                       {viajeActivo.despachos.destino_provincia}
                     </p>
                   )}
-                  {viajeActivo.despachos.destino_latitud && viajeActivo.despachos.destino_longitud && (
-                    <button
-                      onClick={() => {
-                        const url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.destino_latitud},${viajeActivo.despachos.destino_longitud}`;
-                        window.open(url, '_blank');
-                      }}
-                      className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
-                    >
-                      <MapPinIcon className="h-4 w-4" />
-                      <span>Abrir en Maps</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      let url: string;
+                      if (viajeActivo.despachos.destino_latitud && viajeActivo.despachos.destino_longitud) {
+                        url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.destino_latitud},${viajeActivo.despachos.destino_longitud}`;
+                      } else {
+                        const query = encodeURIComponent(`${viajeActivo.despachos.destino}, ${viajeActivo.despachos.destino_ciudad || ''} ${viajeActivo.despachos.destino_provincia || ''} Argentina`);
+                        url = `https://www.google.com/maps/dir/?api=1&destination=${query}`;
+                      }
+                      window.open(url, '_blank');
+                    }}
+                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
+                  >
+                    <MapPinIcon className="h-4 w-4" />
+                    <span>Navegar al Destino</span>
+                  </button>
                 </div>
               </div>
             </div>
