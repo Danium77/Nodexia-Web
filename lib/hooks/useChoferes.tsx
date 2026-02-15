@@ -90,8 +90,9 @@ export function useChoferes() {
         throw new Error('No se encontró empresa asociada');
       }
 
-      // La tabla choferes usa empresa_id para asociar con la EMPRESA
+      // La tabla choferes usa empresa_id Y id_transporte para asociar con la EMPRESA
       chofer.empresa_id = userEmpresa.empresa_id;
+      (chofer as any).id_transporte = userEmpresa.empresa_id;
       chofer.usuario_alta = user.id;
 
       const { data, error: insertError } = await supabase

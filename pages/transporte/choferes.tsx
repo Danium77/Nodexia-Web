@@ -36,7 +36,6 @@ export default function ChoferesGestion() {
           return;
         }
         if (user) {
-          console.log('👤 Usuario actual:', user.id, user.email);
           setCurrentUserId(user.id);
           
           // Obtener empresa del usuario
@@ -54,7 +53,6 @@ export default function ChoferesGestion() {
           }
           
           if (usuarioEmpresa) {
-            console.log('🏢 Empresa del usuario:', usuarioEmpresa);
             setEmpresaId(usuarioEmpresa.empresa_id);
           }
         } else {
@@ -79,16 +77,6 @@ export default function ChoferesGestion() {
     setUsuarioEncontrado(null);
 
     try {
-      console.log('🔍 Buscando chofer con:', { dniBusqueda, empresaId });
-      
-      // Primero intentar buscar solo por empresa_id para ver qué hay
-      const { data: todosUsuarios } = await supabase
-        .from('usuarios_empresa')
-        .select('user_id, nombre_completo, dni, rol_interno')
-        .eq('empresa_id', empresaId);
-      
-      console.log('👥 Todos los usuarios de la empresa:', todosUsuarios);
-      
       // Buscar usuario por DNI o nombre en la tabla usuarios_empresa
       const { data: usuarios, error: searchError } = await supabase
         .from('usuarios_empresa')
@@ -105,8 +93,6 @@ export default function ChoferesGestion() {
         .eq('empresa_id', empresaId)
         .ilike('rol_interno', 'chofer')
         .or(`dni.eq.${dniBusqueda},nombre_completo.ilike.*${dniBusqueda}*`);
-
-      console.log('📊 Resultado búsqueda:', { usuarios, searchError });
 
       if (searchError) {
         console.error('Error buscando usuario:', searchError);
@@ -158,7 +144,6 @@ export default function ChoferesGestion() {
         dni: usuarioEncontrado.dni || dniBusqueda,
         telefono: usuarioEncontrado.telefono || '',
         foto_url: usuarioEncontrado.foto_url || null,
-        id_transporte: currentUserId,
         usuario_alta: currentUserId,
         usuario_id: usuarioEncontrado.id // ✅ Vinculación con usuario de Nodexia
       };
