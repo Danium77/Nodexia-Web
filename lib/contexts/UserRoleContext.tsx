@@ -139,10 +139,10 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     }
   }, [user, roles, empresaId, tipoEmpresa, userEmpresas, lastFetch]);
 
-  // Debug logging para diagnosticar problemas de roles (SOLO SI HAY CAMBIOS)
+  // Primary role tracking (solo desarrollo)
   useEffect(() => {
-    if (roles.length > 0) {
-      console.log('� [UserRoleContext] Primary role calculado:', primaryRole);
+    if (process.env.NODE_ENV === 'development' && roles.length > 0) {
+      console.log('[UserRoleContext] Primary role:', primaryRole);
     }
   }, [primaryRole]);
 
@@ -169,24 +169,18 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
   );
 
   const fetchUserAndRoles = useCallback(async (force = false) => {
-    // 🔥 GUARD: Si ya hay un fetch en progreso, SALIR inmediatamente
+    // GUARD: Si ya hay un fetch en progreso, SALIR inmediatamente
     if (isFetching && !force) {
-      console.log('⏸️ [UserRoleContext] Fetch ya en progreso - ignorando solicitud duplicada');
       return;
     }
 
-    // 🔥 Cache AGRESIVO: 5 minutos (300s) - Aumentado para mejor performance
+    // Cache AGRESIVO: 5 minutos (300s)
     const now = Date.now();
     const isAdminDemo = user?.email === 'admin.demo@nodexia.com';
     if (!force && !isAdminDemo && lastFetch && (now - lastFetch) < 300000 && user && roles.length > 0) {
-      console.log('📦 [UserRoleContext] Usando datos cacheados (5min)');
-      // Asegurar que loading esté en false
       setLoading(false);
       setIsFetching(false);
       return;
-    }
-    if (isAdminDemo) {
-      console.log('👑 [UserRoleContext] Admin demo detectado - ignorando cache');
     }
 
     try {
@@ -194,12 +188,12 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       setLoading(true);
       setError(null);
 
-      // Timeout de seguridad - 5 segundos máximo
+      // Timeout de seguridad - 10 segundos máximo
       const timeoutId = setTimeout(() => {
-        console.warn('⏱️ [UserRoleContext] Timeout 5s - manteniendo estado actual');
+        console.warn('[UserRoleContext] Timeout - manteniendo estado actual');
         setLoading(false);
         setLastFetch(Date.now());
-      }, 5000);
+      }, 10000);
 
       // First check if we have a session before calling getUser
       const { data: { session } } = await supabase.auth.getSession();
@@ -236,40 +230,24 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       clearTimeout(timeoutId);
 
       // PRIMERO: Verificar si es Super Admin en tabla super_admins
-      console.log('🔍 [UserRoleContext] Verificando super_admins para user:', authUser.id);
       const { data: superAdminData, error: superAdminError } = await supabase
         .from('super_admins')
         .select('activo')
         .eq('user_id', authUser.id)
-        .maybeSingle(); // Cambiado a maybeSingle para evitar error 406
+        .maybeSingle();
 
-      console.log('📊 [UserRoleContext] Super admin check result:', { superAdminData, superAdminError });
-      console.log('🔍 [UserRoleContext] superAdminData value:', superAdminData);
-      console.log('🔍 [UserRoleContext] superAdminData.activo:', superAdminData?.activo);
-      console.log('🔍 [UserRoleContext] Type of activo:', typeof superAdminData?.activo);
-      
       if (superAdminError) {
-        console.warn('⚠️ Error al verificar super_admin:', superAdminError.message);
+        console.warn('[UserRoleContext] Error verificando super_admin:', superAdminError.message);
       }
 
       if (superAdminData && superAdminData.activo === true) {
-        console.log('✅ [UserRoleContext] SUPER ADMIN DETECTADO - Setting role');
         setRoles(['super_admin' as UserRole]);
-        setEmpresaId(null); // Super admin no tiene empresa específica
-        finishFetch(); // Terminar fetch y liberar flags
-        return; // IMPORTANTE: Salir aquí y NO seguir buscando otros roles
-      } else {
-        console.log('❌ [UserRoleContext] Super admin check failed:', {
-          hasSuperAdminData: !!superAdminData,
-          activoValue: superAdminData?.activo,
-          activoIsTrue: superAdminData?.activo === true
-        });
+        setEmpresaId(null);
+        finishFetch();
+        return;
       }
 
-      // 🔥 ACTUALIZADO: Buscar directamente en usuarios_empresa con JOIN a empresas
-      console.log('🔍 [UserRoleContext] Buscando datos de usuario en usuarios_empresa...');
-      console.log('   User ID:', authUser.id);
-      console.log('   Email:', authUser.email);
+      // Buscar datos de usuario en usuarios_empresa con JOIN a empresas
       
       const { data: relacionData, error: relacionError } = await supabase
         .from('usuarios_empresa')
@@ -285,11 +263,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         .eq('user_id', authUser.id)
         .single();
 
-      console.log('📊 [UserRoleContext] Query result:', { relacionData, relacionError });
-
       if (relacionError || !relacionData) {
-        console.warn('⚠️ [UserRoleContext] No se encontró relación única, buscando múltiples...');
-        console.warn('   Error:', relacionError?.message);
           // Buscar múltiples empresas (usuario puede tener varios vínculos)
           const { data: multiRelacionData, error: multiError } = await supabase
             .from('usuarios_empresa')
@@ -304,11 +278,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             `)
             .eq('user_id', authUser.id);
 
-          console.log('📊 [UserRoleContext] Multi-empresa result:', { multiRelacionData, multiError });
-
           if (multiError || !multiRelacionData || multiRelacionData.length === 0) {
-            // Usuario sin empresas asignadas - usar rol por defecto
-            console.warn('⚠️ Usuario sin empresas asignadas');
             setRoles(['coordinador']);
             setEmpresaId(null);
             setTipoEmpresa(null);
@@ -322,7 +292,6 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           const primeraRelacion = multiRelacionData[0];
           
           if (!primeraRelacion) {
-            console.error('❌ No hay relación empresarial disponible');
             setLoading(false);
             return;
           }
@@ -330,11 +299,6 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           const rolInterno = primeraRelacion.rol_interno;
           const empresaIdValue = primeraRelacion.empresa_id;
           const tipoEmpresaValue = (primeraRelacion.empresas as any)?.tipo_empresa;
-
-          console.log('🔍 [UserRoleContext] Datos cargados:');
-          console.log('   - rol_interno:', rolInterno);
-          console.log('   - tipo_empresa:', tipoEmpresaValue);
-          console.log('   - empresa_id:', empresaIdValue);
 
           setEmpresaId(empresaIdValue || null);
           setTipoEmpresa(tipoEmpresaValue || null);
@@ -434,13 +398,6 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
               mappedRole = 'coordinador';
           }
           
-          console.log(`✅ [UserRoleContext] Datos cargados:`);
-          console.log(`   - Rol interno DB: ${rolInterno}`);
-          console.log(`   - Rol mapeado: ${mappedRole}`);
-          console.log(`   - Tipo Empresa: ${tipoEmpresaValue}`);
-          console.log(`   - Empresa ID: ${empresaIdValue}`);
-          console.log(`   - Empresa: ${(relacionData.empresas as any)?.nombre}`);
-          
           setRoles([mappedRole]);
           finishFetch();
           return;
@@ -515,10 +472,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       async (event, session) => {
         if (!mounted) return;
         
-        console.log('🔄 [UserRoleContext] Auth event:', event);
-        
         // SOLO reaccionar a SIGNED_OUT y SIGNED_IN
-        // Ignorar TOKEN_REFRESHED, USER_UPDATED, etc. para evitar reloads innecesarios
         if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
           setRoles([]);
@@ -528,35 +482,23 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         } else if (event === 'SIGNED_IN') {
           // 🔥 NO recargar si ya se inicializó (prevenir loops infinitos)
           if (initializedRef.current && user?.id && session.user.id === user?.id) {
-            console.log('⏸️ [UserRoleContext] SIGNED_IN ignorado - ya inicializado');
             setLoading(false);
             setIsFetching(false);
             return;
           }
-          // Solo recargar si es un usuario DIFERENTE
           if (session.user.id !== user?.id) {
-            console.log('🔄 [UserRoleContext] Nuevo usuario detectado en SIGNED_IN');
             await fetchUserAndRoles();
             initializedRef.current = true;
           }
         } else if (event === 'INITIAL_SESSION') {
-          // Manejar sesión inicial - solo si no hay usuario cargado
-          console.log('🔄 [UserRoleContext] INITIAL_SESSION detectado');
-          
-          // Si ya pasó la inicialización inicial, ignorar este evento
           if (initialLoadDone) {
-            console.log('⏸️ [UserRoleContext] INITIAL_SESSION ignorado - inicialización ya completada');
             setLoading(false);
             setIsFetching(false);
             return;
           }
-          
           if (!user && session) {
-            console.log('🔄 [UserRoleContext] Cargando usuario desde sesión inicial');
             await fetchUserAndRoles();
           } else if (user) {
-            // Ya hay usuario cargado, solo asegurar que loading esté en false
-            console.log('⏸️ [UserRoleContext] Usuario ya cargado, ignorando INITIAL_SESSION');
             setLoading(false);
             setIsFetching(false);
           }
@@ -568,8 +510,6 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     // 🔥 Listener para cuando la página se vuelve visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && user && roles.length > 0) {
-        console.log('👁️ [UserRoleContext] Página visible - verificando sesión');
-        // Solo asegurar que loading esté en false si ya hay datos
         setLoading(false);
         setIsFetching(false);
       }
