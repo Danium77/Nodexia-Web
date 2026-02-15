@@ -354,6 +354,7 @@ const ViajesActivos = () => {
             <option value="llamado_carga">Llamado a Carga</option>
             <option value="cargando">Cargando</option>
             <option value="cargado">Cargado</option>
+            <option value="egreso_origen">Egreso Origen</option>
             <option value="en_transito_destino">→ Destino</option>
             <option value="ingresado_destino">En Planta Destino</option>
             <option value="llamado_descarga">Llamado a Descarga</option>
@@ -519,7 +520,8 @@ const ViajesActivos = () => {
                     { estados: ['llamado_carga'], label: 'Llamado a Carga', color: 'yellow', pulso: true },
                     { estados: ['cargando'], label: 'Cargando', color: 'orange', pulso: true },
                     { estados: ['cargado'], label: 'Cargado', color: 'lime', pulso: false },
-                    { estados: ['egreso_origen', 'en_transito_destino'], label: '→ Destino', color: 'purple', pulso: true },
+                    { estados: ['egreso_origen'], label: 'Egreso Origen', color: 'gray', pulso: false },
+                    { estados: ['en_transito_destino'], label: '→ Destino', color: 'purple', pulso: true },
                     { estados: ['ingresado_destino'], label: 'En Planta Destino', color: 'teal', pulso: false },
                     { estados: ['llamado_descarga'], label: 'Llamado Descarga', color: 'yellow', pulso: true },
                     { estados: ['descargando'], label: 'Descargando', color: 'orange', pulso: true },
@@ -537,7 +539,8 @@ const ViajesActivos = () => {
                     yellow: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', glow: 'shadow-[0_0_16px_rgba(250,204,21,0.9)]', border: 'border-yellow-300' },
                     lime: { bg: 'bg-gradient-to-br from-lime-400 to-lime-600', glow: 'shadow-[0_0_16px_rgba(163,230,53,0.9)]', border: 'border-lime-300' },
                     teal: { bg: 'bg-gradient-to-br from-teal-400 to-teal-600', glow: 'shadow-[0_0_16px_rgba(20,184,166,0.9)]', border: 'border-teal-300' },
-                    red: { bg: 'bg-gradient-to-br from-red-400 to-red-600', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.9)]', border: 'border-red-300' }
+                    red: { bg: 'bg-gradient-to-br from-red-400 to-red-600', glow: 'shadow-[0_0_16px_rgba(239,68,68,0.9)]', border: 'border-red-300' },
+                    gray: { bg: 'bg-gradient-to-br from-gray-400 to-gray-600', glow: 'shadow-[0_0_16px_rgba(156,163,175,0.9)]', border: 'border-gray-300' }
                   };
 
                   return indicadores.map((ind, idx) => {

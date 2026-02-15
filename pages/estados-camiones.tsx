@@ -207,7 +207,7 @@ export default function EstadosCamiones() {
       case 'llamado_carga': return 'Llamado a Carga';
       case 'cargando': return 'Cargando';
       case 'cargado': return 'Cargado';
-      case 'egreso': return 'Listo Salir';
+      case 'egreso': return 'Egreso';
       default: return estado;
     }
   };
@@ -269,7 +269,7 @@ export default function EstadosCamiones() {
           { key: 'llamado_carga' as TabEstado, label: 'Llamado Carga', count: estadosCount.llamado_carga, color: 'yellow', Icon: ExclamationTriangleIcon },
           { key: 'cargando' as TabEstado, label: 'Cargando', count: estadosCount.cargando, color: 'orange', Icon: ExclamationTriangleIcon },
           { key: 'cargado' as TabEstado, label: 'Cargado', count: estadosCount.carga_finalizada, color: 'purple', Icon: CheckCircleIcon },
-          { key: 'egreso' as TabEstado, label: 'Listo Salir', count: estadosCount.egresado_planta, color: 'gray', Icon: ArrowRightOnRectangleIcon },
+          { key: 'egreso' as TabEstado, label: 'Egreso', count: estadosCount.egresado_planta, color: 'gray', Icon: ArrowRightOnRectangleIcon },
         ].map(({ key, label, count, color, Icon }) => (
           <div
             key={key}
