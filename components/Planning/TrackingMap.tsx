@@ -69,12 +69,28 @@ L.Icon.Default.mergeOptions({
 interface TrackingMapProps {
   origen: string;
   destino: string;
+  // Coordenadas reales de las ubicaciones (preferidas sobre geocoding)
+  origenLatitud?: number | null;
+  origenLongitud?: number | null;
+  origenDireccion?: string | null;
+  origenCiudad?: string | null;
+  origenProvincia?: string | null;
+  destinoLatitud?: number | null;
+  destinoLongitud?: number | null;
+  destinoDireccion?: string | null;
+  destinoCiudad?: string | null;
+  destinoProvincia?: string | null;
   transporteNombre?: string | undefined;
-  viajeId?: string | undefined; // ID del viaje para suscribirse a ubicaciones en tiempo real
-  choferId?: string | undefined; // ID del chofer
+  viajeId?: string | undefined;
+  choferId?: string | undefined;
 }
 
-const TrackingMap: React.FC<TrackingMapProps> = ({ origen, destino, transporteNombre, viajeId, choferId }) => {
+const TrackingMap: React.FC<TrackingMapProps> = ({ 
+  origen, destino, 
+  origenLatitud, origenLongitud, origenDireccion, origenCiudad, origenProvincia,
+  destinoLatitud, destinoLongitud, destinoDireccion, destinoCiudad, destinoProvincia,
+  transporteNombre, viajeId, choferId 
+}) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const truckMarkerRef = useRef<L.Marker | null>(null);
@@ -102,20 +118,54 @@ const TrackingMap: React.FC<TrackingMapProps> = ({ origen, destino, transporteNo
       pane: 'shadowPane' // Poner labels arriba
     }).addTo(map);
 
-    // Cargar coordenadas reales con geocoding
+    // Cargar coordenadas: usar coordenadas reales de la BD, fallback a geocoding
     const loadRealCoordinates = async () => {
-      const [origenResult, destinoResult] = await Promise.all([
-        geocodeLocation(`${origen}, Argentina`),
-        geocodeLocation(`${destino}, Argentina`)
-      ]);
+      let origenCoords: Coordinates | null = null;
+      let destinoCoords: Coordinates | null = null;
 
-      if (!origenResult.coordinates || !destinoResult.coordinates) {
-        console.error('No se pudieron obtener las coordenadas');
-        return;
+      // Prioridad 1: Coordenadas directas de la tabla ubicaciones
+      if (origenLatitud && origenLongitud) {
+        origenCoords = { lat: origenLatitud, lng: origenLongitud };
+      }
+      if (destinoLatitud && destinoLongitud) {
+        destinoCoords = { lat: destinoLatitud, lng: destinoLongitud };
       }
 
-      const origenCoords = origenResult.coordinates;
-      const destinoCoords = destinoResult.coordinates;
+      // Prioridad 2: Geocoding con dirección/ciudad/provincia (más preciso que nombre de empresa)
+      if (!origenCoords || !destinoCoords) {
+        const geocodeOrigen = !origenCoords 
+          ? (origenDireccion || origenCiudad 
+            ? `${origenDireccion || ''} ${origenCiudad || ''} ${origenProvincia || ''} Argentina`.trim()
+            : `${origen}, Argentina`)
+          : null;
+        const geocodeDestino = !destinoCoords
+          ? (destinoDireccion || destinoCiudad
+            ? `${destinoDireccion || ''} ${destinoCiudad || ''} ${destinoProvincia || ''} Argentina`.trim()
+            : `${destino}, Argentina`)
+          : null;
+
+        const [origenResult, destinoResult] = await Promise.all([
+          geocodeOrigen ? geocodeLocation(geocodeOrigen) : Promise.resolve(null),
+          geocodeDestino ? geocodeLocation(geocodeDestino) : Promise.resolve(null),
+        ]);
+
+        if (!origenCoords && origenResult?.coordinates) {
+          origenCoords = origenResult.coordinates;
+        }
+        if (!destinoCoords && destinoResult?.coordinates) {
+          destinoCoords = destinoResult.coordinates;
+        }
+      }
+
+      // Si aún no tenemos coordenadas, usar centro de Argentina como fallback
+      if (!origenCoords) {
+        console.warn('No se pudieron obtener coordenadas del origen, usando centro de Argentina');
+        origenCoords = { lat: -32.0, lng: -61.0 }; // Santa Fe aprox
+      }
+      if (!destinoCoords) {
+        console.warn('No se pudieron obtener coordenadas del destino, usando centro de Argentina');
+        destinoCoords = { lat: -34.6, lng: -58.4 }; // Buenos Aires aprox
+      }
 
       // Iconos personalizados
       const origenIcon = L.divIcon({
@@ -203,7 +253,7 @@ const TrackingMap: React.FC<TrackingMapProps> = ({ origen, destino, transporteNo
         mapRef.current = null;
       }
     };
-  }, [origen, destino, transporteNombre, viajeId]);
+  }, [origen, destino, transporteNombre, viajeId, origenLatitud, origenLongitud, destinoLatitud, destinoLongitud]);
 
   // Helper para actualizar posición del camión en el mapa
   const actualizarPosicionCamion = (coords: Coordinates, velocidad?: number) => {

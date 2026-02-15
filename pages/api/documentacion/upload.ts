@@ -119,13 +119,44 @@ export default withAuth(async (req, res, authCtx) => {
     // Leer el archivo
     const fileBuffer = fs.readFileSync(archivo.filepath);
 
-    // Subir a Supabase Storage
-    const { data: storageData, error: storageError } = await supabaseAdmin.storage
-      .from('documentacion-entidades')
+    // Subir a Supabase Storage (auto-crear bucket si no existe)
+    const bucketName = 'documentacion-entidades';
+    
+    let { data: storageData, error: storageError } = await supabaseAdmin.storage
+      .from(bucketName)
       .upload(storage_path, fileBuffer, {
         contentType: archivo.mimetype || 'application/pdf',
         upsert: false,
       });
+
+    // Si el bucket no existe, crearlo y reintentar
+    if (storageError && (storageError.message?.includes('not found') || storageError.message?.includes('Bucket not found') || (storageError as any).statusCode === 404)) {
+      console.log(`📁 Bucket "${bucketName}" no existe, creándolo...`);
+      
+      const { error: createBucketError } = await supabaseAdmin.storage.createBucket(bucketName, {
+        public: false,
+        fileSizeLimit: 10 * 1024 * 1024, // 10MB
+        allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'],
+      });
+      
+      if (createBucketError && !createBucketError.message?.includes('already exists')) {
+        return res.status(500).json({
+          error: 'Error al crear bucket de almacenamiento',
+          details: createBucketError.message
+        });
+      }
+      
+      // Reintentar upload
+      const retryResult = await supabaseAdmin.storage
+        .from(bucketName)
+        .upload(storage_path, fileBuffer, {
+          contentType: archivo.mimetype || 'application/pdf',
+          upsert: false,
+        });
+      
+      storageData = retryResult.data;
+      storageError = retryResult.error;
+    }
 
     if (storageError) {
       return res.status(500).json({
@@ -191,7 +222,7 @@ export default withAuth(async (req, res, authCtx) => {
         file_url: storage_path, // Bucket privado: se generan signed URLs bajo demanda
         file_size: archivo.size,
         mime_type: archivo.mimetype,
-        bucket: 'documentacion-entidades',
+        bucket: bucketName,
         storage_path: storage_path,
         fecha_emision: fechaEmisionFinal,
         fecha_vencimiento: metadata.fecha_vencimiento || null,
@@ -207,7 +238,7 @@ export default withAuth(async (req, res, authCtx) => {
       
       // Intentar eliminar el archivo del storage si falla la inserción en BD
       await supabaseAdmin.storage
-        .from('documentacion-entidades')
+        .from(bucketName)
         .remove([storage_path]);
 
       return res.status(500).json({

@@ -374,7 +374,7 @@ const PlanificacionPage = () => {
         if (todasUbicacionIds.length > 0) {
           const { data: ubicacionesData, error: ubicacionesError } = await supabase
             .from('ubicaciones')
-            .select('id, nombre, provincia, ciudad')
+            .select('id, nombre, provincia, ciudad, direccion, latitud, longitud')
             .in('id', todasUbicacionIds);
 
           if (ubicacionesError) {
@@ -545,11 +545,23 @@ const PlanificacionPage = () => {
         setRecepciones(todosLosItems.filter(v => v.type === 'recepcion'));
         
         // 7. Guardar despachos originales para el TrackingView (con provincia)
-        const despachosConProvincia = todosLosDespachos.map(d => ({
-          ...d,
-          origen_provincia: ubicacionesMap[d.origen_id]?.provincia || null,
-          destino_provincia: ubicacionesMap[d.destino_id]?.provincia || null
-        }));
+        const despachosConProvincia = todosLosDespachos.map(d => {
+          const uOrigen = ubicacionesMap[d.origen_id];
+          const uDestino = ubicacionesMap[d.destino_id];
+          return {
+            ...d,
+            origen_provincia: uOrigen?.provincia || null,
+            destino_provincia: uDestino?.provincia || null,
+            origen_direccion: uOrigen?.direccion || null,
+            origen_ciudad: uOrigen?.ciudad || null,
+            origen_latitud: uOrigen?.latitud || null,
+            origen_longitud: uOrigen?.longitud || null,
+            destino_direccion: uDestino?.direccion || null,
+            destino_ciudad: uDestino?.ciudad || null,
+            destino_latitud: uDestino?.latitud || null,
+            destino_longitud: uDestino?.longitud || null,
+          };
+        });
         setDespachosOriginales(despachosConProvincia);
 
         // 8. Cargar lista de transportes para filtros

@@ -67,6 +67,14 @@ interface Dispatch {
   scheduled_local_time?: string;
   origen_provincia?: string;
   destino_provincia?: string;
+  origen_direccion?: string;
+  origen_ciudad?: string;
+  origen_latitud?: number;
+  origen_longitud?: number;
+  destino_direccion?: string;
+  destino_ciudad?: string;
+  destino_latitud?: number;
+  destino_longitud?: number;
 }
 
 // Estados del viaje — alineados con lib/estados/config.ts
@@ -519,6 +527,16 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                 <TrackingMap 
                   origen={selectedViaje.despacho.origen}
                   destino={selectedViaje.despacho.destino}
+                  origenLatitud={selectedViaje.despacho.origen_latitud}
+                  origenLongitud={selectedViaje.despacho.origen_longitud}
+                  origenDireccion={selectedViaje.despacho.origen_direccion}
+                  origenCiudad={selectedViaje.despacho.origen_ciudad}
+                  origenProvincia={selectedViaje.despacho.origen_provincia}
+                  destinoLatitud={selectedViaje.despacho.destino_latitud}
+                  destinoLongitud={selectedViaje.despacho.destino_longitud}
+                  destinoDireccion={selectedViaje.despacho.destino_direccion}
+                  destinoCiudad={selectedViaje.despacho.destino_ciudad}
+                  destinoProvincia={selectedViaje.despacho.destino_provincia}
                   transporteNombre={selectedViaje.viaje.transporte?.nombre}
                   viajeId={selectedViaje.viaje.id}
                   choferId={selectedViaje.viaje.chofer_id || undefined}
