@@ -22,11 +22,11 @@ export default withAuth(async (req, res, authCtx) => {
   try {
     const data: TrackingData = req.body;
 
-    // Obtener chofer_id del usuario autenticado
+    // Obtener chofer_id del usuario autenticado (usuario_id es la columna canónica)
     const { data: chofer } = await supabaseAdmin
       .from('choferes')
       .select('id')
-      .eq('user_id', authCtx.userId)
+      .eq('usuario_id', authCtx.userId)
       .single();
 
     const chofer_id = chofer?.id || data.chofer_id;

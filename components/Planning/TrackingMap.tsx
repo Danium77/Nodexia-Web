@@ -5,6 +5,59 @@ import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabaseClient';
 import { geocodeLocation, type Coordinates } from '../../lib/services/geocoding';
 
+// Función helper para obtener la última ubicación con múltiples fallbacks
+async function fetchUltimaUbicacion(viajeId: string, choferId?: string): Promise<Coordinates | null> {
+  // Intento 1: RPC get_ultima_ubicacion_viaje
+  try {
+    const { data: ubicacion, error: rpcError } = await supabase
+      .rpc('get_ultima_ubicacion_viaje', { p_viaje_id: viajeId });
+    
+    if (!rpcError && ubicacion && ubicacion.length > 0) {
+      return { lat: parseFloat(ubicacion[0].latitude), lng: parseFloat(ubicacion[0].longitude) };
+    }
+  } catch (e) {
+    console.warn('RPC get_ultima_ubicacion_viaje no disponible, usando fallback');
+  }
+
+  // Intento 2: Query directa a ubicaciones_choferes
+  try {
+    const { data: ubicDirecta } = await supabase
+      .from('ubicaciones_choferes')
+      .select('latitude, longitude')
+      .eq('viaje_id', viajeId)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (ubicDirecta?.latitude && ubicDirecta?.longitude) {
+      return { lat: parseFloat(ubicDirecta.latitude), lng: parseFloat(ubicDirecta.longitude) };
+    }
+  } catch (e) {
+    console.warn('Query ubicaciones_choferes falló, intentando tracking_gps');
+  }
+
+  // Intento 3: Fallback a tracking_gps (usa chofer_id)
+  if (choferId) {
+    try {
+      const { data: trackingData } = await supabase
+        .from('tracking_gps')
+        .select('latitud, longitud')
+        .eq('chofer_id', choferId)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (trackingData?.latitud && trackingData?.longitud) {
+        return { lat: parseFloat(trackingData.latitud), lng: parseFloat(trackingData.longitud) };
+      }
+    } catch (e) {
+      console.warn('Query tracking_gps falló');
+    }
+  }
+
+  return null;
+}
+
 // Fix para iconos por defecto de Leaflet en Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -95,28 +148,21 @@ const TrackingMap: React.FC<TrackingMapProps> = ({ origen, destino, transporteNo
         .addTo(map)
         .bindPopup(`<b>Destino</b><br/>${destino}`);
 
-      // Cargar última ubicación real del chofer o simular
+      // Cargar última ubicación real del chofer con múltiples fallbacks
       let truckCoords: Coordinates;
       
       if (viajeId) {
-        const { data: ubicacion } = await supabase
-          .rpc('get_ultima_ubicacion_viaje', { p_viaje_id: viajeId });
+        const ubicacionReal = await fetchUltimaUbicacion(viajeId, choferId);
         
-        if (ubicacion && ubicacion.length > 0) {
-          truckCoords = { lat: ubicacion[0].latitude, lng: ubicacion[0].longitude };
+        if (ubicacionReal) {
+          truckCoords = ubicacionReal;
         } else {
-          // Simular posición (40% del camino)
-          truckCoords = {
-            lat: origenCoords.lat + (destinoCoords.lat - origenCoords.lat) * 0.4,
-            lng: origenCoords.lng + (destinoCoords.lng - origenCoords.lng) * 0.4
-          };
+          // Sin datos reales — posicionar en origen (no simular posición falsa)
+          truckCoords = { lat: origenCoords.lat, lng: origenCoords.lng };
         }
       } else {
-        // Sin viaje activo, simular
-        truckCoords = {
-          lat: origenCoords.lat + (destinoCoords.lat - origenCoords.lat) * 0.4,
-          lng: origenCoords.lng + (destinoCoords.lng - origenCoords.lng) * 0.4
-        };
+        // Sin viaje activo, posicionar en origen
+        truckCoords = { lat: origenCoords.lat, lng: origenCoords.lng };
       }
 
       // Marcador camión
@@ -159,10 +205,37 @@ const TrackingMap: React.FC<TrackingMapProps> = ({ origen, destino, transporteNo
     };
   }, [origen, destino, transporteNombre, viajeId]);
 
-  // Suscripción en tiempo real a ubicaciones del chofer
+  // Helper para actualizar posición del camión en el mapa
+  const actualizarPosicionCamion = (coords: Coordinates, velocidad?: number) => {
+    if (truckMarkerRef.current) {
+      truckMarkerRef.current.setLatLng([coords.lat, coords.lng]);
+      
+      const velocidadText = velocidad 
+        ? `<br/><small>🚀 ${Math.round(velocidad)} km/h</small>` 
+        : '';
+      
+      truckMarkerRef.current.setPopupContent(
+        `<div style="min-width: 150px;"><b>🚛 En Ruta</b><br/><small>${transporteNombre || 'Transporte'}</small><br/><span style="color: #06b6d4;">● Ubicación en vivo</span>${velocidadText}</div>`
+      );
+    }
+    
+    if (routeLineRef.current) {
+      const currentLatLngs = routeLineRef.current.getLatLngs() as L.LatLng[];
+      if (currentLatLngs.length === 3 && currentLatLngs[0] && currentLatLngs[2]) {
+        routeLineRef.current.setLatLngs([
+          currentLatLngs[0],
+          [coords.lat, coords.lng],
+          currentLatLngs[2]
+        ]);
+      }
+    }
+  };
+
+  // Suscripción en tiempo real a ubicaciones del chofer + polling de respaldo
   useEffect(() => {
     if (!viajeId || !choferId) return;
 
+    // Suscripción realtime a ubicaciones_choferes
     const channel = supabase
       .channel(`ubicaciones_chofer_${choferId}`)
       .on(
@@ -174,46 +247,50 @@ const TrackingMap: React.FC<TrackingMapProps> = ({ origen, destino, transporteNo
           filter: `viaje_id=eq.${viajeId}`
         },
         (payload) => {
-          console.log('📍 Nueva ubicación recibida:', payload);
+          console.log('📍 Nueva ubicación recibida (ubicaciones_choferes):', payload);
           const newLocation = payload.new as any;
           
           if (newLocation.latitude && newLocation.longitude) {
-          const coords: Coordinates = {
-            lat: parseFloat(newLocation.latitude),
-            lng: parseFloat(newLocation.longitude)
-          };            // Actualizar marcador del camión
-            if (truckMarkerRef.current) {
-              truckMarkerRef.current.setLatLng([coords.lat, coords.lng]);
-              
-              // Actualizar popup con velocidad si está disponible
-              const velocidadText = newLocation.velocidad 
-                ? `<br/><small>🚀 ${Math.round(newLocation.velocidad)} km/h</small>` 
-                : '';
-              
-              truckMarkerRef.current.setPopupContent(
-                `<div style="min-width: 150px;"><b>🚛 En Ruta</b><br/><small>${transporteNombre || 'Transporte'}</small><br/><span style="color: #06b6d4;">● Ubicación en vivo</span>${velocidadText}</div>`
-              );
-            }
-            
-            // Actualizar línea de ruta si existe
-            if (routeLineRef.current) {
-              const currentLatLngs = routeLineRef.current.getLatLngs() as L.LatLng[];
-              if (currentLatLngs.length === 3 && currentLatLngs[0] && currentLatLngs[2]) {
-                // Actualizar punto medio (camión) manteniendo origen y destino
-                routeLineRef.current.setLatLngs([
-                  currentLatLngs[0], // origen
-                  [coords.lat, coords.lng], // nueva posición camión
-                  currentLatLngs[2] // destino
-                ]);
-              }
-            }
+            actualizarPosicionCamion(
+              { lat: parseFloat(newLocation.latitude), lng: parseFloat(newLocation.longitude) },
+              newLocation.velocidad ? parseFloat(newLocation.velocidad) : undefined
+            );
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'tracking_gps',
+          filter: `chofer_id=eq.${choferId}`
+        },
+        (payload) => {
+          console.log('📍 Nueva ubicación recibida (tracking_gps):', payload);
+          const newLocation = payload.new as any;
+          
+          if (newLocation.latitud && newLocation.longitud) {
+            actualizarPosicionCamion(
+              { lat: parseFloat(newLocation.latitud), lng: parseFloat(newLocation.longitud) },
+              newLocation.velocidad ? parseFloat(newLocation.velocidad) : undefined
+            );
           }
         }
       )
       .subscribe();
 
+    // Polling de respaldo cada 15 segundos (por si realtime no funciona)
+    const pollInterval = setInterval(async () => {
+      const ubicacion = await fetchUltimaUbicacion(viajeId, choferId);
+      if (ubicacion) {
+        actualizarPosicionCamion(ubicacion);
+      }
+    }, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [viajeId, choferId, transporteNombre]);
 
