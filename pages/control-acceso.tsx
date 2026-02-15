@@ -28,6 +28,9 @@ interface ViajeQR {
   producto: string;
   chofer: any;
   camion: any;
+  chofer_id?: string;
+  camion_id?: string;
+  acoplado_id?: string;
   fecha_programada?: string;
   documentacion_validada: boolean;
   docs_chofer: {
@@ -163,7 +166,7 @@ export default function ControlAcceso() {
         return;
       }
 
-      // Paso 2: Obtener ubicaciones con empresa_id para detectar tipo de operación
+      // Paso 2: Obtener ubicaciones para nombres de origen/destino
       // Usar origen_id/destino_id (UUIDs) si existen, fallback a origen/destino (texto)
       const origenRef = despacho.origen_id || despacho.origen;
       const destinoRef = despacho.destino_id || despacho.destino;
@@ -172,7 +175,7 @@ export default function ControlAcceso() {
       const { data: ubicaciones, error: ubicacionesError } = ubicacionIds.length > 0
         ? await supabase
             .from('ubicaciones')
-            .select('id, nombre, tipo, empresa_id')
+            .select('id, nombre, tipo')
             .in('id', ubicacionIds)
         : { data: [], error: null };
 
@@ -181,11 +184,24 @@ export default function ControlAcceso() {
       }
 
       // Paso 2.5: Verificar que el despacho pertenece a la empresa del usuario
-      // Permitimos acceso si la empresa es origen O destino
-      const origenUbicacionCheck = ubicaciones?.find(u => u.id === origenRef);
-      const destinoUbicacionCheck = ubicaciones?.find(u => u.id === destinoRef);
-      const esOrigen = origenUbicacionCheck?.empresa_id === empresaId;
-      const esDestino = destinoUbicacionCheck?.empresa_id === empresaId;
+      // Verificar via empresa_ubicaciones junction table
+      let esOrigen = false;
+      let esDestino = false;
+
+      if (empresaId && ubicacionIds.length > 0) {
+        const { data: empresaUbicaciones } = await supabase
+          .from('empresa_ubicaciones')
+          .select('ubicacion_id, es_origen, es_destino')
+          .eq('empresa_id', empresaId)
+          .in('ubicacion_id', ubicacionIds);
+
+        if (empresaUbicaciones && empresaUbicaciones.length > 0) {
+          const origenMatch = empresaUbicaciones.find(eu => eu.ubicacion_id === origenRef);
+          const destinoMatch = empresaUbicaciones.find(eu => eu.ubicacion_id === destinoRef);
+          esOrigen = !!origenMatch;
+          esDestino = !!destinoMatch;
+        }
+      }
 
       if (!esOrigen && !esDestino) {
         // Fallback: verificar por created_by (compatibilidad)
@@ -295,6 +311,9 @@ export default function ControlAcceso() {
         despacho_id: despacho.id,
         planta_origen_id: despacho.origen,
         planta_destino_id: despacho.destino,
+        chofer_id: viajeData.chofer_id || undefined,
+        camion_id: viajeData.camion_id || undefined,
+        acoplado_id: viajeData.acoplado_id || undefined,
         origen_nombre: origenUbicacion?.nombre || 'Origen desconocido',
         destino_nombre: destinoUbicacion?.nombre || 'Destino desconocido',
         estado_unidad: estadoUnidad as EstadoUnidadViajeType,
@@ -1083,6 +1102,9 @@ export default function ControlAcceso() {
       {showDocumentacion && viaje && (
         <DocumentacionDetalle
           numeroViaje={viaje.numero_viaje}
+          choferId={viaje.chofer_id}
+          camionId={viaje.camion_id}
+          acopladoId={viaje.acoplado_id}
           onClose={handleCloseDocumentacion}
         />
       )}
