@@ -21,6 +21,13 @@ import { supabase } from '../lib/supabaseClient';
 import type { EstadoUnidadViaje } from '../lib/types';
 
 // ─── Tipos ──────────────────────────────────────────────────────
+interface DocStatus {
+  total: number;
+  vigentes: number;
+  vencidos: number;
+  pendientes: number;
+}
+
 interface ViajeParaCarga {
   id: string;
   numero_viaje: string;
@@ -30,7 +37,11 @@ interface ViajeParaCarga {
   destino: string;
   chofer: { nombre: string; dni: string };
   camion: { patente: string; marca: string };
+  acoplado: { patente: string; marca: string } | null;
   tipo_operacion: 'carga' | 'descarga';
+  docs_chofer: DocStatus;
+  docs_camion: DocStatus;
+  docs_acoplado: DocStatus | null;
 }
 
 // ─── Labels de estado para UI ───────────────────────────────────
@@ -94,27 +105,40 @@ export default function SupervisorCarga() {
 
     setLoadingViajes(true);
     try {
+      // Paso 1: Obtener usuarios de la misma empresa para filtrar despachos
+      const { data: companyUsers } = await supabase
+        .from('usuarios_empresa')
+        .select('user_id')
+        .eq('empresa_id', empresaId)
+        .eq('activo', true);
+
+      const allUserIds = [...new Set((companyUsers || []).map(u => u.user_id).filter(Boolean))];
+
+      if (allUserIds.length === 0) {
+        setViajes([]);
+        return;
+      }
+
+      // Paso 2: Obtener despachos de la empresa
+      const { data: despachos, error: despError } = await supabase
+        .from('despachos')
+        .select('id, origen, destino')
+        .in('created_by', allUserIds);
+
+      if (despError || !despachos || despachos.length === 0) {
+        if (despError) console.error('❌ [supervisor-carga] Error cargando despachos:', despError);
+        setViajes([]);
+        return;
+      }
+
+      const despachoIds = despachos.map(d => d.id);
+      const despachosMap = new Map(despachos.map(d => [d.id, d]));
+
+      // Paso 3: Obtener viajes en estados relevantes
       const { data, error } = await supabase
         .from('viajes_despacho')
-        .select(`
-          id,
-          numero_viaje,
-          estado,
-          chofer_id,
-          camion_id,
-          despacho_id,
-          despachos (
-            id,
-            pedido_id,
-            origen,
-            destino,
-            origen_empresa_id,
-            destino_empresa_id
-          ),
-          estado_carga_viaje (
-            estado_carga
-          )
-        `)
+        .select('id, numero_viaje, estado, chofer_id, camion_id, acoplado_id, despacho_id')
+        .in('despacho_id', despachoIds)
         .in('estado', ESTADOS_SUPERVISOR)
         .order('created_at', { ascending: true });
 
@@ -123,52 +147,69 @@ export default function SupervisorCarga() {
         return;
       }
 
-      console.log('📦 [supervisor-carga] Viajes crudos (antes de filtro empresa):', data?.length || 0, data);
-
-      // Filtrar: carga (origen) + descarga (destino) según empresa del supervisor
-      const viajesFiltrados = (data || []).filter((v: any) => {
-        const despacho = Array.isArray(v.despachos) ? v.despachos[0] : v.despachos;
-        const esCarga = despacho?.origen_empresa_id === empresaId;
-        const esDescarga = despacho?.destino_empresa_id === empresaId;
-        return esCarga || esDescarga;
-      });
-
+      const viajesFiltrados = data || [];
       console.log('✅ [supervisor-carga] Viajes filtrados:', viajesFiltrados.length);
 
-      // Traer choferes y camiones por ID (queries directas para esquivar RLS)
+      // Traer choferes, camiones y acoplados por ID
       const choferIds = [...new Set(viajesFiltrados.map((v: any) => v.chofer_id).filter(Boolean))];
       const camionIds = [...new Set(viajesFiltrados.map((v: any) => v.camion_id).filter(Boolean))];
+      const acopladoIds = [...new Set(viajesFiltrados.map((v: any) => v.acoplado_id).filter(Boolean))];
 
-      let choferesMap: Record<string, any> = {};
-      let camionesMap: Record<string, any> = {};
+      const [choferesRes, camionesRes, acopladosRes] = await Promise.all([
+        choferIds.length > 0
+          ? supabase.from('choferes').select('id, nombre, apellido, dni').in('id', choferIds)
+          : Promise.resolve({ data: [] }),
+        camionIds.length > 0
+          ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
+          : Promise.resolve({ data: [] }),
+        acopladoIds.length > 0
+          ? supabase.from('acoplados').select('id, patente, marca, modelo').in('id', acopladoIds)
+          : Promise.resolve({ data: [] }),
+      ]);
 
-      if (choferIds.length > 0) {
-        const { data: choferes } = await supabase
-          .from('choferes')
-          .select('id, nombre, apellido, dni')
-          .in('id', choferIds);
-        if (choferes) {
-          choferes.forEach((c: any) => { choferesMap[c.id] = c; });
+      const choferesMap: Record<string, any> = {};
+      const camionesMap: Record<string, any> = {};
+      const acopladosMap: Record<string, any> = {};
+      (choferesRes.data || []).forEach((c: any) => { choferesMap[c.id] = c; });
+      (camionesRes.data || []).forEach((c: any) => { camionesMap[c.id] = c; });
+      (acopladosRes.data || []).forEach((a: any) => { acopladosMap[a.id] = a; });
+
+      // Traer estado de documentación para cada entidad
+      const allEntityIds = [...choferIds, ...camionIds, ...acopladoIds];
+      let docsMap: Record<string, DocStatus> = {};
+      if (allEntityIds.length > 0) {
+        const { data: docs } = await supabase
+          .from('documentos_entidad')
+          .select('entidad_id, estado_vigencia')
+          .in('entidad_id', allEntityIds)
+          .eq('activo', true);
+
+        if (docs) {
+          // Agrupar por entidad_id
+          const grouped: Record<string, any[]> = {};
+          docs.forEach(d => {
+            if (!grouped[d.entidad_id]) grouped[d.entidad_id] = [];
+            grouped[d.entidad_id].push(d);
+          });
+          Object.entries(grouped).forEach(([id, docList]) => {
+            docsMap[id] = {
+              total: docList.length,
+              vigentes: docList.filter(d => d.estado_vigencia === 'vigente' || d.estado_vigencia === 'validado').length,
+              vencidos: docList.filter(d => d.estado_vigencia === 'vencido' || d.estado_vigencia === 'rechazado').length,
+              pendientes: docList.filter(d => d.estado_vigencia === 'pendiente_validacion' || d.estado_vigencia === 'pendiente').length,
+            };
+          });
         }
       }
 
-      if (camionIds.length > 0) {
-        const { data: camiones } = await supabase
-          .from('camiones')
-          .select('id, patente, marca, modelo')
-          .in('id', camionIds);
-        if (camiones) {
-          camiones.forEach((c: any) => { camionesMap[c.id] = c; });
-        }
-      }
+      const emptyDocs: DocStatus = { total: 0, vigentes: 0, vencidos: 0, pendientes: 0 };
 
       const formateados: ViajeParaCarga[] = viajesFiltrados.map((v: any) => {
-        const despacho = Array.isArray(v.despachos) ? v.despachos[0] : v.despachos;
-        const carga = Array.isArray(v.estado_carga_viaje) ? v.estado_carga_viaje[0] : v.estado_carga_viaje;
+        const despacho = despachosMap.get(v.despacho_id);
         const chofer = choferesMap[v.chofer_id];
         const camion = camionesMap[v.camion_id];
+        const acoplado = v.acoplado_id ? acopladosMap[v.acoplado_id] : null;
 
-        // Determinar si es carga (origen) o descarga (destino)
         const esCarga = ESTADOS_CARGA.includes(v.estado);
         const tipo_operacion = esCarga ? 'carga' as const : 'descarga' as const;
 
@@ -176,7 +217,7 @@ export default function SupervisorCarga() {
           id: v.id,
           numero_viaje: String(v.numero_viaje),
           estado: v.estado || 'ingresado_origen',
-          estado_carga: carga?.estado_carga || 'pendiente',
+          estado_carga: 'pendiente',
           origen: despacho?.origen || '-',
           destino: despacho?.destino || '-',
           chofer: chofer
@@ -185,7 +226,13 @@ export default function SupervisorCarga() {
           camion: camion
             ? { patente: camion.patente, marca: `${camion.marca} ${camion.modelo || ''}`.trim() }
             : { patente: 'Sin asignar', marca: '-' },
+          acoplado: acoplado
+            ? { patente: acoplado.patente, marca: `${acoplado.marca} ${acoplado.modelo || ''}`.trim() }
+            : null,
           tipo_operacion,
+          docs_chofer: v.chofer_id ? (docsMap[v.chofer_id] || emptyDocs) : emptyDocs,
+          docs_camion: v.camion_id ? (docsMap[v.camion_id] || emptyDocs) : emptyDocs,
+          docs_acoplado: v.acoplado_id ? (docsMap[v.acoplado_id] || emptyDocs) : null,
         };
       });
 
@@ -542,6 +589,7 @@ export default function SupervisorCarga() {
         }
       }
 
+      const emptyDocs: DocStatus = { total: 0, vigentes: 0, vencidos: 0, pendientes: 0 };
       setViajeEscaneado({
         id: viajeData.id,
         numero_viaje: String(viajeData.numero_viaje),
@@ -551,7 +599,11 @@ export default function SupervisorCarga() {
         destino: despacho.destino || '-',
         chofer: { nombre: choferNombre, dni: choferDni },
         camion: { patente: camionPatente, marca: camionMarca },
+        acoplado: null,
         tipo_operacion: ESTADOS_CARGA.includes(viajeData.estado) ? 'carga' : 'descarga',
+        docs_chofer: emptyDocs,
+        docs_camion: emptyDocs,
+        docs_acoplado: null,
       });
 
       showMessage(`Viaje ${viajeData.numero_viaje} encontrado`);
@@ -734,35 +786,68 @@ export default function SupervisorCarga() {
     return null;
   };
 
+  // ─── Helper de doc badge ───────────────────────────────────────
+  const renderDocBadge = (docs: DocStatus) => {
+    if (docs.total === 0) return <span className="text-xs text-slate-500">Sin docs</span>;
+    if (docs.vencidos > 0) return <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800">⚠ {docs.vencidos} venc.</span>;
+    if (docs.pendientes > 0) return <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-900/50 text-yellow-400 border border-yellow-800">⏳ {docs.pendientes} pend.</span>;
+    return <span className="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-400 border border-green-800">✅ OK</span>;
+  };
+
   // ─── Tarjeta de viaje reutilizable ─────────────────────────────
   const renderViajeCard = (v: ViajeParaCarga) => (
     <div key={v.id} className="border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors bg-slate-800/50">
-      <div className="flex justify-between items-start mb-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <p className="font-bold text-lg text-slate-100">#{v.numero_viaje}</p>
-            {getEstadoBadge(v.estado, v.estado_carga)}
+      {/* Header: número + estado + acción */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-lg text-slate-100">#{v.numero_viaje}</span>
+          {getEstadoBadge(v.estado, v.estado_carga)}
+        </div>
+        <div className="shrink-0">
+          {renderAcciones(v)}
+        </div>
+      </div>
+
+      {/* Destino */}
+      <div className="mb-3 text-sm">
+        <span className="text-slate-500">Destino:</span>{' '}
+        <span className="text-slate-200 font-medium">{v.destino}</span>
+      </div>
+
+      {/* Grid: Chofer / Camión / Acoplado */}
+      <div className={`grid gap-3 ${v.acoplado ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {/* Chofer */}
+        <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-xs text-slate-500 font-semibold uppercase">👤 Chofer</span>
           </div>
-          <p className="text-sm text-slate-300">{v.origen} → {v.destino}</p>
+          <p className="text-sm text-slate-200 font-medium truncate">{v.chofer.nombre}</p>
+          <p className="text-xs text-slate-400">DNI: {v.chofer.dni}</p>
+          <div className="mt-1.5">{renderDocBadge(v.docs_chofer)}</div>
         </div>
-        <div className="text-right space-y-1">
-          <p className="text-sm text-slate-300 font-medium">{v.camion.patente}</p>
+
+        {/* Camión */}
+        <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-xs text-slate-500 font-semibold uppercase">🚛 Camión</span>
+          </div>
+          <p className="text-sm text-slate-200 font-medium">{v.camion.patente}</p>
           <p className="text-xs text-slate-400">{v.camion.marca}</p>
+          <div className="mt-1.5">{renderDocBadge(v.docs_camion)}</div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-        <div>
-          <span className="text-slate-500">Chofer:</span>{' '}
-          <span className="text-slate-300">{v.chofer.nombre}</span>
-        </div>
-        <div>
-          <span className="text-slate-500">Ruta:</span>{' '}
-          <span className="text-slate-300">{v.origen} → {v.destino}</span>
-        </div>
+        {/* Acoplado (si existe) */}
+        {v.acoplado && v.docs_acoplado && (
+          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-xs text-slate-500 font-semibold uppercase">🔗 Acoplado</span>
+            </div>
+            <p className="text-sm text-slate-200 font-medium">{v.acoplado.patente}</p>
+            <p className="text-xs text-slate-400">{v.acoplado.marca}</p>
+            <div className="mt-1.5">{renderDocBadge(v.docs_acoplado)}</div>
+          </div>
+        )}
       </div>
-
-      {renderAcciones(v)}
     </div>
   );
 
