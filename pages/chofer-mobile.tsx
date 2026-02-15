@@ -99,6 +99,12 @@ export default function ChoferMobile() {
   const [incidenciaDescripcion, setIncidenciaDescripcion] = useState<string>('');
   const [reportandoIncidencia, setReportandoIncidencia] = useState(false);
 
+  // Remito de entrega (destino sin Nodexia)
+  const [remitoEntregaFile, setRemitoEntregaFile] = useState<File | null>(null);
+  const [remitoEntregaPreview, setRemitoEntregaPreview] = useState<string | null>(null);
+  const [remitoEntregaSubido, setRemitoEntregaSubido] = useState(false);
+  const [subiendoRemitoEntrega, setSubiendoRemitoEntrega] = useState(false);
+
   // Debug helper - agregar logs visibles
   const addDebugLog = (message: string) => {
     console.log(message);
@@ -591,6 +597,101 @@ export default function ChoferMobile() {
       setError('Error al registrar llegada: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ─── Remito de entrega (descarga en destino sin Nodexia) ─────────
+  const handleRemitoEntregaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError('El archivo no puede superar 10 MB');
+      return;
+    }
+    setRemitoEntregaFile(file);
+    setRemitoEntregaSubido(false);
+    const reader = new FileReader();
+    reader.onload = (ev) => setRemitoEntregaPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const limpiarRemitoEntrega = () => {
+    setRemitoEntregaFile(null);
+    setRemitoEntregaPreview(null);
+    setRemitoEntregaSubido(false);
+  };
+
+  const handleCompletarEntrega = async () => {
+    if (!viajeActivo || !user?.id || !remitoEntregaFile) return;
+
+    try {
+      setLoading(true);
+
+      // 1. Subir remito de entrega
+      setSubiendoRemitoEntrega(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Sesión expirada');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', remitoEntregaFile);
+      formData.append('viaje_id', viajeActivo.id);
+
+      const uploadRes = await fetch('/api/upload-remito', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      const uploadResult = await uploadRes.json();
+      if (!uploadRes.ok || !uploadResult.success) {
+        throw new Error(uploadResult.error || 'Error subiendo remito');
+      }
+      setRemitoEntregaSubido(true);
+      setSubiendoRemitoEntrega(false);
+
+      // 2. Transición: ingresado_destino → descargado
+      const res1 = await fetchWithAuth('/api/viajes/actualizar-estado', {
+        method: 'POST',
+        body: JSON.stringify({ viaje_id: viajeActivo.id, nuevo_estado: 'descargado' }),
+      });
+      if (!res1.ok) {
+        const err1 = await res1.json();
+        throw new Error(err1.error || 'Error actualizando a descargado');
+      }
+
+      // 3. Transición: descargado → egreso_destino
+      const res2 = await fetchWithAuth('/api/viajes/actualizar-estado', {
+        method: 'POST',
+        body: JSON.stringify({ viaje_id: viajeActivo.id, nuevo_estado: 'egreso_destino' }),
+      });
+      if (!res2.ok) {
+        const err2 = await res2.json();
+        throw new Error(err2.error || 'Error actualizando a egreso_destino');
+      }
+
+      // 4. Transición: egreso_destino → completado
+      const res3 = await fetchWithAuth('/api/viajes/actualizar-estado', {
+        method: 'POST',
+        body: JSON.stringify({ viaje_id: viajeActivo.id, nuevo_estado: 'completado' }),
+      });
+      if (!res3.ok) {
+        const err3 = await res3.json();
+        throw new Error(err3.error || 'Error completando viaje');
+      }
+
+      setMessage('✅ Entrega completada — viaje cerrado');
+      const viajeActualizado = { ...viajeActivo, estado: 'completado' };
+      setViajeActivo(viajeActualizado);
+      setViajes(viajes.map(v => v.id === viajeActivo.id ? viajeActualizado : v));
+      limpiarRemitoEntrega();
+    } catch (error: any) {
+      setError('Error al completar entrega: ' + error.message);
+    } finally {
+      setLoading(false);
+      setSubiendoRemitoEntrega(false);
     }
   };
 
@@ -1259,12 +1360,56 @@ export default function ChoferMobile() {
             )}
 
             {viajeActivo.estado === 'ingresado_destino' && (
-              <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/40 rounded-xl p-5 text-center backdrop-blur-sm">
-                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="text-2xl">🏭</span>
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/40 rounded-xl p-4 text-center backdrop-blur-sm">
+                  <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-2xl">🏭</span>
+                  </div>
+                  <p className="text-blue-400 font-bold text-lg mb-1">Ingreso a destino registrado</p>
+                  <p className="text-sm text-slate-300">Subí el remito firmado de entrega para completar</p>
                 </div>
-                <p className="text-blue-400 font-bold text-lg mb-2">Ingreso a destino registrado</p>
-                <p className="text-sm text-slate-300">Esperando llamado a descarga del supervisor</p>
+
+                {/* Subir Remito de Entrega */}
+                <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
+                  <p className="text-sm font-semibold text-white mb-3">📄 Remito de Entrega</p>
+                  
+                  {remitoEntregaPreview ? (
+                    <div className="space-y-3">
+                      <div className="relative rounded-lg overflow-hidden border border-slate-600">
+                        <img src={remitoEntregaPreview} alt="Remito" className="w-full max-h-48 object-contain bg-slate-900" />
+                        <button
+                          onClick={limpiarRemitoEntrega}
+                          className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-lg"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {remitoEntregaSubido && (
+                        <p className="text-green-400 text-xs text-center">✓ Remito subido correctamente</p>
+                      )}
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-500 transition-colors">
+                      <ArrowUpTrayIcon className="h-8 w-8 text-slate-400 mb-2" />
+                      <span className="text-sm text-slate-300">Tocar para sacar foto o elegir archivo</span>
+                      <span className="text-xs text-slate-500 mt-1">Máximo 10 MB</span>
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleRemitoEntregaChange} />
+                    </label>
+                  )}
+                </div>
+
+                {/* Botón Completar Entrega */}
+                <button
+                  onClick={handleCompletarEntrega}
+                  disabled={loading || !remitoEntregaFile || subiendoRemitoEntrega}
+                  className="w-full bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100 flex items-center justify-center space-x-3 relative overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+                  <CheckCircleIcon className="h-7 w-7 relative z-10" />
+                  <span className="relative z-10">
+                    {subiendoRemitoEntrega ? 'Subiendo remito...' : loading ? 'Procesando...' : '✅ Completar Entrega'}
+                  </span>
+                </button>
               </div>
             )}
 

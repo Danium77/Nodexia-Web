@@ -600,7 +600,7 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
                   {/* Estado Carga */}
                   <div className="col-span-1">
                     <span className="text-gray-400 block text-[9px] mb-0.5 font-semibold uppercase tracking-wider">📊 Estado</span>
-                  {selectedViaje.viaje.estado_carga_viaje ? (
+                  {selectedViaje.viaje.estado_carga_viaje && ['ingresado_origen', 'llamado_carga', 'cargando', 'cargado'].includes(selectedViaje.viaje.estado) ? (
                       <EstadoDualBadge
                         tipo="carga"
                         estado={selectedViaje.viaje.estado_carga_viaje.estado_carga}
