@@ -91,43 +91,63 @@ export function useChoferes() {
       }
 
       // La tabla choferes usa empresa_id Y id_transporte para asociar con la EMPRESA
-      chofer.empresa_id = userEmpresa.empresa_id;
-      (chofer as any).id_transporte = userEmpresa.empresa_id;
+      const empresaId = userEmpresa.empresa_id;
+      chofer.empresa_id = empresaId;
+      (chofer as any).id_transporte = empresaId;
       chofer.usuario_alta = user.id;
 
-      const { data, error: insertError } = await supabase
+      // Verificar si ya existe un chofer con ese DNI (puede estar desvinculado)
+      const { data: existente } = await supabase
         .from('choferes')
-        .insert([chofer])
-        .select();
-        
-      if (insertError) {
-        console.error('Error al insertar chofer:', insertError);
-        
-        // Manejar errores específicos de base de datos
-        let errorMessage = 'Error al crear chofer';
-        
-        if (insertError && typeof insertError === 'object') {
-          const errorCode = insertError.code;
-          const errorDetails = insertError.details || '';
+        .select('id, empresa_id')
+        .eq('dni', chofer.dni)
+        .maybeSingle();
+
+      let data;
+      if (existente) {
+        // Si ya existe, re-vincular a esta empresa (UPDATE en vez de INSERT)
+        const { data: updated, error: updateError } = await supabase
+          .from('choferes')
+          .update({
+            empresa_id: empresaId,
+            id_transporte: empresaId,
+            nombre: chofer.nombre,
+            apellido: chofer.apellido,
+            telefono: chofer.telefono,
+            foto_url: chofer.foto_url,
+            usuario_id: chofer.usuario_id,
+          })
+          .eq('id', existente.id)
+          .select();
+
+        if (updateError) {
+          console.error('Error al re-vincular chofer:', updateError);
+          throw new Error(updateError.message || 'Error al vincular chofer existente');
+        }
+        data = updated;
+      } else {
+        // No existe, insertar nuevo
+        const { data: inserted, error: insertError } = await supabase
+          .from('choferes')
+          .insert([chofer])
+          .select();
           
-          if (errorCode === '23505' || errorDetails.includes('unique')) {
-            if (errorDetails.includes('dni')) {
-              errorMessage = 'Ya existe un chofer con ese DNI';
-            } else {
-              errorMessage = 'Ya existe un registro con esos datos';
-            }
-          } else if (errorCode === '23503') {
+        if (insertError) {
+          console.error('Error al insertar chofer:', insertError);
+          
+          let errorMessage = 'Error al crear chofer';
+          if (insertError.code === '23503') {
             errorMessage = 'Error de referencia en la base de datos';
-          } else if (errorCode === '42501') {
+          } else if (insertError.code === '42501') {
             errorMessage = 'No tiene permisos para realizar esta operación';
           } else {
-            errorMessage = insertError.message ||
-                          insertError.details ||
-                          'Error desconocido en la base de datos';
+            errorMessage = insertError.message || 'Error desconocido en la base de datos';
           }
+          throw new Error(errorMessage);
         }
-        throw new Error(errorMessage);
+        data = inserted;
       }
+
       setChoferes((prev) => [...prev, ...(data || [])]);
       return data?.[0];
     } catch (error) {
