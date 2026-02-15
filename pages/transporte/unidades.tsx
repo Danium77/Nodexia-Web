@@ -82,15 +82,63 @@ const UnidadesOperativas = () => {
         return;
       }
 
+      // IMPORTANTE: Consultar directamente unidades_operativas para incluir TODAS (activas e inactivas)
+      // La vista vista_disponibilidad_unidades filtra solo activas, ocultando unidades para eliminar
       const { data, error: err } = await supabase
-        .from('vista_disponibilidad_unidades')
-        .select('*')
+        .from('unidades_operativas')
+        .select(`
+          id,
+          codigo,
+          nombre,
+          chofer_id,
+          camion_id,
+          acoplado_id,
+          activo,
+          horas_conducidas_hoy,
+          necesita_descanso_obligatorio,
+          notas,
+          choferes:chofer_id (
+            nombre:nombre,
+            apellido:apellido,
+            telefono:telefono
+          ),
+          camiones:camion_id (
+            patente:patente,
+            marca:marca,
+            modelo:modelo
+          ),
+          acoplados:acoplado_id (
+            patente:patente
+          )
+        `)
         .eq('empresa_id', empresaTransporte.empresa_id)
+        .order('activo', { ascending: false })  // Activas primero
         .order('codigo', { ascending: true });
 
       if (err) throw err;
 
-      setUnidades(data || []);
+      // Mapear resultado al formato esperado por el componente
+      const mappedData = (data || []).map((u: any) => ({
+        id: u.id,
+        codigo: u.codigo,
+        nombre: u.nombre,
+        chofer_id: u.chofer_id,
+        camion_id: u.camion_id,
+        acoplado_id: u.acoplado_id,
+        activo: u.activo,
+        horas_conducidas_hoy: u.horas_conducidas_hoy || 0,
+        necesita_descanso_obligatorio: u.necesita_descanso_obligatorio || false,
+        notas: u.notas,
+        chofer_nombre: u.choferes?.nombre || '',
+        chofer_apellido: u.choferes?.apellido || '',
+        chofer_telefono: u.choferes?.telefono || '',
+        camion_patente: u.camiones?.patente || '',
+        camion_marca: u.camiones?.marca || '',
+        camion_modelo: u.camiones?.modelo || '',
+        acoplado_patente: u.acoplados?.patente || '',
+      }));
+
+      setUnidades(mappedData);
     } catch (err: any) {
       console.error('Error al cargar unidades:', err);
       setError(err.message || 'Error al cargar unidades');
