@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
 import { useRouter } from 'next/router';
 import FormCard from '../ui/FormCard';
+import CrearUnidadModal from './CrearUnidadModal';
 import {
   TruckIcon,
   UserIcon,
@@ -10,6 +11,10 @@ import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ClockIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 
 type FiltroTipo = 'todos' | 'camiones' | 'acoplados' | 'choferes';
@@ -42,6 +47,26 @@ interface Chofer {
   usuario_id?: string;
 }
 
+interface UnidadOperativa {
+  id: string;
+  codigo: string;
+  nombre: string;
+  chofer_id: string;
+  camion_id: string;
+  acoplado_id?: string;
+  activo: boolean;
+  horas_conducidas_hoy: number;
+  necesita_descanso_obligatorio: boolean;
+  notas?: string;
+  chofer_nombre?: string;
+  chofer_apellido?: string;
+  chofer_telefono?: string;
+  camion_patente?: string;
+  camion_marca?: string;
+  camion_modelo?: string;
+  acoplado_patente?: string;
+}
+
 export default function UnidadesFlotaUnificado() {
   const { user, userEmpresas } = useUserRole();
   const router = useRouter();
@@ -52,6 +77,10 @@ export default function UnidadesFlotaUnificado() {
   const [choferes, setChoferes] = useState<Chofer[]>([]);
   const [loading, setLoading] = useState(true);
   const [empresaId, setEmpresaId] = useState<string | null>(null);
+
+  // Unidades Operativas
+  const [unidadesOp, setUnidadesOp] = useState<UnidadOperativa[]>([]);
+  const [showCrearUnidad, setShowCrearUnidad] = useState(false);
 
   // Formulario agregar
   const [showAgregar, setShowAgregar] = useState(false);
@@ -86,15 +115,17 @@ export default function UnidadesFlotaUnificado() {
       if (!ue) return;
       setEmpresaId(ue.empresa_id);
 
-      const [camRes, acoRes, choRes] = await Promise.all([
+      const [camRes, acoRes, choRes, uniRes] = await Promise.all([
         supabase.from('camiones').select('id, patente, marca, modelo, anio, foto_url').eq('empresa_id', ue.empresa_id).order('fecha_alta', { ascending: false }),
         supabase.from('acoplados').select('id, patente, marca, modelo, anio, foto_url').eq('empresa_id', ue.empresa_id).order('fecha_alta', { ascending: false }),
         supabase.from('choferes').select('id, nombre, apellido, dni, telefono, foto_url, usuario_id').eq('empresa_id', ue.empresa_id).order('nombre', { ascending: true }),
+        supabase.from('vista_disponibilidad_unidades').select('*').eq('empresa_id', ue.empresa_id).order('codigo', { ascending: true }),
       ]);
 
       setCamiones(camRes.data || []);
       setAcoplados(acoRes.data || []);
       setChoferes(choRes.data || []);
+      setUnidadesOp(uniRes.data || []);
     } catch (err) {
       console.error('Error cargando flota:', err);
     } finally {
@@ -168,8 +199,130 @@ export default function UnidadesFlotaUnificado() {
     );
   }
 
+  const getEstadoBadge = (u: UnidadOperativa) => {
+    if (!u.activo) return { text: 'Inactiva', color: 'bg-gray-500/20 text-gray-400', icon: '❌' };
+    if (u.necesita_descanso_obligatorio) return { text: 'Descanso', color: 'bg-red-500/20 text-red-400', icon: '🛑' };
+    if (u.horas_conducidas_hoy >= 7) return { text: 'Cerca límite', color: 'bg-yellow-500/20 text-yellow-400', icon: '⚠️' };
+    return { text: 'Disponible', color: 'bg-green-500/20 text-green-400', icon: '✅' };
+  };
+
+  const toggleActivo = async (unidadId: string, nuevoEstado: boolean) => {
+    try {
+      await supabase.from('unidades_operativas').update({ activo: nuevoEstado }).eq('id', unidadId);
+      loadAll();
+    } catch (err: any) {
+      console.error('Error al actualizar unidad:', err);
+    }
+  };
+
   return (
     <div className="p-4 space-y-4">
+      {/* ═══════════ UNIDADES OPERATIVAS ═══════════ */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <TruckIcon className="h-5 w-5 text-indigo-400" />
+            Unidades Operativas
+            <span className="text-xs font-normal text-gray-400">({unidadesOp.length})</span>
+          </h3>
+          <button
+            onClick={() => setShowCrearUnidad(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-xs font-medium hover:from-indigo-700 hover:to-indigo-800 transition-all shadow"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Nueva Unidad
+          </button>
+        </div>
+
+        {unidadesOp.length === 0 ? (
+          <div className="bg-gray-800/40 border border-dashed border-gray-600 rounded-xl p-6 text-center">
+            <TruckIcon className="mx-auto h-10 w-10 text-gray-600 mb-2" />
+            <p className="text-gray-400 text-sm">No hay unidades operativas creadas</p>
+            <p className="text-gray-500 text-xs mt-1">Una unidad operativa combina un chofer + camión + acoplado (opcional) para asignar a despachos.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {unidadesOp.map(u => {
+              const badge = getEstadoBadge(u);
+              return (
+                <div key={u.id} className={`bg-gray-800/60 border rounded-xl p-4 transition-all ${
+                  u.activo ? 'border-gray-700 hover:border-indigo-500/50' : 'border-gray-700/50 opacity-60'
+                }`}>
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-white truncate">{u.nombre}</h4>
+                      {u.codigo && <p className="text-[10px] text-gray-500 font-mono">{u.codigo}</p>}
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${badge.color} flex-shrink-0`}>
+                      {badge.icon} {badge.text}
+                    </span>
+                  </div>
+
+                  {/* Details */}
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-4">👤</span>
+                      <span className="text-gray-300">{u.chofer_nombre} {u.chofer_apellido}</span>
+                      {u.chofer_telefono && <span className="text-gray-500 text-[10px]">📞 {u.chofer_telefono}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-4">🚛</span>
+                      <span className="text-gray-300 font-mono">{u.camion_patente}</span>
+                      <span className="text-gray-500 text-[10px]">{u.camion_marca} {u.camion_modelo}</span>
+                    </div>
+                    {u.acoplado_patente && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 w-4">🔗</span>
+                        <span className="text-gray-300 font-mono">{u.acoplado_patente}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 w-4">⏱️</span>
+                      <span className={`font-medium ${
+                        u.horas_conducidas_hoy >= 8 ? 'text-red-400' :
+                        u.horas_conducidas_hoy >= 6 ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        {u.horas_conducidas_hoy.toFixed(1)}h / 9h
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-3 pt-2 border-t border-gray-700/50 flex items-center gap-2">
+                    <button
+                      onClick={() => toggleActivo(u.id, !u.activo)}
+                      className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+                        u.activo
+                          ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
+                          : 'bg-green-600/20 text-green-400 hover:bg-green-600/30'
+                      }`}
+                    >
+                      {u.activo ? '⏸ Desactivar' : '▶ Activar'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modal Crear Unidad */}
+      {empresaId && (
+        <CrearUnidadModal
+          isOpen={showCrearUnidad}
+          onClose={() => setShowCrearUnidad(false)}
+          onSuccess={() => { setShowCrearUnidad(false); loadAll(); }}
+          empresaId={empresaId}
+        />
+      )}
+
+      {/* ═══════════ INVENTARIO DE FLOTA ═══════════ */}
+      <div className="border-t border-gray-700 pt-4">
+        <h3 className="text-base font-bold text-white mb-3">Inventario de Flota</h3>
+      </div>
+
       {/* Métricas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-gray-700">
