@@ -186,7 +186,7 @@ export default function ChoferesGestion() {
 
   async function handleDeleteChofer(id: string, nombreCompleto: string) {
     // Pedir confirmación
-    if (!confirm(`¿Está seguro de eliminar al chofer ${nombreCompleto}?`)) {
+    if (!confirm(`¿Está seguro de DESVINCULAR al chofer ${nombreCompleto} de su empresa?\n\nEl chofer NO se eliminará de la base de datos, solo se quitará de su lista.\nPodrá volver a vincularlo después si es necesario.`)) {
       return;
     }
 
@@ -195,11 +195,11 @@ export default function ChoferesGestion() {
       await deleteChofer(id);
       // Éxito - la lista se actualiza automáticamente gracias al hook
     } catch (err: unknown) {
-      console.error('Error al eliminar chofer:', err);
+      console.error('Error al desvincular chofer:', err);
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Error inesperado al eliminar el chofer');
+        setError('Error inesperado al desvincular el chofer');
       }
       // Scroll hacia arriba para mostrar el error
       window.scrollTo({ top: 0, behavior: 'smooth' });

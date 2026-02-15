@@ -167,15 +167,16 @@ export function useChoferes() {
       );
     }
 
-    // Si no hay unidades operativas, proceder con la eliminación
-    const { error: deleteError } = await supabase
+    // IMPORTANTE: NO eliminamos el registro de la BD, solo desvinculamos de esta empresa
+    // Esto permite reasignar el chofer a otra empresa en el futuro
+    const { error: updateError } = await supabase
       .from('choferes')
-      .delete()
+      .update({ empresa_id: null })
       .eq('id', id);
     
-    if (deleteError) {
-      console.error('Error eliminando chofer:', deleteError);
-      throw new Error('Error al eliminar el chofer');
+    if (updateError) {
+      console.error('Error desvinculando chofer:', updateError);
+      throw new Error('Error al desvincular el chofer de la empresa');
     }
     
     setChoferes((prev) => prev.filter((c) => c.id !== id));
