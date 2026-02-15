@@ -496,8 +496,8 @@ const ViajesActivos = () => {
             <div className="flex-1 overflow-y-auto p-2">
               <div className="space-y-2">
                 {(() => {
-                  // Solo mostrar estados de viajes SELECCIONADOS (los que están en el mapa)
-                  const estadosActivos = viajesParaMapa.map(v => v.estado_unidad_viaje).filter(Boolean);
+                  // Mostrar estados de TODOS los viajes (no solo seleccionados)
+                  const estadosActivos = viajes.map(v => v.estado).filter(Boolean);
                   const tieneEstado = (estados: string[]) => estadosActivos.some(e => estados.includes(e));
                   
                   const indicadores = [
