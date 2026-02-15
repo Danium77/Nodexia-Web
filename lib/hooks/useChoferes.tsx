@@ -147,12 +147,12 @@ export function useChoferes() {
   }
 
   async function deleteChofer(id: string) {
-    // Verificar si el chofer está asignado a alguna unidad operativa (activa o inactiva)
+    // Verificar si el chofer está asignado a alguna unidad operativa
     const { data: unidadesData, error: checkError } = await supabase
       .from('unidades_operativas')
       .select('id, nombre, activo')
       .eq('chofer_id', id)
-      .limit(5);
+      .limit(10);
 
     if (checkError) {
       console.error('Error verificando unidades operativas:', checkError);
@@ -160,15 +160,35 @@ export function useChoferes() {
     }
 
     if (unidadesData && unidadesData.length > 0) {
-      const unidadesNombres = unidadesData.map(u => `${u.nombre}${u.activo ? '' : ' (inactiva)'}`).join(', ');
-      throw new Error(
-        `No se puede eliminar el chofer porque está asociado a ${unidadesData.length} unidad(es) operativa(s): ${unidadesNombres}. ` +
-        `Debe ELIMINAR completamente las unidades operativas primero.`
-      );
+      const activas = unidadesData.filter(u => u.activo);
+      const inactivas = unidadesData.filter(u => !u.activo);
+
+      // Si hay unidades ACTIVAS, bloquear
+      if (activas.length > 0) {
+        const nombres = activas.map(u => u.nombre).join(', ');
+        throw new Error(
+          `No se puede desvincular el chofer porque tiene ${activas.length} unidad(es) operativa(s) ACTIVA(s): ${nombres}. ` +
+          `Primero debe desactivarlas desde Flota → Unidades Operativas.`
+        );
+      }
+
+      // Si solo hay inactivas, eliminarlas automáticamente
+      if (inactivas.length > 0) {
+        console.log(`🗑️ Auto-eliminando ${inactivas.length} unidades operativas inactivas del chofer`);
+        const inactivaIds = inactivas.map(u => u.id);
+        const { error: deleteUOError } = await supabase
+          .from('unidades_operativas')
+          .delete()
+          .in('id', inactivaIds);
+
+        if (deleteUOError) {
+          console.error('Error eliminando unidades inactivas:', deleteUOError);
+          throw new Error('Error al limpiar unidades operativas inactivas del chofer');
+        }
+      }
     }
 
-    // IMPORTANTE: NO eliminamos el registro de la BD, solo desvinculamos de esta empresa
-    // Esto permite reasignar el chofer a otra empresa en el futuro
+    // Desvincular chofer de la empresa (NO eliminar registro)
     const { error: updateError } = await supabase
       .from('choferes')
       .update({ empresa_id: null })
