@@ -13,10 +13,10 @@
 - **Stack:** Next.js 16 + React 19 + Supabase + TypeScript + Tailwind v4
 - **Deployado:** SÍ — Vercel (`nodexia-web-j6wl`) → www.nodexiaweb.com
 - **Tests:** 4 archivos (56 tests para sistema de estados centralizados)
-- **Migraciones BD:** 112 archivos (058 + 059 ejecutadas, 055 + 056 pendientes)
+- **Migraciones BD:** 112 archivos (055 + 056 + 058 + 059 ejecutadas en PROD)
 - **BD lista para documentación:** SÍ (3 tablas + 7 funciones + 3 triggers + 6 RLS + 14 indexes)
 - **Red Nodexia BD:** 4 tablas (`viajes_red_nodexia`, `requisitos_viaje_red`, `ofertas_red_nodexia`, `historial_red_nodexia`)
-- **Historial Despachos BD:** Tabla `historial_despachos` (migración 055, pendiente ejecución)
+- **Historial Despachos BD:** Tabla `historial_despachos` (migración 055, ✅ ejecutada en PROD)
 - **RLS corregido:** Migración 052 (get_visible_chofer_ids, get_visible_camion_ids, get_visible_acoplado_ids) - admin bypass + branches correctos
 - **RLS gap:** `ofertas_red_nodexia` sin UPDATE policy (bypaseado por API service role)
 - **Storage Buckets:** documentacion-entidades, documentacion-viajes (privados, 10MB, PDF/JPG/PNG), remitos (público, 10MB)
@@ -349,9 +349,9 @@ control-acceso.tsx, confirmar-accion.ts, lib/api/estado-unidad.ts, lib/estadosHe
 - ✅ `058_centralizacion_estados_y_paradas.sql`
 - ✅ `059_unificar_estado_unidad_viaje.sql`
 
-**⚠️ MIGRACIONES PENDIENTES DE EJECUCIÓN:**
-- `sql/migrations/055_historial_despachos.sql` — Tabla historial_despachos
-- `sql/migrations/056_fix_rls_viajes_red_rechazados.sql` — RLS transportes rechazados
+**✅ MIGRACIONES EJECUTADAS EN PROD (Sesión 20):**
+- `sql/migrations/055_historial_despachos.sql` — Tabla historial_despachos ✅
+- `sql/migrations/056_fix_rls_viajes_red_rechazados.sql` — RLS transportes rechazados ✅
 
 **Próximos pasos (quedan 4 días):**
 - Continuar testing E2E en PROD (chofer confirma viaje, tracking GPS, flujo completo)

@@ -68,8 +68,11 @@ function constructConnectionString(supabaseUrl) {
 
 // Scripts de migración en orden
 const migrations = [
-  '055_historial_despachos.sql',
-  '056_fix_rls_viajes_red_rechazados.sql',
+  '001_migrar_coordinador_a_planta.sql',
+  '002_crear_nuevas_tablas.sql',
+  '003_tablas_intermedias.sql',
+  '004_actualizar_usuarios_empresa.sql',
+  '005_actualizar_rls_policies.sql',
 ];
 
 /**

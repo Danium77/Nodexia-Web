@@ -235,12 +235,15 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       clearTimeout(timeoutId);
 
       // PRIMERO: Verificar si es Super Admin en tabla super_admins
+      console.log('🔍 [UserRoleContext] Verificando super_admins para user:', authUser.id);
       const { data: superAdminData, error: superAdminError } = await supabase
         .from('super_admins')
         .select('activo')
         .eq('user_id', authUser.id)
         .maybeSingle(); // Cambiado a maybeSingle para evitar error 406
 
+      console.log('📊 [UserRoleContext] Super admin check result:', { superAdminData, superAdminError });
+      
       if (superAdminError) {
         console.warn('⚠️ Error al verificar super_admin:', superAdminError.message);
       }

@@ -390,10 +390,10 @@
 - Mapa completo de 6 fases, roles, estados, API routes, tablas
 - Consultar antes de cada sesión para contexto
 
-### ⚠️ PENDIENTE: Ejecutar Migraciones 055 + 056 en BD PROD
-- `sql/migrations/055_historial_despachos.sql` — Tabla historial_despachos
-- `sql/migrations/056_fix_rls_viajes_red_rechazados.sql` — RLS transportes rechazados
-- También ejecutar 058 + 059 si no se corrieron en prod
+### ✅ COMPLETADO: Migraciones 055 + 056 en BD PROD (Sesión 20)
+- ✅ `055_historial_despachos.sql` — Ya existía en PROD (creada en sync sesión 19)
+- ✅ `056_fix_rls_viajes_red_rechazados.sql` — Ejecutada exitosamente
+- ✅ 058 + 059 ya ejecutadas previamente
 
 ### DEUDA TÉCNICA RESTANTE:
 
