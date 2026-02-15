@@ -11,6 +11,7 @@ import type { User } from '@supabase/supabase-js';
 
 /** Determine the highest-priority role from a list */
 function getPrimaryRole(roles: string[]): UserRole {
+  if (roles.includes('super_admin')) return 'super_admin';
   if (roles.includes('admin_nodexia')) return 'admin_nodexia';
   if (roles.includes('coordinador')) return 'coordinador';
   if (roles.includes('control_acceso')) return 'control_acceso';
