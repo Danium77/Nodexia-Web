@@ -147,12 +147,11 @@ export function useChoferes() {
   }
 
   async function deleteChofer(id: string) {
-    // Verificar si el chofer está asignado a alguna unidad operativa
+    // Verificar si el chofer está asignado a alguna unidad operativa (activa o inactiva)
     const { data: unidadesData, error: checkError } = await supabase
       .from('unidades_operativas')
-      .select('id, nombre')
+      .select('id, nombre, activo')
       .eq('chofer_id', id)
-      .eq('activo', true)
       .limit(5);
 
     if (checkError) {
@@ -161,10 +160,10 @@ export function useChoferes() {
     }
 
     if (unidadesData && unidadesData.length > 0) {
-      const unidadesNombres = unidadesData.map(u => u.nombre).join(', ');
+      const unidadesNombres = unidadesData.map(u => `${u.nombre}${u.activo ? '' : ' (inactiva)'}`).join(', ');
       throw new Error(
-        `No se puede eliminar el chofer porque está asignado a ${unidadesData.length} unidad(es) operativa(s): ${unidadesNombres}. ` +
-        `Primero debe desasignar o eliminar las unidades operativas.`
+        `No se puede eliminar el chofer porque está asociado a ${unidadesData.length} unidad(es) operativa(s): ${unidadesNombres}. ` +
+        `Debe ELIMINAR completamente las unidades operativas primero.`
       );
     }
 
