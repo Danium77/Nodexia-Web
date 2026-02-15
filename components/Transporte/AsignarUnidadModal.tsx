@@ -546,165 +546,95 @@ export default function AsignarUnidadModal({
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {unidades.map((unidad) => (
                 <div
                   key={unidad.id}
                   onClick={() => !unidad.necesita_descanso_obligatorio && setSelectedUnidad(unidad.id)}
-                  className={`relative border-2 rounded-xl p-4 transition-all cursor-pointer ${
+                  className={`relative border rounded-lg p-3 transition-all cursor-pointer ${
                     unidad.necesita_descanso_obligatorio
                       ? 'border-gray-700 bg-gray-800/30 opacity-50 cursor-not-allowed'
                       : selectedUnidad === unidad.id
-                      ? 'border-indigo-500 bg-indigo-500/10'
-                      : 'border-gray-700 bg-gray-800/50 hover:border-gray-600 hover:bg-gray-800'
+                      ? 'border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/50'
+                      : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
                   }`}
                 >
-                  {/* Badge de categoría */}
-                  <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+                  {/* Top row: Name + Score badge */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {selectedUnidad === unidad.id && (
+                        <CheckCircleIcon className="h-5 w-5 text-indigo-400 flex-shrink-0" />
+                      )}
+                      <h3 className="text-sm font-bold text-white truncate">{unidad.nombre}</h3>
+                      {unidad.codigo && (
+                        <span className="text-[10px] text-gray-500 font-mono flex-shrink-0">{unidad.codigo}</span>
+                      )}
+                    </div>
                     {unidad.necesita_descanso_obligatorio ? (
-                      <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-500/20 text-red-400">
-                        🛑 DESCANSO OBLIGATORIO
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-red-500/20 text-red-400 flex-shrink-0">
+                        🛑 DESCANSO
                       </span>
                     ) : (
-                      <>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: unidad.estrellas || 0 }).map((_, i) => (
-                            <span key={i} className="text-yellow-400 text-lg">⭐</span>
-                          ))}
-                        </div>
-                        <span
-                          className={`px-3 py-1 text-xs font-bold rounded-full ${
-                            unidad.categoria === 'ÓPTIMA'
-                              ? 'bg-green-500/20 text-green-400'
-                              : unidad.categoria === 'BUENA'
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'bg-orange-500/20 text-orange-400'
-                          }`}
-                        >
-                          {unidad.categoria}
-                        </span>
-                        <span className="text-xs text-gray-400 font-mono">
-                          Score: {unidad.score}/100
-                        </span>
-                      </>
+                      <span
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded flex-shrink-0 ${
+                          unidad.categoria === 'ÓPTIMA'
+                            ? 'bg-green-500/20 text-green-400'
+                            : unidad.categoria === 'BUENA'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-orange-500/20 text-orange-400'
+                        }`}
+                      >
+                        {Array.from({ length: unidad.estrellas || 0 }).map((_, i) => '⭐').join('')} {unidad.categoria}
+                      </span>
                     )}
                   </div>
 
-                  {/* Info de la unidad */}
-                  <div className="pr-32">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="h-12 w-12 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                        <TruckIcon className="h-6 w-6 text-indigo-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-white">{unidad.nombre}</h3>
-                        {unidad.codigo && (
-                          <span className="text-sm text-gray-400">Código: {unidad.codigo}</span>
-                        )}
-                      </div>
+                  {/* Compact info grid */}
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-xs">
+                    <div>
+                      <span className="text-gray-500">👤</span>{' '}
+                      <span className="text-gray-300">{unidad.chofer_nombre} {unidad.chofer_apellido?.charAt(0)}.</span>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      {/* Chofer */}
-                      <div>
-                        <p className="text-gray-400 mb-1">👤 Chofer</p>
-                        <p className="text-white font-medium">
-                          {unidad.chofer_nombre} {unidad.chofer_apellido}
-                        </p>
-                        {unidad.chofer_telefono && (
-                          <p className="text-gray-400 text-xs">{unidad.chofer_telefono}</p>
-                        )}
-                      </div>
-
-                      {/* Camión */}
-                      <div>
-                        <p className="text-gray-400 mb-1">🚛 Camión</p>
-                        <p className="text-white font-medium">{unidad.camion_patente}</p>
-                        <p className="text-gray-400 text-xs">
-                          {unidad.camion_marca} {unidad.camion_modelo}
-                        </p>
-                      </div>
-
-                      {/* Acoplado */}
-                      {unidad.acoplado_patente && (
-                        <div>
-                          <p className="text-gray-400 mb-1">🔗 Acoplado</p>
-                          <p className="text-white font-medium">{unidad.acoplado_patente}</p>
-                        </div>
-                      )}
-
-                      {/* Horas conducidas */}
-                      <div>
-                        <p className="text-gray-400 mb-1">⏱️ Horas Hoy</p>
-                        <p className={`font-medium ${
-                          unidad.horas_conducidas_hoy >= 8
-                            ? 'text-red-400'
-                            : unidad.horas_conducidas_hoy >= 6
-                            ? 'text-yellow-400'
-                            : 'text-green-400'
-                        }`}>
-                          {unidad.horas_conducidas_hoy.toFixed(1)}h / 9h
-                        </p>
-                      </div>
+                    <div>
+                      <span className="text-gray-500">🚛</span>{' '}
+                      <span className="text-gray-300 font-mono">{unidad.camion_patente}</span>
                     </div>
-
-                    {/* Estado de Documentación */}
-                    {(() => {
-                      const choferDoc = docStatusMap[`chofer:${unidad.chofer_id}`];
-                      const camionDoc = docStatusMap[`camion:${unidad.camion_id}`];
-                      const acopladoDoc = unidad.acoplado_id ? docStatusMap[`acoplado:${unidad.acoplado_id}`] : null;
-                      const hasDocData = choferDoc || camionDoc || acopladoDoc;
-                      if (!hasDocData) return null;
-
-                      const getDocBadge = (doc: DocStatus | undefined, label: string) => {
-                        if (!doc) return null;
-                        const colors = {
-                          ok: 'text-green-400 bg-green-500/10',
-                          warning: 'text-yellow-400 bg-yellow-500/10',
-                          danger: 'text-red-400 bg-red-500/10',
-                          missing: 'text-gray-400 bg-gray-500/10',
-                        };
-                        const icons = { ok: '✅', warning: '⚠️', danger: '❌', missing: '📄' };
-                        return (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${colors[doc.estado]}`}>
-                            {icons[doc.estado]} {label}
-                            {doc.vencidos > 0 && <span className="text-red-300">({doc.vencidos} venc.)</span>}
-                            {doc.faltantes.length > 0 && doc.vencidos === 0 && <span className="text-gray-300">({doc.faltantes.length} falt.)</span>}
-                          </span>
-                        );
-                      };
-
-                      return (
-                        <div className="mt-3 flex items-center gap-2 flex-wrap">
-                          <DocumentCheckIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-xs text-gray-400">Docs:</span>
-                          {getDocBadge(choferDoc, 'Chofer')}
-                          {getDocBadge(camionDoc, 'Camión')}
-                          {acopladoDoc && getDocBadge(acopladoDoc, 'Acoplado')}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Distancia */}
+                    <div>
+                      <span className={`font-medium ${
+                        unidad.horas_conducidas_hoy >= 8 ? 'text-red-400' :
+                        unidad.horas_conducidas_hoy >= 6 ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        ⏱️ {unidad.horas_conducidas_hoy.toFixed(1)}h/9h
+                      </span>
+                    </div>
+                    {unidad.acoplado_patente && (
+                      <div>
+                        <span className="text-gray-500">🔗</span>{' '}
+                        <span className="text-gray-300 font-mono">{unidad.acoplado_patente}</span>
+                      </div>
+                    )}
                     {unidad.distancia_km !== undefined && unidad.distancia_km > 0 && (
-                      <div className="mt-3 flex items-center gap-2 text-sm">
-                        <MapPinIcon className="h-4 w-4 text-indigo-400" />
-                        <span className="text-gray-400">
-                          Distancia desde última ubicación:{' '}
-                          <span className="text-white font-medium">
-                            {unidad.distancia_km.toFixed(0)} km
-                          </span>
-                        </span>
+                      <div>
+                        <span className="text-gray-500">📍</span>{' '}
+                        <span className="text-indigo-300">{unidad.distancia_km.toFixed(0)} km</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Indicador de selección */}
-                  {selectedUnidad === unidad.id && (
-                    <div className="absolute top-1/2 right-4 -translate-y-1/2 mr-24">
-                      <CheckCircleIcon className="h-8 w-8 text-indigo-400" />
-                    </div>
-                  )}
+                  {/* Doc status compact */}
+                  {(() => {
+                    const choferDoc = docStatusMap[`chofer:${unidad.chofer_id}`];
+                    const camionDoc = docStatusMap[`camion:${unidad.camion_id}`];
+                    const acopladoDoc = unidad.acoplado_id ? docStatusMap[`acoplado:${unidad.acoplado_id}`] : null;
+                    if (!choferDoc && !camionDoc && !acopladoDoc) return null;
+                    const anyIssue = [choferDoc, camionDoc, acopladoDoc].some(d => d && (d.estado === 'danger' || d.estado === 'warning'));
+                    return (
+                      <div className={`mt-2 pt-2 border-t border-gray-700/50 flex items-center gap-1 text-[10px] ${anyIssue ? 'text-yellow-400' : 'text-green-400'}`}>
+                        <DocumentCheckIcon className="h-3 w-3" />
+                        {anyIssue ? '⚠️ Docs con observaciones' : '✅ Docs OK'}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

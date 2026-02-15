@@ -2158,7 +2158,7 @@ const CrearDespacho = () => {
                             </div>
                           )}
                           
-                          {activeTab !== 'expirados' && activeTab !== 'asignados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
+                          {activeTab !== 'expirados' && activeTab !== 'asignados' && activeTab !== 'completados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
                             <>
                               <button
                                 type="button"
@@ -2190,6 +2190,18 @@ const CrearDespacho = () => {
                                 <span className="relative z-10 font-extrabold tracking-wide">RED</span>
                               </button>
                             </>
+                          )}
+
+                          {/* Botón Ver Detalle para Completados */}
+                          {activeTab === 'completados' && (
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/despachos/${dispatch.id}/detalle`)}
+                              className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
+                              title="Ver detalle completo del viaje"
+                            >
+                              📄 Ver Detalle
+                            </button>
                           )}
                         </div>
                       </td>
