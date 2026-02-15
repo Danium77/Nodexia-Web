@@ -81,19 +81,10 @@ export default function ControlAcceso() {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
 
+      // Query registros + viajes por separado para evitar problemas de FK
       const { data: registros, error } = await supabase
         .from('registros_acceso')
-        .select(`
-          id,
-          viaje_id,
-          tipo,
-          timestamp,
-          viajes_despacho!inner (
-            numero_viaje,
-            choferes (nombre, apellido),
-            camiones (patente)
-          )
-        `)
+        .select('id, viaje_id, tipo, timestamp')
         .gte('timestamp', hoy.toISOString())
         .order('timestamp', { ascending: false })
         .limit(20);
@@ -103,15 +94,50 @@ export default function ControlAcceso() {
         return;
       }
 
-      const historialFormateado: RegistroAcceso[] = (registros || []).map((reg: any) => ({
-        id: reg.id,
-        viaje_id: reg.viaje_id,
-        tipo: reg.tipo,
-        timestamp: reg.timestamp,
-        numero_viaje: reg.viajes_despacho?.numero_viaje || 'N/A',
-        chofer_nombre: `${reg.viajes_despacho?.choferes?.nombre || ''} ${reg.viajes_despacho?.choferes?.apellido || ''}`.trim() || 'N/A',
-        camion_patente: reg.viajes_despacho?.camiones?.patente || 'N/A'
-      }));
+      if (!registros || registros.length === 0) {
+        setHistorial([]);
+        return;
+      }
+
+      // Obtener viajes relacionados
+      const viajeIds = [...new Set(registros.map(r => r.viaje_id).filter(Boolean))];
+      const { data: viajes } = viajeIds.length > 0
+        ? await supabase.from('viajes_despacho').select('id, numero_viaje, chofer_id, camion_id').in('id', viajeIds)
+        : { data: [] };
+
+      const viajesMap = new Map((viajes || []).map((v: any) => [v.id, v]));
+
+      // Obtener choferes y camiones
+      const choferIds = [...new Set((viajes || []).map((v: any) => v.chofer_id).filter(Boolean))];
+      const camionIds = [...new Set((viajes || []).map((v: any) => v.camion_id).filter(Boolean))];
+
+      const [choferesRes, camionesRes] = await Promise.all([
+        choferIds.length > 0
+          ? supabase.from('choferes').select('id, nombre, apellido').in('id', choferIds)
+          : Promise.resolve({ data: [] }),
+        camionIds.length > 0
+          ? supabase.from('camiones').select('id, patente').in('id', camionIds)
+          : Promise.resolve({ data: [] })
+      ]);
+
+      const choferesMap = new Map((choferesRes.data || []).map((c: any) => [c.id, c]));
+      const camionesMap = new Map((camionesRes.data || []).map((c: any) => [c.id, c]));
+
+      const historialFormateado: RegistroAcceso[] = registros.map((reg: any) => {
+        const viaje = viajesMap.get(reg.viaje_id);
+        const chofer = viaje?.chofer_id ? choferesMap.get(viaje.chofer_id) : null;
+        const camion = viaje?.camion_id ? camionesMap.get(viaje.camion_id) : null;
+
+        return {
+          id: reg.id,
+          viaje_id: reg.viaje_id,
+          tipo: reg.tipo,
+          timestamp: reg.timestamp,
+          numero_viaje: viaje?.numero_viaje?.toString() || 'N/A',
+          chofer_nombre: chofer ? `${chofer.nombre || ''} ${chofer.apellido || ''}`.trim() : 'N/A',
+          camion_patente: camion?.patente || 'N/A'
+        };
+      });
 
       setHistorial(historialFormateado);
     } catch (error) {

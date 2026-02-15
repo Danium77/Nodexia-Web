@@ -63,10 +63,24 @@ export default function EstadosCamiones() {
       ];
 
       // Paso 1: Obtener despachos vinculados a las empresas del usuario
+      // Buscar todos los usuarios de las mismas empresas
+      const { data: companyUsers } = await supabase
+        .from('usuarios_empresa')
+        .select('user_id')
+        .in('empresa_id', empresaIds)
+        .eq('activo', true);
+
+      const allUserIds = [...new Set((companyUsers || []).map(u => u.user_id).filter(Boolean))];
+
+      if (allUserIds.length === 0) {
+        setViajes([]);
+        return;
+      }
+
       const { data: despachos, error: despError } = await supabase
         .from('despachos')
-        .select('id, origen, destino, origen_empresa_id, destino_empresa_id')
-        .or(empresaIds.map((id: string) => `origen_empresa_id.eq.${id},destino_empresa_id.eq.${id}`).join(','));
+        .select('id, origen, destino')
+        .in('created_by', allUserIds);
 
       if (despError) {
         console.error('Error cargando despachos:', despError);

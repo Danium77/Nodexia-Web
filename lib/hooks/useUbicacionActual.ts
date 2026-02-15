@@ -10,7 +10,6 @@ export interface Ubicacion {
   nombre: string;
   cuit: string;
   tipo: 'planta' | 'deposito' | 'cliente';
-  empresa_id: string;
 }
 
 export function useUbicacionActual() {
@@ -50,7 +49,7 @@ export function useUbicacionActual() {
         if (ubicacionId) {
           const { data: ubicacion, error: errorUbicacion } = await supabase
             .from('ubicaciones')
-            .select('id, nombre, cuit, tipo, empresa_id')
+            .select('id, nombre, cuit, tipo')
             .eq('id', ubicacionId)
             .single();
 
@@ -61,17 +60,45 @@ export function useUbicacionActual() {
           }
         }
 
-        // 3. Cargar todas las ubicaciones disponibles de la empresa
-        const { data: ubicaciones, error: errorUbicaciones } = await supabase
-          .from('ubicaciones')
-          .select('id, nombre, cuit, tipo, empresa_id')
+        // 3. Cargar todas las ubicaciones disponibles de la empresa via empresa_ubicaciones
+        const { data: empresaUbicaciones, error: errorEU } = await supabase
+          .from('empresa_ubicaciones')
+          .select('ubicacion_id')
           .eq('empresa_id', empresaId)
-          .order('nombre');
+          .eq('activo', true);
 
-        if (errorUbicaciones) {
-          console.error('Error cargando ubicaciones disponibles:', errorUbicaciones);
+        if (errorEU) {
+          console.error('Error cargando empresa_ubicaciones:', errorEU);
+        } else if (empresaUbicaciones && empresaUbicaciones.length > 0) {
+          const ubicacionIds = empresaUbicaciones.map(eu => eu.ubicacion_id);
+          const { data: ubicaciones, error: errorUbicaciones } = await supabase
+            .from('ubicaciones')
+            .select('id, nombre, cuit, tipo')
+            .in('id', ubicacionIds)
+            .order('nombre');
+
+          if (errorUbicaciones) {
+            console.error('Error cargando ubicaciones disponibles:', errorUbicaciones);
+          } else {
+            setUbicionesDisponibles(ubicaciones || []);
+          }
         } else {
-          setUbicionesDisponibles(ubicaciones || []);
+          // Fallback: buscar ubicaciones por CUIT de la empresa
+          const { data: empresa } = await supabase
+            .from('empresas')
+            .select('cuit')
+            .eq('id', empresaId)
+            .single();
+
+          if (empresa?.cuit) {
+            const { data: ubicaciones } = await supabase
+              .from('ubicaciones')
+              .select('id, nombre, cuit, tipo')
+              .eq('cuit', empresa.cuit)
+              .eq('activo', true)
+              .order('nombre');
+            setUbicionesDisponibles(ubicaciones || []);
+          }
         }
 
       } catch (err: any) {
@@ -113,7 +140,7 @@ export function useUbicacionActual() {
       if (ubicacionId) {
         const { data: ubicacion } = await supabase
           .from('ubicaciones')
-          .select('id, nombre, cuit, tipo, empresa_id')
+          .select('id, nombre, cuit, tipo')
           .eq('id', ubicacionId)
           .single();
 

@@ -136,20 +136,33 @@ const PlanificacionPage = () => {
         const cuitEmpresa = empresaActual?.cuit as string;
         console.log('🏢 Empresa del usuario:', empresaActual?.nombre, '- CUIT:', cuitEmpresa);
 
-        // 1. Cargar DESPACHOS creados por el usuario CON sus relaciones
+        // 1. Cargar DESPACHOS de toda la empresa (no solo del usuario actual)
+        // Obtener todos los usuarios de la misma empresa
+        const { data: companyUsersData } = await supabase
+          .from('usuarios_empresa')
+          .select('user_id')
+          .eq('empresa_id', empresaActual?.id)
+          .eq('activo', true);
+
+        const allCompanyUserIds = [...new Set((companyUsersData || []).map(u => u.user_id).filter(Boolean))];
+        // Siempre incluir al usuario actual
+        if (!allCompanyUserIds.includes(user.id)) {
+          allCompanyUserIds.push(user.id);
+        }
+
         const { data: despachosData, error: despachosError } = await supabase
           .from('despachos')
           .select(`
             *
           `)
-          .eq('created_by', user.id)
+          .in('created_by', allCompanyUserIds)
           .order('created_at', { ascending: true });
 
         if (despachosError) {
           console.error('❌ Error al cargar despachos:', despachosError);
         }
 
-        console.log('📦 Despachos creados por el usuario:', despachosData?.length || 0);
+        console.log('📦 Despachos de la empresa:', despachosData?.length || 0);
 
         // 1.5. Cargar RECEPCIONES - despachos donde esta empresa es el destino
         let recepcionesData: any[] = [];
