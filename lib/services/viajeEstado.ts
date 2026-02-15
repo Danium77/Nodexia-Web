@@ -90,6 +90,42 @@ const ESTADO_A_TIMESTAMP: Partial<Record<EstadoViajeType, string>> = {
 };
 
 // ============================================================================
+// Mapeo: estado → columna de timestamp en viajes_despacho (para timeline)
+// ============================================================================
+const ESTADO_A_TIMESTAMP_VIAJE: Partial<Record<EstadoViajeType, string>> = {
+  transporte_asignado: 'fecha_asignacion_transporte',
+  camion_asignado: 'fecha_asignacion_transporte',
+  confirmado_chofer: 'fecha_confirmacion_chofer',
+  ingresado_origen: 'fecha_ingreso_planta',
+  llamado_carga: 'fecha_llamado_carga',
+  cargando: 'fecha_inicio_carga',
+  cargado: 'fecha_fin_carga',
+  egreso_origen: 'fecha_salida_planta',
+  ingresado_destino: 'fecha_llegada_destino',
+  descargado: 'fecha_confirmacion_entrega',
+  cancelado: 'fecha_cancelacion',
+};
+
+// Mapeo: estado → descripción legible para historial
+const ESTADO_A_DESCRIPCION: Partial<Record<EstadoViajeType, string>> = {
+  confirmado_chofer: 'El chofer confirmó el viaje asignado',
+  en_transito_origen: 'El chofer inició viaje hacia el origen',
+  ingresado_origen: 'Ingreso registrado en planta de origen',
+  llamado_carga: 'Llamado a posición de carga',
+  cargando: 'Proceso de carga iniciado',
+  cargado: 'Carga completada',
+  egreso_origen: 'Egreso de planta de origen',
+  en_transito_destino: 'En tránsito hacia destino',
+  ingresado_destino: 'Ingreso registrado en destino',
+  llamado_descarga: 'Llamado a posición de descarga',
+  descargando: 'Proceso de descarga iniciado',
+  descargado: 'Descarga completada',
+  egreso_destino: 'Egreso de destino',
+  completado: 'Viaje completado',
+  cancelado: 'Viaje cancelado',
+};
+
+// ============================================================================
 // Funciones del servicio
 // ============================================================================
 
@@ -128,15 +164,23 @@ export async function cambiarEstadoViaje(
     };
   }
 
-  // 3. Actualizar viaje
+  // 3. Actualizar viaje (estado + timestamp de la fase si aplica)
   const now = new Date().toISOString();
+  const updatePayload: Record<string, unknown> = {
+    estado: nuevo_estado,
+    estado_unidad: nuevo_estado,
+    updated_at: now,
+  };
+
+  // Escribir columna timestamp directamente en viajes_despacho (para timeline)
+  const columnaTimestampViaje = ESTADO_A_TIMESTAMP_VIAJE[nuevo_estado];
+  if (columnaTimestampViaje) {
+    updatePayload[columnaTimestampViaje] = now;
+  }
+
   const { error: updateError } = await supabase
     .from('viajes_despacho')
-    .update({
-      estado: nuevo_estado,
-      estado_unidad: nuevo_estado,
-      updated_at: now,
-    })
+    .update(updatePayload)
     .eq('id', viaje_id);
 
   if (updateError) {
@@ -157,7 +201,25 @@ export async function cambiarEstadoViaje(
   // 6. Sincronizar estado_carga_viaje (si aplica)
   await sincronizarEstadoCarga(supabase, viaje_id, nuevo_estado, now);
 
-  // 7. Próximos estados
+  // 7. Registrar evento en historial_despachos (para timeline)
+  if (viaje.despacho_id) {
+    const descripcion = ESTADO_A_DESCRIPCION[nuevo_estado] || `Estado cambiado a: ${nuevo_estado}`;
+    await supabase
+      .from('historial_despachos')
+      .insert({
+        despacho_id: viaje.despacho_id,
+        viaje_id,
+        accion: 'estado_cambiado',
+        descripcion,
+        usuario_id: user_id,
+        metadata: { estado_anterior: estadoAnterior, estado_nuevo: nuevo_estado },
+      })
+      .then(({ error }) => {
+        if (error) console.error('⚠️ Error registrando historial:', error);
+      });
+  }
+
+  // 8. Próximos estados
   const proximos = getProximosEstados(nuevo_estado);
 
   return {
