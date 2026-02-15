@@ -349,6 +349,20 @@ const TrackingView: React.FC<TrackingViewProps> = ({ dispatches }) => {
     setSelectedViaje({ despacho, viaje });
   };
 
+  // Sincronizar selectedViaje cuando viajesData se actualiza (realtime / reload)
+  useEffect(() => {
+    if (!selectedViaje) return;
+    const despachoId = selectedViaje.despacho.id;
+    const viajeId = selectedViaje.viaje.id;
+    const viajesDelDespacho = viajesData[despachoId];
+    if (!viajesDelDespacho) return;
+    const viajeActualizado = viajesDelDespacho.find(v => v.id === viajeId);
+    if (viajeActualizado && viajeActualizado.estado !== selectedViaje.viaje.estado) {
+      console.log('🔄 TrackingView - Actualizando selectedViaje:', viajeActualizado.estado);
+      setSelectedViaje({ despacho: selectedViaje.despacho, viaje: viajeActualizado });
+    }
+  }, [viajesData]);
+
   const getStatusColor = (estado: string) => {
     const estadoInfo = ESTADOS_VIAJE.find(e => e.key === estado);
     return estadoInfo?.color || 'bg-slate-600';

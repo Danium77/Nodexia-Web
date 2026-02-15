@@ -66,6 +66,43 @@ export default function ControlAcceso() {
   const [historial, setHistorial] = useState<RegistroAcceso[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
 
+  // Remito preview state
+  const [remitoUrl, setRemitoUrl] = useState<string | null>(null);
+  const [remitoValidado, setRemitoValidado] = useState(false);
+  const [loadingRemito, setLoadingRemito] = useState(false);
+
+  // Cargar remito cuando el viaje está en estado cargado (para validar antes de egreso)
+  useEffect(() => {
+    if (!viaje) {
+      setRemitoUrl(null);
+      setRemitoValidado(false);
+      return;
+    }
+    if (viaje.estado_unidad === 'cargado' && viaje.tipo_operacion === 'envio') {
+      const fetchRemito = async () => {
+        setLoadingRemito(true);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          const res = await fetch(`/api/viajes/${viaje.id}/remito`, {
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.found && json.url) {
+              setRemitoUrl(json.url);
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ [control-acceso] Error cargando remito:', err);
+        } finally {
+          setLoadingRemito(false);
+        }
+      };
+      fetchRemito();
+    }
+  }, [viaje?.id, viaje?.estado_unidad]);
+
   // Cargar historial de accesos al montar el componente
   useEffect(() => {
     cargarHistorial();
@@ -824,10 +861,61 @@ export default function ControlAcceso() {
                         <DocumentTextIcon className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-purple-100 font-semibold">Carga completada - Validar documentación</p>
-                        <p className="text-purple-300 text-sm mt-1">Verifique que toda la documentación esté completa antes de autorizar la salida</p>
+                        <p className="text-purple-100 font-semibold">Carga completada - Validar documentación y remito</p>
+                        <p className="text-purple-300 text-sm mt-1">Verifique el remito firmado y la documentación antes de autorizar la salida</p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Vista previa del Remito firmado — solo para estado cargado en envío */}
+                {(viaje.estado_unidad === 'cargado' || viaje.estado_unidad === 'egreso_origen') && viaje.tipo_operacion === 'envio' && (
+                  <div className="mb-6 bg-slate-800 border border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📄</span>
+                        <h3 className="text-white font-semibold">Remito Firmado</h3>
+                      </div>
+                      {remitoValidado && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-green-900/50 text-green-400 border border-green-700 font-semibold">✅ Validado</span>
+                      )}
+                    </div>
+
+                    {loadingRemito ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                        <span className="ml-3 text-slate-400 text-sm">Cargando remito...</span>
+                      </div>
+                    ) : remitoUrl ? (
+                      <div className="space-y-3">
+                        <div className="bg-slate-900 rounded-lg p-2 border border-slate-700">
+                          <img
+                            src={remitoUrl}
+                            alt="Remito firmado"
+                            className="w-full max-h-64 object-contain rounded cursor-pointer"
+                            onClick={() => window.open(remitoUrl, '_blank')}
+                            title="Click para ver en tamaño completo"
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 text-center">Click en la imagen para ampliar</p>
+
+                        {!remitoValidado && (
+                          <button
+                            onClick={() => setRemitoValidado(true)}
+                            className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-500 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <CheckCircleIcon className="h-5 w-5" />
+                            Validar Remito
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 bg-slate-900/50 rounded-lg border border-dashed border-slate-700">
+                        <ExclamationTriangleIcon className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+                        <p className="text-slate-400 text-sm">No se encontró foto del remito</p>
+                        <p className="text-slate-500 text-xs mt-1">El supervisor de carga debe subir la foto del remito firmado</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -975,8 +1063,8 @@ export default function ControlAcceso() {
                       </button>
                     )}
 
-                    {/* Confirmar Egreso - Solo si documentación está validada o es en destino */}
-                    {((viaje.tipo_operacion === 'envio' && (viaje.estado_unidad === 'cargado' || viaje.estado_unidad === 'egreso_origen') && viaje.documentacion_validada) ||
+                    {/* Confirmar Egreso - Solo si documentación y remito están validados, o es en destino */}
+                    {((viaje.tipo_operacion === 'envio' && (viaje.estado_unidad === 'cargado' || viaje.estado_unidad === 'egreso_origen') && viaje.documentacion_validada && remitoValidado) ||
                       (viaje.tipo_operacion === 'recepcion' && (viaje.estado_unidad === 'descargado' || viaje.estado_unidad === 'egreso_destino'))) && (
                       <button
                         onClick={confirmarEgreso}
