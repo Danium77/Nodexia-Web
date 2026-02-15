@@ -151,6 +151,27 @@ const UnidadesOperativas = () => {
     }
   };
 
+  const eliminarUnidad = async (unidadId: string, nombreUnidad: string) => {
+    if (!confirm(`¿Está seguro de ELIMINAR PERMANENTEMENTE la unidad "${nombreUnidad}"?\n\nEsta acción NO se puede deshacer y eliminará:\n- El registro de la unidad operativa\n- El historial asociado\n\nLos choferes, camiones y acoplados NO se eliminarán.`)) {
+      return;
+    }
+
+    try {
+      const { error: err } = await supabase
+        .from('unidades_operativas')
+        .delete()
+        .eq('id', unidadId);
+
+      if (err) throw err;
+
+      alert(`Unidad "${nombreUnidad}" eliminada correctamente`);
+      await loadUnidades();
+    } catch (err: any) {
+      console.error('Error al eliminar unidad:', err);
+      alert('Error al eliminar unidad: ' + err.message);
+    }
+  };
+
   const handleEditarUnidad = (unidad: UnidadOperativa) => {
     setSelectedUnidad(unidad);
     setIsEditModalOpen(true);
@@ -458,6 +479,15 @@ const UnidadesOperativas = () => {
                                 <CheckCircleIcon className="h-4 w-4" />
                               )}
                             </button>
+                            {!unidad.activo && (
+                              <button
+                                onClick={() => eliminarUnidad(unidad.id, unidad.nombre)}
+                                className="p-2 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600/40 transition-colors"
+                                title="Eliminar permanentemente"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
