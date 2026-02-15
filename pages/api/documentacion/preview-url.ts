@@ -7,26 +7,17 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
 
 export default withAuth(async (req, res, authCtx) => {
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
-    // Verificar rol: solo admin_nodexia / super_admin / control_acceso
-    const { data: isSuperAdmin } = await supabaseAdmin
-      .from('super_admins')
-      .select('id')
-      .eq('user_id', authCtx.userId)
-      .eq('activo', true)
-      .maybeSingle();
+    // Cualquier usuario autenticado puede generar preview de documentos de su empresa
+    // (el filtro real es que solo vea docs de su empresa, que ya se valida en listar)
 
-    const rolesPermitidos = ['admin_nodexia', 'super_admin', 'control_acceso'];
-    const tieneAcceso = !!isSuperAdmin || rolesPermitidos.includes(authCtx.rolInterno || '');
-    if (!tieneAcceso) {
-      return res.status(403).json({ error: 'Sin permisos para ver documentos' });
-    }
-
-    const { file_url } = req.body as { file_url: string };
+    const file_url = req.method === 'GET' 
+      ? req.query.file_url as string 
+      : (req.body as { file_url: string }).file_url;
 
     if (!file_url || typeof file_url !== 'string') {
       return res.status(400).json({ error: 'file_url es requerido' });

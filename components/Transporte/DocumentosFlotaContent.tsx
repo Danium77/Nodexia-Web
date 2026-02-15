@@ -52,6 +52,9 @@ interface DocumentoExistente {
   fecha_vencimiento: string | null;
   estado_vigencia: 'pendiente_validacion' | 'vigente' | 'por_vencer' | 'vencido' | 'rechazado';
   file_url: string;
+  storage_path?: string;
+  bucket?: string;
+  motivo_rechazo?: string | null;
   created_at: string;
 }
 
@@ -219,14 +222,28 @@ export default function DocumentosFlotaContent() {
     return { total: totalAjustado, ok, pendiente, vencido, sinDoc };
   };
 
-  // Ver documento
+  // Ver documento — file_url ya es una signed URL generada server-side por la API listar
   const handleVerDocumento = async (fileUrl: string) => {
     try {
-      const { data } = await supabase.storage
-        .from('documentacion-entidades')
-        .createSignedUrl(fileUrl, 300);
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank');
+      if (fileUrl.startsWith('http')) {
+        // Ya es una signed URL del servidor
+        window.open(fileUrl, '_blank');
+      } else {
+        // Fallback: generar signed URL via API server-side (bypasa RLS de storage)
+        const { data: { session } } = await supabase.auth.getSession();
+        const response = await fetch(`/api/documentacion/preview-url?file_url=${encodeURIComponent(fileUrl)}`, {
+          headers: {
+            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+          },
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.signedUrl) {
+            window.open(result.signedUrl, '_blank');
+          }
+        } else {
+          console.error('Error obteniendo preview URL');
+        }
       }
     } catch (err) {
       console.error('Error abriendo documento:', err);
@@ -434,24 +451,32 @@ export default function DocumentosFlotaContent() {
                         <div className="min-w-0">
                           <p className="text-white font-medium text-sm">{docReq.label}</p>
                           {docExistente ? (
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                docExistente.estado_vigencia === 'vigente' ? 'bg-green-600/30 text-green-300' :
-                                docExistente.estado_vigencia === 'por_vencer' ? 'bg-yellow-600/30 text-yellow-300' :
-                                docExistente.estado_vigencia === 'pendiente_validacion' ? 'bg-blue-600/30 text-blue-300' :
-                                docExistente.estado_vigencia === 'rechazado' ? 'bg-red-600/30 text-red-300' :
-                                'bg-red-600/30 text-red-300'
-                              }`}>
-                                {docExistente.estado_vigencia === 'vigente' ? 'Vigente' :
-                                 docExistente.estado_vigencia === 'por_vencer' ? 'Por vencer' :
-                                 docExistente.estado_vigencia === 'pendiente_validacion' ? 'Pendiente validación' :
-                                 docExistente.estado_vigencia === 'rechazado' ? 'Rechazado' :
-                                 'Vencido'}
-                              </span>
-                              {docExistente.fecha_vencimiento && (
-                                <span className="text-xs text-slate-400">
-                                  Vto: {new Date(docExistente.fecha_vencimiento).toLocaleDateString('es-AR')}
+                            <div className="mt-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  docExistente.estado_vigencia === 'vigente' ? 'bg-green-600/30 text-green-300' :
+                                  docExistente.estado_vigencia === 'por_vencer' ? 'bg-yellow-600/30 text-yellow-300' :
+                                  docExistente.estado_vigencia === 'pendiente_validacion' ? 'bg-blue-600/30 text-blue-300' :
+                                  docExistente.estado_vigencia === 'rechazado' ? 'bg-red-600/30 text-red-300' :
+                                  'bg-red-600/30 text-red-300'
+                                }`}>
+                                  {docExistente.estado_vigencia === 'vigente' ? 'Vigente' :
+                                   docExistente.estado_vigencia === 'por_vencer' ? 'Por vencer' :
+                                   docExistente.estado_vigencia === 'pendiente_validacion' ? 'Pendiente validación' :
+                                   docExistente.estado_vigencia === 'rechazado' ? 'Rechazado' :
+                                   'Vencido'}
                                 </span>
+                                {docExistente.fecha_vencimiento && (
+                                  <span className="text-xs text-slate-400">
+                                    Vto: {new Date(docExistente.fecha_vencimiento).toLocaleDateString('es-AR')}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Motivo de rechazo */}
+                              {docExistente.estado_vigencia === 'rechazado' && docExistente.motivo_rechazo && (
+                                <div className="mt-1.5 px-2 py-1.5 bg-red-900/30 border border-red-500/30 rounded text-xs text-red-300">
+                                  <span className="font-semibold">Motivo:</span> {docExistente.motivo_rechazo}
+                                </div>
                               )}
                             </div>
                           ) : (
