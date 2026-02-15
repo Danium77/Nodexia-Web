@@ -83,11 +83,6 @@ export default withAuth(async (req, res, authCtx) => {
       .in('entidad_id', allIds)
       .eq('activo', true);
 
-    // Empresa scoping
-    if (authCtx.empresaId) {
-      docsQuery = docsQuery.eq('empresa_id', authCtx.empresaId);
-    }
-
     const { data: docs, error: queryError } = await docsQuery;
 
     if (queryError) throw queryError;

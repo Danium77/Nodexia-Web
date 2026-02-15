@@ -174,33 +174,47 @@ export default function SupervisorCarga() {
       (camionesRes.data || []).forEach((c: any) => { camionesMap[c.id] = c; });
       (acopladosRes.data || []).forEach((a: any) => { acopladosMap[a.id] = a; });
 
-      // Traer estado de documentación para cada entidad
-      const allEntityIds = [...choferIds, ...camionIds, ...acopladoIds];
-      let docsMap: Record<string, DocStatus> = {};
-      if (allEntityIds.length > 0) {
-        const { data: docs } = await supabase
-          .from('documentos_entidad')
-          .select('entidad_id, estado_vigencia')
-          .in('entidad_id', allEntityIds)
-          .eq('activo', true);
+      // Traer estado de documentación via API server-side (bypasses RLS, docs belong to transport empresa)
+      const allEntidades: { tipo: string; id: string }[] = [
+        ...choferIds.map(id => ({ tipo: 'chofer', id })),
+        ...camionIds.map(id => ({ tipo: 'camion', id })),
+        ...acopladoIds.map(id => ({ tipo: 'acoplado', id })),
+      ];
 
-        if (docs) {
-          // Agrupar por entidad_id
-          const grouped: Record<string, any[]> = {};
-          docs.forEach(d => {
-            if (!grouped[d.entidad_id]) grouped[d.entidad_id] = [];
-            grouped[d.entidad_id].push(d);
-          });
-          Object.entries(grouped).forEach(([id, docList]) => {
-            docsMap[id] = {
-              total: docList.length,
-              vigentes: docList.filter(d => d.estado_vigencia === 'vigente' || d.estado_vigencia === 'validado').length,
-              vencidos: docList.filter(d => d.estado_vigencia === 'vencido' || d.estado_vigencia === 'rechazado').length,
-              pendientes: docList.filter(d => d.estado_vigencia === 'pendiente_validacion' || d.estado_vigencia === 'pendiente').length,
-            };
-          });
+      let docsStatusMap: Record<string, { estado: string; vigentes: number; vencidos: number; por_vencer: number; faltantes: string[] }> = {};
+      if (allEntidades.length > 0) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const docRes = await fetch('/api/documentacion/estado-batch', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ entidades: allEntidades }),
+            });
+            if (docRes.ok) {
+              const docJson = await docRes.json();
+              docsStatusMap = docJson.data || {};
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ [supervisor-carga] Error cargando docs:', err);
         }
       }
+
+      const getDocStatus = (tipo: string, id: string): DocStatus => {
+        const key = `${tipo}:${id}`;
+        const s = docsStatusMap[key];
+        if (!s) return { total: 0, vigentes: 0, vencidos: 0, pendientes: 0 };
+        return {
+          total: s.vigentes + s.vencidos + s.por_vencer,
+          vigentes: s.vigentes,
+          vencidos: s.vencidos,
+          pendientes: s.por_vencer,
+        };
+      };
 
       const emptyDocs: DocStatus = { total: 0, vigentes: 0, vencidos: 0, pendientes: 0 };
 
@@ -230,9 +244,9 @@ export default function SupervisorCarga() {
             ? { patente: acoplado.patente, marca: `${acoplado.marca} ${acoplado.modelo || ''}`.trim() }
             : null,
           tipo_operacion,
-          docs_chofer: v.chofer_id ? (docsMap[v.chofer_id] || emptyDocs) : emptyDocs,
-          docs_camion: v.camion_id ? (docsMap[v.camion_id] || emptyDocs) : emptyDocs,
-          docs_acoplado: v.acoplado_id ? (docsMap[v.acoplado_id] || emptyDocs) : null,
+          docs_chofer: v.chofer_id ? getDocStatus('chofer', v.chofer_id) : emptyDocs,
+          docs_camion: v.camion_id ? getDocStatus('camion', v.camion_id) : emptyDocs,
+          docs_acoplado: v.acoplado_id ? getDocStatus('acoplado', v.acoplado_id) : null,
         };
       });
 
@@ -786,7 +800,7 @@ export default function SupervisorCarga() {
     return null;
   };
 
-  // ─── Helper de doc badge ───────────────────────────────────────
+  // ─── Helper de doc badge (inline) ──────────────────────────
   const renderDocBadge = (docs: DocStatus) => {
     if (docs.total === 0) return <span className="text-xs text-slate-500">Sin docs</span>;
     if (docs.vencidos > 0) return <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800">⚠ {docs.vencidos} venc.</span>;
@@ -794,59 +808,59 @@ export default function SupervisorCarga() {
     return <span className="text-xs px-1.5 py-0.5 rounded bg-green-900/50 text-green-400 border border-green-800">✅ OK</span>;
   };
 
-  // ─── Tarjeta de viaje reutilizable ─────────────────────────────
+  // ─── Tarjeta de viaje compacta (fila) ───────────────────────
   const renderViajeCard = (v: ViajeParaCarga) => (
-    <div key={v.id} className="border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors bg-slate-800/50">
-      {/* Header: número + estado + acción */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-lg text-slate-100">#{v.numero_viaje}</span>
-          {getEstadoBadge(v.estado, v.estado_carga)}
+    <div key={v.id} className="border border-slate-700 rounded-lg px-4 py-3 hover:border-slate-600 transition-colors bg-slate-800/50">
+      {/* Row: info compacta + acción */}
+      <div className="flex items-center gap-4">
+        {/* Chofer */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-200 truncate">👤 {v.chofer.nombre}</span>
+            {renderDocBadge(v.docs_chofer)}
+          </div>
+          <p className="text-xs text-slate-500">DNI: {v.chofer.dni}</p>
         </div>
+
+        {/* Divider */}
+        <div className="h-8 w-px bg-slate-700 shrink-0" />
+
+        {/* Camión */}
+        <div className="min-w-0 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-200">🚛 {v.camion.patente}</span>
+            {renderDocBadge(v.docs_camion)}
+          </div>
+          <p className="text-xs text-slate-500">{v.camion.marca}</p>
+        </div>
+
+        {/* Acoplado (si hay) */}
+        {v.acoplado && v.docs_acoplado && (
+          <>
+            <div className="h-8 w-px bg-slate-700 shrink-0" />
+            <div className="min-w-0 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-200">🔗 {v.acoplado.patente}</span>
+                {renderDocBadge(v.docs_acoplado)}
+              </div>
+              <p className="text-xs text-slate-500">{v.acoplado.marca}</p>
+            </div>
+          </>
+        )}
+
+        {/* Divider */}
+        <div className="h-8 w-px bg-slate-700 shrink-0" />
+
+        {/* Destino */}
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-slate-500">Destino</p>
+          <p className="text-sm text-slate-300 truncate">{v.destino}</p>
+        </div>
+
+        {/* Acción */}
         <div className="shrink-0">
           {renderAcciones(v)}
         </div>
-      </div>
-
-      {/* Destino */}
-      <div className="mb-3 text-sm">
-        <span className="text-slate-500">Destino:</span>{' '}
-        <span className="text-slate-200 font-medium">{v.destino}</span>
-      </div>
-
-      {/* Grid: Chofer / Camión / Acoplado */}
-      <div className={`grid gap-3 ${v.acoplado ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        {/* Chofer */}
-        <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-xs text-slate-500 font-semibold uppercase">👤 Chofer</span>
-          </div>
-          <p className="text-sm text-slate-200 font-medium truncate">{v.chofer.nombre}</p>
-          <p className="text-xs text-slate-400">DNI: {v.chofer.dni}</p>
-          <div className="mt-1.5">{renderDocBadge(v.docs_chofer)}</div>
-        </div>
-
-        {/* Camión */}
-        <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-xs text-slate-500 font-semibold uppercase">🚛 Camión</span>
-          </div>
-          <p className="text-sm text-slate-200 font-medium">{v.camion.patente}</p>
-          <p className="text-xs text-slate-400">{v.camion.marca}</p>
-          <div className="mt-1.5">{renderDocBadge(v.docs_camion)}</div>
-        </div>
-
-        {/* Acoplado (si existe) */}
-        {v.acoplado && v.docs_acoplado && (
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-xs text-slate-500 font-semibold uppercase">🔗 Acoplado</span>
-            </div>
-            <p className="text-sm text-slate-200 font-medium">{v.acoplado.patente}</p>
-            <p className="text-xs text-slate-400">{v.acoplado.marca}</p>
-            <div className="mt-1.5">{renderDocBadge(v.docs_acoplado)}</div>
-          </div>
-        )}
       </div>
     </div>
   );
