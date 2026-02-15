@@ -147,11 +147,38 @@ export function useChoferes() {
   }
 
   async function deleteChofer(id: string) {
+    // Verificar si el chofer está asignado a alguna unidad operativa
+    const { data: unidadesData, error: checkError } = await supabase
+      .from('unidades_operativas')
+      .select('id, nombre')
+      .eq('chofer_id', id)
+      .eq('activo', true)
+      .limit(5);
+
+    if (checkError) {
+      console.error('Error verificando unidades operativas:', checkError);
+      throw new Error('Error al verificar asignaciones del chofer');
+    }
+
+    if (unidadesData && unidadesData.length > 0) {
+      const unidadesNombres = unidadesData.map(u => u.nombre).join(', ');
+      throw new Error(
+        `No se puede eliminar el chofer porque está asignado a ${unidadesData.length} unidad(es) operativa(s): ${unidadesNombres}. ` +
+        `Primero debe desasignar o eliminar las unidades operativas.`
+      );
+    }
+
+    // Si no hay unidades operativas, proceder con la eliminación
     const { error: deleteError } = await supabase
       .from('choferes')
       .delete()
       .eq('id', id);
-    if (deleteError) throw deleteError;
+    
+    if (deleteError) {
+      console.error('Error eliminando chofer:', deleteError);
+      throw new Error('Error al eliminar el chofer');
+    }
+    
     setChoferes((prev) => prev.filter((c) => c.id !== id));
   }
 

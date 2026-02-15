@@ -183,6 +183,28 @@ export default function ChoferesContent() {
     }
   }
 
+  async function handleDeleteChofer(id: string, nombreCompleto: string) {
+    // Pedir confirmación
+    if (!confirm(`¿Está seguro de eliminar al chofer ${nombreCompleto}?`)) {
+      return;
+    }
+
+    setError(null);
+    try {
+      await deleteChofer(id);
+      // Éxito - la lista se actualiza automáticamente gracias al hook
+    } catch (err: unknown) {
+      console.error('Error al eliminar chofer:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error inesperado al eliminar el chofer');
+      }
+      // Scroll hacia arriba para mostrar el error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
   return (
     <div className="p-4">
       <h3 className="text-lg font-bold text-green-300 mb-4">Gestión de Choferes</h3>
@@ -292,7 +314,7 @@ export default function ChoferesContent() {
                     <td className="p-3">{v.telefono}</td>
                     <td className="p-3 flex gap-2">
                       <button className="text-yellow-400 underline hover:text-yellow-300" onClick={() => v.id && router.push(`/choferes/${v.id}`)}>Ver detalle</button>
-                      <button className="text-red-400 hover:text-red-300" onClick={() => v.id && deleteChofer(v.id)}>Eliminar</button>
+                      <button className="text-red-400 hover:text-red-300" onClick={() => v.id && handleDeleteChofer(v.id, `${v.nombre} ${v.apellido}`)}>Eliminar</button>
                     </td>
                   </tr>
                 ))
