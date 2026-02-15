@@ -20,11 +20,17 @@ const Dashboard = () => {
   const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 [Dashboard] Effect triggered:', { hasRedirected, loading, user: !!user, primaryRole, tipoEmpresa });
+    
     // Prevenir múltiples redirects
-    if (hasRedirected || loading) return;
+    if (hasRedirected || loading) {
+      console.log('⏸️ [Dashboard] Skipping:', { hasRedirected, loading });
+      return;
+    }
 
     // Sin usuario → login
     if (!user) {
+      console.log('🚪 [Dashboard] No user, redirecting to login');
       setHasRedirected(true);
       router.replace('/login');
       return;
@@ -32,18 +38,22 @@ const Dashboard = () => {
 
     // Sin rol → esperar
     if (!primaryRole) {
+      console.log('⏳ [Dashboard] No primaryRole yet');
       return;
     }
 
     // Para roles contextuales, esperar a que cargue tipoEmpresa
     if ((primaryRole === 'coordinador' || primaryRole === 'supervisor') && !tipoEmpresa) {
+      console.log('⏳ [Dashboard] Waiting for tipoEmpresa');
       return;
     }
 
     // Redirigir según rol
+    console.log('🎯 [Dashboard] Redirecting for role:', primaryRole);
     
     switch (primaryRole) {
       case 'super_admin':
+        console.log('✅ [Dashboard] Redirecting to /admin/super-admin-dashboard');
         setHasRedirected(true);
         router.replace('/admin/super-admin-dashboard');
         break;
