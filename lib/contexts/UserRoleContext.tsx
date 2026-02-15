@@ -243,16 +243,26 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         .maybeSingle(); // Cambiado a maybeSingle para evitar error 406
 
       console.log('📊 [UserRoleContext] Super admin check result:', { superAdminData, superAdminError });
+      console.log('🔍 [UserRoleContext] superAdminData value:', superAdminData);
+      console.log('🔍 [UserRoleContext] superAdminData.activo:', superAdminData?.activo);
+      console.log('🔍 [UserRoleContext] Type of activo:', typeof superAdminData?.activo);
       
       if (superAdminError) {
         console.warn('⚠️ Error al verificar super_admin:', superAdminError.message);
       }
 
-      if (superAdminData && superAdminData.activo) {
+      if (superAdminData && superAdminData.activo === true) {
+        console.log('✅ [UserRoleContext] SUPER ADMIN DETECTADO - Setting role');
         setRoles(['super_admin' as UserRole]);
         setEmpresaId(null); // Super admin no tiene empresa específica
         finishFetch(); // Terminar fetch y liberar flags
         return; // IMPORTANTE: Salir aquí y NO seguir buscando otros roles
+      } else {
+        console.log('❌ [UserRoleContext] Super admin check failed:', {
+          hasSuperAdminData: !!superAdminData,
+          activoValue: superAdminData?.activo,
+          activoIsTrue: superAdminData?.activo === true
+        });
       }
 
       // 🔥 ACTUALIZADO: Buscar directamente en usuarios_empresa con JOIN a empresas
