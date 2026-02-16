@@ -74,6 +74,6 @@ export default withAuth(async (req, res) => {
       }
     });
   } catch (error: any) {
-    return res.status(500).json({ error: 'Error interno', details: error.message });
+    return res.status(500).json({ error: 'Error interno' });
   }
-});
+}, { roles: ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'] });

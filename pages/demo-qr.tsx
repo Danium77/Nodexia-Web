@@ -1,14 +1,26 @@
 // pages/demo-qr.tsx  
 // Página central de demostración del sistema QR
+// ⚠️ SOLO visible en desarrollo — en producción redirige al login
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function DemoQR() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   
+  // Bloquear en producción
   useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      router.replace('/login');
+      return;
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
     const getUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (user && !error) {
@@ -19,39 +31,39 @@ export default function DemoQR() {
   }, []);
   const [_selectedRole, _setSelectedRole] = useState('');
 
+  // Si estamos en producción, no renderizar nada
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+
   const credenciales = [
     {
       rol: 'Super Admin',
       email: 'admin.demo@nodexia.com',
-      password: 'Demo1234!',
       descripcion: 'Acceso completo al sistema',
       color: 'bg-purple-600'
     },
     {
       rol: 'Control de Acceso',
       email: 'control.acceso@nodexia.com', 
-      password: 'Demo1234!',
       descripcion: 'Gestión de ingreso y egreso de camiones',
       color: 'bg-blue-600'
     },
     {
       rol: 'Supervisor de Carga',
       email: 'supervisor.carga@nodexia.com',
-      password: 'Demo1234!', 
       descripcion: 'Gestión de procesos de carga',
       color: 'bg-green-600'
     },
     {
       rol: 'Coordinador',
       email: 'coordinador.demo@tecnoembalajes.com',
-      password: 'Demo1234!',
       descripcion: 'Planificación y gestión de viajes',
       color: 'bg-orange-600'
     },
     {
       rol: 'Chofer',
       email: 'chofer.demo@nodexia.com',
-      password: 'Demo1234!',
       descripcion: 'Vista del chofer (móvil simulada)',
       color: 'bg-gray-600'
     }
@@ -115,8 +127,7 @@ export default function DemoQR() {
                   </div>
                   <p className="text-sm text-gray-600 mb-2">{cred.descripcion}</p>
                   <p className="text-xs font-mono bg-gray-100 p-2 rounded">
-                    📧 {cred.email}<br/>
-                    🔑 {cred.password}
+                    📧 {cred.email}
                   </p>
                   
                   <Link 

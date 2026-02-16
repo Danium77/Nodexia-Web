@@ -118,4 +118,4 @@ export default withAuth(async (req, res, _authCtx) => {
       message: error.message
     });
   }
-});
+}, { roles: ['coordinador', 'admin_nodexia'] });

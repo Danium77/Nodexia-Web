@@ -4,6 +4,7 @@ import type { AppProps } from "next/app";
 import { useRouter } from 'next/router';
 import { UserRoleProvider } from '../lib/contexts/UserRoleContext';
 import { useServiceWorker } from '../lib/hooks/usePWA';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -17,13 +18,19 @@ export default function App({ Component, pageProps }: AppProps) {
   
   // Si es página pública, no envolver en UserRoleProvider
   if (isPublicPage) {
-    return <Component {...pageProps} />;
+    return (
+      <ErrorBoundary>
+        <Component {...pageProps} />
+      </ErrorBoundary>
+    );
   }
   
   // Páginas protegidas usan UserRoleProvider
   return (
-    <UserRoleProvider>
-      <Component {...pageProps} />
-    </UserRoleProvider>
+    <ErrorBoundary>
+      <UserRoleProvider>
+        <Component {...pageProps} />
+      </UserRoleProvider>
+    </ErrorBoundary>
   );
 }

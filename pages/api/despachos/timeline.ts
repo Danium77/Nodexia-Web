@@ -33,12 +33,28 @@ export default withAuth(async (req, res, _authCtx) => {
     // 1. Obtener datos del despacho
     const { data: despacho, error: despachoError } = await supabaseAdmin
       .from('despachos')
-      .select('id, pedido_id, estado, created_at, origen, destino, origen_asignacion')
+      .select('id, pedido_id, estado, created_at, origen, destino, origen_asignacion, empresa_planta_id')
       .eq('id', despachoId)
       .single();
 
     if (despachoError || !despacho) {
       return res.status(404).json({ error: 'Despacho no encontrado' });
+    }
+
+    // Verificar que el despacho pertenece a la empresa del usuario
+    if (_authCtx.empresaId && _authCtx.rolInterno !== 'admin_nodexia') {
+      // Obtener transporte del viaje asociado
+      const { data: viaje } = await supabaseAdmin
+        .from('viajes_despacho')
+        .select('id_transporte')
+        .eq('despacho_id', despachoId)
+        .limit(1)
+        .maybeSingle();
+
+      const empresaTransporte = viaje?.id_transporte;
+      if (despacho.empresa_planta_id !== _authCtx.empresaId && empresaTransporte !== _authCtx.empresaId) {
+        return res.status(403).json({ error: 'No tiene acceso a este despacho' });
+      }
     }
 
     // 2. Obtener viajes del despacho con timestamps

@@ -143,7 +143,6 @@ export default withAuth(async (req, res, { userId }) => {
   } catch (error: any) {
     return res.status(500).json({
       error: 'Error interno del servidor',
-      details: error.message,
     });
   }
-});
+}, { roles: ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'] });

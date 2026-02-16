@@ -12,15 +12,34 @@ export default withAuth(async (req, res, authCtx) => {
   }
 
   try {
-    // Cualquier usuario autenticado puede generar preview de documentos de su empresa
-    // (el filtro real es que solo vea docs de su empresa, que ya se valida en listar)
-
     const file_url = req.method === 'GET' 
       ? req.query.file_url as string 
       : (req.body as { file_url: string }).file_url;
 
     if (!file_url || typeof file_url !== 'string') {
       return res.status(400).json({ error: 'file_url es requerido' });
+    }
+
+    // Validar que el path no contenga traversal attacks
+    if (file_url.includes('..') || file_url.startsWith('/')) {
+      return res.status(400).json({ error: 'Ruta de archivo inválida' });
+    }
+
+    // Verificar que el documento pertenece a la empresa del usuario
+    // (buscar en documentos_entidad que el file_url corresponda a un doc de su empresa)
+    if (authCtx.empresaId) {
+      const { data: doc } = await supabaseAdmin
+        .from('documentos_entidad')
+        .select('id')
+        .eq('file_url', file_url)
+        .eq('empresa_id', authCtx.empresaId)
+        .limit(1)
+        .maybeSingle();
+
+      // Si no es admin_nodexia y no encontró doc de su empresa, denegar
+      if (!doc && authCtx.rolInterno !== 'admin_nodexia') {
+        return res.status(403).json({ error: 'No tiene acceso a este documento' });
+      }
     }
 
     // Generar signed URL con service role (bypasses storage RLS)

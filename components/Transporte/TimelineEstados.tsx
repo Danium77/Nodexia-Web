@@ -2,7 +2,7 @@
 // Componente para mostrar el historial de cambios de estado de un viaje
 
 import { useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabaseClient';
 import { 
   Clock, 
   User, 
@@ -41,7 +41,6 @@ export function TimelineEstados({ viajeId, className = '' }: TimelineEstadosProp
   const [historial, setHistorial] = useState<EstadoHistorial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     loadHistorial();

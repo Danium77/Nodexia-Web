@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../lib/supabaseClient';
 import { 
   BuildingOfficeIcon, 
   UsersIcon, 
@@ -7,10 +7,6 @@ import {
   ArrowTrendingUpIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface DashboardStats {
   totalClientes: number;
