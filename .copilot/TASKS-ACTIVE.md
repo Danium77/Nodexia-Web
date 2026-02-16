@@ -1,43 +1,56 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 15-Feb-2026 (Sesión 22 — Testing E2E PROD — 8 Bugs Fix)
+**Actualizado:** 15-Feb-2026 (Sesión 23 — Full Trip E2E + Flota Redesign)
 
 ---
 
 ## 🔄 EN PROGRESO
 
-### Testing E2E en PROD
-**Estado:** Avanzado — flujo principal validado hasta GPS tracking
-**Validado:**
-- ✅ Vincular chofer por DNI (nuevo + re-vincular existente)
-- ✅ Desvincular chofer
-- ✅ Crear despacho (DSP-20260214-001)
-- ✅ Generar viaje automáticamente
-- ✅ Asignar transporte (Logística Expres)
-- ✅ Crear unidad operativa (chofer+camión) en Flota
-- ✅ Asignar unidad a viaje desde Despachos Ofrecidos
-- ✅ Chofer confirma viaje desde chofer-mobile
-- ✅ Chofer inicia viaje (en_transito_origen) — estado visible en todas las pantallas
-- ✅ Panel de estados LED refleja estados correctos
-- ✅ Historial de eventos registra cambios de estado
-- ✅ Navegación Maps a origen/destino funciona
-- ✅ GPS tracking auth corregido (fix deployado commit `716e5c3`)
-**Pendiente:**
-- ⬜ Re-test GPS tracking (auth fix recién deployado)
-- ⬜ Flujo completo: ingresado_origen → carga → egreso → destino → completado
-- ⬜ Control de acceso en PROD (roles CA, supervisor)
-- ⬜ Despachos ofrecidos / cargas en red
-
 ### Pre-Demo (18-Feb-2026 — 3 días)
-**Estado:** Pendiente
+**Estado:** En preparación
+- ✅ Flujo E2E completo validado (todos los actores)
+- ✅ Self-delivery flow para destinos no-Nodexia
+- ✅ UX improvements: Flota unificada, detail page, modal compacto
 - ⬜ Preparación datos demo
 - ⬜ Verificar UX general para presentación
-- ⬜ Documentación para presentación
+- ⬜ Script/guión de demo
+
+### Testing Pendiente
+**Estado:** Pendiente
+- ⬜ Test despachos ofrecidos / cargas en red en PROD
+- ⬜ Red Nodexia flow completo en PROD
 
 ### Security P1
 **Estado:** Pendiente (Post-MVP)
 - ⬜ Rate limiting middleware
 - ⬜ CORS middleware para mobile apps
+
+---
+
+## ✅ COMPLETADAS (Sesión 23 — 15-Feb-2026)
+
+### Full Trip Lifecycle E2E Validated ✅
+**Completado por:** Opus + Usuario — Sesión 23 (12 rondas)
+**Contexto:** Testing completo del ciclo de viaje en PROD + UX redesign
+
+#### Rondas 1-10: E2E Lifecycle Fixes ✅
+- GPS tracking real, doc rejection, empresa_id fix
+- Supervisor carga UX, estados granularity, remito preview
+- TrackingView panels sync, egreso naming
+- Commits: `4c24f53` → `530fbc0`
+
+#### Ronda 11: Self-delivery flow ✅
+- Chofer mobile: remito upload + "Completar Entrega" auto-chains 3 states
+- TrackingView right panel badge fix (carga phases)
+- Commit: `02128d8`
+
+#### Ronda 12: Completados UX + Flota Redesign ✅
+- Completados tab: hide Asignar/RED, add Ver Detalle
+- NEW: Detail page `/despachos/[id]/detalle` (viajes + docs + timeline)
+- Flota: 5 tabs → 2 (Unidades + Documentación)
+- NEW: UnidadesFlotaUnificado (cards + unidades operativas section)
+- Assignment modal: compact 2-col cards
+- Commits: `b01f02b`, `64fe2ad`
 
 ---
 
@@ -48,36 +61,27 @@
 **Contexto:** Testing E2E intensivo en PROD del flujo chofer↔viaje
 
 #### Bug 1: id_transporte NULL al vincular chofer ✅
-- `lib/hooks/useChoferes.tsx` — Set id_transporte = empresa_id en addChofer
-- `pages/transporte/choferes.tsx` — Removido id_transporte = currentUserId (incorrecto)
 - Commit: `8f9e73f`
 
 #### Bug 2: Duplicate DNI al re-vincular chofer ✅
-- `lib/hooks/useChoferes.tsx` — Detectar existente por DNI → UPDATE en vez de INSERT
 - Commit: `b057bde`
 
 #### Bug 3: Panel estados LED no enciende ✅
-- `pages/transporte/viajes-activos.tsx` — Usar viajes.map(v => v.estado) en vez de viajesParaMapa + estado_unidad_viaje
 - Commit: `d1d566b`
 
 #### Bug 4: CHECK constraint al confirmar viaje ✅
-- `sql/fix_viajes_despacho_estado_unidad_check.sql` — 17+1 estados, ejecutado en PROD
 - Commit: `ca0b7f5`
 
 #### Bug 5: Historial no registra cambios de estado ✅
-- `lib/services/viajeEstado.ts` — ESTADO_A_TIMESTAMP_VIAJE + ESTADO_A_DESCRIPCION + insert historial_despachos + write timestamp viajes_despacho
 - Commit: `ca0b7f5`
 
 #### Bug 6: Botones Maps no visibles ✅
-- `pages/chofer-mobile.tsx` — Siempre mostrar botones con fallback a dirección
 - Commit: `f5ae794`
 
 #### Bug 7: Sin campos coordenadas en ubicaciones ✅
-- `components/Modals/CrearUbicacionModal.tsx` — Campos Latitud/Longitud
 - Commit: `f5ae794`
 
 #### Bug 8: GPS tracking auth falla ✅
-- `pages/api/gps/registrar-ubicacion.ts` — Comparar usuario_id en vez de email (columna inexistente)
 - Commit: `716e5c3`
 
 ---

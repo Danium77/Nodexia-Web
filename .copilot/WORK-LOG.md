@@ -4,7 +4,48 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
-## 📅 2026-02-15 (Domingo) - Sesión 22
+## 📅 2026-02-15 (Domingo) - Sesiones 22 y 23
+
+### Sesión 23 - Full Trip E2E + Flota Redesign + Detail Page
+
+**Tiempo:** ~5 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO/Tester E2E)
+
+#### Logros:
+1. ✅ Ciclo completo de viaje validado E2E (12 rondas de testing + fixes)
+2. ✅ Self-delivery flow para destinos no-Nodexia (remito + auto-complete)
+3. ✅ TrackingView panels: badges correctos en todas las fases
+4. ✅ Completados tab: hidden Asignar/RED, added Ver Detalle
+5. ✅ Detail page: viajes + documentos + timeline + facturación placeholder
+6. ✅ Flota redesign: 5 tabs → 2 (Unidades con cards + Documentación)
+7. ✅ Unidades Operativas section: cards + Nueva Unidad + status badges
+8. ✅ Assignment modal: compact 2-col cards with status/location/docs
+
+#### Archivos Creados (2):
+- `pages/despachos/[id]/detalle.tsx` — Detail page for completed despachos
+- `components/Transporte/UnidadesFlotaUnificado.tsx` — Unified fleet with operational units
+
+#### Archivos Modificados (~25):
+- `pages/crear-despacho.tsx` — Completados buttons
+- `pages/transporte/flota.tsx` — 5 tabs → 2
+- `components/Transporte/AsignarUnidadModal.tsx` — Compact cards
+- `pages/chofer-mobile.tsx` — Self-delivery flow
+- `components/Planning/TrackingView.tsx` — Panel badge fix
+- + ~20 more from rounds 1-10 (GPS, estados, supervisor, docs)
+
+#### Commits (14):
+- `4c24f53` → `d40fa8c` — Rounds 1-9 E2E fixes
+- `530fbc0` — Egreso naming + viajes-activos split
+- `02128d8` — Self-delivery flow + TrackingView fix
+- `b01f02b` — Detail page + flota unified + modal compact
+- `64fe2ad` — Unidades operativas in flota
+
+#### Estado al cierre:
+- Flujo E2E COMPLETO validado en PROD ✅
+- 3 días para presentación demo (18-Feb-2026)
+- Pendiente: datos demo, despachos/cargas en red test, script presentación
+
+---
 
 ### Sesión 22 - Testing E2E PROD — 8 Bugs Fix Intensivo
 

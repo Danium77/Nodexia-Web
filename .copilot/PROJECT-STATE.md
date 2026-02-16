@@ -1,6 +1,6 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 15-Feb-2026 (Sesión 22 — Testing E2E PROD — 8 Bugs Fix)
+**Última actualización:** 15-Feb-2026 (Sesión 23 — Full Trip E2E + Flota Redesign + Detail Page)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
 **Próxima presentación:** 18-Feb-2026 (3 días)
@@ -77,12 +77,13 @@
 - ✅ Crear despachos
 - ✅ Asignar transporte
 - ✅ Aceptar oferta Red Nodexia (API service role, 8 pasos atómicos)
+- ✅ Ver detalle de despachos completados (viajes + docs + timeline + facturación)
 
 ### Transporte:
-- ✅ Gestionar flota (camión, chofer, acoplado)
-- ✅ Generar unidades operativas (chofer+camión+acoplado)
+- ✅ Gestionar flota (camión, chofer, acoplado) — vista unificada en cards
+- ✅ Generar unidades operativas (chofer+camión+acoplado) — con status badges
 - ✅ Recibir despachos
-- ✅ Asignar unidad operativa a despacho
+- ✅ Asignar unidad operativa a despacho — modal compacto 2-col
 - ✅ Ver ubicación en tiempo real de unidades
 - ✅ Panel de estado de cada unidad operativa
 - ✅ Asignación inteligente de unidades
@@ -104,6 +105,7 @@
 - ✅ Visualización de datos de viaje con ubicación
 - ✅ Integración Google Maps (trazar ruta)
 - ✅ Ver y subir documentos desde perfil móvil
+- ✅ Self-delivery: remito upload + auto-completar viaje (destinos no-Nodexia)
 
 ### Control de Acceso:
 - ✅ Escanear QR (ingresar número de despacho)
@@ -261,42 +263,39 @@ components/
 
 ## 🔄 ÚLTIMA ACTIVIDAD
 
-**Sesión 15-Feb-2026 (Sesión 22 — Testing E2E PROD — 8 Bugs Fix):**
+**Sesión 15-Feb-2026 (Sesión 23 — Full Trip E2E + Flota Redesign + Detail Page):**
 
 ### Contexto:
-- Testing E2E intensivo en PROD del flujo completo chofer↔viaje
-- Cada paso del flujo reveló bugs que se corrigieron y deployaron inmediatamente
-- Total: 8 bugs encontrados y resueltos, 6 commits, todos en PROD
+- 12 rondas de testing E2E intensivo en PROD del ciclo COMPLETO de viaje
+- Ciclo completo validado end-to-end: crear → asignar → tránsito → planta → carga → egreso → destino → completar
+- Flujo self-delivery para destinos no-Nodexia implementado
+- Rediseño Flota (5 tabs → 2 tabs unificados con Unidades Operativas)
+- Detail page para despachos completados creada
+- Modal de asignación rediseñado (cards compactas)
 
-### Bugs corregidos:
-1. id_transporte NULL al vincular chofer → set id_transporte = empresa_id (commit `8f9e73f`)
-2. Duplicate DNI al re-vincular → UPDATE en vez de INSERT (commit `b057bde`)
-3. Panel LEDs no enciende → usar todos los viajes + campo estado principal (commit `d1d566b`)
-4. CHECK constraint confirmar viaje → SQL fix 17+1 estados en PROD (commit `ca0b7f5`)
-5. Historial no registra cambios → timestamps + historial_despachos insert (commit `ca0b7f5`)
-6. Maps botones no visibles → siempre visibles + fallback dirección (commit `f5ae794`)
-7. Sin campos coordenadas → lat/lng en CrearUbicacionModal (commit `f5ae794`)
-8. GPS tracking auth → usuario_id en vez de email inexistente (commit `716e5c3`)
+### Principales logros:
+1. ✅ Ciclo de viaje COMPLETO validado E2E en PROD (todos los actores)
+2. ✅ Self-delivery flow: chofer sube remito + auto-completa en destinos no-Nodexia
+3. ✅ TrackingView: badges correctos en ambos paneles (left + right)
+4. ✅ Completados tab: sin botones Asignar/RED, con "Ver Detalle"
+5. ✅ Detail page: viajes + documentos + timeline + facturación placeholder
+6. ✅ Flota unificada: Unidades Operativas + Inventario en card grid
+7. ✅ Modal asignación: 2-col compact cards con status/location/docs
 
-### Flujo E2E validado en PROD:
-- ✅ Vincular/desvincular chofer
-- ✅ Crear despacho + viaje
-- ✅ Asignar transporte + unidad operativa
-- ✅ Chofer confirmar viaje
-- ✅ Chofer iniciar viaje → estado actualiza en todas las pantallas
-- ✅ Panel LEDs refleja estados correctos
-- ✅ Historial registra eventos
-- ✅ Navegación Maps funciona
-- ⬜ GPS tracking (auth fix deployado, pendiente re-test)
-- ⬜ Flujo completo hasta completado
+### Commits sesión 23:
+- `4c24f53` → `d40fa8c` — Rounds 1-9 E2E fixes
+- `530fbc0` — Egreso naming + viajes-activos split
+- `02128d8` — Self-delivery flow + TrackingView fix
+- `b01f02b` — Detail page + flota unified + modal compact
+- `64fe2ad` — Unidades operativas in flota
 
-### Commits:
-- `8f9e73f` — fix: Set id_transporte on chofer insert
-- `b057bde` — fix: Re-vincular chofer existente
-- `d1d566b` — fix: Panel estados todos los viajes
-- `ca0b7f5` — fix: Historial + timestamps estado viaje
-- `f5ae794` — feat: Maps nav + campos coordenadas
-- `716e5c3` — fix: GPS tracking auth usuario_id
+### Flujo E2E COMPLETO validado:
+- ✅ Crear despacho → viaje → asignar transporte → asignar unidad
+- ✅ Chofer confirma → inicia → tránsito origen → ingreso → carga → egreso
+- ✅ Tránsito destino → ingreso destino → descarga → egreso → completado
+- ✅ Destino no-Nodexia: self-delivery (remito + auto-complete)
+- ✅ State sync across ALL actors
+- ✅ TrackingView panels correctos en todas las fases
 
 ---
 
