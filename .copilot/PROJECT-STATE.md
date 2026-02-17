@@ -1,6 +1,6 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 17-Feb-2026 (Sesión 25 — Team Docs + Session 24 Reconstruction)
+**Última actualización:** 17-Feb-2026 (Sesión 25 — Refactoring 4 Large Pages + Team Docs)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
 **Próxima presentación:** 28-Feb-2026 (11 días)
@@ -42,6 +42,11 @@
 - **Security Audit (Sesión 24):** IDOR fixes (preview-url, GPS, timeline), CSP header, ErrorBoundary global, 7 singleton fixes, error.message sanitizado
 - **Performance (Sesión 24):** Migración 060 — 11 indexes + 3 cleanup fns (pg_cron) ejecutada en PROD
 - **Team Docs (Sesión 24-25):** docs/equipos/ — FRONTEND.md, BACKEND-API.md, BD-SUPABASE.md, MOBILE.md
+- **Refactoring (Sesión 25):** 15 components extracted from 4 large pages:
+  - crear-despacho.tsx: 2405→1593 (5 components: DespachoForm, DespachoTabs, DespachoTableRow, CancelarDespachoModal, ViajesSubTable)
+  - chofer-mobile.tsx: 1976→1429 (7 components: BottomNavBar, IncidenciasTab, PerfilTab, TripDetailsCard, QRModal, HamburgerMenu, IncidenciaModal)
+  - control-acceso.tsx: 1227→993 (2 components: HistorialAccesos, EstadoBanners)
+  - supervisor-carga.tsx: 1157→1014 (1 component: ViajeAcciones)
 - **DB Sync PROD (Sesión 19):** 6 scripts SQL ejecutados (columns, tables, indexes, functions, views, security)
 - **Security P0 Fixes (Sesión 19):** delete-despacho migrado a withAuth, passwords removidos de docs, password_temporal removido de audit trail
 - **PROD Testing (Sesión 19):** Despacho creado, viaje generado, transporte asignado, unidad asignada — flujo parcialmente validado E2E en PROD

@@ -6,24 +6,45 @@ Registro cronológico de todas las actividades del proyecto.
 
 ## 📅 2026-02-17 (Martes) - Sesión 25
 
-### Sesión 25 - Documentación de Equipos (continuación)
+### Sesión 25 - Documentación de Equipos + Refactoring 4 Páginas
 
-**Tiempo:** ~1 hora  
+**Tiempo:** ~3 horas  
 **Equipo:** Opus (Tech Lead) + Usuario (PO)
 
-#### Logros:
+#### Logros (Parte 1 - Team Docs):
 1. ✅ Creado `docs/equipos/BD-SUPABASE.md` — Guía completa equipo BD (13 secciones)
 2. ✅ Creado `docs/equipos/MOBILE.md` — Guía completa equipo Android/iOS (13 secciones)
 3. ✅ Corregido `docs/equipos/BACKEND-API.md` — Service layer y estados actualizados a estructura real
 4. ✅ Reconstruido contexto de sesión 24 perdida
-5. ✅ Actualizado sistema de memoria (.copilot/)
 
-#### Archivos Creados (2):
-- `docs/equipos/BD-SUPABASE.md` — Guía BD: tablas, RLS, migraciones, funciones SQL, storage, cron, indexes
-- `docs/equipos/MOBILE.md` — Guía Mobile: API endpoints, auth, GPS, push notifications, QR, offline, UX
+#### Logros (Parte 2 - Refactoring):
+5. ✅ crear-despacho.tsx: 2405→1593 líneas (-812, -34%) — 5 componentes extraídos
+6. ✅ chofer-mobile.tsx: 1976→1429 líneas (-547, -28%) — 7 componentes extraídos
+7. ✅ control-acceso.tsx: 1227→993 líneas (-234, -19%) — 2 componentes extraídos
+8. ✅ supervisor-carga.tsx: 1157→1014 líneas (-143, -12%) — 1 componente extraído
+9. ✅ Build verificado 5 veces (todas OK)
+10. ✅ Git commit + push
 
-#### Archivos Modificados (1):
-- `docs/equipos/BACKEND-API.md` — Corregidas secciones service layer y estados (no coincidían con archivos reales)
+#### Componentes Creados (15):
+- `components/Despachos/DespachoForm.tsx` — Formulario creación despachos (~220 líneas)
+- `components/Despachos/DespachoTabs.tsx` — Tabs con filterDespachosByTab() centralizado (~100 líneas)
+- `components/Despachos/DespachoTableRow.tsx` — Fila de tabla con acciones y viajes expandibles (~230 líneas)
+- `components/Despachos/ViajesSubTable.tsx` — Sub-tabla de viajes expandida
+- `components/Modals/CancelarDespachoModal.tsx` — Modal confirmación cancelación
+- `components/Transporte/BottomNavBar.tsx` — Navegación inferior 3 tabs (~100 líneas)
+- `components/Transporte/IncidenciasTab.tsx` — Tab reporte de incidencias (~100 líneas)
+- `components/Transporte/PerfilTab.tsx` — Tab perfil/documentos/GPS/logout (~170 líneas)
+- `components/Transporte/TripDetailsCard.tsx` — Card origen/destino/fecha/vehículo (~120 líneas)
+- `components/Transporte/ChoferModals.tsx` — QRModal + HamburgerMenu + IncidenciaModal (~210 líneas)
+- `components/ControlAcceso/HistorialAccesos.tsx` — Historial de accesos del día (~110 líneas)
+- `components/ControlAcceso/EstadoBanners.tsx` — Banners contextuales + remito preview (~200 líneas)
+- `components/SuperAdmin/ViajeAcciones.tsx` — Botones de acción según estado viaje (~210 líneas)
+
+#### Archivos Modificados (4 páginas):
+- `pages/crear-despacho.tsx` — 5 componentes extraídos, filter logic centralizado
+- `pages/chofer-mobile.tsx` — 7 componentes extraídos, imports limpiados
+- `pages/control-acceso.tsx` — 2 componentes extraídos
+- `pages/supervisor-carga.tsx` — renderAcciones convertido a ViajeAcciones component
 
 ---
 

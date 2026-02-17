@@ -1,6 +1,6 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 17-Feb-2026 (Sesión 25 — Team Docs + Session 24 Reconstruction)
+**Actualizado:** 17-Feb-2026 (Sesión 25 — Team Docs + Refactoring)
 
 ---
 
@@ -13,6 +13,7 @@
 - ✅ UX improvements: Flota unificada, detail page, modal compacto
 - ✅ Security audit + performance indexes (Sesión 24)
 - ✅ Documentación de equipos (4 guías: Frontend, Backend, BD, Mobile)
+- ✅ Refactoring páginas grandes (15 componentes extraídos, 4 páginas)
 - ⬜ Preparación datos demo
 - ⬜ Verificar UX general para presentación
 - ⬜ Script/guión de demo
@@ -30,6 +31,19 @@
 ---
 
 ## ✅ COMPLETADAS (Sesión 25 — 17-Feb-2026)
+
+### Refactoring Páginas Grandes ✅
+**Completado por:** Opus directamente — Sesión 25
+**Commit:** `deafb94`
+**Contexto:** Extraer componentes de 4 páginas >1000 líneas para mejorar mantenibilidad
+
+#### Resultados:
+- `crear-despacho.tsx`: 2405→1593 líneas (-34%) — 5 componentes
+- `chofer-mobile.tsx`: 1976→1429 líneas (-28%) — 7 componentes
+- `control-acceso.tsx`: 1227→993 líneas (-19%) — 2 componentes
+- `supervisor-carga.tsx`: 1157→1014 líneas (-12%) — 1 componente
+- **Total: 1,736 líneas extraídas, 15 componentes nuevos**
+- Build verificado 5 veces (todas OK)
 
 ### Documentación de Equipos Completa ✅
 **Completado por:** Opus directamente — Sesión 25
