@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { fetchWithAuth } from '../lib/api/fetchWithAuth';
@@ -6,12 +6,16 @@ import Header from '../components/layout/Header';
 import Sidebar from '../components/layout/Sidebar';
 import AssignTransportModal from '../components/Modals/AssignTransportModal';
 import ConfirmDeleteModal from '../components/Modals/ConfirmDeleteModal';
+import CancelarDespachoModal from '../components/Modals/CancelarDespachoModal';
 import ReprogramarModal from '../components/Modals/ReprogramarModal';
-import UbicacionAutocompleteInput from '../components/forms/UbicacionAutocompleteInput';
-import { EstadoDualBadge } from '../components/ui/EstadoDualBadge';
-import { NodexiaLogoBadge } from '../components/ui/NodexiaLogo';
 import AbrirRedNodexiaModal from '../components/Transporte/AbrirRedNodexiaModal';
 import VerEstadoRedNodexiaModal from '../components/Transporte/VerEstadoRedNodexiaModal';
+import ViajesSubTable from '../components/Despachos/ViajesSubTable';
+import DespachoForm from '../components/Despachos/DespachoForm';
+import DespachoTableRow from '../components/Despachos/DespachoTableRow';
+import DespachoTabs, { filterDespachosByTab } from '../components/Despachos/DespachoTabs';
+import type { FormDispatchRow } from '../components/Despachos/DespachoForm';
+import type { DespachoTab } from '../components/Despachos/DespachoTabs';
 import { calcularEstadoOperativo, esEstadoEnMovimiento as estaEnMovimiento, esEstadoFinal as esFinal } from '../lib/estados';
 import { getEstadoDisplay } from '../lib/helpers/estados-helpers';
 import TimelineDespachoModal from '../components/Despachos/TimelineDespachoModal';
@@ -21,22 +25,6 @@ interface EmpresaOption {
   nombre: string;
   cuit: string;
   direccion?: string;
-}
-
-interface FormDispatchRow {
-  tempId: number;
-  pedido_id: string;
-  origen: string;
-  origen_id?: string; // ID de la ubicación seleccionada
-  destino: string;
-  destino_id?: string; // ID de la ubicación seleccionada
-  fecha_despacho: string;
-  hora_despacho: string;
-  tipo_carga: string;
-  prioridad: string;
-  cantidad_viajes_solicitados: number; // NUEVO - Sistema múltiples camiones
-  unidad_type: string;
-  observaciones: string;
 }
 
 interface GeneratedDispatch {
@@ -121,7 +109,7 @@ const CrearDespacho = () => {
   const [selectedViajeNumero, setSelectedViajeNumero] = useState<string>('');
 
   // Estados para tabs de despachos
-  const [activeTab, setActiveTab] = useState<'pendientes' | 'en_proceso' | 'asignados' | 'demorados' | 'expirados' | 'completados'>('pendientes');
+  const [activeTab, setActiveTab] = useState<DespachoTab>('pendientes');
 
   // Estados para modal de Reprogramar
   const [isReprogramarModalOpen, setIsReprogramarModalOpen] = useState(false);
@@ -1542,212 +1530,14 @@ const CrearDespacho = () => {
           {errorMsg && <p className="text-red-400 mb-4">{errorMsg}</p>}
           {successMsg && <p className="text-green-400 mb-4">{successMsg}</p>}
 
-          <form onSubmit={(e) => e.preventDefault()} autoComplete="off">
-            <div className="w-full overflow-x-auto bg-[#1b273b] p-2 rounded shadow-lg mb-2">
-              <div className="space-y-4">
-                {formRows.map((row, index) => (
-                  <div key={row.tempId} className="bg-[#0e1a2d] rounded p-2 border border-gray-700">
-                    {/* Header: Número y Código */}
-                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-700">
-                      <div className="flex items-center gap-4">
-                        <span className="text-cyan-400 font-bold text-lg">#{index + 1}</span>
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">Código de Despacho</label>
-                          <input
-                            type="text"
-                            value={row.pedido_id}
-                            readOnly
-                            autoComplete="off"
-                            className="bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-300 cursor-not-allowed w-40"
-                            placeholder="Auto-generado"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Fila 1: Origen, Destino, Tipo Carga */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-                      {/* Origen */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">
-                          Origen <span className="text-red-400">*</span>
-                        </label>
-                        <UbicacionAutocompleteInput
-                          tipo="origen"
-                          value={row.origen}
-                          onSelect={(ubicacion) => {
-                            handleRowChange(row.tempId, 'origen', ubicacion.alias || ubicacion.nombre);
-                            setFormRows(prevRows =>
-                              prevRows.map(r =>
-                                r.tempId === row.tempId
-                                  ? { ...r, origen_id: ubicacion.id }
-                                  : r
-                              )
-                            );
-                          }}
-                          placeholder="Buscar origen..."
-                          required
-                        />
-                      </div>
-
-                      {/* Destino */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">
-                          Destino <span className="text-red-400">*</span>
-                        </label>
-                        <UbicacionAutocompleteInput
-                          tipo="destino"
-                          value={row.destino}
-                          onSelect={(ubicacion) => {
-                            handleRowChange(row.tempId, 'destino', ubicacion.alias || ubicacion.nombre);
-                            setFormRows(prevRows =>
-                              prevRows.map(r =>
-                                r.tempId === row.tempId
-                                  ? { ...r, destino_id: ubicacion.id }
-                                  : r
-                              )
-                            );
-                          }}
-                          placeholder="Buscar destino..."
-                          required
-                        />
-                      </div>
-
-                      {/* Tipo Carga */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Tipo de Carga</label>
-                        <select
-                          value={row.tipo_carga}
-                          onChange={(e) => handleRowChange(row.tempId, 'tipo_carga', e.target.value)}
-                          autoComplete="off"
-                          name={`tipo_carga-${row.tempId}`}
-                          className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        >
-                          <option value="">Seleccionar...</option>
-                          <option value="paletizada">Paletizada</option>
-                          <option value="granel">Granel</option>
-                          <option value="contenedor">Contenedor</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Fila 2: Fecha, Hora, Prioridad, Cant. Viajes, Tipo Unidad, Observaciones */}
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
-                      {/* Fecha */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Fecha</label>
-                        <input
-                          type="date"
-                          value={row.fecha_despacho}
-                          onChange={(e) => handleRowChange(row.tempId, 'fecha_despacho', e.target.value)}
-                          min={today}
-                          autoComplete="off"
-                          className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        />
-                      </div>
-
-                      {/* Hora */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Hora</label>
-                        <input
-                          type="time"
-                          value={row.hora_despacho}
-                          onChange={(e) => handleRowChange(row.tempId, 'hora_despacho', e.target.value)}
-                          autoComplete="off"
-                          className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        />
-                      </div>
-
-                      {/* Prioridad */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Prioridad</label>
-                        <select
-                          value={row.prioridad === 'Medios de comunicación' ? 'Media' : (row.prioridad === 'Medios' ? 'Media' : (row.prioridad || 'Media'))}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Validar que solo sean valores permitidos
-                            if (['Baja', 'Media', 'Alta', 'Urgente'].includes(value)) {
-                              handleRowChange(row.tempId, 'prioridad', value);
-                            }
-                          }}
-                          autoComplete="off"
-                          data-lpignore="true"
-                          data-form-type="other"
-                          onFocus={(e) => e.target.removeAttribute('readonly')}
-                          name={`priority_field_${Math.random()}`}
-                          className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        >
-                          <option value="Baja">Baja</option>
-                          <option value="Media">Media</option>
-                          <option value="Alta">Alta</option>
-                          <option value="Urgente">Urgente</option>
-                        </select>
-                      </div>
-
-                      {/* Cantidad de Viajes - NUEVO */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">
-                          Cant. Viajes 🚛
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
-                          value={row.cantidad_viajes_solicitados || 1}
-                          onChange={(e) => handleRowChange(row.tempId, 'cantidad_viajes_solicitados', parseInt(e.target.value) || 1)}
-                          className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                          title="Cantidad de camiones/viajes necesarios para este despacho"
-                        />
-                      </div>
-
-                      {/* Tipo Unidad */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Tipo Unidad</label>
-                        <select
-                          value={row.unidad_type}
-                          onChange={(e) => handleRowChange(row.tempId, 'unidad_type', e.target.value)}
-                          autoComplete="off"
-                          name={`unidad_type-${row.tempId}`}
-                          className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        >
-                          <option value="">Seleccionar...</option>
-                          <option value="chasis">Chasis</option>
-                          <option value="semi">Semi</option>
-                          <option value="batea">Batea</option>
-                          <option value="furgon">Furgón</option>
-                        </select>
-                      </div>
-
-                      {/* Observaciones */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-100 mb-1.5">Observaciones</label>
-                        <input
-                          type="text"
-                          value={row.observaciones}
-                          onChange={(e) => handleRowChange(row.tempId, 'observaciones', e.target.value)}
-                          autoComplete="off"
-                          className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                          placeholder="Notas adicionales..."
-                        />
-                      </div>
-                    </div>
-
-                    {/* Botón Guardar movido aquí - más cerca del formulario */}
-                    <div className="flex justify-end mt-4">
-                      <button
-                        type="button"
-                        onClick={() => handleSaveRow(row, index)}
-                        disabled={loading}
-                        className="px-6 py-2.5 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white font-semibold disabled:opacity-60 transition-colors shadow-lg"
-                      >
-                        {loading ? 'Guardando...' : 'Guardar'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </form>
+          <DespachoForm
+            formRows={formRows}
+            onRowChange={handleRowChange}
+            onSaveRow={handleSaveRow}
+            onFormRowsChange={setFormRows}
+            loading={loading}
+            today={today}
+          />
 
           <div className="flex justify-between items-center mt-8 mb-4">
             <h3 className="text-xl font-semibold text-cyan-400">Despachos Generados</h3>
@@ -1777,105 +1567,11 @@ const CrearDespacho = () => {
           </div>
 
           {/* Tabs para filtrar despachos */}
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setActiveTab('pendientes')}
-              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                activeTab === 'pendientes'
-                  ? 'bg-orange-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              📋 Pendientes
-              <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
-                {generatedDispatches.filter(d => {
-                  const cantidadAsignados = d.viajes_asignados || 0;
-                  const esCompletado = ['completado', 'cancelado'].includes(d.estado);
-                  return cantidadAsignados === 0 && !(d as any).tiene_viajes_expirados && !esCompletado;
-                }).length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('en_proceso')}
-              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                activeTab === 'en_proceso'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              🚛 En Proceso
-              <span className="ml-2 px-2 py-0.5 bg-blue-700 rounded text-xs">
-                {generatedDispatches.filter(d => {
-                  const cantidadTotal = d.cantidad_viajes_solicitados || 1;
-                  const cantidadAsignados = d.viajes_asignados || 0;
-                  const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  const esCompletado = ['completado', 'cancelado'].includes(d.estado);
-                  return cantidadAsignados > 0 && viajesPendientes > 0 && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado;
-                }).length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('asignados')}
-              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                activeTab === 'asignados'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              ✅ Asignados
-              <span className="ml-2 px-2 py-0.5 bg-green-700 rounded text-xs">
-                {generatedDispatches.filter(d => {
-                  const cantidadTotal = d.cantidad_viajes_solicitados || 1;
-                  const cantidadAsignados = d.viajes_asignados || 0;
-                  const viajesPendientes = cantidadTotal - cantidadAsignados;
-                  const esCompletado = ['completado', 'cancelado'].includes(d.estado);
-                  return (
-                    ((cantidadAsignados > 0 && viajesPendientes === 0 && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado) ||
-                    (d.estado === 'transporte_asignado' && !(d as any).tiene_viajes_expirados && !(d as any).tiene_viajes_demorados && !esCompletado))
-                  );
-                }).length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('demorados')}
-              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                activeTab === 'demorados'
-                  ? 'bg-orange-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              ⏰ Demorados
-              <span className="ml-2 px-2 py-0.5 bg-orange-700 rounded text-xs">
-                {generatedDispatches.filter(d => (d as any).tiene_viajes_demorados === true && (d as any).tiene_viajes_expirados !== true && !['completado', 'cancelado'].includes(d.estado)).length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('expirados')}
-              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                activeTab === 'expirados'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              ❌ Expirados
-              <span className="ml-2 px-2 py-0.5 bg-red-700 rounded text-xs">
-                {generatedDispatches.filter(d => (d as any).tiene_viajes_expirados === true && !['completado', 'cancelado'].includes(d.estado)).length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('completados')}
-              className={`px-4 py-2 rounded-t-lg font-medium transition-colors ${
-                activeTab === 'completados'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              ✅ Completados
-              <span className="ml-2 px-2 py-0.5 bg-emerald-700 rounded text-xs">
-                {generatedDispatches.filter(d => d.estado === 'completado' || d.estado === 'cancelado').length}
-              </span>
-            </button>
-          </div>
+          <DespachoTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            dispatches={generatedDispatches}
+          />
           
           {/* Wrapper con scroll horizontal para la tabla */}
           <div className="w-full overflow-x-auto">
@@ -1905,53 +1601,8 @@ const CrearDespacho = () => {
               </thead>
               <tbody className="divide-y divide-gray-700 text-slate-200">
                 {(() => {
-                  // Filtrar despachos según el tab activo
-                  const filteredDispatches = generatedDispatches.filter(d => {
-                    // Determinar el estado real del despacho basado en viajes ASIGNADOS
-                    const cantidadTotal = d.cantidad_viajes_solicitados || 1;
-                    const cantidadAsignados = d.viajes_asignados || 0;
-                    const viajesPendientes = cantidadTotal - cantidadAsignados;
-                    
-                    // Flags de estado operativo calculados en runtime
-                    const tieneDemorados = (d as any).tiene_viajes_demorados === true;
-                    const tieneExpirados = (d as any).tiene_viajes_expirados === true;
-                    const esCompletado = ['completado', 'cancelado'].includes(d.estado);
-                    
-                    let pasaFiltro = false;
-                    let razon = '';
-                    
-                    if (activeTab === 'completados') {
-                      pasaFiltro = esCompletado;
-                      razon = `estado completado/cancelado`;
-                    } else if (activeTab === 'expirados') {
-                      // Expirados: viajes sin recursos fuera de ventana (exclusivo)
-                      pasaFiltro = tieneExpirados && !esCompletado;
-                      razon = `tiene_viajes_expirados`;
-                    } else if (activeTab === 'demorados') {
-                      // Demorados: viajes CON recursos pero fuera de ventana (excluye expirados y completados)
-                      pasaFiltro = tieneDemorados && !tieneExpirados && !esCompletado;
-                      razon = `tiene_viajes_demorados && !expirados && !completados`;
-                    } else if (activeTab === 'pendientes') {
-                      // Pendientes: sin viajes asignados, no expirado, no completado
-                      pasaFiltro = cantidadAsignados === 0 && !tieneExpirados && !esCompletado;
-                      razon = `sin asignados, no expirado, no completado`;
-                    } else if (activeTab === 'en_proceso') {
-                      // En proceso: algunos viajes pero no todos, no expirado ni demorado ni completado
-                      pasaFiltro = cantidadAsignados > 0 && viajesPendientes > 0 
-                        && !tieneExpirados && !tieneDemorados && !esCompletado;
-                      razon = `parcialmente asignado, sin expirados/demorados`;
-                    } else {
-                      // Asignados: todos los viajes asignados, no expirado ni demorado ni completado
-                      pasaFiltro = (
-                        (cantidadAsignados > 0 && viajesPendientes === 0 && !tieneExpirados && !tieneDemorados && !esCompletado) ||
-                        (d.estado === 'asignado' && !tieneExpirados && !tieneDemorados && !esCompletado)
-                      );
-                      razon = `todos asignados, sin expirados/demorados/completados`;
-                    }
-                    
-                    
-                    return pasaFiltro;
-                  });
+                  // Filtrar despachos usando lógica centralizada de DespachoTabs
+                  const filteredDispatches = filterDespachosByTab(generatedDispatches, activeTab);
 
 
                   if (filteredDispatches.length === 0) {
@@ -1975,431 +1626,32 @@ const CrearDespacho = () => {
                   }
 
                   return filteredDispatches.map(dispatch => (
-                    <React.Fragment key={dispatch.id}>
-                    <tr className={selectedDespachos.has(dispatch.id) ? "bg-cyan-900/20" : ""}>
-                      <td className="px-2 py-3 text-center w-8">
-                        <input
-                          type="checkbox"
-                          checked={selectedDespachos.has(dispatch.id)}
-                          onChange={() => handleSelectDespacho(dispatch.id)}
-                          className="w-4 h-4 text-cyan-600 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500 focus:ring-2"
-                        />
-                      </td>
-                      <td className="px-2 py-3 text-sm font-medium w-32">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate">{dispatch.pedido_id}</span>
-                            {/* 🌐 Badge Red Nodexia */}
-                            {dispatch.origen_asignacion === 'red_nodexia' && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/40 flex items-center gap-0.5 whitespace-nowrap" title="Asignado vía Red Nodexia">
-                                🌐 Red
-                              </span>
-                            )}
-                          </div>
-                          {/* 🔥 CONTADOR DE VIAJES */}
-                          {dispatch.viajes_generados !== undefined && dispatch.viajes_generados > 0 && (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="px-1.5 py-0.5 bg-blue-600 text-blue-100 rounded text-xs font-bold inline-block">
-                                📋 {dispatch.viajes_generados} generado{dispatch.viajes_generados > 1 ? 's' : ''}
-                              </span>
-                              {dispatch.viajes_cancelados_por_transporte !== undefined && dispatch.viajes_cancelados_por_transporte > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Si no está expandido, expandir
-                                    if (!expandedDespachos.has(dispatch.id)) {
-                                      handleToggleExpandDespacho(dispatch.id);
-                                    }
-                                    // Scroll suave hacia la tabla
-                                    setTimeout(() => {
-                                      const element = document.getElementById(`viajes-${dispatch.id}`);
-                                      element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                                    }, 300);
-                                  }}
-                                  className="px-1.5 py-0.5 bg-red-600 hover:bg-red-700 text-red-100 rounded text-xs font-bold inline-block animate-pulse cursor-pointer transition-all"
-                                  title="Click para ver viajes cancelados y reasignar"
-                                >
-                                  🔄 {dispatch.viajes_cancelados_por_transporte} cancelado{dispatch.viajes_cancelados_por_transporte > 1 ? 's' : ''} - Reasignar
-                                </button>
-                              )}
-                              {dispatch.viajes_sin_asignar !== undefined && dispatch.viajes_sin_asignar > 0 && dispatch.viajes_cancelados_por_transporte === 0 && (
-                                <span className="px-1.5 py-0.5 bg-orange-600 text-orange-100 rounded text-xs font-bold inline-block">
-                                  ⚠️ {dispatch.viajes_sin_asignar} sin asignar
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {/* Fallback al antiguo formato si no hay datos de viajes */}
-                          {(dispatch.viajes_generados === undefined || dispatch.viajes_generados === 0) && dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0 && (
-                            <span 
-                              className="px-1.5 py-0.5 bg-blue-600 text-blue-100 rounded text-xs font-bold cursor-help inline-block"
-                              title={`${dispatch.cantidad_viajes_solicitados} viajes pendientes de asignar. Haz clic en "Asignar Transporte" para gestionarlos.`}
-                            >
-                              📋 {dispatch.cantidad_viajes_solicitados} pendiente{dispatch.cantidad_viajes_solicitados > 1 ? 's' : ''}
-                            </span>
-                          )}
-                          {dispatch.transporte_data && activeTab === 'asignados' && (
-                            <span className="text-xs text-green-400">
-                              ✅ Todos asignados
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 py-3 text-sm w-20 truncate">{dispatch.fecha_despacho}</td>
-                      <td className="px-2 py-3 text-sm w-16 truncate">
-                        {dispatch.hora_despacho || '-'}
-                      </td>
-                      <td className="px-2 py-3 text-sm w-40 truncate" title={dispatch.origen}>{dispatch.origen}</td>
-                      <td className="px-2 py-3 text-sm w-40 truncate" title={dispatch.destino}>{dispatch.destino}</td>
-                      <td className="px-2 py-3 text-sm w-20">
-                        <span className={`px-1 py-0.5 rounded text-xs whitespace-nowrap ${
-                          dispatch.prioridad === 'Urgente' ? 'bg-red-600 text-red-100' :
-                          dispatch.prioridad === 'Alta' ? 'bg-orange-600 text-orange-100' :
-                          dispatch.prioridad === 'Media' ? 'bg-yellow-600 text-yellow-100' :
-                          'bg-gray-600 text-gray-100'
-                        }`}>
-                          {dispatch.prioridad}
-                        </span>
-                      </td>
-                      <td className="px-2 py-3 text-sm w-28 truncate">
-                        {dispatch.transporte_data ? (
-                          dispatch.transporte_data.esMultiple ? (
-                            <div className="text-purple-400 font-semibold" title="Este despacho tiene viajes asignados a múltiples transportes. Expande la tabla para ver detalles.">
-                              🚛 {dispatch.transporte_data.nombre}
-                            </div>
-                          ) : (
-                            <div className="text-green-400" title={`CUIT: ${dispatch.transporte_data.cuit || 'N/A'} - Tipo: ${dispatch.transporte_data.tipo || 'N/A'}`}>
-                              {dispatch.transporte_data.nombre}
-                            </div>
-                          )
-                        ) : (
-                          <span className="text-orange-400">Sin asignar</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-3 text-sm w-20">
-                        {(() => {
-                          const tieneDemorados = (dispatch as any).tiene_viajes_demorados;
-                          const tieneExpirados = (dispatch as any).tiene_viajes_expirados;
-                          
-                          // Priorizar estado operativo calculado
-                          if (tieneDemorados) {
-                            return (
-                              <span className="px-1 py-0.5 rounded text-xs whitespace-nowrap bg-orange-600 text-white">
-                                ⏰ Demorado
-                              </span>
-                            );
-                          } else if (tieneExpirados) {
-                            return (
-                              <span className="px-1 py-0.5 rounded text-xs whitespace-nowrap bg-red-600 text-white">
-                                ❌ Expirado
-                              </span>
-                            );
-                          }
-                          
-                          // Fallback: usar display centralizado
-                          const display = getEstadoDisplay(dispatch.estado || 'pendiente');
-                          return (
-                            <span className={`px-1 py-0.5 rounded text-xs whitespace-nowrap ${display.bgClass} ${display.textClass}`}>
-                              {display.label}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-2 py-3 text-sm text-center w-40">
-                        <div className="flex gap-1 justify-center items-center">
-                          {/* 🔥 NUEVO: Botón expandir/contraer */}
-                          {dispatch.viajes_generados && dispatch.viajes_generados > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleExpandDespacho(dispatch.id)}
-                              className="px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-white text-xs transition-colors"
-                              title={expandedDespachos.has(dispatch.id) ? "Contraer viajes" : "Ver viajes"}
-                            >
-                              {expandedDespachos.has(dispatch.id) ? '▼' : '▶'} Viajes
-                            </button>
-                          )}
-
-                          {/* Botón Historial */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTimelineDespachoId(dispatch.id);
-                              setTimelinePedidoId(dispatch.pedido_id);
-                              setIsTimelineModalOpen(true);
-                            }}
-                            className="px-2 py-1 rounded-md bg-indigo-700 hover:bg-indigo-600 text-white text-xs transition-colors"
-                            title="Ver historial de eventos"
-                          >
-                            📜 Historial
-                          </button>
-                          
-                          {/* 🆕 Botones para tab Expirados */}
-                          {activeTab === 'expirados' && (
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDispatchForReprogram(dispatch);
-                                  setIsReprogramarModalOpen(true);
-                                }}
-                                className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                                title="Reprogramar despacho expirado"
-                              >
-                                🔄 Reprogramar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenCancelarModal(dispatch)}
-                                className="px-3 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                                title="Cancelar despacho expirado"
-                              >
-                                ❌ Cancelar
-                              </button>
-                            </div>
-                          )}
-                          
-                          {activeTab !== 'expirados' && activeTab !== 'asignados' && activeTab !== 'completados' && (!dispatch.transporte_data || (dispatch.cantidad_viajes_solicitados && dispatch.cantidad_viajes_solicitados > 0)) && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleAssignTransport(dispatch)}
-                                className="px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                                title={`Asignar transporte a ${dispatch.pedido_id}`}
-                              >
-                                🚛 Asignar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenRedNodexia(dispatch)}
-                                className="px-4 py-2 rounded-lg bg-gray-900 border-2 border-white hover:border-cyan-400 text-white font-bold text-sm transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,211,238,0.6)] hover:scale-110 flex items-center gap-2 group relative overflow-hidden"
-                                title="Publicar en Red Nodexia - Red Colaborativa"
-                              >
-                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                <svg className="w-5 h-5 relative z-10" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  {/* Líneas de la X */}
-                                  <line x1="20" y1="20" x2="80" y2="80" stroke="currentColor" strokeWidth="6" strokeLinecap="round" className="text-cyan-400" />
-                                  <line x1="80" y1="20" x2="20" y2="80" stroke="currentColor" strokeWidth="6" strokeLinecap="round" className="text-cyan-400" />
-                                  {/* Círculos en los extremos */}
-                                  <circle cx="20" cy="20" r="8" fill="currentColor" className="text-cyan-400" />
-                                  <circle cx="80" cy="20" r="8" fill="currentColor" className="text-cyan-400" />
-                                  <circle cx="20" cy="80" r="8" fill="currentColor" className="text-cyan-400" />
-                                  <circle cx="80" cy="80" r="8" fill="currentColor" className="text-cyan-400" />
-                                  {/* Centro con pulse */}
-                                  <circle cx="50" cy="50" r="10" fill="currentColor" className="text-cyan-300 animate-pulse" />
-                                </svg>
-                                <span className="relative z-10 font-extrabold tracking-wide">RED</span>
-                              </button>
-                            </>
-                          )}
-
-                          {/* Botón Ver Detalle para Completados */}
-                          {activeTab === 'completados' && (
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/despachos/${dispatch.id}/detalle`)}
-                              className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                              title="Ver detalle completo del viaje"
-                            >
-                              📄 Ver Detalle
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    {/* 🔥 NUEVO: Fila expandida con lista de viajes */}
-                    {expandedDespachos.has(dispatch.id) && (
-                      <tr className="bg-[#0a0e1a]">
-                        <td colSpan={9} className="px-4 py-3">
-                          <div className="ml-8" id={`viajes-${dispatch.id}`}>
-                            <h4 className="text-sm font-semibold text-cyan-400 mb-2">
-                              📦 Viajes del Despacho {dispatch.pedido_id}
-                            </h4>
-                            {(() => {
-                              const viajes = viajesDespacho[dispatch.id];
-                              return viajes && viajes.length > 0;
-                            })() ? (
-                                <table className="w-full text-xs">
-                                  <thead>
-                                    <tr className="text-left text-gray-400 border-b border-gray-700">
-                                      <th className="py-2 px-2 w-16"># Viaje</th>
-                                      <th className="py-2 px-2 w-44">Transporte</th>
-                                      <th className="py-2 px-2 w-40">Chofer</th>
-                                      <th className="py-2 px-2 w-36">Camión</th>
-                                      <th className="py-2 px-2 w-36">Acoplado</th>
-                                      <th className="py-2 px-2 w-28">Estado</th>
-                                      <th className="py-2 px-2">Observaciones</th>
-                                      <th className="py-2 px-2 w-24">Acción</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {viajesDespacho[dispatch.id]?.map((viaje: any) => {
-                                      // Si el viaje está en Red Nodexia y aún no fue confirmado/asignado,
-                                      // no mostrar datos de transporte/chofer/camión
-                                      const enRedPendiente = viaje.en_red_nodexia && viaje.estado_red !== 'asignado';
-                                      return (
-                                      <tr key={viaje.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                                        <td className="py-2 px-2 font-mono">
-                                          <span className="px-2 py-1 bg-blue-900 text-blue-200 rounded">
-                                            #{viaje.numero_viaje}
-                                          </span>
-                                        </td>
-                                        <td className="py-2 px-2">
-                                          {enRedPendiente ? (
-                                            <div className="flex items-center gap-1">
-                                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold rounded bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30 animate-pulse">
-                                                🌐 En Red Nodexia
-                                              </span>
-                                            </div>
-                                          ) : viaje.estado === 'cancelado_por_transporte' && viaje.transporte_cancelado ? (
-                                            <div>
-                                              <div className="text-red-400 font-medium line-through">{viaje.transporte_cancelado.nombre}</div>
-                                              <div className="text-orange-400 text-xs font-semibold">⚠️ Cancelado - Reasignar</div>
-                                            </div>
-                                          ) : viaje.transporte ? (
-                                            <div>
-                                              <div className="text-green-400 font-medium flex items-center gap-2">
-                                                {viaje.transporte.nombre}
-                                                {viaje.estado_red === 'asignado' && (
-                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30 shadow-lg shadow-cyan-500/20">
-                                                    🌐 Red
-                                                  </span>
-                                                )}
-                                              </div>
-                                              <div className="text-gray-500 text-xs">CUIT: {viaje.transporte.cuit}</div>
-                                            </div>
-                                          ) : (
-                                            <span className="text-orange-400">Sin asignar</span>
-                                          )}
-                                        </td>
-                                        <td className="py-2 px-2">
-                                          {enRedPendiente ? (
-                                            <span className="text-gray-500 text-xs">Esperando oferta</span>
-                                          ) : viaje.chofer ? (
-                                            <div>
-                                              <div className="text-cyan-400 font-medium">
-                                                {viaje.chofer.nombre} {viaje.chofer.apellido}
-                                              </div>
-                                              <div className="text-gray-500 text-xs">
-                                                📱 {viaje.chofer.telefono || 'Sin teléfono'}
-                                              </div>
-                                            </div>
-                                          ) : viaje.transporte ? (
-                                            <span className="text-yellow-400 text-xs font-medium">⏳ Pendiente asignación</span>
-                                          ) : (
-                                            <span className="text-gray-500 text-xs">Sin asignar</span>
-                                          )}
-                                        </td>
-                                        <td className="py-2 px-2">
-                                          {enRedPendiente ? (
-                                            <span className="text-gray-500 text-xs">—</span>
-                                          ) : viaje.camion ? (
-                                            <div>
-                                              <div className="text-yellow-400 font-bold">
-                                                🚛 {viaje.camion.patente}
-                                              </div>
-                                              <div className="text-gray-500 text-xs">
-                                                {viaje.camion.marca} {viaje.camion.modelo}
-                                              </div>
-                                            </div>
-                                          ) : viaje.transporte ? (
-                                            <span className="text-yellow-400 text-xs font-medium">⏳ Pendiente asignación</span>
-                                          ) : (
-                                            <span className="text-gray-500 text-xs">Sin asignar</span>
-                                          )}
-                                        </td>
-                                        <td className="py-2 px-2">
-                                          {enRedPendiente ? (
-                                            <span className="text-gray-500 text-xs">—</span>
-                                          ) : viaje.acoplado ? (
-                                            <div>
-                                              <div className="text-cyan-400 font-bold">
-                                                🚚 {viaje.acoplado.patente}
-                                              </div>
-                                              <div className="text-gray-500 text-xs">
-                                                {viaje.acoplado.marca} {viaje.acoplado.modelo}
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <span className="text-gray-500 text-xs">-</span>
-                                          )}
-                                        </td>
-                                        <td className="py-2 px-2">
-                                          <div className="flex flex-col gap-1">
-                                            {(() => {
-                                              if (enRedPendiente) {
-                                                return (
-                                                  <span className="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border border-cyan-500/30">
-                                                    🌐 En Red
-                                                  </span>
-                                                );
-                                              }
-                                              const display = getEstadoDisplay(viaje.estado || 'pendiente');
-                                              return (
-                                                <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${display.bgClass} ${display.textClass}`}>
-                                                  {display.label}
-                                                </span>
-                                              );
-                                            })()}
-                                          </div>
-                                        </td>
-                                        <td className="py-2 px-2 text-gray-400 text-xs">
-                                          {viaje.motivo_cancelacion ? (
-                                            <span className="text-orange-400 font-semibold">❌ {viaje.motivo_cancelacion}</span>
-                                          ) : viaje.observaciones && !viaje.observaciones.toLowerCase().includes('asignado') ? (
-                                            viaje.observaciones
-                                          ) : (
-                                            <span className="text-gray-600">-</span>
-                                          )}
-                                        </td>
-                                        <td className="py-2 px-2">
-                                          {/* Botón Ver Estado - Solo si está en Red Nodexia sin transporte asignado */}
-                                          {viaje.en_red_nodexia && !viaje.transporte && viaje.estado_red !== 'asignado' ? (
-                                            <button
-                                              onClick={() => handleVerEstadoRed(viaje)}
-                                              className="px-3 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-cyan-500/30"
-                                              title="Ver ofertas recibidas y seleccionar transporte"
-                                            >
-                                              🌐 Ver Estado
-                                            </button>
-                                          ) : viaje.estado === 'cancelado_por_transporte' ? (
-                                            <button
-                                              onClick={() => handleReasignarViaje(dispatch, viaje)}
-                                              className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs font-medium flex items-center gap-1"
-                                              title="Reasignar a otro transporte"
-                                            >
-                                              🔄 Reasignar
-                                            </button>
-                                          ) : (viaje.estado === 'transporte_asignado' || viaje.estado === 'camion_asignado') ? (
-                                            <button
-                                              onClick={() => {
-                                                const motivo = prompt('Motivo de cancelación:');
-                                                if (motivo) {
-                                                  handleCancelarViajeCoordinador(viaje.id, dispatch.id, motivo);
-                                                }
-                                              }}
-                                              className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
-                                              title="Cancelar viaje"
-                                            >
-                                              Cancelar
-                                            </button>
-                                          ) : null}
-                                        </td>
-                                      </tr>
-                                    );
-                                    })}
-                                  </tbody>
-                                </table>
-                              ) : (
-                                <div className="text-gray-400 text-sm py-2">
-                                  No hay viajes registrados para este despacho
-                                </div>
-                              )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))
+                    <DespachoTableRow
+                      key={dispatch.id}
+                      dispatch={dispatch}
+                      activeTab={activeTab}
+                      isSelected={selectedDespachos.has(dispatch.id)}
+                      isExpanded={expandedDespachos.has(dispatch.id)}
+                      viajes={viajesDespacho[dispatch.id] || []}
+                      onSelect={handleSelectDespacho}
+                      onToggleExpand={handleToggleExpandDespacho}
+                      onAssignTransport={handleAssignTransport}
+                      onOpenRedNodexia={handleOpenRedNodexia}
+                      onOpenCancelar={handleOpenCancelarModal}
+                      onOpenTimeline={(despachoId, pedidoId) => {
+                        setTimelineDespachoId(despachoId);
+                        setTimelinePedidoId(pedidoId);
+                        setIsTimelineModalOpen(true);
+                      }}
+                      onOpenReprogram={(d) => {
+                        setSelectedDispatchForReprogram(d);
+                        setIsReprogramarModalOpen(true);
+                      }}
+                      onVerEstadoRed={handleVerEstadoRed}
+                      onReasignarViaje={handleReasignarViaje}
+                      onCancelarViaje={handleCancelarViajeCoordinador}
+                    />
+                  ))
               })()}
               </tbody>
             </table>
@@ -2475,100 +1727,19 @@ const CrearDespacho = () => {
       />
 
       {/* Modal Cancelar Despacho */}
-      {isCancelarModalOpen && selectedDispatchForCancel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                ❌ Cancelar Despacho
-              </h3>
-              <button
-                onClick={() => {
-                  setIsCancelarModalOpen(false);
-                  setSelectedDispatchForCancel(null);
-                  setMotivoCancelacion('');
-                }}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Info del despacho */}
-            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                <span className="font-semibold">Pedido:</span> {selectedDispatchForCancel.pedido_id}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                <span className="font-semibold">Ruta:</span> {selectedDispatchForCancel.origen} → {selectedDispatchForCancel.destino}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                <span className="font-semibold">Fecha:</span> {new Date(selectedDispatchForCancel.fecha_despacho).toLocaleDateString('es-AR')} {selectedDispatchForCancel.hora_despacho}
-              </p>
-            </div>
-
-            {/* Campo de motivo */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Motivo de cancelación <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={motivoCancelacion}
-                onChange={(e) => setMotivoCancelacion(e.target.value)}
-                placeholder="Ingrese el motivo por el cual se cancela este despacho..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                rows={4}
-                maxLength={500}
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {motivoCancelacion.length}/500 caracteres
-              </p>
-            </div>
-
-            {/* Advertencia */}
-            <div className="mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-800 dark:text-red-200">
-                ⚠️ <strong>Atención:</strong> Esta acción no se puede deshacer. El despacho será eliminado permanentemente.
-              </p>
-            </div>
-
-            {/* Botones */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setIsCancelarModalOpen(false);
-                  setSelectedDispatchForCancel(null);
-                  setMotivoCancelacion('');
-                }}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 font-medium transition-colors"
-                disabled={deletingDespachos}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmarCancelacion}
-                disabled={!motivoCancelacion.trim() || deletingDespachos}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {deletingDespachos ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Cancelando...
-                  </span>
-                ) : (
-                  '✓ Confirmar Cancelación'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CancelarDespachoModal
+        isOpen={isCancelarModalOpen}
+        dispatch={selectedDispatchForCancel}
+        motivoCancelacion={motivoCancelacion}
+        onMotivoCancelacionChange={setMotivoCancelacion}
+        onConfirmar={handleConfirmarCancelacion}
+        onClose={() => {
+          setIsCancelarModalOpen(false);
+          setSelectedDispatchForCancel(null);
+          setMotivoCancelacion('');
+        }}
+        loading={deletingDespachos}
+      />
 
       {/* Modal Timeline/Historial */}
       <TimelineDespachoModal

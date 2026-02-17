@@ -6,24 +6,21 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { fetchWithAuth } from '../lib/api/fetchWithAuth';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
-import { QRCodeSVG } from 'qrcode.react';
 import { 
   TruckIcon, 
   MapPinIcon, 
-  ClockIcon, 
   CheckCircleIcon,
   ExclamationTriangleIcon,
   PhoneIcon,
-  BellIcon,
-  UserCircleIcon,
-  ArrowRightOnRectangleIcon,
   Bars3Icon,
   QrCodeIcon,
-  DocumentTextIcon,
-  ClipboardDocumentListIcon,
   ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
-import { SubirDocumento, ListaDocumentos } from '../components/Documentacion';
+import BottomNavBar from '../components/Transporte/BottomNavBar';
+import IncidenciasTab from '../components/Transporte/IncidenciasTab';
+import PerfilTab from '../components/Transporte/PerfilTab';
+import TripDetailsCard from '../components/Transporte/TripDetailsCard';
+import { QRModal, HamburgerMenu, IncidenciaModal } from '../components/Transporte/ChoferModals';
 
 interface ViajeChofer {
   id: string;
@@ -1082,108 +1079,7 @@ export default function ChoferMobile() {
           </div>
 
           {/* Información del viaje */}
-          <div className="bg-slate-800 rounded-xl p-4 shadow-lg space-y-3">
-            <h3 className="text-lg font-bold text-white mb-3">Detalles del Viaje</h3>
-            
-            {/* Origen */}
-            <div className="bg-green-600/10 border border-green-600/30 rounded-lg p-3">
-              <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
-                  <MapPinIcon className="h-6 w-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-green-400 font-semibold mb-1">ORIGEN</p>
-                  <p className="text-white font-bold text-lg">{viajeActivo.despachos.origen}</p>
-                  {(viajeActivo.despachos.origen_ciudad || viajeActivo.despachos.origen_provincia) && (
-                    <p className="text-slate-300 text-sm mt-1">
-                      📍 {viajeActivo.despachos.origen_ciudad}
-                      {viajeActivo.despachos.origen_ciudad && viajeActivo.despachos.origen_provincia && ', '}
-                      {viajeActivo.despachos.origen_provincia}
-                    </p>
-                  )}
-                  <button
-                    onClick={() => {
-                      let url: string;
-                      if (viajeActivo.despachos.origen_latitud && viajeActivo.despachos.origen_longitud) {
-                        url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.origen_latitud},${viajeActivo.despachos.origen_longitud}`;
-                      } else {
-                        const query = encodeURIComponent(`${viajeActivo.despachos.origen}, ${viajeActivo.despachos.origen_ciudad || ''} ${viajeActivo.despachos.origen_provincia || ''} Argentina`);
-                        url = `https://www.google.com/maps/dir/?api=1&destination=${query}`;
-                      }
-                      window.open(url, '_blank');
-                    }}
-                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
-                  >
-                    <MapPinIcon className="h-4 w-4" />
-                    <span>Navegar al Origen</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Línea conectora */}
-            <div className="ml-5 border-l-2 border-dashed border-slate-600 h-6"></div>
-
-            {/* Destino */}
-            <div className="bg-red-600/10 border border-red-600/30 rounded-lg p-3">
-              <div className="flex items-start space-x-3">
-                <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
-                  <MapPinIcon className="h-6 w-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-red-400 font-semibold mb-1">DESTINO</p>
-                  <p className="text-white font-bold text-lg">{viajeActivo.despachos.destino}</p>
-                  {(viajeActivo.despachos.destino_ciudad || viajeActivo.despachos.destino_provincia) && (
-                    <p className="text-slate-300 text-sm mt-1">
-                      📍 {viajeActivo.despachos.destino_ciudad}
-                      {viajeActivo.despachos.destino_ciudad && viajeActivo.despachos.destino_provincia && ', '}
-                      {viajeActivo.despachos.destino_provincia}
-                    </p>
-                  )}
-                  <button
-                    onClick={() => {
-                      let url: string;
-                      if (viajeActivo.despachos.destino_latitud && viajeActivo.despachos.destino_longitud) {
-                        url = `https://www.google.com/maps/dir/?api=1&destination=${viajeActivo.despachos.destino_latitud},${viajeActivo.despachos.destino_longitud}`;
-                      } else {
-                        const query = encodeURIComponent(`${viajeActivo.despachos.destino}, ${viajeActivo.despachos.destino_ciudad || ''} ${viajeActivo.despachos.destino_provincia || ''} Argentina`);
-                        url = `https://www.google.com/maps/dir/?api=1&destination=${query}`;
-                      }
-                      window.open(url, '_blank');
-                    }}
-                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center space-x-1 transition-colors"
-                  >
-                    <MapPinIcon className="h-4 w-4" />
-                    <span>Navegar al Destino</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Fecha y hora */}
-            <div className="flex items-center space-x-3 pt-3 border-t border-slate-700">
-              <ClockIcon className="h-5 w-5 text-cyan-400" />
-              <div>
-                <p className="text-xs text-slate-400">Fecha programada</p>
-                <p className="text-white font-medium">
-                  {new Date(viajeActivo.despachos.scheduled_local_date).toLocaleDateString('es-AR')} - {viajeActivo.despachos.scheduled_local_time}
-                </p>
-              </div>
-            </div>
-
-            {/* Vehículo */}
-            {viajeActivo.camiones && (
-              <div className="flex items-center space-x-3 pt-3 border-t border-slate-700">
-                <TruckIcon className="h-5 w-5 text-cyan-400" />
-                <div>
-                  <p className="text-xs text-slate-400">Vehículo asignado</p>
-                  <p className="text-white font-medium">
-                    {viajeActivo.camiones.marca} {viajeActivo.camiones.modelo} - {viajeActivo.camiones.patente}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          <TripDetailsCard viajeActivo={viajeActivo} />
 
           {/* Acciones según estado - Botones modernos */}
           <div className="space-y-3">
@@ -1478,497 +1374,55 @@ export default function ChoferMobile() {
 
       {/* Tab: Incidencias */}
       {activeTab === 'incidencias' && (
-        <div className="p-4 space-y-6">
-          {/* Header con ícono animado */}
-          <div className="text-center">
-            <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-2xl animate-pulse"></div>
-              <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-full border border-slate-700">
-                <ExclamationTriangleIcon className="h-16 w-16 text-yellow-500" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Reportar Incidencia</h3>
-            <p className="text-slate-400">¿Tienes algún problema durante el viaje?</p>
-          </div>
-
-          {/* Botones de incidencias en grid */}
-          <div className="grid grid-cols-1 gap-3">
-            <button
-              onClick={handleLlamarCoordinador}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-red-500/30 hover:shadow-2xl hover:shadow-red-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-              <span className="text-3xl relative z-10">🚨</span>
-              <span className="relative z-10">Emergencia</span>
-            </button>
-
-            <button
-              onClick={() => handleReportarIncidenciaTipo('problema_mecanico', 'Avería del Vehículo')}
-              className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-orange-500/30 hover:shadow-2xl hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-              <span className="text-3xl relative z-10">⚠️</span>
-              <span className="relative z-10">Avería del Vehículo</span>
-            </button>
-
-            <button
-              onClick={() => handleReportarIncidenciaTipo('demora', 'Retraso')}
-              className="bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-yellow-500/30 hover:shadow-2xl hover:shadow-yellow-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-              <span className="text-3xl relative z-10">⏰</span>
-              <span className="relative z-10">Retraso</span>
-            </button>
-
-            <button
-              onClick={() => handleReportarIncidenciaTipo('otro', 'Otro problema')}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-              <span className="text-3xl relative z-10">📝</span>
-              <span className="relative z-10">Otro</span>
-            </button>
-          </div>
-
-          {/* Separador visual */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
-            <span className="text-slate-500 text-sm font-medium">o</span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
-          </div>
-
-          {/* Botón de llamada destacado */}
-          <button
-            onClick={handleLlamarCoordinador}
-            className="w-full bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 text-white py-6 rounded-xl font-bold text-xl shadow-xl shadow-green-500/40 hover:shadow-2xl hover:shadow-green-500/50 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-            <PhoneIcon className="h-7 w-7 relative z-10 animate-pulse" />
-            <span className="relative z-10">Llamar a Coordinador</span>
-          </button>
-        </div>
+        <IncidenciasTab
+          onLlamarCoordinador={handleLlamarCoordinador}
+          onReportarIncidenciaTipo={handleReportarIncidenciaTipo}
+        />
       )}
 
       {/* Tab: Perfil */}
       {activeTab === 'perfil' && (
-        <div className="p-4 space-y-6">
-          {/* Card de perfil principal */}
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded p-2 border border-slate-700 shadow-2xl relative overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl"></div>
-            
-            <div className="flex items-center space-x-4 mb-6 relative z-10">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-3xl shadow-xl shadow-cyan-500/30">
-                {choferData?.nombre?.charAt(0) || 'C'}
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">
-                  {choferData?.nombre} {choferData?.apellido}
-                </h3>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="px-2 py-1 bg-cyan-500/20 text-cyan-400 text-xs font-semibold rounded-full border border-cyan-500/30">
-                    Chofer Profesional
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1 flex items-center space-x-1">
-                  <span>📧</span>
-                  <span>{user?.email}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Información del chofer */}
-            <div className="space-y-3 relative z-10">
-              <div className="flex items-center justify-between py-3 px-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                <div className="flex items-center space-x-2">
-                  <span className="text-slate-400 text-sm">🪪 DNI</span>
-                </div>
-                <span className="text-white font-semibold">{choferData?.dni || 'N/A'}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-3 px-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                <div className="flex items-center space-x-2">
-                  <span className="text-slate-400 text-sm">📱 Teléfono</span>
-                </div>
-                <span className="text-white font-semibold">{choferData?.telefono || 'N/A'}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-3 px-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                <div className="flex items-center space-x-2">
-                  <span className="text-slate-400 text-sm">🚗 Licencia</span>
-                </div>
-                <span className="text-white font-semibold">{choferData?.licencia_numero || 'N/A'}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg border border-cyan-500/30">
-                <div className="flex items-center space-x-2">
-                  <span className="text-cyan-400 text-sm font-semibold">🚚 Viajes Activos</span>
-                </div>
-                <span className="text-cyan-400 font-bold text-lg">{viajes.length}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Mis Documentos */}
-          <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                <DocumentTextIcon className="h-5 w-5 text-cyan-400" />
-                Mis Documentos
-              </h4>
-              {choferData?.id && choferData?.empresa_id && (
-                <button
-                  onClick={() => setShowUploadDoc(!showUploadDoc)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded-lg transition-colors"
-                >
-                  <ArrowUpTrayIcon className="h-4 w-4" />
-                  Subir
-                </button>
-              )}
-            </div>
-
-            {/* Formulario de upload */}
-            {showUploadDoc && choferData?.id && choferData?.empresa_id && (
-              <div className="mb-4">
-                <SubirDocumento
-                  entidadTipo="chofer"
-                  entidadId={choferData.id}
-                  empresaId={choferData.empresa_id}
-                  onUploadSuccess={() => {
-                    setShowUploadDoc(false);
-                    setDocRefreshKey(k => k + 1);
-                  }}
-                  onCancel={() => setShowUploadDoc(false)}
-                />
-              </div>
-            )}
-
-            {/* Lista de documentos */}
-            {choferData?.id ? (
-              <div key={docRefreshKey}>
-                <ListaDocumentos
-                  entidadTipo="chofer"
-                  entidadId={choferData.id}
-                  showActions={false}
-                />
-              </div>
-            ) : (
-              <p className="text-slate-500 text-sm text-center py-4">Cargando documentos...</p>
-            )}
-          </div>
-
-          {/* Botón GPS destacado */}
-          <button
-            onClick={() => router.push('/chofer/tracking-gps')}
-            className="w-full bg-gradient-to-r from-cyan-600 via-cyan-500 to-blue-600 text-white py-5 rounded-xl font-bold text-lg shadow-xl shadow-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-3 relative overflow-hidden group"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-            <MapPinIcon className="h-6 w-6 relative z-10" />
-            <span className="relative z-10">🛰️ Activar Tracking GPS</span>
-          </button>
-
-          {/* Botón cerrar sesión */}
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.push('/login');
-            }}
-            className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center space-x-2"
-          >
-            <ArrowRightOnRectangleIcon className="h-6 w-6" />
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
+        <PerfilTab
+          choferData={choferData}
+          userEmail={user?.email || ''}
+          viajesCount={viajes.length}
+          showUploadDoc={showUploadDoc}
+          docRefreshKey={docRefreshKey}
+          onToggleUpload={() => setShowUploadDoc(!showUploadDoc)}
+          onUploadSuccess={() => {
+            setShowUploadDoc(false);
+            setDocRefreshKey(k => k + 1);
+          }}
+        />
       )}
 
-      {/* Navegación Inferior - Glassmorphism Style */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-slate-700/50 shadow-2xl z-50">
-        <div className="grid grid-cols-3 h-20 relative">
-          {/* Indicador de tab activo animado */}
-          <div
-            className={`absolute top-0 h-1 bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300 ease-out ${
-              activeTab === 'viajes' ? 'left-0 w-1/3' :
-              activeTab === 'incidencias' ? 'left-1/3 w-1/3' :
-              'left-2/3 w-1/3'
-            }`}
-          />
-          
-          {/* Tab Viajes */}
-          <button
-            onClick={() => setActiveTab('viajes')}
-            className={`flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 relative group ${
-              activeTab === 'viajes'
-                ? 'text-cyan-400 scale-105'
-                : 'text-slate-400 hover:text-slate-300 hover:scale-105'
-            }`}
-          >
-            <div className={`p-2 rounded-xl transition-all ${
-              activeTab === 'viajes' 
-                ? 'bg-cyan-500/20 shadow-lg shadow-cyan-500/20' 
-                : 'group-hover:bg-slate-700/30'
-            }`}>
-              <TruckIcon className={`h-6 w-6 ${activeTab === 'viajes' ? 'animate-pulse' : ''}`} />
-            </div>
-            <span className={`text-xs font-semibold ${activeTab === 'viajes' ? 'text-cyan-400' : 'text-slate-400'}`}>
-              Viajes
-            </span>
-            {viajes.length > 0 && (
-              <span className="absolute top-2 right-1/4 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-slate-900">
-                {viajes.length}
-              </span>
-            )}
-          </button>
-
-          {/* Tab Incidencias */}
-          <button
-            onClick={() => setActiveTab('incidencias')}
-            className={`flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 relative group ${
-              activeTab === 'incidencias'
-                ? 'text-cyan-400 scale-105'
-                : 'text-slate-400 hover:text-slate-300 hover:scale-105'
-            }`}
-          >
-            <div className={`p-2 rounded-xl transition-all ${
-              activeTab === 'incidencias' 
-                ? 'bg-cyan-500/20 shadow-lg shadow-cyan-500/20' 
-                : 'group-hover:bg-slate-700/30'
-            }`}>
-              <BellIcon className={`h-6 w-6 ${activeTab === 'incidencias' ? 'animate-pulse' : ''}`} />
-            </div>
-            <span className={`text-xs font-semibold ${activeTab === 'incidencias' ? 'text-cyan-400' : 'text-slate-400'}`}>
-              Incidencias
-            </span>
-          </button>
-
-          {/* Tab Perfil */}
-          <button
-            onClick={() => setActiveTab('perfil')}
-            className={`flex flex-col items-center justify-center space-y-1.5 transition-all duration-200 relative group ${
-              activeTab === 'perfil'
-                ? 'text-cyan-400 scale-105'
-                : 'text-slate-400 hover:text-slate-300 hover:scale-105'
-            }`}
-          >
-            <div className={`p-2 rounded-xl transition-all ${
-              activeTab === 'perfil' 
-                ? 'bg-cyan-500/20 shadow-lg shadow-cyan-500/20' 
-                : 'group-hover:bg-slate-700/30'
-            }`}>
-              <UserCircleIcon className={`h-6 w-6 ${activeTab === 'perfil' ? 'animate-pulse' : ''}`} />
-            </div>
-            <span className={`text-xs font-semibold ${activeTab === 'perfil' ? 'text-cyan-400' : 'text-slate-400'}`}>
-              Perfil
-            </span>
-          </button>
-        </div>
-      </nav>
+      <BottomNavBar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        viajesCount={viajes.length}
+      />
 
       {/* Modal QR del Viaje */}
       {showQRModal && viajeActivo && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowQRModal(false)}>
-          <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-white">QR del Viaje</h3>
-                <button
-                  onClick={() => setShowQRModal(false)}
-                  className="text-slate-400 hover:text-white transition-colors"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              {/* QR Code Container */}
-              <div className="bg-white p-6 rounded-xl mb-4 flex items-center justify-center">
-                <QRCodeSVG
-                  value={JSON.stringify({
-                    viaje_id: viajeActivo.id,
-                    pedido_id: viajeActivo.despachos.pedido_id,
-                    numero_viaje: viajeActivo.numero_viaje,
-                    tipo: 'acceso_chofer',
-                    timestamp: new Date().toISOString()
-                  })}
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                <p className="text-cyan-400 font-bold">{viajeActivo.despachos.pedido_id}</p>
-                <p className="text-slate-300">Viaje #{viajeActivo.numero_viaje}</p>
-                <p className="text-slate-400 text-xs mt-4">
-                  Presenta este código en Control de Acceso
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <QRModal viajeActivo={viajeActivo} onClose={() => setShowQRModal(false)} />
       )}
 
       {/* Modal Menú Hamburguesa */}
       {showMenuHamburguesa && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50" onClick={() => setShowMenuHamburguesa(false)}>
-          <div className="bg-slate-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-700 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            {/* Header del menú */}
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white">Menú</h3>
-                <button
-                  onClick={() => setShowMenuHamburguesa(false)}
-                  className="text-slate-400 hover:text-white transition-colors"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Opciones del menú */}
-            <div className="p-4 space-y-2">
-              <button
-                onClick={() => {
-                  setShowMenuHamburguesa(false);
-                  // TODO: Implementar navegación a histórico
-                }}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl transition-all flex items-center space-x-3"
-              >
-                <ClipboardDocumentListIcon className="h-6 w-6 text-cyan-400" />
-                <div className="flex-1 text-left">
-                  <p className="font-semibold">Histórico de Viajes</p>
-                  <p className="text-xs text-slate-400">Ver viajes anteriores</p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowMenuHamburguesa(false);
-                  // TODO: Implementar navegación a documentación
-                }}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl transition-all flex items-center space-x-3"
-              >
-                <DocumentTextIcon className="h-6 w-6 text-cyan-400" />
-                <div className="flex-1 text-left">
-                  <p className="font-semibold">Documentación</p>
-                  <p className="text-xs text-slate-400">Guías y manuales</p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowMenuHamburguesa(false);
-                  window.location.href = 'tel:+541121608941';
-                }}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white p-4 rounded-xl transition-all flex items-center space-x-3"
-              >
-                <PhoneIcon className="h-6 w-6 text-cyan-400" />
-                <div className="flex-1 text-left">
-                  <p className="font-semibold">Soporte</p>
-                  <p className="text-xs text-slate-400">Contactar al coordinador</p>
-                </div>
-              </button>
-            </div>
-
-            {/* Footer del menú */}
-            <div className="p-4 border-t border-slate-700">
-              <p className="text-xs text-slate-500 text-center">
-                Nodexia v1.0.0 - App Chofer
-              </p>
-            </div>
-          </div>
-        </div>
+        <HamburgerMenu onClose={() => setShowMenuHamburguesa(false)} />
       )}
 
       {/* 📢 MODAL INCIDENCIA NATIVO */}
       {showIncidenciaModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50" onClick={() => setShowIncidenciaModal(false)}>
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-red-500/30 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="p-6 border-b border-slate-700 bg-gradient-to-r from-red-600/20 to-orange-600/20">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-red-500/20 p-2 rounded-lg">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white">Reportar {incidenciaTipoNombre}</h3>
-                </div>
-                <button
-                  onClick={() => setShowIncidenciaModal(false)}
-                  className="text-slate-400 hover:text-white transition-colors"
-                  disabled={reportandoIncidencia}
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <p className="text-sm text-slate-300">
-                Describe el problema para que el coordinador pueda ayudarte
-              </p>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-4">
-              {/* Info del viaje */}
-              <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-                <p className="text-xs text-slate-400 mb-1">Viaje:</p>
-                <p className="text-white font-semibold">{viajeActivo?.despachos.pedido_id} - Viaje #{viajeActivo?.numero_viaje}</p>
-              </div>
-
-              {/* Textarea descripción */}
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Descripción del problema *
-                </label>
-                <textarea
-                  value={incidenciaDescripcion}
-                  onChange={(e) => setIncidenciaDescripcion(e.target.value)}
-                  placeholder={`Describe el ${incidenciaTipoNombre.toLowerCase()} en detalle...`}
-                  rows={5}
-                  disabled={reportandoIncidencia}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all resize-none"
-                />
-                <p className="text-xs text-slate-400 mt-1">
-                  {incidenciaDescripcion.length} caracteres
-                </p>
-              </div>
-
-              {/* Botones */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => setShowIncidenciaModal(false)}
-                  disabled={reportandoIncidencia}
-                  className="py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleEnviarIncidencia}
-                  disabled={reportandoIncidencia || !incidenciaDescripcion.trim()}
-                  className="py-3 px-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white rounded-xl font-bold shadow-lg shadow-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                >
-                  {reportandoIncidencia ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Enviando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ExclamationTriangleIcon className="h-5 w-5" />
-                      <span>Reportar</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <IncidenciaModal
+          viajeActivo={viajeActivo}
+          incidenciaTipoNombre={incidenciaTipoNombre}
+          incidenciaDescripcion={incidenciaDescripcion}
+          onDescripcionChange={setIncidenciaDescripcion}
+          reportandoIncidencia={reportandoIncidencia}
+          onClose={() => setShowIncidenciaModal(false)}
+          onEnviar={handleEnviarIncidencia}
+        />
       )}
     </div>
   );

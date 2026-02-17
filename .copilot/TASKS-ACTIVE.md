@@ -1,16 +1,18 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 15-Feb-2026 (Sesión 23 — Full Trip E2E + Flota Redesign)
+**Actualizado:** 17-Feb-2026 (Sesión 25 — Team Docs + Session 24 Reconstruction)
 
 ---
 
 ## 🔄 EN PROGRESO
 
-### Pre-Demo (18-Feb-2026 — 3 días)
+### Pre-Demo (28-Feb-2026 — 11 días)
 **Estado:** En preparación
 - ✅ Flujo E2E completo validado (todos los actores)
 - ✅ Self-delivery flow para destinos no-Nodexia
 - ✅ UX improvements: Flota unificada, detail page, modal compacto
+- ✅ Security audit + performance indexes (Sesión 24)
+- ✅ Documentación de equipos (4 guías: Frontend, Backend, BD, Mobile)
 - ⬜ Preparación datos demo
 - ⬜ Verificar UX general para presentación
 - ⬜ Script/guión de demo
@@ -24,6 +26,50 @@
 **Estado:** Pendiente (Post-MVP)
 - ⬜ Rate limiting middleware
 - ⬜ CORS middleware para mobile apps
+
+---
+
+## ✅ COMPLETADAS (Sesión 25 — 17-Feb-2026)
+
+### Documentación de Equipos Completa ✅
+**Completado por:** Opus directamente — Sesión 25
+**Contexto:** Crear guías para que equipos externos puedan trabajar en Frontend, Backend, BD y Mobile
+
+#### Archivos creados:
+- `docs/equipos/BD-SUPABASE.md` — Guía BD (13 secciones: tablas, RLS, migraciones, funciones, storage, cron, indexes)
+- `docs/equipos/MOBILE.md` — Guía Mobile (13 secciones: API, auth, GPS, push, QR, offline, UX)
+
+#### Archivos corregidos:
+- `docs/equipos/BACKEND-API.md` — Service layer y estados actualizados a estructura real
+
+---
+
+## ✅ COMPLETADAS (Sesión 24 — 16-Feb-2026, sin cierre formal)
+
+### Security + Performance Audit ✅
+**Completado por:** Opus + Usuario — Sesión 24
+**Commit:** `60e35fb`
+**Contexto:** Auditoría de seguridad + performance previo a demo
+
+#### Security fixes:
+- IDOR fixes: preview-url (empresa validation + path traversal), GPS APIs, timeline
+- Role restrictions: notificar-recepcion, documentos-detalle, crear-incidencia
+- CSP header en next.config.ts
+- demo-qr bloqueado en PROD, passwords removidos
+- error.message sanitizado de 3 API responses
+- 7 clientes Supabase duplicados → singleton
+
+#### Stability:
+- ErrorBoundary global en _app.tsx
+
+#### Performance (Migración 060 — ✅ EJECUTADA EN PROD):
+- 11 indexes (viajes_despacho, choferes, notificaciones, despachos)
+- 3 cleanup functions (tracking_gps 90d, ubicaciones 90d, notificaciones leídas 30d)
+- pg_cron jobs activados
+
+### Documentación Equipos (parcial) ✅
+- `docs/equipos/FRONTEND.md` — Guía frontend
+- `docs/equipos/BACKEND-API.md` — Guía backend API (corregido en sesión 25)
 
 ---
 

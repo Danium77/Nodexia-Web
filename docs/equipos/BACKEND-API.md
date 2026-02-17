@@ -151,11 +151,11 @@ const { data } = await supabaseAdmin
 
 ```
 lib/services/
-├── despachoService.ts        ← Lógica de negocio de despachos
-├── estadoService.ts          ← Máquina de estados
-├── firebaseService.ts        ← Push notifications (Firebase)
-├── notificacionService.ts    ← Notificaciones internas
-└── controlAccesoService.ts   ← Validación de acceso en planta
+├── viajeEstado.ts            ← Transiciones de estado + sync despacho (cambiarEstadoViaje, asignarUnidad)
+├── notificaciones.ts         ← Notificaciones internas (notificarCambioEstado)
+├── estadosService.ts         ← Helpers de estados
+├── geocoding.ts              ← Geocodificación / geofencing
+└── geocoding.js              ← Fallback JS de geocoding
 ```
 
 ### Patrón recomendado
@@ -220,9 +220,9 @@ const DespachoSchema = z.object({
 
 ```
 lib/estados/
-├── config.ts              ← Definición de los 18 estados
-├── validaciones.ts        ← Reglas de transición
-└── transiciones.ts        ← Ejecución de transiciones
+├── config.ts              ← Definición de 17+1 estados, TRANSICIONES_VALIDAS, ROLES_AUTORIZADOS
+├── index.ts               ← Re-exports
+└── operativo.ts           ← Funciones UI: calcularEstadoOperativo, getColorEstadoOperativo
 ```
 
 ---

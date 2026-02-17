@@ -4,6 +4,80 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-17 (Martes) - Sesión 25
+
+### Sesión 25 - Documentación de Equipos (continuación)
+
+**Tiempo:** ~1 hora  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Logros:
+1. ✅ Creado `docs/equipos/BD-SUPABASE.md` — Guía completa equipo BD (13 secciones)
+2. ✅ Creado `docs/equipos/MOBILE.md` — Guía completa equipo Android/iOS (13 secciones)
+3. ✅ Corregido `docs/equipos/BACKEND-API.md` — Service layer y estados actualizados a estructura real
+4. ✅ Reconstruido contexto de sesión 24 perdida
+5. ✅ Actualizado sistema de memoria (.copilot/)
+
+#### Archivos Creados (2):
+- `docs/equipos/BD-SUPABASE.md` — Guía BD: tablas, RLS, migraciones, funciones SQL, storage, cron, indexes
+- `docs/equipos/MOBILE.md` — Guía Mobile: API endpoints, auth, GPS, push notifications, QR, offline, UX
+
+#### Archivos Modificados (1):
+- `docs/equipos/BACKEND-API.md` — Corregidas secciones service layer y estados (no coincidían con archivos reales)
+
+---
+
+## 📅 2026-02-16 (Lunes) - Sesión 24 (contexto no guardado)
+
+### Sesión 24 - Security/Performance Audit + Docs Equipos
+
+**Tiempo:** Estimado ~3 horas  
+**Equipo:** Opus + Usuario  
+**Nota:** Sesión sin cierre formal — contexto reconstruido de git history
+
+#### Logros:
+1. ✅ Security audit: IDOR fixes en preview-url, GPS APIs, timeline (empresa scope)
+2. ✅ Role restrictions: notificar-recepcion, documentos-detalle, crear-incidencia
+3. ✅ CSP header agregado a next.config.ts
+4. ✅ ErrorBoundary global agregado a _app.tsx
+5. ✅ 7 clientes Supabase duplicados reemplazados por singleton
+6. ✅ demo-qr bloqueado en producción + passwords removidos
+7. ✅ error.message sanitizado de 3 API responses
+8. ✅ Migración 060 ejecutada en PROD: 11 indexes + 3 cleanup functions + pg_cron
+9. ✅ Creados docs/equipos/BACKEND-API.md y docs/equipos/FRONTEND.md
+10. ✅ Google verification file agregado
+
+#### Archivos Creados (5):
+- `components/ErrorBoundary.tsx` — Error boundary global (99 líneas)
+- `sql/060_BLOQUE1_indices.sql` — Performance indexes
+- `sql/060_BLOQUE2_funciones.sql` — Cleanup functions
+- `sql/060_BLOQUE3_cron.sql` — pg_cron jobs
+- `sql/migrations/060_indices_performance_y_retencion.sql` — Migración completa (61 líneas)
+- `docs/equipos/BACKEND-API.md` — Guía equipo backend
+- `docs/equipos/FRONTEND.md` — Guía equipo frontend
+- `public/googlefd751202f9d68d7a.html` — Google verification
+
+#### Archivos Modificados (15):
+- `next.config.ts` — CSP headers
+- `pages/_app.tsx` — ErrorBoundary wrapper
+- `pages/demo-qr.tsx` — Bloqueado en PROD
+- `pages/api/documentacion/preview-url.ts` — IDOR fix + path traversal protection
+- `pages/api/gps/estadisticas-viaje.ts` — Empresa scope
+- `pages/api/gps/ubicaciones-historicas.ts` — Empresa scope
+- `pages/api/despachos/timeline.ts` — Empresa scope
+- `pages/api/control-acceso/crear-incidencia.ts` — Role restriction
+- `pages/api/control-acceso/documentos-detalle.ts` — Role restriction
+- `pages/api/notificaciones/notificar-recepcion.ts` — Role restriction
+- `pages/api/documentacion/estado-batch.ts` — Error sanitization
+- 3 components: DashboardNodexia, GestionEmpresasReal, WizardOnboarding — Supabase singleton
+- 2 admin pages: clientes, setup-db — Supabase singleton
+
+#### Commits (2):
+- `60e35fb` — security+performance audit (16-Feb)
+- `0084ddd` — Google verification + team docs (17-Feb)
+
+---
+
 ## 📅 2026-02-15 (Domingo) - Sesiones 22 y 23
 
 ### Sesión 23 - Full Trip E2E + Flota Redesign + Detail Page

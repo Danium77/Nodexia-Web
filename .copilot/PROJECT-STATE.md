@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 15-Feb-2026 (Sesión 23 — Full Trip E2E + Flota Redesign + Detail Page)
+**Última actualización:** 17-Feb-2026 (Sesión 25 — Team Docs + Session 24 Reconstruction)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 18-Feb-2026 (3 días)
+**Próxima presentación:** 28-Feb-2026 (11 días)
 
 ---
 
@@ -39,6 +39,9 @@
 - **PROD Supabase:** `lkdcofsfjnltuzzzwoir` — Schema sincronizado con DEV
 - **DEV Supabase:** `yllnzkjpvaukeeqzuxit`
 - **Security Hardening (Sesión 19):** 55/55 API routes con `withAuth` middleware, `withAdminAuth` eliminado
+- **Security Audit (Sesión 24):** IDOR fixes (preview-url, GPS, timeline), CSP header, ErrorBoundary global, 7 singleton fixes, error.message sanitizado
+- **Performance (Sesión 24):** Migración 060 — 11 indexes + 3 cleanup fns (pg_cron) ejecutada en PROD
+- **Team Docs (Sesión 24-25):** docs/equipos/ — FRONTEND.md, BACKEND-API.md, BD-SUPABASE.md, MOBILE.md
 - **DB Sync PROD (Sesión 19):** 6 scripts SQL ejecutados (columns, tables, indexes, functions, views, security)
 - **Security P0 Fixes (Sesión 19):** delete-despacho migrado a withAuth, passwords removidos de docs, password_temporal removido de audit trail
 - **PROD Testing (Sesión 19):** Despacho creado, viaje generado, transporte asignado, unidad asignada — flujo parcialmente validado E2E en PROD
@@ -262,6 +265,40 @@ components/
 ---
 
 ## 🔄 ÚLTIMA ACTIVIDAD
+
+**Sesión 17-Feb-2026 (Sesión 25 — Team Docs):**
+
+### Contexto:
+- Continuación de documentación de equipos iniciada en sesión 24
+- Reconstrucción de contexto de sesión 24 (no guardada)
+
+### Principales logros:
+1. ✅ Creado `docs/equipos/BD-SUPABASE.md` — Guía completa equipo BD
+2. ✅ Creado `docs/equipos/MOBILE.md` — Guía completa equipo Mobile
+3. ✅ Corregido `docs/equipos/BACKEND-API.md` — Service layer y estados reales
+4. ✅ Actualizado sistema de memoria (.copilot/)
+
+---
+
+**Sesión 16-Feb-2026 (Sesión 24 — Security + Performance Audit, sin cierre formal):**
+
+### Contexto:
+- Auditoría de seguridad + performance previo a demo
+- Inicio de documentación de equipos
+
+### Principales logros:
+1. ✅ IDOR fixes en 4 APIs (preview-url, GPS, timeline)
+2. ✅ CSP header + ErrorBoundary global
+3. ✅ 7 Supabase singletons corregidos
+4. ✅ Migración 060: 11 indexes + pg_cron (ejecutada en PROD)
+5. ✅ Creados FRONTEND.md y BACKEND-API.md
+6. ✅ Google verification file
+
+### Commits sesión 24:
+- `60e35fb` — Security+performance audit (16-Feb)
+- `0084ddd` — Google verification + team docs (17-Feb)
+
+---
 
 **Sesión 15-Feb-2026 (Sesión 23 — Full Trip E2E + Flota Redesign + Detail Page):**
 
