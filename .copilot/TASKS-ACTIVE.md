@@ -25,12 +25,45 @@
 
 ### Security P1
 **Estado:** Pendiente (Post-MVP)
-- ⬜ Rate limiting middleware
+- ⬜ Rate limiting middleware (auditoría C1 - CRÍTICO)
 - ⬜ CORS middleware para mobile apps
+- ⬜ Math.random() → crypto en crear-usuario-sin-email (auditoría C2 - CRÍTICO)
+- ⬜ Edge Function CORS restrict (auditoría C3 - CRÍTICO)
+- ⬜ Ownership checks en 6 endpoints (auditoría H1 - ALTO)
+- ⬜ RLS fix: historial_despachos y paradas (auditoría - ALTO)
+
+### Performance P1
+**Estado:** Pendiente (Post-MVP)
+- ⬜ Mover Leaflet CSS fuera de _app.tsx
+- ⬜ Arreglar N+1 queries crear-despacho
+- ⬜ Dynamic import modales (9+ modales)
+- ⬜ SWR para data caching
+- ⬜ Activar 4 cron jobs faltantes en BD
+
+### Infraestructura Equipos P0
+**Estado:** Pendiente (Pre-onboarding)
+- ⬜ GitHub Actions CI (build+lint+test)
+- ⬜ Staging environment
+- ⬜ Partir lib/types.ts en módulos por dominio
+- ⬜ Instalar Sentry
+- ⬜ Pre-commit hooks (husky)
 
 ---
 
 ## ✅ COMPLETADAS (Sesión 25 — 17-Feb-2026)
+
+### Auditoría Técnica Integral ✅
+**Completado por:** Opus directamente — Sesión 25
+**Archivo:** `docs/auditorias/AUDITORIA-COMPLETA-2026-02-17.md`
+**Contexto:** Evaluación completa del proyecto para escalar con equipos
+
+#### Áreas auditadas:
+- Seguridad de datos: 3 críticas, 5 altas, 6 medias, 4 bajas
+- Estructura para 4 equipos (Frontend, Backend, BD, Mobile)
+- Rendimiento web (performance grade: D+)
+- Base de datos (34 tablas, RLS gaps, performance)
+- Evaluación de producto vs. mejores prácticas (Samsara, Project44)
+- Plan de acción 3 fases con métricas de éxito
 
 ### Refactoring Páginas Grandes ✅
 **Completado por:** Opus directamente — Sesión 25
