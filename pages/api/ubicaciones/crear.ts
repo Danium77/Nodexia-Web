@@ -1,7 +1,7 @@
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export default withAuth(async (req, res, _authCtx) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -16,9 +16,32 @@ export default withAuth(async (req, res, _authCtx) => {
       });
     }
 
-    // Agregar updated_at
+    // Obtener empresa_id del usuario autenticado
+    const { data: userEmpresa } = await supabaseAdmin
+      .from('usuarios_empresa')
+      .select('empresa_id')
+      .eq('user_id', authCtx.userId)
+      .eq('activo', true)
+      .single();
+
+    // Auto-set empresa_id: por CUIT match o por empresa del usuario
+    let empresaId = null;
+    if (ubicacionData.cuit) {
+      const { data: empresaCuit } = await supabaseAdmin
+        .from('empresas')
+        .select('id')
+        .eq('cuit', ubicacionData.cuit)
+        .maybeSingle();
+      empresaId = empresaCuit?.id || null;
+    }
+    if (!empresaId && userEmpresa?.empresa_id) {
+      empresaId = userEmpresa.empresa_id;
+    }
+
+    // Agregar updated_at y empresa_id
     const dataToInsert = {
       ...ubicacionData,
+      empresa_id: empresaId,
       updated_at: new Date().toISOString()
     };
 

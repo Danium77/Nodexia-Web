@@ -2,9 +2,9 @@
 // API para escanear QR y validar datos en Control de Acceso
 
 import { withAuth } from '@/lib/middleware/withAuth';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
 
-export default withAuth(async (req, res, _authCtx) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
@@ -17,7 +17,8 @@ export default withAuth(async (req, res, _authCtx) => {
     }
 
     // 1. Buscar el viaje por QR en tabla viajes_despacho
-    const { data: viaje, error: viajeError } = await supabaseAdmin
+    const supabase = createUserSupabaseClient(authCtx.token);
+    const { data: viaje, error: viajeError } = await supabase
       .from('viajes_despacho')
       .select(`
         *,

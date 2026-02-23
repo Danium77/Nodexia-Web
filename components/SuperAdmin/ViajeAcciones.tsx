@@ -199,14 +199,57 @@ export default function ViajeAcciones({
 
   if (v.estado === 'descargando') {
     return (
-      <button
-        onClick={() => onFinalizarDescarga(v.id)}
-        disabled={isLoading}
-        className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-500 disabled:opacity-50 transition-colors flex items-center gap-2"
-      >
-        <CheckCircleIcon className="h-4 w-4" />
-        {isLoading ? 'Finalizando...' : '✅ Finalizar Descarga'}
-      </button>
+      <div className="w-full space-y-3">
+        {/* Foto del remito de descarga */}
+        <div className="border border-dashed border-slate-600 rounded-lg p-3">
+          <p className="text-xs text-slate-400 mb-2 font-medium">📸 Foto del remito de entrega (requerida)</p>
+
+          {!remitoPreview ? (
+            <label className="flex flex-col items-center gap-2 cursor-pointer py-4 hover:bg-slate-700/30 rounded-lg transition-colors">
+              <CameraIcon className="h-8 w-8 text-yellow-500" />
+              <span className="text-sm text-slate-300">Tomar foto o seleccionar imagen</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={onRemitoFileChange}
+                className="hidden"
+              />
+            </label>
+          ) : (
+            <div className="relative">
+              <img
+                src={remitoPreview}
+                alt="Remito entrega"
+                className="w-full max-h-48 object-contain rounded-lg bg-slate-900"
+              />
+              <button
+                onClick={onLimpiarRemito}
+                className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full hover:bg-red-500 transition-colors"
+                title="Quitar foto"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+              {remitoFile && (
+                <p className="text-xs text-slate-500 mt-1 text-center">
+                  {remitoFile.name} ({(remitoFile.size / 1024).toFixed(0)} KB)
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Botón Finalizar Descarga — solo habilitado con foto */}
+        <button
+          onClick={() => onFinalizarDescarga(v.id)}
+          disabled={isLoading || !remitoFile || uploadingRemito}
+          className="w-full bg-purple-600 text-white px-4 py-3 rounded-lg text-sm font-medium hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        >
+          <CheckCircleIcon className="h-4 w-4" />
+          {uploadingRemito ? 'Subiendo foto...' : isLoading ? 'Finalizando...' : !remitoFile ? '📷 Suba la foto para finalizar' : '✅ Finalizar Descarga'}
+        </button>
+      </div>
     );
   }
 

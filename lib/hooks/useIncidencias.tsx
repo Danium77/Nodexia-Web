@@ -1,65 +1,77 @@
-import { useEffect, useState, useRef } from 'react';
-import { supabase } from '../supabaseClient';
+// Hook para consultar incidencias_viaje via API (con RLS)
+// Reescrito: consulta tabla canónica incidencias_viaje via /api/incidencias
 
-interface IncidenciaRow {
-  id?: string | number;
-  created_at?: string;
-  [key: string]: any;
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { supabase } from '../supabaseClient';
+import type { IncidenciaViaje, EstadoIncidencia } from '../types';
+
+interface UseIncidenciasOptions {
+  /** Filtrar por estado */
+  estado?: EstadoIncidencia | EstadoIncidencia[];
+  /** Filtrar por viaje_id  */
+  viajeId?: string;
+  /** Auto-refresh interval en ms (0 = deshabilitado) */
+  refreshInterval?: number;
 }
 
-export default function useIncidencias() {
-  const [incidencias, setIncidencias] = useState<IncidenciaRow[]>([]);
+export default function useIncidencias(options?: UseIncidenciasOptions) {
+  const [incidencias, setIncidencias] = useState<IncidenciaViaje[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const subRef = useRef<{ unsubscribe?: () => void } | null>(null);
+  const [counts, setCounts] = useState({ abiertas: 0, en_proceso: 0, resueltas: 0, cerradas: 0, total: 0 });
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchIncidencias = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('No hay sesión activa');
+        setLoading(false);
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (options?.estado) {
+        const estados = Array.isArray(options.estado) ? options.estado : [options.estado];
+        estados.forEach(e => params.append('estado', e));
+      }
+      if (options?.viajeId) {
+        params.set('viaje_id', options.viajeId);
+      }
+
+      const response = await fetch(`/api/incidencias?${params}`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Error ${response.status}`);
+      }
+
+      const json = await response.json();
+      setIncidencias(json.data || []);
+      setCounts(json.counts || { abiertas: 0, en_proceso: 0, resueltas: 0, cerradas: 0, total: 0 });
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar incidencias');
+    } finally {
+      setLoading(false);
+    }
+  }, [options?.estado, options?.viajeId]);
 
   useEffect(() => {
-    let mounted = true;
+    fetchIncidencias();
 
-    const fetch = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('incidencias')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (!mounted) return;
-      if (error) setError(error.message);
-      else setIncidencias(data || []);
-      setLoading(false);
-    };
-
-    fetch();
-
-    try {
-      subRef.current = supabase
-        .channel('public:incidencias')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'incidencias' }, (payload: unknown) => {
-          const p = payload as { new?: unknown; old?: unknown; event?: string } | null;
-          const rec = p?.new || p?.old;
-          if (!rec || typeof rec !== 'object') return;
-          const recObj = rec as IncidenciaRow;
-          setIncidencias(prev => {
-            if ((p as any)?.event === 'DELETE') return prev.filter((item) => item.id !== recObj.id);
-            const idx = prev.findIndex((item) => item.id === recObj.id);
-            if (idx === -1) return [recObj, ...prev].slice(0, 50);
-            const copy = [...prev]; copy[idx] = { ...copy[idx], ...recObj }; return copy;
-          });
-        })
-        .subscribe();
-    } catch (e) {
-      const t = setInterval(fetch, 30000);
-      return () => clearInterval(t);
+    // Auto-refresh cada 30s por defecto
+    const interval = options?.refreshInterval ?? 30000;
+    if (interval > 0) {
+      intervalRef.current = setInterval(fetchIncidencias, interval);
     }
 
-    return () => { 
-      mounted = false; 
-      if (subRef.current?.unsubscribe) {
-        try { subRef.current.unsubscribe(); } catch (e) { /* ignore */ }
-      }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [fetchIncidencias, options?.refreshInterval]);
 
-  return { incidencias, loading, error };
+  return { incidencias, loading, error, counts, refetch: fetchIncidencias };
 }

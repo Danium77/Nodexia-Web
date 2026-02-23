@@ -29,10 +29,13 @@ interface Documento {
 
 interface Timeline {
   id: string;
-  estado_anterior: string;
-  estado_nuevo: string;
+  estado_anterior?: string;
+  estado_nuevo?: string;
   fecha: string;
   usuario_nombre?: string;
+  accion?: string;
+  descripcion?: string;
+  icono?: string;
 }
 
 export default function DetalleDespacho() {
@@ -46,6 +49,7 @@ export default function DetalleDespacho() {
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [timeline, setTimeline] = useState<Timeline[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLabel, setPreviewLabel] = useState<string>('Documento');
 
   useEffect(() => {
     const checkUser = async () => {
@@ -117,13 +121,32 @@ export default function DetalleDespacho() {
         setDocumentos(docs || []);
       }
 
-      // 4. Timeline
-      const { data: events } = await supabase
-        .from('despacho_timeline')
-        .select('id, estado_anterior, estado_nuevo, fecha, usuario_nombre')
-        .eq('despacho_id', id as string)
-        .order('fecha', { ascending: true });
-      setTimeline(events || []);
+      // 4. Timeline vía API (no hace query directa a vista inexistente)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        try {
+          const res = await fetch(`/api/despachos/timeline?despachoId=${id}`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+          if (res.ok) {
+            const json = await res.json();
+            // Adaptar el formato del API al formato que usa el componente de timeline
+            const adapted = (json.events || []).map((e: any) => ({
+              id: e.id,
+              estado_anterior: e.metadata?.estado_anterior || '',
+              estado_nuevo: e.metadata?.estado_nuevo || '',
+              fecha: e.timestamp,
+              usuario_nombre: e.usuario,
+              accion: e.accion,
+              descripcion: e.descripcion,
+              icono: e.icono,
+            }));
+            setTimeline(adapted);
+          }
+        } catch (tlErr) {
+          console.warn('Timeline no disponible:', tlErr);
+        }
+      }
     } catch (err) {
       console.error('Error loading detalle:', err);
     } finally {
@@ -135,6 +158,7 @@ export default function DetalleDespacho() {
     const colors: Record<string, string> = {
       completado: 'bg-green-600 text-green-100',
       cancelado: 'bg-red-600 text-red-100',
+      en_proceso: 'bg-blue-600 text-blue-100',
       pendiente: 'bg-yellow-600 text-yellow-100',
       en_transito_origen: 'bg-purple-600 text-purple-100',
       en_transito_destino: 'bg-purple-600 text-purple-100',
@@ -152,6 +176,7 @@ export default function DetalleDespacho() {
   const getEstadoLabel = (estado: string) => {
     const labels: Record<string, string> = {
       pendiente: 'Pendiente',
+      en_proceso: 'En Proceso',
       transporte_asignado: 'Transporte Asignado',
       camion_asignado: 'Camión Asignado',
       confirmado_chofer: 'Confirmado',
@@ -171,6 +196,26 @@ export default function DetalleDespacho() {
       cancelado: 'Cancelado',
     };
     return labels[estado] || estado;
+  };
+
+  // Computar estado display del despacho basado en viajes reales
+  const getEstadoDespachoDisplay = (): string => {
+    if (!despacho) return 'pendiente';
+    const ESTADOS_EN_PROCESO = [
+      'confirmado_chofer', 'en_transito_origen',
+      'ingresado_origen', 'llamado_carga', 'cargando', 'cargado',
+      'egreso_origen', 'en_transito_destino',
+      'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'
+    ];
+    const tieneViajesEnProceso = viajes.some(v => ESTADOS_EN_PROCESO.includes(v.estado));
+    const todosCompletados = viajes.length > 0 && viajes.every(v => ['completado', 'cancelado'].includes(v.estado));
+
+    // Si hay viajes activos en proceso, mostrar "en_proceso"
+    if (tieneViajesEnProceso) return 'en_proceso';
+    // Si todos los viajes terminaron, mostrar "completado"
+    if (todosCompletados) return 'completado';
+    // En otros casos usar el estado real del despacho
+    return despacho.estado;
   };
 
   if (!user) return (
@@ -218,8 +263,8 @@ export default function DetalleDespacho() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${getEstadoBadge(despacho.estado)}`}>
-                      {getEstadoLabel(despacho.estado)}
+                    <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${getEstadoBadge(getEstadoDespachoDisplay())}`}>
+                      {getEstadoLabel(getEstadoDespachoDisplay())}
                     </span>
                     <span className="text-xs text-gray-400">
                       📅 {despacho.scheduled_local_date} — {despacho.scheduled_local_time || 'Sin hora'}
@@ -329,33 +374,69 @@ export default function DetalleDespacho() {
                       <p className="text-gray-400 text-xs mt-3">📝 {viaje.observaciones}</p>
                     )}
 
-                    {/* Documentos del viaje */}
-                    {documentos.filter(d => d.viaje_id === viaje.id).length > 0 && (
-                      <div className="mt-4 border-t border-slate-700 pt-3">
-                        <p className="text-gray-400 text-xs font-semibold mb-2 flex items-center gap-1">
-                          <DocumentTextIcon className="h-4 w-4" />
-                          Comprobantes adjuntos
-                        </p>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                          {documentos.filter(d => d.viaje_id === viaje.id).map(doc => (
-                            <div
-                              key={doc.id}
-                              onClick={() => setPreviewUrl(doc.file_url)}
-                              className="bg-slate-700/50 rounded-lg p-3 hover:bg-slate-600/50 cursor-pointer transition-colors border border-slate-600"
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                <PhotoIcon className="h-4 w-4 text-cyan-400" />
-                                <span className="text-white text-xs font-medium capitalize">{doc.tipo}</span>
-                              </div>
-                              <p className="text-gray-400 text-[10px] truncate">{doc.nombre_archivo}</p>
-                              <p className="text-gray-500 text-[10px]">
-                                {new Date(doc.fecha_emision).toLocaleDateString('es-AR')} {new Date(doc.fecha_emision).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                              </p>
-                            </div>
-                          ))}
+                    {/* Remitos del viaje — sección con imágenes reales */}
+                    {(() => {
+                      const docsViaje = documentos
+                        .filter(d => d.viaje_id === viaje.id)
+                        .sort((a, b) => new Date(a.fecha_emision).getTime() - new Date(b.fecha_emision).getTime());
+                      if (docsViaje.length === 0) return null;
+
+                      // Etiquetar: primero = supervisor origen, último = chofer entrega
+                      const getLabel = (doc: Documento, idx: number, total: number) => {
+                        if (total === 1) return 'Remito';
+                        if (idx === 0) return 'Remito Origen (Supervisor)';
+                        if (idx === total - 1) return 'Remito Entrega (Chofer)';
+                        return `Remito #${idx + 1}`;
+                      };
+
+                      return (
+                        <div className="mt-4 border-t border-slate-700 pt-4">
+                          <p className="text-gray-300 text-sm font-semibold mb-3 flex items-center gap-2">
+                            <DocumentTextIcon className="h-4 w-4 text-cyan-400" />
+                            Remitos del Viaje
+                          </p>
+                          <div className={`grid gap-4 ${docsViaje.length === 1 ? 'grid-cols-1 max-w-xs' : 'grid-cols-1 md:grid-cols-2'}`}>
+                            {docsViaje.map((doc, idx) => {
+                              const label = getLabel(doc, idx, docsViaje.length);
+                              return (
+                                <div key={doc.id} className="bg-slate-700/40 rounded-xl border border-slate-600 overflow-hidden">
+                                  {/* Header label */}
+                                  <div className="px-3 py-2 flex items-center justify-between bg-slate-700/60">
+                                    <span className="text-xs font-semibold text-cyan-300 flex items-center gap-1">
+                                      <PhotoIcon className="h-3.5 w-3.5" />
+                                      {label}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400">
+                                      {new Date(doc.fecha_emision).toLocaleDateString('es-AR')} · {new Date(doc.fecha_emision).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  {/* Imagen del remito */}
+                                  <div
+                                    className="relative cursor-pointer group"
+                                    onClick={() => { setPreviewUrl(doc.file_url); setPreviewLabel(label); }}
+                                  >
+                                    <img
+                                      src={doc.file_url}
+                                      alt={label}
+                                      className="w-full object-cover max-h-52 bg-slate-800"
+                                      onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                      <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-black/60 px-3 py-1 rounded-full transition-opacity">
+                                        Click para ampliar
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="px-3 py-2">
+                                    <p className="text-gray-500 text-[10px] truncate">{doc.nombre_archivo}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -368,24 +449,19 @@ export default function DetalleDespacho() {
                     Historial de Eventos
                   </h2>
                   <div className="space-y-3">
-                    {timeline.map((event, idx) => (
+                    {timeline.map((event: any, idx: number) => (
                       <div key={event.id} className="flex items-start gap-3">
                         <div className="flex flex-col items-center">
-                          <div className={`w-3 h-3 rounded-full ${idx === timeline.length - 1 ? 'bg-green-400' : 'bg-cyan-500'}`} />
+                          <div className={`w-3 h-3 rounded-full ${idx === 0 ? 'bg-green-400' : 'bg-cyan-500'}`} />
                           {idx < timeline.length - 1 && <div className="w-0.5 h-8 bg-slate-700" />}
                         </div>
                         <div className="flex-1 pb-3">
                           <div className="flex items-center gap-2 text-sm">
-                            <span className={`px-2 py-0.5 rounded text-xs ${getEstadoBadge(event.estado_nuevo)}`}>
-                              {getEstadoLabel(event.estado_nuevo)}
-                            </span>
-                            {event.estado_anterior && (
-                              <>
-                                <span className="text-gray-500 text-xs">desde</span>
-                                <span className="text-gray-400 text-xs">{getEstadoLabel(event.estado_anterior)}</span>
-                              </>
-                            )}
+                            <span className="text-white text-xs font-medium">{event.icono} {event.accion}</span>
                           </div>
+                          {event.descripcion && (
+                            <p className="text-gray-400 text-xs mt-0.5">{event.descripcion}</p>
+                          )}
                           <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                             <span>{new Date(event.fecha).toLocaleDateString('es-AR')}</span>
                             <span>{new Date(event.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -417,11 +493,12 @@ export default function DetalleDespacho() {
           {/* Preview modal */}
           {previewUrl && (
             <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPreviewUrl(null)}>
-              <div className="bg-slate-800 rounded-xl max-w-3xl max-h-[90vh] overflow-auto p-2 border border-slate-600" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-end mb-2">
+              <div className="bg-slate-800 rounded-xl max-w-4xl max-h-[95vh] overflow-auto p-3 border border-slate-600" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-white text-sm font-semibold">{previewLabel}</span>
                   <button onClick={() => setPreviewUrl(null)} className="text-gray-400 hover:text-white text-sm px-2 py-1">✕ Cerrar</button>
                 </div>
-                <img src={previewUrl} alt="Documento" className="max-w-full max-h-[80vh] object-contain rounded-lg" />
+                <img src={previewUrl} alt={previewLabel} className="max-w-full max-h-[85vh] object-contain rounded-lg" />
               </div>
             </div>
           )}

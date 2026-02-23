@@ -13,24 +13,28 @@ export function filterDespachosByTab(dispatches: any[], tab: DespachoTab): any[]
     const viajesPendientes = cantidadTotal - cantidadAsignados;
     const tieneDemorados = d.tiene_viajes_demorados === true;
     const tieneExpirados = d.tiene_viajes_expirados === true;
-    const esCompletado = ['completado', 'cancelado'].includes(d.estado);
+    const tieneViajesEnProceso = d.tiene_viajes_en_proceso === true;
+    const todosViajesCompletados = d.todos_viajes_completados === true;
+    const esEstadoFinal = ['completado', 'cancelado', 'expirado', 'cancelado_por_transporte', 'finalizado', 'entregado'].includes(d.estado);
+    // Un despacho está completado sólo si NO tiene viajes activos en proceso
+    const esCompletado = (esEstadoFinal || todosViajesCompletados) && !tieneViajesEnProceso;
 
     switch (tab) {
       case 'completados':
         return esCompletado;
-      case 'expirados':
-        return tieneExpirados && !esCompletado;
-      case 'demorados':
-        return tieneDemorados && !tieneExpirados && !esCompletado;
-      case 'pendientes':
-        return cantidadAsignados === 0 && !tieneExpirados && !esCompletado;
       case 'en_proceso':
-        return cantidadAsignados > 0 && viajesPendientes > 0
-          && !tieneExpirados && !tieneDemorados && !esCompletado;
+        // Cualquier despacho con viajes activos entre confirmado y egreso_destino
+        return tieneViajesEnProceso;
+      case 'expirados':
+        return tieneExpirados && !esCompletado && !tieneViajesEnProceso;
+      case 'demorados':
+        return tieneDemorados && !tieneExpirados && !esCompletado && !tieneViajesEnProceso;
+      case 'pendientes':
+        return cantidadAsignados === 0 && !tieneExpirados && !esCompletado && !tieneViajesEnProceso;
       case 'asignados':
         return (
-          (cantidadAsignados > 0 && viajesPendientes === 0 && !tieneExpirados && !tieneDemorados && !esCompletado) ||
-          (d.estado === 'transporte_asignado' && !tieneExpirados && !tieneDemorados && !esCompletado)
+          (cantidadAsignados > 0 && viajesPendientes === 0 && !tieneExpirados && !tieneDemorados && !esCompletado && !tieneViajesEnProceso) ||
+          (d.estado === 'transporte_asignado' && !tieneExpirados && !tieneDemorados && !esCompletado && !tieneViajesEnProceso)
         );
       default:
         return false;

@@ -58,6 +58,14 @@ export function useDocAlerts(intervalMs = 5 * 60 * 1000): UseDocAlertsReturn {
         },
       });
 
+      // Si es 401, el usuario no tiene acceso (ej: control_acceso) - ignorar silenciosamente
+      if (res.status === 401 || res.status === 403) {
+        setAlertas([]);
+        setResumen({ vencidos: 0, por_vencer: 0, faltantes: 0, total: 0 });
+        setLoading(false);
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(`Error ${res.status}`);
       }

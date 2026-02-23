@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { useUserRole } from '../../lib/contexts/UserRoleContext';
@@ -97,6 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
       { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
       { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
+      { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
     ];
   } else if (userRole === 'admin_nodexia') {
     // Admin Nodexia - Panel completo igual que super_admin
@@ -110,14 +111,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
       { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
       { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
+      { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
     ];
   } else if (userRole === 'control_acceso') {
     navItems = [
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
       { name: '🚪 Control de Acceso', icon: TruckIcon, href: '/control-acceso' },
       { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
-      { name: 'Planificación Hoy', icon: CalendarDaysIcon, href: '/planificacion' },
-    ];
+      { name: 'Planificación Hoy', icon: CalendarDaysIcon, href: '/planificacion' },      { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },    ];
   } else if (userRole === 'supervisor') {
     // Supervisor (contextual según tipo de empresa)
     if (tipoEmpresa === 'transporte') {
@@ -134,6 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
         { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
         { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
+        { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
         { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
       ];
     }
@@ -154,6 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
         { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
         { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
+        { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
         { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
         { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
       ];

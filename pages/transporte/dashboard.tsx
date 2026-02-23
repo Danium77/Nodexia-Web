@@ -219,7 +219,7 @@ const TransporteDashboard = () => {
       <div className="mb-2 flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Dashboard de Transporte</h1>
-          <p className="text-gray-400">Bienvenido, {user?.email}</p>
+          <p className="text-gray-400">Bienvenido, {user?.user_metadata?.nombre_completo || user?.email?.split('@')[0] || 'Usuario'}</p>
         </div>
         <button
           onClick={() => router.push('/transporte/viajes-activos')}

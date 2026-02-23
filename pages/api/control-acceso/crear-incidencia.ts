@@ -3,7 +3,7 @@
 // TASK-S06: Reescritura completa — tabla incidencias_viaje con columnas correctas
 
 import type { NextApiResponse } from 'next';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
 import { withAuth } from '@/lib/middleware/withAuth';
 
 // Tipos válidos según CHECK en incidencias_viaje
@@ -31,12 +31,13 @@ function determinarSeveridad(tipo: TipoIncidencia): Severidad {
   return map[tipo] || 'media';
 }
 
-export default withAuth(async (req, res, { userId }) => {
+export default withAuth(async (req, res, { userId, token }) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
   try {
+    const supabase = createUserSupabaseClient(token);
     const { viaje_id, tipo_incidencia, descripcion, severidad } = req.body;
 
     // Validar campos requeridos
@@ -56,7 +57,7 @@ export default withAuth(async (req, res, { userId }) => {
     }
 
     // Validar que el viaje existe en viajes_despacho (NO en 'viajes')
-    const { data: viaje, error: viajeError } = await supabaseAdmin
+    const { data: viaje, error: viajeError } = await supabase
       .from('viajes_despacho')
       .select('id, numero_viaje')
       .eq('id', viaje_id)
@@ -91,7 +92,7 @@ export default withAuth(async (req, res, { userId }) => {
     let insertError: any = null;
 
     // Intento 1: Schema unificado (estado, severidad, fecha_incidencia)
-    const result1 = await supabaseAdmin
+    const result1 = await supabase
       .from('incidencias_viaje')
       .insert(insertData)
       .select('id, tipo_incidencia, estado, severidad')
@@ -110,7 +111,7 @@ export default withAuth(async (req, res, { userId }) => {
         fecha_reporte: new Date().toISOString(),
       };
 
-      const result2 = await supabaseAdmin
+      const result2 = await supabase
         .from('incidencias_viaje')
         .insert(insertDataViejo)
         .select('id, tipo_incidencia, estado_resolucion')

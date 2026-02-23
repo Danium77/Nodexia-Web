@@ -8,6 +8,7 @@ import AssignTransportModal from '../components/Modals/AssignTransportModal';
 import ConfirmDeleteModal from '../components/Modals/ConfirmDeleteModal';
 import CancelarDespachoModal from '../components/Modals/CancelarDespachoModal';
 import ReprogramarModal from '../components/Modals/ReprogramarModal';
+import EditarDespachoModal from '../components/Modals/EditarDespachoModal';
 import AbrirRedNodexiaModal from '../components/Transporte/AbrirRedNodexiaModal';
 import VerEstadoRedNodexiaModal from '../components/Transporte/VerEstadoRedNodexiaModal';
 import ViajesSubTable from '../components/Despachos/ViajesSubTable';
@@ -44,6 +45,8 @@ interface GeneratedDispatch {
   viajes_asignados?: number; // 🔥 NUEVO: Solo viajes con transporte asignado
   viajes_sin_asignar?: number; // 🔥 NUEVO
   viajes_cancelados_por_transporte?: number; // 🔥 NUEVO
+  tiene_viajes_en_proceso?: boolean; // 🔥 Viajes activos entre confirmado y egreso_destino
+  todos_viajes_completados?: boolean; // 🔥 Todos los viajes finalizaron el flujo
   origen_asignacion?: 'directo' | 'red_nodexia'; // 🔥 NUEVO: Origen de la asignación
   transporte_data?: { 
     nombre: string;
@@ -115,6 +118,10 @@ const CrearDespacho = () => {
   const [isReprogramarModalOpen, setIsReprogramarModalOpen] = useState(false);
   const [selectedDispatchForReprogram, setSelectedDispatchForReprogram] = useState<GeneratedDispatch | null>(null);
 
+  // Estados para modal de Editar
+  const [isEditarModalOpen, setIsEditarModalOpen] = useState(false);
+  const [selectedDispatchForEdit, setSelectedDispatchForEdit] = useState<GeneratedDispatch | null>(null);
+
   // Estados para modal de Cancelar despacho
   const [isCancelarModalOpen, setIsCancelarModalOpen] = useState(false);
   const [selectedDispatchForCancel, setSelectedDispatchForCancel] = useState<GeneratedDispatch | null>(null);
@@ -134,6 +141,7 @@ const CrearDespacho = () => {
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
   const [timelineDespachoId, setTimelineDespachoId] = useState('');
   const [timelinePedidoId, setTimelinePedidoId] = useState('');
+  const [timelineRefreshTrigger, setTimelineRefreshTrigger] = useState(0);
 
   // Cargar datos del usuario
   useEffect(() => {
@@ -251,8 +259,6 @@ const CrearDespacho = () => {
         if (!viajesError && viajesData) {
           viajesGenerados = viajesData.length;
           
-          // 🔥 DEBUG: Mostrar estados de todos los viajes
-          
           // 🔥 MOSTRAR TODOS LOS ESTADOS ÚNICOS ENCONTRADOS
           const estadosUnicos = [...new Set(viajesData.map(v => v.estado))];
           
@@ -280,23 +286,25 @@ const CrearDespacho = () => {
           
           // 🔥 NUEVO: Calcular estado operativo de cada viaje para categorización correcta
           const esRedNodexia = d.origen_asignacion === 'red_nodexia';
-          viajesConEstadoOperativo = viajesData.map(v => {
-            // Red Nodexia: Si el viaje aún no está en movimiento físico (Fases 2-6),
-            // los chofer_id/camion_id son datos stale → forzar como pendiente sin recursos.
-            // 🔥 FIX: Solo considerar "en Red pendiente" si NO tiene chofer asignado.
-            // Después de aceptar oferta + asignar unidad, chofer_id existe → no nullificar.
-            const enRedPendiente = esRedNodexia && !v.chofer_id && !estaEnMovimiento(v.estado) && !esFinal(v.estado);
-            const estadoOp = calcularEstadoOperativo({
-              estado_carga: enRedPendiente ? 'pendiente' : (v.estado || 'pendiente'),
-              estado_unidad: v.estado,
-              chofer_id: enRedPendiente ? null : v.chofer_id,
-              camion_id: enRedPendiente ? null : v.camion_id,
-              scheduled_local_date: d.scheduled_local_date,
-              scheduled_local_time: d.scheduled_local_time,
-              scheduled_at: scheduledAtFinal
+          viajesConEstadoOperativo = viajesData
+            .filter(v => v.estado !== 'cancelado') // Excluir cancelados del cálculo
+            .map(v => {
+              // Red Nodexia: Si el viaje aún no está en movimiento físico (Fases 2-6),
+              // los chofer_id/camion_id son datos stale → forzar como pendiente sin recursos.
+              // 🔥 FIX: Solo considerar "en Red pendiente" si NO tiene chofer asignado.
+              // Después de aceptar oferta + asignar unidad, chofer_id existe → no nullificar.
+              const enRedPendiente = esRedNodexia && !v.chofer_id && !estaEnMovimiento(v.estado) && !esFinal(v.estado);
+              const estadoOp = calcularEstadoOperativo({
+                estado_carga: enRedPendiente ? 'pendiente' : (v.estado || 'pendiente'),
+                estado_unidad: v.estado,
+                chofer_id: enRedPendiente ? null : v.chofer_id,
+                camion_id: enRedPendiente ? null : v.camion_id,
+                scheduled_local_date: d.scheduled_local_date,
+                scheduled_local_time: d.scheduled_local_time,
+                scheduled_at: scheduledAtFinal
+              });
+              return { ...v, estado_operativo: estadoOp };
             });
-            return { ...v, estado_operativo: estadoOp };
-          });
           
           // Detectar si TODOS los viajes están realmente expirados (sin recursos)
           hasViajesExpirados = viajesConEstadoOperativo.some(v => 
@@ -362,6 +370,22 @@ const CrearDespacho = () => {
           }
         }
         
+        // 🔥 Calcular si el despacho está expirado basado en su fecha programada
+        const now = new Date();
+        const scheduledDate = scheduledAtFinal ? new Date(scheduledAtFinal) : null;
+        const despachoEstaExpirado = scheduledDate && scheduledDate < now;
+        
+        // 🔥 Detectar viajes en proceso (entre confirmado_chofer y egreso_destino)
+        const ESTADOS_EN_PROCESO = [
+          'confirmado_chofer', 'en_transito_origen',
+          'ingresado_origen', 'llamado_carga', 'cargando', 'cargado',
+          'egreso_origen', 'en_transito_destino',
+          'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'
+        ];
+        const tieneViajesEnProceso = (viajesData || []).some(v => ESTADOS_EN_PROCESO.includes(v.estado));
+        const todosViajesCompletados = (viajesData || []).length > 0 &&
+          (viajesData || []).every(v => ['completado', 'cancelado'].includes(v.estado));
+
         // 🔥 Calcular estado operativo del despacho basado en los viajes
         let estadoOperativoDespacho: 'activo' | 'demorado' | 'expirado' = 'activo';
         let tieneViajesDemorados = false;
@@ -378,16 +402,29 @@ const CrearDespacho = () => {
             estadoOperativoDespacho = 'demorado';
           }
         }
+        
+        // Si el despacho está expirado por fecha pero no tiene viajes activos (ej: todos cancelados), forzar expirado
+        if (despachoEstaExpirado && viajesConEstadoOperativo.length === 0) {
+          estadoOperativoDespacho = 'expirado';
+        }
 
         return {
           id: d.id,
           pedido_id: d.pedido_id,
           origen: d.origen,
           destino: d.destino,
-          estado: hasViajesExpirados ? 'expirado' : d.estado, // 🆕 Campo BD (legacy)
-          estado_operativo: estadoOperativoDespacho, // 🔥 Estado operativo calculado
-          tiene_viajes_demorados: tieneViajesDemorados, // 🔥 Flag para filtrado
-          tiene_viajes_expirados: tieneViajesExpirados, // 🔥 Flag para filtrado
+          estado: tieneViajesEnProceso
+            ? 'en_proceso'
+            : todosViajesCompletados
+              ? 'completado'
+              : (despachoEstaExpirado && !['completado', 'cancelado', 'expirado', 'cancelado_por_transporte', 'finalizado', 'entregado'].includes(d.estado))
+                ? 'expirado'
+                : d.estado,
+          estado_operativo: estadoOperativoDespacho,
+          tiene_viajes_demorados: tieneViajesDemorados,
+          tiene_viajes_expirados: tieneViajesExpirados,
+          tiene_viajes_en_proceso: tieneViajesEnProceso,
+          todos_viajes_completados: todosViajesCompletados,
           fecha_despacho: d.scheduled_local_date || 'Sin fecha',
           hora_despacho: d.scheduled_local_time || '', // 🔥 NUEVO: hora
           scheduled_at: scheduledAtFinal, // 🔥 NUEVO: timestamp combinado para cálculo de estado operativo
@@ -813,6 +850,7 @@ const CrearDespacho = () => {
       // 5. Recarga completa desde BD para obtener datos actualizados
       if (user?.id) {
         await fetchGeneratedDispatches(user.id);
+        setTimelineRefreshTrigger(prev => prev + 1); // Refrescar timeline si está abierto
         
         // 🔥 Si el despacho estaba expandido, recargar sus viajes inmediatamente
         if (despachoId && expandedDespachos.has(despachoId)) {
@@ -1210,6 +1248,23 @@ const CrearDespacho = () => {
 
       if (error) throw error;
 
+      // 🔥 REGISTRAR EN HISTORIAL
+      await supabase
+        .from('historial_despachos')
+        .insert({
+          despacho_id: despachoId,
+          viaje_id: viajeId,
+          accion: 'viaje_cancelado',
+          descripcion: `Viaje #${viajeActual.numero_viaje} cancelado por coordinador${advertencia}`,
+          usuario_id: user?.id || null,
+          metadata: {
+            numero_viaje: viajeActual.numero_viaje,
+            estado_anterior: viajeActual.estado,
+            motivo: motivo,
+            cancelacion_tardia: horasHastaViaje < 24,
+            pedido_id: viajeActual.despachos?.pedido_id
+          }
+        });
 
       // Limpiar cache de viajes del despacho para forzar recarga
       setViajesDespacho(prev => {
@@ -1384,6 +1439,7 @@ const CrearDespacho = () => {
         estado: 'pendiente_transporte',
         scheduled_local_date: rowToSave.fecha_despacho,
         scheduled_local_time: `${rowToSave.hora_despacho}:00`,
+        empresa_id: empresaPlanta?.empresa_id || null, // Empresa propietaria del despacho
         created_by: user.id,
         transport_id: null,
         driver_id: null,
@@ -1464,6 +1520,26 @@ const CrearDespacho = () => {
             setErrorMsg('Despacho creado pero hubo un error al generar viajes. Revise el despacho.');
           } else {
             viajesCreados = viajesInsertados?.length || 0;
+            
+            //🔥 REGISTRAR EN HISTORIAL
+            await supabase
+              .from('historial_despachos')
+              .insert({
+                despacho_id: despachoCreado.id,
+                accion: 'despacho_creado',
+                descripcion: `Despacho ${despachoCreado.pedido_id} creado con ${viajesCreados} viaje(s) - ${rowToSave.origen} → ${rowToSave.destino}`,
+                usuario_id: user.id,
+                metadata: {
+                  pedido_id: despachoCreado.pedido_id,
+                  origen: rowToSave.origen,
+                  destino: rowToSave.destino,
+                  fecha: rowToSave.fecha_despacho,
+                  hora: rowToSave.hora_despacho,
+                  cantidad_viajes: viajesCreados,
+                  tipo_carga: rowToSave.tipo_carga,
+                  prioridad: rowToSave.prioridad
+                }
+              });
           }
         }
         
@@ -1503,8 +1579,9 @@ const CrearDespacho = () => {
     }
   };
 
-  // Obtener fecha mínima (hoy)
-  const today = new Date().toISOString().split('T')[0];
+  // Obtener fecha mínima (hoy en zona horaria local Argentina)
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   if (!user) {
     return (
@@ -1608,7 +1685,7 @@ const CrearDespacho = () => {
                   if (filteredDispatches.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={9} className="px-2 py-6 text-center text-slate-400">
+                        <td colSpan={10} className="px-2 py-6 text-center text-slate-400">
                           {loadingGenerated 
                             ? "Cargando despachos..." 
                             : activeTab === 'pendientes'
@@ -1646,6 +1723,10 @@ const CrearDespacho = () => {
                       onOpenReprogram={(d) => {
                         setSelectedDispatchForReprogram(d);
                         setIsReprogramarModalOpen(true);
+                      }}
+                      onOpenEditar={(d) => {
+                        setSelectedDispatchForEdit(d);
+                        setIsEditarModalOpen(true);
                       }}
                       onVerEstadoRed={handleVerEstadoRed}
                       onReasignarViaje={handleReasignarViaje}
@@ -1723,6 +1804,29 @@ const CrearDespacho = () => {
         } : null}
         onSuccess={() => {
           fetchGeneratedDispatches(user.id, true);
+          setTimelineRefreshTrigger(prev => prev + 1); // Refrescar timeline si está abierto
+        }}
+      />
+
+      {/* Modal Editar */}
+      <EditarDespachoModal
+        isOpen={isEditarModalOpen}
+        onClose={() => {
+          setIsEditarModalOpen(false);
+          setSelectedDispatchForEdit(null);
+        }}
+        despacho={selectedDispatchForEdit ? {
+          id: selectedDispatchForEdit.id,
+          pedido_id: selectedDispatchForEdit.pedido_id,
+          origen: selectedDispatchForEdit.origen,
+          destino: selectedDispatchForEdit.destino,
+          fecha_despacho: selectedDispatchForEdit.fecha_despacho,
+          hora_despacho: selectedDispatchForEdit.hora_despacho,
+          observaciones: selectedDispatchForEdit.observaciones
+        } : null}
+        onSuccess={() => {
+          fetchGeneratedDispatches(user.id, true);
+          setTimelineRefreshTrigger(prev => prev + 1); // Refrescar timeline si está abierto
         }}
       />
 
@@ -1747,6 +1851,7 @@ const CrearDespacho = () => {
         onClose={() => setIsTimelineModalOpen(false)}
         despachoId={timelineDespachoId}
         pedidoId={timelinePedidoId}
+        refreshTrigger={timelineRefreshTrigger}
       />
     </div>
   );

@@ -61,16 +61,42 @@ export default withAuth(async (req, res, authCtx) => {
       tipo_documento: fields.tipo_documento?.[0] || '',
       fecha_emision: fields.fecha_emision?.[0] || '',
       fecha_vencimiento: fields.fecha_vencimiento?.[0],
-      empresa_id: authCtx.empresaId || fields.empresa_id?.[0] || '',
+      empresa_id: fields.empresa_id?.[0] || authCtx.empresaId || '',
       subido_por: authCtx.userId,
     };
 
     // Validar campos requeridos (fecha_emision ya no es obligatoria, la asigna admin al validar)
-    if (!metadata.entidad_tipo || !metadata.entidad_id || !metadata.tipo_documento || 
-        !metadata.empresa_id) {
+    if (!metadata.entidad_tipo || !metadata.entidad_id || !metadata.tipo_documento) {
       return res.status(400).json({
         error: 'Campos requeridos faltantes',
-        details: 'Debe proporcionar: entidad_tipo, entidad_id, tipo_documento, empresa_id'
+        details: 'Debe proporcionar: entidad_tipo, entidad_id, tipo_documento'
+      });
+    }
+
+    // Auto-resolver empresa_id desde la entidad si no coincide o falta
+    // Esto es necesario cuando un coordinador de planta sube docs para un recurso de transporte
+    if (metadata.entidad_tipo !== 'transporte') {
+      const tablaMap: Record<string, string> = { chofer: 'choferes', camion: 'camiones', acoplado: 'acoplados' };
+      const tabla = tablaMap[metadata.entidad_tipo];
+      if (tabla) {
+        const { data: entidad } = await supabaseAdmin
+          .from(tabla)
+          .select('empresa_id')
+          .eq('id', metadata.entidad_id)
+          .single();
+        if (entidad?.empresa_id) {
+          metadata.empresa_id = entidad.empresa_id;
+        }
+      }
+    } else {
+      // Para transporte, la empresa_id es la propia entidad_id
+      metadata.empresa_id = metadata.entidad_id;
+    }
+
+    if (!metadata.empresa_id) {
+      return res.status(400).json({
+        error: 'No se pudo determinar la empresa del recurso',
+        details: 'Verifique que el recurso exista'
       });
     }
 

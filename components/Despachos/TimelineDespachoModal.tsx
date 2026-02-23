@@ -23,6 +23,7 @@ interface TimelineDespachoModalProps {
   onClose: () => void;
   despachoId: string;
   pedidoId: string;
+  refreshTrigger?: number; // Trigger externo para refrescar datos
 }
 
 const COLOR_MAP: Record<string, { dot: string; line: string; bg: string; text: string }> = {
@@ -51,7 +52,8 @@ export default function TimelineDespachoModal({
   isOpen,
   onClose,
   despachoId,
-  pedidoId
+  pedidoId,
+  refreshTrigger = 0
 }: TimelineDespachoModalProps) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ export default function TimelineDespachoModal({
     if (isOpen && despachoId) {
       fetchTimeline();
     }
-  }, [isOpen, despachoId]);
+  }, [isOpen, despachoId, refreshTrigger]); // Agregar refreshTrigger como dependencia
 
   const fetchTimeline = async () => {
     try {

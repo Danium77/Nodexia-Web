@@ -55,6 +55,7 @@ export interface CambioEstadoResult {
   estado_nuevo?: EstadoViajeType;
   proximos_estados?: EstadoViajeType[];
   data?: Record<string, unknown>;
+  viaje_auto_completado?: boolean;
 }
 
 // Estados que no permiten asignación de unidad
@@ -97,7 +98,8 @@ const ESTADO_A_TIMESTAMP_VIAJE: Partial<Record<EstadoViajeType, string>> = {
   camion_asignado: 'fecha_asignacion_transporte',
   confirmado_chofer: 'fecha_confirmacion_chofer',
   ingresado_origen: 'fecha_ingreso_planta',
-  llamado_carga: 'fecha_llamado_carga',
+  // llamado_carga: omitido — 'fecha_llamado_carga' no existe en viajes_despacho
+  // el timestamp se registra correctamente en estado_unidad_viaje (fecha_ingreso_playa)
   cargando: 'fecha_inicio_carga',
   cargado: 'fecha_fin_carga',
   egreso_origen: 'fecha_salida_planta',
@@ -164,23 +166,18 @@ export async function cambiarEstadoViaje(
     };
   }
 
-  // 3. Actualizar viaje (estado + timestamp de la fase si aplica)
+  // 3. Actualizar viaje — UPDATE CRÍTICO (solo estado, sin timestamps opcionales)
+  // Los timestamps de viajes_despacho se escriben por separado en paso 3b (best-effort)
+  // para no bloquear la transición si una columna no existe en la tabla PROD.
   const now = new Date().toISOString();
-  const updatePayload: Record<string, unknown> = {
-    estado: nuevo_estado,
-    estado_unidad: nuevo_estado,
-    updated_at: now,
-  };
-
-  // Escribir columna timestamp directamente en viajes_despacho (para timeline)
-  const columnaTimestampViaje = ESTADO_A_TIMESTAMP_VIAJE[nuevo_estado];
-  if (columnaTimestampViaje) {
-    updatePayload[columnaTimestampViaje] = now;
-  }
 
   const { error: updateError } = await supabase
     .from('viajes_despacho')
-    .update(updatePayload)
+    .update({
+      estado: nuevo_estado,
+      estado_unidad: nuevo_estado,
+      updated_at: now,
+    })
     .eq('id', viaje_id);
 
   if (updateError) {
@@ -188,6 +185,21 @@ export async function cambiarEstadoViaje(
       exitoso: false,
       mensaje: `Error al actualizar: ${updateError.message}`,
     };
+  }
+
+  // 3b. Escribir timestamp de fase en viajes_despacho (best-effort, no bloquea)
+  // Si la columna no existe en PROD el error se absorbe silenciosamente.
+  const columnaTimestampViaje = ESTADO_A_TIMESTAMP_VIAJE[nuevo_estado];
+  if (columnaTimestampViaje) {
+    supabase
+      .from('viajes_despacho')
+      .update({ [columnaTimestampViaje]: now })
+      .eq('id', viaje_id)
+      .then(({ error }) => {
+        if (error) {
+          console.warn(`⚠️ Timestamp opcional ${columnaTimestampViaje} no escrito en viajes_despacho: ${error.message}`);
+        }
+      });
   }
 
   console.log(`✅ Viaje ${viaje_id}: ${estadoAnterior} → ${nuevo_estado} (por ${user_id})`);
@@ -219,15 +231,76 @@ export async function cambiarEstadoViaje(
       });
   }
 
-  // 8. Próximos estados
-  const proximos = getProximosEstados(nuevo_estado);
+  // 8. Auto-completar viaje si llegó a egreso_destino (última parada)
+  let viaje_auto_completado = false;
+  if (nuevo_estado === 'egreso_destino') {
+    console.log(`🔄 Viaje ${viaje_id}: egreso_destino → auto-completando...`);
+
+    const nowComplete = new Date().toISOString();
+
+    // Actualizar viaje a completado
+    const { error: completeError } = await supabase
+      .from('viajes_despacho')
+      .update({
+        estado: 'completado',
+        estado_unidad: 'completado',
+        updated_at: nowComplete,
+      })
+      .eq('id', viaje_id);
+
+    if (!completeError) {
+      viaje_auto_completado = true;
+
+      // Sincronizar despacho a completado
+      await sincronizarDespacho(supabase, viaje.despacho_id, 'completado' as EstadoViajeType);
+
+      // Registrar timestamp de completado en estado_unidad_viaje
+      await registrarTimestampEstado(supabase, viaje_id, 'completado' as EstadoViajeType, nowComplete);
+
+      // Registrar en historial
+      if (viaje.despacho_id) {
+        supabase
+          .from('historial_despachos')
+          .insert({
+            despacho_id: viaje.despacho_id,
+            viaje_id,
+            accion: 'estado_cambiado',
+            descripcion: 'Viaje completado automáticamente tras egreso de destino',
+            usuario_id: user_id,
+            metadata: { estado_anterior: 'egreso_destino', estado_nuevo: 'completado', auto: true },
+          })
+          .then(({ error }) => {
+            if (error) console.error('⚠️ Error registrando historial auto-completado:', error);
+          });
+      }
+
+      // Timestamp en viajes_despacho (best-effort)
+      supabase
+        .from('viajes_despacho')
+        .update({ fecha_confirmacion_entrega: nowComplete })
+        .eq('id', viaje_id)
+        .then(({ error }) => {
+          if (error) console.warn('⚠️ fecha_confirmacion_entrega no escrito:', error.message);
+        });
+
+      console.log(`✅ Viaje ${viaje_id}: auto-completado exitosamente`);
+    } else {
+      console.error(`⚠️ Error auto-completando viaje ${viaje_id}:`, completeError);
+    }
+  }
+
+  // 9. Próximos estados
+  const proximos = getProximosEstados(viaje_auto_completado ? 'completado' as EstadoViajeType : nuevo_estado);
 
   return {
     exitoso: true,
-    mensaje: `Estado actualizado: ${estadoAnterior} → ${nuevo_estado}`,
+    mensaje: viaje_auto_completado
+      ? `Estado actualizado: ${estadoAnterior} → ${nuevo_estado} → completado (auto)`
+      : `Estado actualizado: ${estadoAnterior} → ${nuevo_estado}`,
     estado_anterior: estadoAnterior,
-    estado_nuevo: nuevo_estado,
+    estado_nuevo: viaje_auto_completado ? 'completado' as EstadoViajeType : nuevo_estado,
     proximos_estados: proximos,
+    viaje_auto_completado,
   };
 }
 

@@ -103,7 +103,7 @@ export function calcularEstadoOperativo(viaje: DatosViaje): ResultadoEstadoOpera
     };
   }
 
-  // 4. EN ASIGNACIÓN
+  // 4. CON RECURSOS ASIGNADOS → usar ventana de tolerancia (2 horas)
   if (tieneRecursos) {
     return {
       estadoOperativo: dentroVentana ? 'activo' : 'demorado',
@@ -112,9 +112,13 @@ export function calcularEstadoOperativo(viaje: DatosViaje): ResultadoEstadoOpera
     };
   }
 
+  // 5. SIN RECURSOS → expirado si pasó la hora programada (aunque sea 1 minuto)
+  const estaFueraDeTiempo = minutosRetraso !== null && minutosRetraso > 0;
   return {
-    estadoOperativo: dentroVentana ? 'activo' : 'expirado',
-    razon: dentroVentana ? `Pendiente (${estado})` : `Expirado sin recursos ${minutosRetraso} min`,
+    estadoOperativo: estaFueraDeTiempo ? 'expirado' : 'activo',
+    razon: estaFueraDeTiempo 
+      ? `Expirado sin recursos (${minutosRetraso} min de retraso)`
+      : `Pendiente (${estado})`,
     tieneRecursos: false, estaDemorado: false, minutosRetraso,
   };
 }

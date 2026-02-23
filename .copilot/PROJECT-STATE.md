@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 17-Feb-2026 (Sesión 25 — Refactoring + Team Docs + Auditoría Técnica)
+**Última actualización:** 21-Feb-2026 (Sesión 29 — Badge Unificación + Despachos Tab Fix + Incidencias API Fix)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 28-Feb-2026 (11 días)
+**Próxima presentación:** 28-Feb-2026 (7 días)
 
 ---
 
@@ -13,12 +13,17 @@
 - **Stack:** Next.js 16 + React 19 + Supabase + TypeScript + Tailwind v4
 - **Deployado:** SÍ — Vercel (`nodexia-web-j6wl`) → www.nodexiaweb.com
 - **Tests:** 4 archivos (56 tests para sistema de estados centralizados)
-- **Migraciones BD:** 112 archivos (055 + 056 + 058 + 059 ejecutadas en PROD)
+- **Migraciones BD:** 112 archivos (055 + 056 + 058 + 059 + 064 ejecutadas en PROD)
 - **BD lista para documentación:** SÍ (3 tablas + 7 funciones + 3 triggers + 6 RLS + 14 indexes)
 - **Red Nodexia BD:** 4 tablas (`viajes_red_nodexia`, `requisitos_viaje_red`, `ofertas_red_nodexia`, `historial_red_nodexia`)
 - **Historial Despachos BD:** Tabla `historial_despachos` (migración 055, ✅ ejecutada en PROD)
-- **RLS corregido:** Migración 052 (get_visible_chofer_ids, get_visible_camion_ids, get_visible_acoplado_ids) - admin bypass + branches correctos
+- **Incidencias BD:** Migration 064 ejecutada — `documentos_afectados` JSONB, CHECK constraints, índices, RLS policies
+- **RLS corregido:** Migration 062 — funciones `get_visible_*_ids()` usan `ubicaciones.empresa_id` (CUIT como puente), COALESCE dual columns, admin bypass ✅ EJECUTADA EN PROD
+- **RLS documentos_entidad:** Policy SELECT incluye cross-company vía `get_visible_*_ids()` (migration 062)
 - **RLS gap:** `ofertas_red_nodexia` sin UPDATE policy (bypaseado por API service role)
+- **PRINCIPIO MANDATO PO (18-Feb-2026):** CERO bypass RLS para usuarios autenticados, CERO inserts directos, CERO parches — documentado en QUICK-START-OPUS.md
+- **Patrón API con RLS:** `withAuth` → `AuthContext.token` → `createUserSupabaseClient(token)` → queries con RLS
+- **supabaseServerClient.ts:** Helper `createUserSupabaseClient(token)` para API routes sin bypass
 - **Storage Buckets:** documentacion-entidades, documentacion-viajes (privados, 10MB, PDF/JPG/PNG), remitos (público, 10MB)
 - **API Routes Documentación:** 10 endpoints (upload, listar, [id], validar, pendientes, verificar-documentacion, documentos-detalle, estado-batch, alertas, preview-url)
 - **API Routes Operativas (Sesión 11):** upload-remito, consultar-remito, chofer/viajes, viajes/[id]/estado-unidad
@@ -29,7 +34,12 @@
 - **Estados (17+1):** pendiente, transporte_asignado, camion_asignado, confirmado_chofer, en_transito_origen, ingresado_origen, llamado_carga, cargando, cargado, egreso_origen, en_transito_destino, ingresado_destino, llamado_descarga, descargando, descargado, egreso_destino, completado (+cancelado)
 - **Display Centralizado:** `ESTADO_DISPLAY` + `getEstadoDisplay()` con legacy mapping en `lib/estados/config.ts`
 - **Despacho Sync:** `cambiarEstadoViaje()` sincroniza 3 tablas: viajes_despacho + despachos + estado_unidad_viaje + escribe timestamps + inserta historial
+- **Auto-completar viaje (Sesión 28):** `cambiarEstadoViaje()` encadena `egreso_destino → completado` automáticamente (viaje + despacho + timestamps + historial con `auto: true`)
 - **Services Layer:** `lib/services/viajeEstado.ts` (cambiarEstadoViaje, asignarUnidad) + `lib/services/notificaciones.ts` (notificarCambioEstado)
+- **Badges por Rol (Sesión 29):** `estados-camiones.tsx` muestra 6 badges unificados para todos los roles (Todos, En Planta, Por Arribar, Cargando, Descargando, Egresados)
+- **Estado Despacho Computado (Sesión 29):** Estado visual de despachos se computa desde viajes (en_proceso/completado) en vez de usar campo `estado` crudo de BD
+- **Incidencias API (Sesión 29):** POST /api/incidencias usa supabaseAdmin para insert, auto-ensure usuario en tabla `usuarios`, logging mejorado
+- **Incidencias (Sesión 28):** Diseño completo en `docs/diagramas/INCIDENCIAS.md` — tabla canónica `incidencias_viaje`, deprecar `incidencias`
 - **Thin API Routes:** API routes delegan a services layer (no lógica directa en handlers)
 - **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
 - **Sync estado_carga_viaje:** cambiarEstadoViaje() sincroniza automáticamente estado_carga_viaje (elimina actualizarEstadoDual)
@@ -69,7 +79,9 @@
 - **Flujo E2E Validado:** Supervisor remito → CA egreso → Chofer viaje destino → Finalizar → Vacío ✅
 - **Red Nodexia E2E Validado:** Publicar → Ofertar → Aceptar → Rechazar otros → Display badges ✅
 - **Hardening:** ~20 APIs peligrosas eliminadas, GPS auth bypass fix, security headers, leaked key removida (commit e3b8e29)
-- **Control de Acceso:** Verificación docs integrada con API (no RPC), criterios dinámicos chofer dependencia/autónomo
+- **Control de Acceso:** Verificación docs real vía `validarDocumentacionCompleta()` → API → RLS, criterios dinámicos chofer dependencia/autónomo
+- **Control de Acceso endpoints migrados a RLS:** documentos-detalle.ts, preview-url.ts (permiso), verificar-documentacion.ts, escanear-qr.ts, crear-incidencia.ts, confirmar-accion.ts
+- **Control de Acceso endpoints pendientes supabaseAdmin:** NINGUNO — todos migrados a createUserSupabaseClient
 - **Alertas Documentación:** Hook useDocAlerts + DocAlertsBanner + DocComplianceCard
 - **Dashboard Transporte:** Métricas completas (viajes + flota + docs compliance)
 - **Seguridad API:** Auditoría completa realizada, pase de seguridad registrado como PENDIENTE CRÍTICO post-MVP (ver docs/PENDIENTE-CRITICO-SEGURIDAD-API.md)

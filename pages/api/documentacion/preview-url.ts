@@ -1,9 +1,11 @@
 // pages/api/documentacion/preview-url.ts
-// API para generar URL firmada de documentos usando service role (bypasses storage RLS)
-// Usado por: validacion-documentos.tsx modal preview
+// API para generar URL firmada de documentos.
+// Permiso: verificado vía RLS en documentos_entidad (get_visible_*_ids)
+// Storage: requiere service role para signed URLs (operación legítima de backend)
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
 import { withAuth } from '@/lib/middleware/withAuth';
 
 export default withAuth(async (req, res, authCtx) => {
@@ -16,6 +18,8 @@ export default withAuth(async (req, res, authCtx) => {
       ? req.query.file_url as string 
       : (req.body as { file_url: string }).file_url;
 
+    console.log('🔍 Preview URL request:', { file_url, rol: authCtx.rolInterno, empresaId: authCtx.empresaId });
+
     if (!file_url || typeof file_url !== 'string') {
       return res.status(400).json({ error: 'file_url es requerido' });
     }
@@ -25,35 +29,38 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(400).json({ error: 'Ruta de archivo inválida' });
     }
 
-    // Verificar que el documento pertenece a la empresa del usuario
-    // (buscar en documentos_entidad que el file_url corresponda a un doc de su empresa)
-    if (authCtx.empresaId) {
-      const { data: doc } = await supabaseAdmin
-        .from('documentos_entidad')
-        .select('id')
-        .eq('file_url', file_url)
-        .eq('empresa_id', authCtx.empresaId)
-        .limit(1)
-        .maybeSingle();
+    // Verificar permiso vía RLS: si el usuario puede ver el documento,
+    // la query retorna el registro. Si no, RLS lo filtra.
+    const supabaseUser = createUserSupabaseClient(authCtx.token);
+    const { data: doc } = await supabaseUser
+      .from('documentos_entidad')
+      .select('id')
+      .eq('file_url', file_url)
+      .limit(1)
+      .maybeSingle();
 
-      // Si no es admin_nodexia y no encontró doc de su empresa, denegar
-      if (!doc && authCtx.rolInterno !== 'admin_nodexia') {
-        return res.status(403).json({ error: 'No tiene acceso a este documento' });
-      }
+    if (!doc) {
+      console.error('❌ Documento no encontrado o sin acceso (RLS)');
+      return res.status(403).json({ error: 'No tiene acceso a este documento' });
     }
 
-    // Generar signed URL con service role (bypasses storage RLS)
+    console.log('✅ Permiso verificado por RLS, generando URL firmada...');
+
+    // Generar signed URL con service role (operación de backend para storage)
     const { data, error } = await supabaseAdmin.storage
       .from('documentacion-entidades')
       .createSignedUrl(file_url, 600); // 10 minutos
 
     if (error) {
+      console.error('❌ Error de storage:', error);
       return res.status(500).json({ error: 'Error al generar URL de vista previa', details: error.message });
     }
 
+    console.log('✅ URL firmada generada correctamente');
     return res.status(200).json({ signedUrl: data.signedUrl });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error desconocido';
+    console.error('❌ Error en preview-url:', err);
     return res.status(500).json({ error: 'Error interno', details: message });
   }
 });

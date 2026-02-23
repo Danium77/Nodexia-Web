@@ -1087,89 +1087,205 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
--- SECCIÓN J: FUNCIONES DE VISIBILIDAD CROSS-EMPRESA (044)
+-- SECCIÓN J: FUNCIONES DE VISIBILIDAD CROSS-EMPRESA (044, fixed 062)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION get_visible_chofer_ids()
 RETURNS TABLE(chofer_id UUID)
-LANGUAGE plpgsql SECURITY DEFINER STABLE
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
 AS $$
 DECLARE
   current_user_id UUID := auth.uid();
+  is_admin BOOLEAN := false;
 BEGIN
-  IF current_user_id IS NULL THEN RETURN; END IF;
+  IF current_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- Admin y super_admin ven todo
+  SELECT EXISTS(
+    SELECT 1 FROM usuarios_empresa
+    WHERE user_id = current_user_id AND activo = true AND rol_interno = 'admin_nodexia'
+  ) OR EXISTS(
+    SELECT 1 FROM super_admins
+    WHERE user_id = current_user_id AND activo = true
+  ) INTO is_admin;
+
+  IF is_admin THEN
+    RETURN QUERY SELECT id FROM choferes;
+    RETURN;
+  END IF;
+
   RETURN QUERY
-  SELECT DISTINCT c.id FROM choferes c
-  WHERE 
-    c.empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-    OR c.id IN (
-      SELECT DISTINCT vd.chofer_id FROM viajes_despacho vd
-      JOIN despachos d ON d.id = vd.despacho_id
-      WHERE vd.chofer_id IS NOT NULL AND (
-        d.origen_empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-        OR d.destino_empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-      )
+  SELECT DISTINCT c.id
+  FROM choferes c
+  WHERE
+    -- Branch 1: Chofer pertenece a una de mis empresas
+    c.empresa_id IN (
+      SELECT empresa_id FROM usuarios_empresa
+      WHERE user_id = current_user_id AND activo = true
     )
+    -- Branch 2: Chofer en viaje cuyo despacho tiene origen/destino en ubicación de mi empresa
+    -- (usa ubicaciones.empresa_id como puente vía CUIT)
     OR c.id IN (
-      SELECT vd.chofer_id FROM viajes_despacho vd
-      WHERE vd.empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-      AND vd.chofer_id IS NOT NULL
+      SELECT DISTINCT COALESCE(vd.chofer_id, vd.id_chofer)
+      FROM viajes_despacho vd
+      JOIN despachos d ON d.id = vd.despacho_id
+      LEFT JOIN ubicaciones u_orig ON u_orig.id = COALESCE(d.origen_id, d.origen_ubicacion_id)
+      LEFT JOIN ubicaciones u_dest ON u_dest.id = COALESCE(d.destino_id, d.destino_ubicacion_id)
+      WHERE COALESCE(vd.chofer_id, vd.id_chofer) IS NOT NULL
+        AND (
+          u_orig.empresa_id IN (
+            SELECT empresa_id FROM usuarios_empresa
+            WHERE user_id = current_user_id AND activo = true
+          )
+          OR u_dest.empresa_id IN (
+            SELECT empresa_id FROM usuarios_empresa
+            WHERE user_id = current_user_id AND activo = true
+          )
+        )
+    )
+    -- Branch 3: Chofer en viaje de mi empresa de transporte
+    OR c.id IN (
+      SELECT COALESCE(vd.chofer_id, vd.id_chofer)
+      FROM viajes_despacho vd
+      WHERE vd.id_transporte IN (
+        SELECT empresa_id FROM usuarios_empresa
+        WHERE user_id = current_user_id AND activo = true
+      )
+      AND COALESCE(vd.chofer_id, vd.id_chofer) IS NOT NULL
     );
 END;
 $$;
 
 CREATE OR REPLACE FUNCTION get_visible_camion_ids()
 RETURNS TABLE(camion_id UUID)
-LANGUAGE plpgsql SECURITY DEFINER STABLE
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
 AS $$
 DECLARE
   current_user_id UUID := auth.uid();
+  is_admin BOOLEAN := false;
 BEGIN
-  IF current_user_id IS NULL THEN RETURN; END IF;
+  IF current_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM usuarios_empresa
+    WHERE user_id = current_user_id AND activo = true AND rol_interno = 'admin_nodexia'
+  ) OR EXISTS(
+    SELECT 1 FROM super_admins
+    WHERE user_id = current_user_id AND activo = true
+  ) INTO is_admin;
+
+  IF is_admin THEN
+    RETURN QUERY SELECT id FROM camiones;
+    RETURN;
+  END IF;
+
   RETURN QUERY
-  SELECT DISTINCT c.id FROM camiones c
-  WHERE 
-    c.empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-    OR c.id IN (
-      SELECT DISTINCT vd.camion_id FROM viajes_despacho vd
-      JOIN despachos d ON d.id = vd.despacho_id
-      WHERE vd.camion_id IS NOT NULL AND (
-        d.origen_empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-        OR d.destino_empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-      )
+  SELECT DISTINCT c.id
+  FROM camiones c
+  WHERE
+    c.empresa_id IN (
+      SELECT empresa_id FROM usuarios_empresa
+      WHERE user_id = current_user_id AND activo = true
     )
     OR c.id IN (
-      SELECT vd.camion_id FROM viajes_despacho vd
-      WHERE vd.empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-      AND vd.camion_id IS NOT NULL
+      SELECT DISTINCT COALESCE(vd.camion_id, vd.id_camion)
+      FROM viajes_despacho vd
+      JOIN despachos d ON d.id = vd.despacho_id
+      LEFT JOIN ubicaciones u_orig ON u_orig.id = COALESCE(d.origen_id, d.origen_ubicacion_id)
+      LEFT JOIN ubicaciones u_dest ON u_dest.id = COALESCE(d.destino_id, d.destino_ubicacion_id)
+      WHERE COALESCE(vd.camion_id, vd.id_camion) IS NOT NULL
+        AND (
+          u_orig.empresa_id IN (
+            SELECT empresa_id FROM usuarios_empresa
+            WHERE user_id = current_user_id AND activo = true
+          )
+          OR u_dest.empresa_id IN (
+            SELECT empresa_id FROM usuarios_empresa
+            WHERE user_id = current_user_id AND activo = true
+          )
+        )
+    )
+    OR c.id IN (
+      SELECT COALESCE(vd.camion_id, vd.id_camion)
+      FROM viajes_despacho vd
+      WHERE vd.id_transporte IN (
+        SELECT empresa_id FROM usuarios_empresa
+        WHERE user_id = current_user_id AND activo = true
+      )
+      AND COALESCE(vd.camion_id, vd.id_camion) IS NOT NULL
     );
 END;
 $$;
 
 CREATE OR REPLACE FUNCTION get_visible_acoplado_ids()
 RETURNS TABLE(acoplado_id UUID)
-LANGUAGE plpgsql SECURITY DEFINER STABLE
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
 AS $$
 DECLARE
   current_user_id UUID := auth.uid();
+  is_admin BOOLEAN := false;
 BEGIN
-  IF current_user_id IS NULL THEN RETURN; END IF;
+  IF current_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM usuarios_empresa
+    WHERE user_id = current_user_id AND activo = true AND rol_interno = 'admin_nodexia'
+  ) OR EXISTS(
+    SELECT 1 FROM super_admins
+    WHERE user_id = current_user_id AND activo = true
+  ) INTO is_admin;
+
+  IF is_admin THEN
+    RETURN QUERY SELECT id FROM acoplados;
+    RETURN;
+  END IF;
+
   RETURN QUERY
-  SELECT DISTINCT a.id FROM acoplados a
-  WHERE 
-    a.empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-    OR a.id IN (
-      SELECT DISTINCT vd.acoplado_id FROM viajes_despacho vd
-      JOIN despachos d ON d.id = vd.despacho_id
-      WHERE vd.acoplado_id IS NOT NULL AND (
-        d.origen_empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-        OR d.destino_empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-      )
+  SELECT DISTINCT a.id
+  FROM acoplados a
+  WHERE
+    a.empresa_id IN (
+      SELECT empresa_id FROM usuarios_empresa
+      WHERE user_id = current_user_id AND activo = true
     )
     OR a.id IN (
-      SELECT vd.acoplado_id FROM viajes_despacho vd
-      WHERE vd.empresa_id IN (SELECT empresa_id FROM usuarios_empresa WHERE user_id = current_user_id AND activo = true)
-      AND vd.acoplado_id IS NOT NULL
+      SELECT DISTINCT COALESCE(vd.acoplado_id, vd.id_acoplado)
+      FROM viajes_despacho vd
+      JOIN despachos d ON d.id = vd.despacho_id
+      LEFT JOIN ubicaciones u_orig ON u_orig.id = COALESCE(d.origen_id, d.origen_ubicacion_id)
+      LEFT JOIN ubicaciones u_dest ON u_dest.id = COALESCE(d.destino_id, d.destino_ubicacion_id)
+      WHERE COALESCE(vd.acoplado_id, vd.id_acoplado) IS NOT NULL
+        AND (
+          u_orig.empresa_id IN (
+            SELECT empresa_id FROM usuarios_empresa
+            WHERE user_id = current_user_id AND activo = true
+          )
+          OR u_dest.empresa_id IN (
+            SELECT empresa_id FROM usuarios_empresa
+            WHERE user_id = current_user_id AND activo = true
+          )
+        )
+    )
+    OR a.id IN (
+      SELECT COALESCE(vd.acoplado_id, vd.id_acoplado)
+      FROM viajes_despacho vd
+      WHERE vd.id_transporte IN (
+        SELECT empresa_id FROM usuarios_empresa
+        WHERE user_id = current_user_id AND activo = true
+      )
+      AND COALESCE(vd.acoplado_id, vd.id_acoplado) IS NOT NULL
     );
 END;
 $$;

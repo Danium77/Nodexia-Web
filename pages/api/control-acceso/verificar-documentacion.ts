@@ -3,7 +3,8 @@
 // Consulta documentos_entidad directamente (evita RPCs con bugs de FK)
 
 import { withAuth } from '@/lib/middleware/withAuth';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Documentos críticos requeridos por tipo de entidad
 // Para chofer: depende de si es autónomo o bajo relación de dependencia
@@ -41,8 +42,8 @@ function faltantesLegibles(faltantes: string[]): string {
 }
 
 // Determina los documentos críticos para un chofer según su tipo de relación laboral
-async function getDocsCriticosChofer(choferId: string): Promise<string[]> {
-  const { data, error } = await supabaseAdmin
+async function getDocsCriticosChofer(supabase: SupabaseClient, choferId: string): Promise<string[]> {
+  const { data, error } = await supabase
     .from('choferes')
     .select('empresa_id, empresas:empresa_id(tipo_empresa)')
     .eq('id', choferId)
@@ -94,8 +95,8 @@ function calcularVigenciaReal(doc: { estado_vigencia: string; fecha_vencimiento:
   const vencimiento = new Date(doc.fecha_vencimiento);
   vencimiento.setHours(0, 0, 0, 0);
   
-  // Si la BD dice pendiente_validacion o rechazado, respetar eso (son estados administrativos)
-  if (doc.estado_vigencia === 'pendiente_validacion' || doc.estado_vigencia === 'rechazado') {
+  // Si la BD dice pendiente_validacion, rechazado o aprobado_provisorio, respetar eso (son estados administrativos)
+  if (doc.estado_vigencia === 'pendiente_validacion' || doc.estado_vigencia === 'rechazado' || doc.estado_vigencia === 'aprobado_provisorio') {
     return doc.estado_vigencia;
   }
   
@@ -112,6 +113,7 @@ function calcularVigenciaReal(doc: { estado_vigencia: string; fecha_vencimiento:
 }
 
 async function verificarEntidad(
+  supabase: SupabaseClient,
   entidadTipo: 'chofer' | 'camion' | 'acoplado',
   entidadId: string
 ): Promise<{
@@ -128,13 +130,13 @@ async function verificarEntidad(
   // Determinar documentos críticos según tipo de entidad
   let docsCriticos: string[];
   if (entidadTipo === 'chofer') {
-    docsCriticos = await getDocsCriticosChofer(entidadId);
+    docsCriticos = await getDocsCriticosChofer(supabase, entidadId);
   } else {
     docsCriticos = DOCS_CRITICOS_BASE[entidadTipo] || [];
   }
 
   // Consultar todos los documentos activos de esta entidad
-  const { data: documentos, error } = await supabaseAdmin
+  const { data: documentos, error } = await supabase
     .from('documentos_entidad')
     .select('tipo_documento, estado_vigencia, fecha_vencimiento, validacion_excepcional, requiere_reconfirmacion_backoffice')
     .eq('entidad_tipo', entidadTipo)
@@ -170,9 +172,10 @@ async function verificarEntidad(
   const pendientes = docsConVigenciaReal.filter(d => d.vigencia_real === 'pendiente_validacion').length;
 
   // Para cada tipo de doc requerido, encontrar el MEJOR doc disponible
-  // Prioridad: vigente > por_vencer > pendiente_validacion > vencido > rechazado
+  // Prioridad: vigente > aprobado_provisorio > por_vencer > pendiente_validacion > vencido > rechazado
   const prioridadEstado: Record<string, number> = {
-    vigente: 5,
+    vigente: 6,
+    aprobado_provisorio: 5, // Aprobado provisoriamente por coordinador (válido 24h)
     por_vencer: 4,
     pendiente_validacion: 3,
     vencido: 2,
@@ -206,6 +209,7 @@ async function verificarEntidad(
     } else if (mejorDoc.vigencia_real === 'por_vencer') {
       por_vencer_criticos++;
     }
+    // aprobado_provisorio NO cuenta como vencido/faltante — permite operar
   }
 
   return {
@@ -221,11 +225,12 @@ async function verificarEntidad(
   };
 }
 
-export default withAuth(async (req, res, _authCtx) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
+  const supabase = createUserSupabaseClient(authCtx.token);
   const { chofer_id, camion_id, acoplado_id } = req.query;
 
   if (!chofer_id && !camion_id) {
@@ -241,7 +246,7 @@ export default withAuth(async (req, res, _authCtx) => {
 
     // Verificar chofer
     if (chofer_id) {
-      const resultado = await verificarEntidad('chofer', chofer_id as string);
+      const resultado = await verificarEntidad(supabase, 'chofer', chofer_id as string);
       detalles.chofer = resultado;
 
       if (!resultado.tiene_documentos) {
@@ -277,7 +282,7 @@ export default withAuth(async (req, res, _authCtx) => {
 
     // Verificar camión
     if (camion_id) {
-      const resultado = await verificarEntidad('camion', camion_id as string);
+      const resultado = await verificarEntidad(supabase, 'camion', camion_id as string);
       detalles.camion = resultado;
 
       if (!resultado.tiene_documentos) {
@@ -311,7 +316,7 @@ export default withAuth(async (req, res, _authCtx) => {
 
     // Verificar acoplado (opcional)
     if (acoplado_id) {
-      const resultado = await verificarEntidad('acoplado', acoplado_id as string);
+      const resultado = await verificarEntidad(supabase, 'acoplado', acoplado_id as string);
       detalles.acoplado = resultado;
 
       if (!resultado.tiene_documentos) {

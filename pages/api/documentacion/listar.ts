@@ -64,7 +64,11 @@ export default withAuth(async (req, res, authCtx) => {
       .eq('entidad_id', entidad_id);
 
     // Empresa scoping: solo documentos de la empresa del usuario
-    if (authCtx.empresaId) {
+    // EXCEPCIÓN: coordinador/supervisor/admin pueden ver docs cross-company
+    // cuando consultan recursos de incidencias (entidades de otra empresa)
+    const rolesSinScoping = ['coordinador', 'supervisor', 'admin_nodexia', 'super_admin'];
+    const skipEmpresaScoping = req.query.cross_empresa === 'true' && rolesSinScoping.includes(authCtx.rolInterno || '');
+    if (authCtx.empresaId && !skipEmpresaScoping) {
       query = query.eq('empresa_id', authCtx.empresaId);
     }
 

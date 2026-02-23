@@ -3,7 +3,7 @@
 // Usa: cambiarEstadoViaje() + notificarCambioEstado() — fuente de verdad centralizada
 
 import { withAuth } from '@/lib/middleware/withAuth';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
 import { cambiarEstadoViaje } from '../../../lib/services/viajeEstado';
 import { notificarCambioEstado } from '../../../lib/services/notificaciones';
 import type { EstadoViajeType } from '../../../lib/estados';
@@ -16,6 +16,7 @@ export default withAuth(async (req, res, authCtx) => {
   try {
     const { viaje_id, accion, observaciones } = req.body;
     const usuario_id = authCtx.userId;
+    const supabase = createUserSupabaseClient(authCtx.token);
 
     if (!viaje_id || !accion) {
       return res.status(400).json({ 
@@ -25,7 +26,7 @@ export default withAuth(async (req, res, authCtx) => {
     }
 
     // 1. Obtener estado actual del viaje
-    const { data: viaje, error: viajeError } = await supabaseAdmin
+    const { data: viaje, error: viajeError } = await supabase
       .from('viajes_despacho')
       .select('id, estado, estado_unidad, numero_viaje, chofer_id, despacho_id')
       .eq('id', viaje_id)
@@ -68,7 +69,7 @@ export default withAuth(async (req, res, authCtx) => {
 
     // 3. Cambiar estado via servicio centralizado (valida + sync despacho)
     const obs = observaciones || `${accion === 'ingreso' ? 'Ingreso' : 'Egreso'} confirmado por Control de Acceso`;
-    const resultado = await cambiarEstadoViaje(supabaseAdmin, {
+    const resultado = await cambiarEstadoViaje(supabase, {
       viaje_id,
       nuevo_estado: nuevoEstado,
       user_id: usuario_id,
@@ -83,7 +84,7 @@ export default withAuth(async (req, res, authCtx) => {
     }
 
     // 4. Crear registro de acceso (auditoría)
-    await supabaseAdmin
+    await supabase
       .from('registros_acceso')
       .insert({
         viaje_id,
@@ -97,7 +98,7 @@ export default withAuth(async (req, res, authCtx) => {
       });
 
     // 5. Notificar al chofer
-    await notificarCambioEstado(supabaseAdmin, viaje_id, nuevoEstado).catch(err => {
+    await notificarCambioEstado(supabase, viaje_id, nuevoEstado).catch(err => {
       console.error('Error notificando chofer:', err);
     });
 

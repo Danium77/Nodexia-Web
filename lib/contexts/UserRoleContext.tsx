@@ -27,6 +27,7 @@ interface UserRoleContextType {
   roles: UserRole[];
   primaryRole: UserRole | null;
   empresaId: string | null; // 🔥 ID de la empresa del usuario
+  cuitEmpresa: string | null; // 🔥 CUIT de la empresa del usuario
   tipoEmpresa: string | null; // 🔥 NUEVO: tipo_empresa (planta/transporte/cliente)
   userEmpresas: any[]; // 🔥 NUEVO: array de relaciones usuarios_empresa con datos de empresa
   email: string;
@@ -66,6 +67,13 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     return [];
   });
   
+  const [cuitEmpresa, setCuitEmpresa] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nodexia_cuitEmpresa') || null;
+    }
+    return null;
+  });
+
   const [empresaId, setEmpresaId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       const cached = localStorage.getItem('nodexia_empresaId');
@@ -123,6 +131,9 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       }
       if (roles.length > 0) {
         localStorage.setItem('nodexia_roles', JSON.stringify(roles));
+      }
+      if (cuitEmpresa) {
+        localStorage.setItem('nodexia_cuitEmpresa', cuitEmpresa);
       }
       if (empresaId) {
         localStorage.setItem('nodexia_empresaId', empresaId);
@@ -204,6 +215,13 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         setRoles([]);
         setEmpresaId(null);
         setLoading(false);
+        
+        // Redirigir al login si no estamos en rutas públicas
+        const publicRoutes = ['/login', '/signup', '/'];
+        if (typeof window !== 'undefined' && !publicRoutes.includes(router.pathname)) {
+          console.log('[UserRoleContext] No session - redirecting to login');
+          router.push('/login');
+        }
         return;
       }
 
@@ -257,7 +275,8 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           empresas (
             id,
             nombre,
-            tipo_empresa
+            tipo_empresa,
+            cuit
           )
         `)
         .eq('user_id', authUser.id)
@@ -273,7 +292,8 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
               empresas (
                 id,
                 nombre,
-                tipo_empresa
+                tipo_empresa,
+                cuit
               )
             `)
             .eq('user_id', authUser.id);
@@ -282,6 +302,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             setRoles(['coordinador']);
             setEmpresaId(null);
             setTipoEmpresa(null);
+            setCuitEmpresa(null);
             setUserEmpresas([]);
             finishFetch();
             return;
@@ -299,9 +320,11 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           const rolInterno = primeraRelacion.rol_interno;
           const empresaIdValue = primeraRelacion.empresa_id;
           const tipoEmpresaValue = (primeraRelacion.empresas as any)?.tipo_empresa;
+          const cuitEmpresaValue = (primeraRelacion.empresas as any)?.cuit || null;
 
           setEmpresaId(empresaIdValue || null);
           setTipoEmpresa(tipoEmpresaValue || null);
+          setCuitEmpresa(cuitEmpresaValue);
           
           // Continuar con mapeo de rol...
           let mappedRole: UserRole;
@@ -353,9 +376,11 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           const rolInterno = relacionData.rol_interno;
           const empresaIdValue = relacionData.empresa_id;
           const tipoEmpresaValue = (relacionData.empresas as any)?.tipo_empresa;
+          const cuitEmpresaValue = (relacionData.empresas as any)?.cuit || null;
 
           setEmpresaId(empresaIdValue || null);
           setTipoEmpresa(tipoEmpresaValue || null);
+          setCuitEmpresa(cuitEmpresaValue);
           
           // Mapeo de rol
           let mappedRole: UserRole;
@@ -410,7 +435,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       setRoles([]);
       finishFetch(false); // Terminar fetch sin actualizar cache en caso de error
     }
-  }, [isFetching, user, lastFetch, roles.length, finishFetch]);
+  }, [isFetching, user, lastFetch, roles.length, finishFetch, router]);
 
   const refreshRoles = useCallback(async () => {
     await fetchUserAndRoles(true); // Forzar recarga
@@ -422,6 +447,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       setUser(null);
       setRoles([]);
       setEmpresaId(null);
+      setCuitEmpresa(null);
       setTipoEmpresa(null);
       setUserEmpresas([]);
       setLastFetch(0);
@@ -431,6 +457,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         localStorage.removeItem('nodexia_user');
         localStorage.removeItem('nodexia_roles');
         localStorage.removeItem('nodexia_empresaId');
+        localStorage.removeItem('nodexia_cuitEmpresa');
         localStorage.removeItem('nodexia_tipoEmpresa');
         localStorage.removeItem('nodexia_userEmpresas');
         localStorage.removeItem('nodexia_lastFetch');
@@ -477,6 +504,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           setUser(null);
           setRoles([]);
           setEmpresaId(null);
+          setCuitEmpresa(null);
           setLoading(false);
           router.push('/login');
         } else if (event === 'SIGNED_IN') {
@@ -534,6 +562,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     roles,
     primaryRole,
     empresaId,
+    cuitEmpresa,
     tipoEmpresa,
     userEmpresas,
     email,
@@ -545,7 +574,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     hasAnyRole,
     refreshRoles,
     signOut,
-  }), [user, roles, primaryRole, empresaId, tipoEmpresa, userEmpresas, email, name, role, loading, error, hasRole, hasAnyRole, refreshRoles, signOut]);
+  }), [user, roles, primaryRole, empresaId, cuitEmpresa, tipoEmpresa, userEmpresas, email, name, role, loading, error, hasRole, hasAnyRole, refreshRoles, signOut]);
 
   return (
     <UserRoleContext.Provider value={value}>

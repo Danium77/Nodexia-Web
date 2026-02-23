@@ -28,6 +28,7 @@ interface ViajeChofer {
   despacho_id: string;
   estado: string;
   observaciones: string;
+  destino_tiene_nodexia?: boolean;
   despachos: {
     pedido_id: string;
     origen: string;
@@ -393,7 +394,7 @@ export default function ChoferMobile() {
       if (ubicacionesIds.size > 0) {
         const { data: ubicacionesData, error: ubicacionesError } = await supabase
           .from('ubicaciones')
-          .select('id, ciudad, provincia, latitud, longitud')
+          .select('id, ciudad, provincia, latitud, longitud, empresa_id')
           .in('id', Array.from(ubicacionesIds));
 
         console.log('🏭 Datos de ubicaciones obtenidos:', ubicacionesData);
@@ -404,9 +405,14 @@ export default function ChoferMobile() {
           const ubicacionesMap: Record<string, any> = {};
           ubicacionesData.forEach(u => { ubicacionesMap[u.id] = u; });
 
+          // Detectar qué destinos tienen empresa registrada en Nodexia (empresa_id != null)
+          // Si la ubicación destino tiene empresa_id, significa que esa planta usa Nodexia
+          // y el chofer NO debe auto-registrar llegada (CA destino se encarga)
+
           // Enriquecer datos de viajes con info de ubicaciones
           transformedData = transformedData.map(viaje => ({
             ...viaje,
+            destino_tiene_nodexia: !!(ubicacionesMap[viaje.despachos.destino_id]?.empresa_id),
             despachos: {
               ...viaje.despachos,
               origen_ciudad: ubicacionesMap[viaje.despachos.origen_id]?.ciudad,
@@ -1024,15 +1030,7 @@ export default function ChoferMobile() {
         </div>
       )}
 
-      {/* Panel de Debug (visible solo cuando hay logs) */}
-      {debugLogs.length > 0 && (
-        <div className="mx-4 mt-4 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg text-purple-300 text-xs">
-          <div className="font-bold mb-2">🔍 Debug Logs:</div>
-          {debugLogs.map((log, i) => (
-            <div key={i} className="font-mono">{log}</div>
-          ))}
-        </div>
-      )}
+      {/* Panel de Debug — oculto en producción */}
 
       {/* Sin viajes */}
       {viajes.length === 0 && activeTab === 'viajes' && (
@@ -1240,18 +1238,27 @@ export default function ChoferMobile() {
                   <span>{sendingLocation ? 'Enviando...' : '📍 Enviar Ubicación Ahora'}</span>
                 </button>
                 
-                {/* NOTA: Este botón solo debe habilitarse si el cliente destino NO usa Nodexia */}
-                {/* Si el cliente destino usa Nodexia, Control de Acceso registrará el arribo */}
-                {/* TODO: Agregar lógica condicional para verificar si el destino usa Nodexia */}
-                <button
-                  onClick={handleLlegarDestino}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center space-x-3 relative overflow-hidden group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-                  <CheckCircleIcon className="h-7 w-7 relative z-10" />
-                  <span className="relative z-10">📍 Llegar a Destino</span>
-                </button>
+                {/* Botón "Llegar a Destino" — solo visible si el destino NO usa Nodexia */}
+                {/* Si el destino usa Nodexia, Control de Acceso registrará el arribo */}
+                {viajeActivo.destino_tiene_nodexia ? (
+                  <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/40 rounded-xl p-4 text-center backdrop-blur-sm">
+                    <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-xl">🏭</span>
+                    </div>
+                    <p className="text-blue-400 font-semibold text-sm">Destino con Control de Acceso Nodexia</p>
+                    <p className="text-xs text-slate-400 mt-1">Al llegar, presentate en la garita. Ellos registrarán tu ingreso.</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleLlegarDestino}
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center space-x-3 relative overflow-hidden group"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+                    <CheckCircleIcon className="h-7 w-7 relative z-10" />
+                    <span className="relative z-10">📍 Llegar a Destino</span>
+                  </button>
+                )}
               </>
             )}
 
@@ -1262,50 +1269,59 @@ export default function ChoferMobile() {
                     <span className="text-2xl">🏭</span>
                   </div>
                   <p className="text-blue-400 font-bold text-lg mb-1">Ingreso a destino registrado</p>
-                  <p className="text-sm text-slate-300">Subí el remito firmado de entrega para completar</p>
+                  <p className="text-sm text-slate-300">
+                    {viajeActivo.destino_tiene_nodexia
+                      ? 'Aguardá instrucciones del Supervisor de descarga'
+                      : 'Subí el remito firmado de entrega para completar'}
+                  </p>
                 </div>
 
-                {/* Subir Remito de Entrega */}
-                <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
-                  <p className="text-sm font-semibold text-white mb-3">📄 Remito de Entrega</p>
-                  
-                  {remitoEntregaPreview ? (
-                    <div className="space-y-3">
-                      <div className="relative rounded-lg overflow-hidden border border-slate-600">
-                        <img src={remitoEntregaPreview} alt="Remito" className="w-full max-h-48 object-contain bg-slate-900" />
-                        <button
-                          onClick={limpiarRemitoEntrega}
-                          className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-lg"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      {remitoEntregaSubido && (
-                        <p className="text-green-400 text-xs text-center">✓ Remito subido correctamente</p>
+                {/* Self-delivery: solo si destino NO tiene Nodexia */}
+                {!viajeActivo.destino_tiene_nodexia && (
+                  <>
+                    {/* Subir Remito de Entrega */}
+                    <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700">
+                      <p className="text-sm font-semibold text-white mb-3">📄 Remito de Entrega</p>
+                      
+                      {remitoEntregaPreview ? (
+                        <div className="space-y-3">
+                          <div className="relative rounded-lg overflow-hidden border border-slate-600">
+                            <img src={remitoEntregaPreview} alt="Remito" className="w-full max-h-48 object-contain bg-slate-900" />
+                            <button
+                              onClick={limpiarRemitoEntrega}
+                              className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-lg"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          {remitoEntregaSubido && (
+                            <p className="text-green-400 text-xs text-center">✓ Remito subido correctamente</p>
+                          )}
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-500 transition-colors">
+                          <ArrowUpTrayIcon className="h-8 w-8 text-slate-400 mb-2" />
+                          <span className="text-sm text-slate-300">Tocar para sacar foto o elegir archivo</span>
+                          <span className="text-xs text-slate-500 mt-1">Máximo 10 MB</span>
+                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleRemitoEntregaChange} />
+                        </label>
                       )}
                     </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-cyan-500 transition-colors">
-                      <ArrowUpTrayIcon className="h-8 w-8 text-slate-400 mb-2" />
-                      <span className="text-sm text-slate-300">Tocar para sacar foto o elegir archivo</span>
-                      <span className="text-xs text-slate-500 mt-1">Máximo 10 MB</span>
-                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleRemitoEntregaChange} />
-                    </label>
-                  )}
-                </div>
 
-                {/* Botón Completar Entrega */}
-                <button
-                  onClick={handleCompletarEntrega}
-                  disabled={loading || !remitoEntregaFile || subiendoRemitoEntrega}
-                  className="w-full bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100 flex items-center justify-center space-x-3 relative overflow-hidden group"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
-                  <CheckCircleIcon className="h-7 w-7 relative z-10" />
-                  <span className="relative z-10">
-                    {subiendoRemitoEntrega ? 'Subiendo remito...' : loading ? 'Procesando...' : '✅ Completar Entrega'}
-                  </span>
-                </button>
+                    {/* Botón Completar Entrega */}
+                    <button
+                      onClick={handleCompletarEntrega}
+                      disabled={loading || !remitoEntregaFile || subiendoRemitoEntrega}
+                      className="w-full bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:hover:scale-100 flex items-center justify-center space-x-3 relative overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700"></div>
+                      <CheckCircleIcon className="h-7 w-7 relative z-10" />
+                      <span className="relative z-10">
+                        {subiendoRemitoEntrega ? 'Subiendo remito...' : loading ? 'Procesando...' : '✅ Completar Entrega'}
+                      </span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

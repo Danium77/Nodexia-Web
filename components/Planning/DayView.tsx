@@ -97,6 +97,8 @@ const DayView: React.FC<DayViewProps> = ({ title, dispatches, type }) => {
                     className={`bg-gradient-to-br rounded p-1.5 hover:shadow-xl transition-all cursor-pointer ${
                       dispatch.estado === 'expirado' 
                         ? 'from-gray-800/50 to-gray-700/50 border border-gray-600 opacity-75' 
+                        : dispatch.estado === 'completado'
+                        ? 'from-green-900/20 to-green-800/10 border border-green-700/40 opacity-50'
                         : `from-slate-800 to-slate-900 ${getPriorityColor(dispatch.prioridad)}`
                     }`}
                   >

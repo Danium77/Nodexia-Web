@@ -4,6 +4,173 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-21 (Sábado) - Sesión 29
+
+### Sesión 29 - Badge Unificación + Despachos Tab Fix + Incidencias API Fix
+
+**Tiempo:** ~3 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Contexto:
+Testing post-implementación de incidencias. Múltiples bugs encontrados en badges de estados-camiones, clasificación de despachos en tabs, y creación de incidencias desde control de acceso.
+
+#### Logros:
+1. ✅ **Badges unificados estados-camiones**: Eliminado condicional `esControlAcceso` que dividía 11 badges detallados vs 6 simplificados. Todos los roles ahora ven 6 badges unificados (Todos, En Planta, Por Arribar, Cargando, Descargando, Egresados)
+2. ✅ **Fix clasificación despachos en tabs**: Despachos con viajes activos (ej: viaje "cargado") pero despacho "cancelado" en BD ahora aparecen correctamente en tab "En Proceso". Flags `tiene_viajes_en_proceso` y `todos_viajes_completados` computados desde viajes
+3. ✅ **Fix badge "Cancelado" en estado despacho**: Campo `estado` del despacho ahora se computa desde viajes: si hay viajes activos → `en_proceso`, si todos completados → `completado`, si no → lógica original
+4. ✅ **Fix badge "expirado" en detalle despacho**: `getEstadoDespachoDisplay()` computa estado visual desde viajes en vez de usar `despacho.estado` crudo
+5. ✅ **`getEstadoDisplay` con 'en_proceso'**: Nuevo handler en `lib/estados/config.ts` para despachos en proceso (azul, emoji 🚛)
+6. ✅ **Fix incidencias API 500 — supabaseAdmin**: Cambiado de `supabase` (RLS) a `supabaseAdmin` para insert en `incidencias_viaje` (tabla tiene RLS restrictivas que bloqueaban inserts)
+7. ✅ **Fix incidencias API 500 — columna inexistente**: Error `column incidencias_viaje.documentos_afectados does not exist` (code 42703). Removidas referencias a esa columna del insert y select hasta ejecución de migration 064
+8. ✅ **Migration 064 ejecutada**: `064_incidencias_sistema_provisorio.sql` ejecutada en Supabase — agrega `documentos_afectados` JSONB, actualiza CHECK constraints, crea índices
+9. ✅ **Logging mejorado API incidencias**: Error responses incluyen `code`, `details`, `hint` de Supabase. Console logs con `JSON.stringify` para debugging
+10. ✅ **Auto-ensure usuario en tabla `usuarios`**: API verifica/crea registro en `usuarios` antes de insertar incidencia (previene FK violation de migraciones antiguas)
+
+#### Archivos Modificados (7):
+- `pages/estados-camiones.tsx` — Eliminado condicional `esControlAcceso`, badges unificados a 6
+- `components/Despachos/DespachoTabs.tsx` — Filtros con `tiene_viajes_en_proceso` y `todos_viajes_completados`
+- `pages/crear-despacho.tsx` — Computar estado desde viajes, flags nuevos en `GeneratedDispatch`
+- `pages/despachos/[id]/detalle.tsx` — `getEstadoDespachoDisplay()` y badges por estado computado
+- `lib/estados/config.ts` — Handler `en_proceso` en `getEstadoDisplay()`
+- `pages/api/incidencias/index.ts` — supabaseAdmin, auto-ensure usuario, remove `documentos_afectados`, logging
+- `pages/control-acceso.tsx` — Mejor error display en `enviarIncidencia()`
+
+#### Migraciones Ejecutadas:
+- `064_incidencias_sistema_provisorio.sql` ✅ (documentos_afectados, CHECK constraints, índices, RLS policies)
+
+#### Decisiones:
+- DEC-024: Badges estados-camiones unificados para todos los roles (6 badges), no diferenciado por rol
+- DEC-025: Estado visual de despacho se computa desde viajes (no del campo `estado` de BD que puede estar desactualizado)
+- DEC-026: `supabaseAdmin` permitido para INSERT incidencias (tabla write-once, RLS policies demasiado restrictivas para insert cross-empresa, lectura sigue por RLS)
+
+#### Próxima sesión:
+- Restaurar referencia a `documentos_afectados` en API incidencias (migration 064 ya ejecutada)
+- Verificar creación de incidencias funciona correctamente E2E
+- Preparación datos demo
+- Script/guión de demo
+
+---
+
+## 📅 2026-02-19 (Jueves) - Sesión 28
+
+### Sesión 28 - E2E Destino Fixes + Auto-completar + Badges CA + Incidencias Design
+
+**Tiempo:** ~3 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Contexto:
+Testing E2E entre Aceitera San Miguel (origen) y Tecnopack Zayas (destino). Usuario "roman" es Control de Acceso de Tecnopack. Múltiples bugs encontrados y corregidos, despacho DSP-20260219-001 completó circuito completo.
+
+#### Logros:
+1. ✅ **Historial Control Acceso filtrado por empresa**: `cargarHistorial()` reescrito — filtra `registros_acceso.usuario_id` contra usuarios de la misma empresa (no por cadena viaje→despacho→ubicación)
+2. ✅ **CUIT en UserRoleContext**: `cuitEmpresa` expuesto en contexto global, persistido en localStorage
+3. ✅ **escanearQR validación por CUIT**: Paso 2.5 usa `ubicaciones.or(empresa_id.eq.X, cuit.eq.Y)` en vez de tabla `empresa_ubicaciones`
+4. ✅ **Banner informativo recepciones**: Cuando camión no llegó a destino, muestra banner azul explicando el estado actual
+5. ✅ **Fix template literal roto**: UserRoleContext multi-empresa `.select()` tenía backtick sin cerrar
+6. ✅ **Estados de destino en monitor camiones**: `estadosActivos` ampliado de 8 a 14 estados, 11 badges con colores de destino
+7. ✅ **Auto-completar viaje tras egreso destino**: `cambiarEstadoViaje()` encadena `egreso_destino → completado` automáticamente (sincroniza viaje + despacho + timestamps + historial)
+8. ✅ **DSP-20260219-001 completado manualmente en BD**: Estado actualizado a `completado` en viaje, despacho y estado_unidad_viaje
+9. ✅ **Badges simplificados para Control de Acceso**: 5 badges (En Planta, Por Arribar, Cargando, Descargando, Egresados) con lógica específica por rol
+10. ✅ **"Por Arribar" filtra solo fecha actual o anterior**: Nunca muestra camiones de fechas futuras
+11. ✅ **Documento de diseño de incidencias**: `docs/diagramas/INCIDENCIAS.md` — auditoría completa del estado actual + diseño propuesto + plan de implementación
+
+#### Archivos Modificados (5):
+- `lib/contexts/UserRoleContext.tsx` — Agregado `cuitEmpresa` a contexto
+- `pages/control-acceso.tsx` — Historial filtrado por empresa, QR por CUIT, banner recepciones
+- `pages/estados-camiones.tsx` — 14 estados activos, badges por rol (11 operativos / 6 CA), fecha_despacho
+- `lib/services/viajeEstado.ts` — Auto-completar egreso_destino→completado, `viaje_auto_completado` en result
+- `lib/api/estado-unidad.ts` — Ya pasaba `viaje_auto_completado` (sin cambios nuevos)
+
+#### Archivos Creados (1):
+- `docs/diagramas/INCIDENCIAS.md` — Diseño completo del sistema de incidencias
+
+#### Decisiones:
+- DEC-020: `incidencias_viaje` es la tabla canónica, deprecar `incidencias`
+- DEC-021: Control Acceso ve 5 badges simplificados (En Planta, Por Arribar, Cargando, Descargando, Egresados), otros roles ven 11 badges detallados
+- DEC-022: Auto-completar viaje al confirmar egreso de destino (última parada)
+- DEC-023: "Por Arribar" solo muestra camiones con fecha de despacho hoy o anterior, nunca futura
+
+#### Próxima sesión:
+- Implementar sistema de incidencias según diseño (`docs/diagramas/INCIDENCIAS.md`)
+- Migration 063 pendiente ejecución
+- Preparación datos demo
+
+---
+
+## 📅 2026-02-19 (Jueves) - Sesión 27
+
+### Sesión 27 - RLS Control Acceso + Bugfixes + Supervisor Tabs
+
+**Tiempo:** ~4 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Logros:
+1. ✅ Migration 062 confirmada ejecutada en PROD
+2. ✅ 4 endpoints control-acceso migrados a RLS (verificar-documentacion, escanear-qr, crear-incidencia, confirmar-accion)
+3. ✅ Bug "Llamar a Carga" 400: eliminado `llamado_carga` de ESTADO_A_TIMESTAMP_VIAJE (columna inexistente)
+4. ✅ Bug "Confirmar Egreso" 400: separado update crítico + best-effort en cambiarEstadoViaje()
+5. ✅ Detalle despacho: remito images con thumbnails + labels auto + timeline via API
+6. ✅ Migration 063 creada: RLS documentos_viaje_planta (pendiente ejecución)
+7. ✅ Circuito ambas-plantas-Nodexia definido (PM mode)
+8. ✅ **Supervisor tabs reorganizados**: Cargas | Descargas | Completados | Escáner QR
+9. ✅ Descarga ahora requiere foto remito de entrega (igual que carga)
+10. ✅ Labels + colors para estados de descarga agregados
+11. ✅ Título renombrado: "Supervisor de Carga" → "Supervisor"
+12. ✅ **Data pipeline supervisor destino**: cargarViajes ahora busca despachos ORIGEN + DESTINO (via ubicaciones.empresa_id)
+13. ✅ **Chofer destino-Nodexia detection**: oculta "Llegar a Destino" si destino tiene empresa_id en ubicaciones
+14. ✅ **Chofer self-delivery condicional**: ingresado_destino muestra remito solo si destino NO tiene Nodexia
+
+#### Archivos Modificados (7):
+- `pages/supervisor-carga.tsx` — Tabs reorganizados, data pipeline origen+destino, título renombrado
+- `pages/chofer-mobile.tsx` — Detección destino-Nodexia, self-delivery condicional
+- `components/SuperAdmin/ViajeAcciones.tsx` — Remito photo para descargando
+- `lib/services/viajeEstado.ts` — Best-effort timestamp, fix llamado_carga
+- `pages/api/control-acceso/*.ts` — 4 endpoints migrados a RLS
+- `pages/despachos/[id]/detalle.tsx` — Remito images + timeline API
+
+#### Archivos Creados (1):
+- `sql/migrations/063_rls_documentos_viaje_planta.sql`
+
+#### Decisiones:
+- DEC-017: Supervisor ve Cargas + Descargas (cualquier planta puede ser origen y destino simultáneamente)
+- DEC-018: Descarga requiere foto remito entrega (mismo flujo que carga)
+- DEC-019: Chofer no puede auto-registrar llegada si destino tiene Nodexia (CA destino lo maneja)
+
+---
+
+## 📅 2026-02-18 (Miércoles) - Sesión 26
+
+### Sesión 26 - UX Fixes + Arquitectura RLS CERO bypass
+
+**Tiempo:** ~4 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Logros:
+1. ✅ Drag & Drop PlanningGrid: scroll, headers, 24h range
+2. ✅ CrearUnidadModal: validación duplicados + dropdowns filtrados
+3. ✅ Control de Acceso: validación documentación real (eliminado hardcode)
+4. ✅ CSP fix: frame-src para previews Supabase
+5. ✅ Fix 401 errors: useDocAlerts, UserRoleContext redirect
+6. ✅ **PRINCIPIOS ARQUITECTURA** documentados en QUICK-START-OPUS.md (mandato PO)
+7. ✅ Migration 062: fix get_visible_*_ids() + policy cross-company documentos_entidad
+8. ✅ createUserSupabaseClient(token) helper para API routes con RLS
+9. ✅ withAuth.ts: AuthContext.token agregado
+10. ✅ documentos-detalle.ts: eliminado supabaseAdmin → createUserSupabaseClient
+11. ✅ preview-url.ts: permiso por RLS (mantiene supabaseAdmin solo para storage)
+12. ✅ Sync files actualizados (part4_functions + part6_security)
+13. ✅ DEC-015 + DEC-016 registradas
+
+#### Archivos Creados (3):
+- `sql/migrations/062_fix_rls_documentos_cross_company.sql`
+- `lib/supabaseServerClient.ts`
+- `.copilot/sessions/2026-02-18.md`
+
+#### Decisiones:
+- DEC-015: CERO bypass RLS para usuarios autenticados (mandato PO permanente)
+- DEC-016: Obsoleta DEC-011 — RLS policies reemplazan bypass
+
+---
+
 ## 📅 2026-02-17 (Martes) - Sesión 25
 
 ### Sesión 25 - Documentación de Equipos + Refactoring 4 Páginas

@@ -310,5 +310,91 @@ Opus, ayuda con [lo que necesites]
 
 ---
 
-**Última actualización:** 08-Feb-2026  
-**Versión:** 1.0
+**Última actualización:** 18-Feb-2026  
+**Versión:** 1.1
+
+---
+
+## 🔒 PRINCIPIOS DE ARQUITECTURA Y SEGURIDAD (OBLIGATORIOS)
+
+**Fecha de establecimiento:** 18-Feb-2026  
+**Autoridad:** Product Owner  
+**Aplicación:** Inmediata y permanente para todo desarrollo futuro
+
+### Principios Inquebrantables:
+
+1. **CERO bypass de RLS (`supabaseAdmin`) para servir datos a usuarios autenticados**
+   - Si el usuario tiene sesión, la query DEBE pasar por RLS
+   - `supabaseAdmin` solo se permite para: migraciones, webhooks externos sin sesión, cron jobs del sistema
+   - Grandes plataformas (Stripe, Shopify, Linear, Notion) NO usan bypass para servir datos
+
+2. **CERO inserts/updates directos desde frontend**
+   - Siempre vía API endpoints con validación del backend
+   - El frontend PRESENTA, el backend VALIDA, la BD AUTORIZA
+
+3. **CERO parches o soluciones temporales**
+   - Si algo no funciona, se arregla la raíz (RLS policies, FK, permisos)
+   - Cada cambio debe MEJORAR la arquitectura, nunca degradarla
+
+4. **Datos comunes como puente entre entidades**
+   - Usar CUIT, empresa_id, ubicacion_id como relaciones verificables
+   - Ejemplo: Control de Acceso ve documentación porque su empresa (CUIT) coincide con origen/destino del despacho
+   - NO bypass para conectar entidades sin relación directa
+
+5. **Separación estricta de responsabilidades:**
+   - **Base de datos:** Autorización (RLS policies), integridad (constraints, FK)
+   - **Backend (API routes):** Validación de negocio, orquestación
+   - **Frontend (React):** Presentación, UX, llamadas a API
+   - **Mobile:** Consumo de APIs, UX específica móvil
+
+6. **Arquitectura profesional orientada a mercado**
+   - Seguir patrones de grandes plataformas (Stripe, Shopify, Linear)
+   - Código auditable, escalable y mantenible
+   - Seguridad de datos como prioridad absoluta
+
+### Regla de Validación Pre-Commit:
+
+Antes de implementar cualquier cambio, verificar:
+- [ ] ¿Usa `supabaseAdmin` para servir datos a un usuario autenticado? → **PROHIBIDO**
+- [ ] ¿Hace insert/update directo desde frontend sin API? → **PROHIBIDO**
+- [ ] ¿Es un parche que no arregla la raíz del problema? → **PROHIBIDO**
+- [ ] ¿Degrada la arquitectura actual? → **PROHIBIDO**
+- [ ] ¿Compromete la seguridad de datos entre empresas? → **PROHIBIDO**
+
+### Ejemplo de Patrón Correcto (CUIT como dato común):
+
+```
+Control Acceso (usuario)
+  → pertenece a empresa (CUIT: 30-12345678-9)
+    → empresa tiene ubicaciones/plantas
+
+Despacho
+  → origen tiene empresa_id con CUIT
+  → destino tiene empresa_id con CUIT
+
+RLS Policy:
+  SI usuario.empresa_id == ubicacion.empresa_id
+  Y ubicacion.id == despacho.origen OR despacho.destino
+  → PERMITIR lectura de documentos de recursos del viaje
+```
+
+### Implementación Técnica (Migration 062):
+
+```
+API Route (withAuth)
+  → auth.token → createUserSupabaseClient(token)
+    → Supabase client con RLS del usuario
+      → get_visible_*_ids() SECURITY DEFINER functions
+        → Evalúan visibilidad cross-company vía ubicaciones.empresa_id
+
+supabaseAdmin SOLO permitido en withAuth middleware para:
+  - Verificar JWT token (auth.getUser)
+  - Obtener rol del usuario (usuarios_empresa)
+  - Storage signed URLs (operación de backend)
+```
+
+**Archivos clave:**
+- `lib/supabaseServerClient.ts` → `createUserSupabaseClient(token)`
+- `lib/middleware/withAuth.ts` → `AuthContext.token`
+- `sql/migrations/062_fix_rls_documentos_cross_company.sql`
+

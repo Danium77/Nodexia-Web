@@ -21,12 +21,17 @@ interface ViajeEstado {
   created_at: string;
   origen?: string;
   destino?: string;
+  fecha_despacho?: string; // scheduled_local_date del despacho
+  _esOrigen?: boolean;   // true si esta planta es origen del despacho
+  _esDestino?: boolean;  // true si esta planta es destino del despacho
 }
 
-type TabEstado = 'todos' | 'confirmado' | 'ingresado_planta' | 'llamado_carga' | 'cargando' | 'cargado' | 'egreso';
+type TabEstado = 'todos' | 'confirmado' | 'ingresado_planta' | 'llamado_carga' | 'cargando' | 'cargado' | 'egreso' | 'en_transito_destino' | 'ingresado_destino' | 'descargando' | 'egreso_destino'
+  | 'ca_en_planta' | 'ca_por_arribar' | 'ca_cargando' | 'ca_descargando' | 'ca_egresados';
 
 export default function EstadosCamiones() {
-  const { userEmpresas } = useUserRole();
+  const { userEmpresas, primaryRole } = useUserRole();
+  const esControlAcceso = primaryRole === 'control_acceso';
   const [viajes, setViajes] = useState<ViajeEstado[]>([]);
   const [loading, setLoading] = useState(true);
   const [tabActivo, setTabActivo] = useState<TabEstado>('todos');
@@ -50,7 +55,18 @@ export default function EstadosCamiones() {
         return;
       }
 
-      // Estados activos que queremos mostrar
+      // CUITs de las empresas del usuario (para fallback en coincidencia de ubicaciones)
+      const cuits = userEmpresas
+        .map((ue: any) => ue.empresas?.cuit || ue.empresa?.cuit)
+        .filter(Boolean);
+
+      // Ubicaciones que pertenecen a estas empresas (por empresa_id O por cuit)
+      const filtroUbic = [
+        ...empresaIds.map((id: string) => `empresa_id.eq.${id}`),
+        ...cuits.map((c: string) => `cuit.eq.${c}`),
+      ].join(',');
+
+      // Estados activos que queremos mostrar (origen + destino)
       const estadosActivos = [
         'camion_asignado',
         'confirmado_chofer',
@@ -59,7 +75,13 @@ export default function EstadosCamiones() {
         'llamado_carga',
         'cargando',
         'cargado',
-        'egreso_origen'
+        'egreso_origen',
+        'en_transito_destino',
+        'ingresado_destino',
+        'llamado_descarga',
+        'descargando',
+        'descargado',
+        'egreso_destino'
       ];
 
       // Paso 1: Obtener despachos vinculados a las empresas del usuario
@@ -77,24 +99,40 @@ export default function EstadosCamiones() {
         return;
       }
 
-      const { data: despachos, error: despError } = await supabase
-        .from('despachos')
-        .select('id, origen, destino')
-        .in('created_by', allUserIds);
+      // Obtener ubicaciones de la empresa (por empresa_id O por cuit)
+      const { data: ubicsEmpresa } = filtroUbic
+        ? await supabase.from('ubicaciones').select('id').or(filtroUbic)
+        : await supabase.from('ubicaciones').select('id').in('empresa_id', empresaIds);
 
-      if (despError) {
-        console.error('Error cargando despachos:', despError);
-        setViajes([]);
-        return;
+      const ubicIds = (ubicsEmpresa || []).map((u: any) => u.id);
+
+      // Despachos creados por usuarios de la empresa (como origen)
+      // + Despachos donde la empresa es destino (recepciones)
+      const [despCreadosRes, despDestinoRes] = await Promise.all([
+        allUserIds.length > 0
+          ? supabase.from('despachos').select('id, origen, destino, scheduled_local_date').in('created_by', allUserIds)
+          : Promise.resolve({ data: [] }),
+        ubicIds.length > 0
+          ? supabase.from('despachos').select('id, origen, destino, scheduled_local_date').in('destino_id', ubicIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      // Rastrear si el despacho es como origen o destino para esta planta
+      const despachosOrigenIds = new Set((despCreadosRes.data || []).map((d: any) => d.id));
+      const despachosDestinoIds = new Set((despDestinoRes.data || []).map((d: any) => d.id));
+
+      const despachosMap = new Map<string, { id: string; origen: string; destino: string; scheduled_local_date?: string }>();
+      for (const d of [...(despCreadosRes.data || []), ...(despDestinoRes.data || [])]) {
+        despachosMap.set(d.id, d);
       }
+      const despachos = [...despachosMap.values()];
 
-      if (!despachos || despachos.length === 0) {
+      if (despachos.length === 0) {
         setViajes([]);
         return;
       }
 
       const despachoIds = despachos.map(d => d.id);
-      const despachosMap = new Map(despachos.map(d => [d.id, d]));
 
       // Paso 2: Obtener viajes activos de esos despachos
       const { data: viajesData, error: viajesError } = await supabase
@@ -137,6 +175,10 @@ export default function EstadosCamiones() {
         const camion = v.camion_id ? camionesMap.get(v.camion_id) : null;
         const despacho = despachosMap.get(v.despacho_id);
 
+        // Determinar si esta planta es origen o destino del despacho
+        const esOrigen = despachosOrigenIds.has(v.despacho_id);
+        const esDestino = despachosDestinoIds.has(v.despacho_id);
+
         return {
           id: v.id,
           numero_viaje: v.numero_viaje?.toString() || 'N/A',
@@ -150,6 +192,9 @@ export default function EstadosCamiones() {
           created_at: v.created_at,
           origen: despacho?.origen || '',
           destino: despacho?.destino || '',
+          fecha_despacho: despacho?.scheduled_local_date || '',
+          _esOrigen: esOrigen,
+          _esDestino: esDestino,
         };
       });
 
@@ -178,15 +223,20 @@ export default function EstadosCamiones() {
         return 'cargado';
       case 'egreso_origen':
         return 'egreso';
+      case 'en_transito_destino':
+        return 'en_transito_destino';
+      case 'ingresado_destino':
+        return 'ingresado_destino';
+      case 'llamado_descarga':
+      case 'descargando':
+      case 'descargado':
+        return 'descargando';
+      case 'egreso_destino':
+        return 'egreso_destino';
       default:
         return 'confirmado';
     }
   };
-
-  // Filtrar viajes según tab activo
-  const viajesFiltrados = tabActivo === 'todos' 
-    ? viajes 
-    : viajes.filter(v => mapearEstadoUI(v.estado_unidad) === tabActivo);
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
@@ -196,6 +246,10 @@ export default function EstadosCamiones() {
       case 'cargando': return 'text-orange-400 bg-orange-900/30';
       case 'cargado': return 'text-purple-400 bg-purple-900/30';
       case 'egreso': return 'text-gray-400 bg-gray-900/30';
+      case 'en_transito_destino': return 'text-pink-400 bg-pink-900/30';
+      case 'ingresado_destino': return 'text-teal-400 bg-teal-900/30';
+      case 'descargando': return 'text-amber-400 bg-amber-900/30';
+      case 'egreso_destino': return 'text-emerald-400 bg-emerald-900/30';
       default: return 'text-gray-400 bg-gray-900/30';
     }
   };
@@ -208,6 +262,10 @@ export default function EstadosCamiones() {
       case 'cargando': return 'Cargando';
       case 'cargado': return 'Cargado';
       case 'egreso': return 'Egreso';
+      case 'en_transito_destino': return 'En Tránsito';
+      case 'ingresado_destino': return 'En Planta';
+      case 'descargando': return 'Descargando';
+      case 'egreso_destino': return 'Egreso';
       default: return estado;
     }
   };
@@ -220,10 +278,15 @@ export default function EstadosCamiones() {
       case 'cargando': return <ExclamationTriangleIcon className="h-5 w-5" />;
       case 'cargado': return <CheckCircleIcon className="h-5 w-5" />;
       case 'egreso': return <ArrowRightOnRectangleIcon className="h-5 w-5" />;
+      case 'en_transito_destino': return <TruckIcon className="h-5 w-5" />;
+      case 'ingresado_destino': return <CheckCircleIcon className="h-5 w-5" />;
+      case 'descargando': return <ExclamationTriangleIcon className="h-5 w-5" />;
+      case 'egreso_destino': return <ArrowRightOnRectangleIcon className="h-5 w-5" />;
       default: return <TruckIcon className="h-5 w-5" />;
     }
   };
 
+  // ===== Contadores para TODOS los roles (operaciones detalladas) =====
   const estadosCount = {
     confirmado: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'confirmado').length,
     ingresado_planta: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'ingresado_planta').length,
@@ -231,7 +294,90 @@ export default function EstadosCamiones() {
     cargando: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'cargando').length,
     carga_finalizada: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'cargado').length,
     egresado_planta: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'egreso').length,
+    en_transito_destino: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'en_transito_destino').length,
+    ingresado_destino: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'ingresado_destino').length,
+    descargando: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'descargando').length,
+    egreso_destino: viajes.filter(v => mapearEstadoUI(v.estado_unidad) === 'egreso_destino').length,
   };
+
+  // ===== Contadores para CONTROL DE ACCESO (badges simplificados) =====
+  const hoyStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  // ── Helpers de clasificación por planta ──
+  // Estados post-egreso desde la perspectiva de la planta ORIGEN
+  const estadosPostEgresoOrigen = ['egreso_origen', 'en_transito_destino', 'ingresado_destino',
+    'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'];
+
+  // ¿El viaje fue procesado por CA de ESTA planta? (ingresó o egresó alguna vez)
+  const esRelevantePlanta = (v: ViajeEstado): boolean => {
+    const estado = v.estado_unidad;
+    if (v._esOrigen) {
+      // Origen: desde asignación hasta cualquier estado posterior
+      return ['camion_asignado', 'confirmado_chofer', 'en_transito_origen',
+        'ingresado_origen', 'llamado_carga', 'cargando', 'cargado',
+        ...estadosPostEgresoOrigen].includes(estado);
+    }
+    if (v._esDestino) {
+      return ['en_transito_destino', 'ingresado_destino',
+        'llamado_descarga', 'descargando', 'descargado', 'egreso_destino'].includes(estado);
+    }
+    return false;
+  };
+
+  // Viajes relevantes para esta planta
+  const viajesPlanta = viajes.filter(esRelevantePlanta);
+
+  // ── En Planta: desde ingresado hasta pre-egreso, respetando origen/destino ──
+  const caEnPlantaFilter = (v: ViajeEstado): boolean => {
+    if (v._esOrigen && ['ingresado_origen', 'llamado_carga', 'cargando', 'cargado'].includes(v.estado_unidad)) return true;
+    if (v._esDestino && ['ingresado_destino', 'llamado_descarga', 'descargando', 'descargado'].includes(v.estado_unidad)) return true;
+    return false;
+  };
+  const caEnPlanta = viajesPlanta.filter(caEnPlantaFilter).length;
+
+  // ── Por Arribar: fecha despacho <= hoy, aún no ingresó a ESTA planta ──
+  const caPorArribarFilter = (v: ViajeEstado): boolean => {
+    if (!v.fecha_despacho || v.fecha_despacho > hoyStr) return false;
+    if (v._esOrigen && ['camion_asignado', 'confirmado_chofer', 'en_transito_origen'].includes(v.estado_unidad)) return true;
+    if (v._esDestino && v.estado_unidad === 'en_transito_destino') return true;
+    return false;
+  };
+  const caPorArribar = viajesPlanta.filter(caPorArribarFilter).length;
+
+  // ── Cargando: solo si esta planta es origen ──
+  const caCargandoFilter = (v: ViajeEstado): boolean =>
+    !!(v._esOrigen && ['llamado_carga', 'cargando'].includes(v.estado_unidad));
+  const caCargando = viajesPlanta.filter(caCargandoFilter).length;
+
+  // ── Descargando: solo si esta planta es destino ──
+  const caDescargandoFilter = (v: ViajeEstado): boolean =>
+    !!(v._esDestino && ['llamado_descarga', 'descargando'].includes(v.estado_unidad));
+  const caDescargando = viajesPlanta.filter(caDescargandoFilter).length;
+
+  // ── Egresados: camiones que ya salieron de ESTA planta ──
+  const caEgresadosFilter = (v: ViajeEstado): boolean => {
+    if (v._esOrigen && estadosPostEgresoOrigen.includes(v.estado_unidad)) return true;
+    if (v._esDestino && v.estado_unidad === 'egreso_destino') return true;
+    return false;
+  };
+  const caEgresados = viajesPlanta.filter(caEgresadosFilter).length;
+
+  // ── Filtro para tabs de CA ──
+  const filtrarCA = (tab: TabEstado): ViajeEstado[] => {
+    switch (tab) {
+      case 'ca_en_planta': return viajesPlanta.filter(caEnPlantaFilter);
+      case 'ca_por_arribar': return viajesPlanta.filter(caPorArribarFilter);
+      case 'ca_cargando': return viajesPlanta.filter(caCargandoFilter);
+      case 'ca_descargando': return viajesPlanta.filter(caDescargandoFilter);
+      case 'ca_egresados': return viajesPlanta.filter(caEgresadosFilter);
+      default: return viajesPlanta;
+    }
+  };
+
+  // Filtrar viajes según tab activo
+  const viajesFiltrados = esControlAcceso
+    ? (tabActivo === 'todos' ? viajesPlanta : filtrarCA(tabActivo))
+    : (tabActivo === 'todos' ? viajes : filtrarCA(tabActivo));
 
   if (loading) {
     return (
@@ -260,16 +406,15 @@ export default function EstadosCamiones() {
         </div>
       </div>
 
-      {/* Resumen de Estados */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-1 mb-2">
+      {/* Resumen de Estados — badges unificados */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
         {[
-          { key: 'todos' as TabEstado, label: 'Todos', count: viajes.length, color: 'cyan', Icon: TruckIcon },
-          { key: 'confirmado' as TabEstado, label: 'Por Arribar', count: estadosCount.confirmado, color: 'blue', Icon: ClockIcon },
-          { key: 'ingresado_planta' as TabEstado, label: 'En Planta', count: estadosCount.ingresado_planta, color: 'green', Icon: TruckIcon },
-          { key: 'llamado_carga' as TabEstado, label: 'Llamado Carga', count: estadosCount.llamado_carga, color: 'yellow', Icon: ExclamationTriangleIcon },
-          { key: 'cargando' as TabEstado, label: 'Cargando', count: estadosCount.cargando, color: 'orange', Icon: ExclamationTriangleIcon },
-          { key: 'cargado' as TabEstado, label: 'Cargado', count: estadosCount.carga_finalizada, color: 'purple', Icon: CheckCircleIcon },
-          { key: 'egreso' as TabEstado, label: 'Egreso', count: estadosCount.egresado_planta, color: 'gray', Icon: ArrowRightOnRectangleIcon },
+          { key: 'todos' as TabEstado, label: 'Todos', count: esControlAcceso ? viajesPlanta.length : viajes.length, color: 'cyan', Icon: TruckIcon },
+          { key: 'ca_en_planta' as TabEstado, label: 'En Planta', count: caEnPlanta, color: 'green', Icon: TruckIcon },
+          { key: 'ca_por_arribar' as TabEstado, label: 'Por Arribar', count: caPorArribar, color: 'blue', Icon: ClockIcon },
+          { key: 'ca_cargando' as TabEstado, label: 'Cargando', count: caCargando, color: 'orange', Icon: ExclamationTriangleIcon },
+          { key: 'ca_descargando' as TabEstado, label: 'Descargando', count: caDescargando, color: 'amber', Icon: ExclamationTriangleIcon },
+          { key: 'ca_egresados' as TabEstado, label: 'Egresados', count: caEgresados, color: 'gray', Icon: ArrowRightOnRectangleIcon },
         ].map(({ key, label, count, color, Icon }) => (
           <div
             key={key}
@@ -297,7 +442,11 @@ export default function EstadosCamiones() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-medium text-slate-100">
-                {tabActivo === 'todos' ? 'Todos los Vehículos' : `Vehículos - ${getEstadoTexto(tabActivo)}`}
+                {tabActivo === 'todos' ? 'Todos los Vehículos' : `Vehículos - ${
+                  tabActivo.startsWith('ca_')
+                    ? { ca_en_planta: 'En Planta', ca_por_arribar: 'Por Arribar', ca_cargando: 'Cargando', ca_descargando: 'Descargando', ca_egresados: 'Egresados' }[tabActivo] || tabActivo
+                    : getEstadoTexto(tabActivo)
+                }`}
               </h3>
               <p className="text-sm text-slate-400 mt-1">
                 {viajesFiltrados.length} {viajesFiltrados.length === 1 ? 'vehículo' : 'vehículos'}
@@ -330,13 +479,22 @@ export default function EstadosCamiones() {
               <tbody className="bg-slate-800 divide-y divide-slate-700">
                 {viajesFiltrados.map((viaje) => {
                   const estadoUI = mapearEstadoUI(viaje.estado_unidad);
+                  // En tab Egresados: mostrar "Egresado" en vez del estado real del viaje
+                  const esTabEgresados = tabActivo === 'ca_egresados';
                   return (
                     <tr key={viaje.id} className="hover:bg-slate-700">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEstadoColor(estadoUI)}`}>
-                          <span className="mr-1.5">{getEstadoIcon(estadoUI)}</span>
-                          {getEstadoTexto(estadoUI)}
-                        </div>
+                        {esTabEgresados ? (
+                          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-gray-400 bg-gray-900/30">
+                            <span className="mr-1.5"><ArrowRightOnRectangleIcon className="h-5 w-5" /></span>
+                            Egresado
+                          </div>
+                        ) : (
+                          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEstadoColor(estadoUI)}`}>
+                            <span className="mr-1.5">{getEstadoIcon(estadoUI)}</span>
+                            {getEstadoTexto(estadoUI)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-slate-100">#{viaje.numero_viaje}</div>

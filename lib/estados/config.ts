@@ -450,6 +450,11 @@ export const ESTADO_DISPLAY: Record<EstadoViajeType, EstadoDisplay> = {
  * Si recibe un estado que no existe en el sistema nuevo, devuelve un fallback.
  */
 export function getEstadoDisplay(estado: string): EstadoDisplay {
+  // Despacho-level computed states (not viaje states)
+  if (estado === 'en_proceso') {
+    return { label: 'En Proceso', emoji: '🚛', bgClass: 'bg-blue-900', textClass: 'text-blue-200', color: '#2563eb' };
+  }
+
   // Mapeo de estados legacy al nuevo sistema
   const LEGACY_MAP: Record<string, EstadoViajeType> = {
     // V1 legacy

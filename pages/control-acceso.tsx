@@ -47,6 +47,127 @@ interface ViajeQR {
   };
 }
 
+// Documentos requeridos por tipo de entidad (debe coincidir con DocumentacionDetalle)
+const DOCS_REQUERIDOS: Record<string, string[]> = {
+  chofer: ['licencia_conducir', 'art_clausula_no_repeticion'],
+  camion: ['seguro', 'rto', 'cedula'],
+  acoplado: ['seguro', 'rto', 'cedula'],
+};
+
+// Aliases para normalizar tipos de documentos
+const TIPO_DOC_ALIASES: Record<string, string> = {
+  vtv: 'rto',
+  tarjeta_verde: 'cedula',
+  cedula_verde: 'cedula',
+};
+
+function normalizarTipoDoc(tipo: string): string {
+  return TIPO_DOC_ALIASES[tipo] || tipo;
+}
+
+// Función para validar documentación completa
+async function validarDocumentacionCompleta(
+  choferId?: string,
+  camionId?: string,
+  acopladoId?: string
+): Promise<{ valida: boolean; faltantes: number; vencidos: number; rechazados: number; pendientes: number; provisorios: any[] }> {
+  try {
+    // Recopilar IDs de entidades
+    const entidadIds: string[] = [];
+    const entidadesPorId: Record<string, string> = {}; // id -> tipo
+    
+    if (choferId) {
+      entidadIds.push(choferId);
+      entidadesPorId[choferId] = 'chofer';
+    }
+    if (camionId) {
+      entidadIds.push(camionId);
+      entidadesPorId[camionId] = 'camion';
+    }
+    if (acopladoId) {
+      entidadIds.push(acopladoId);
+      entidadesPorId[acopladoId] = 'acoplado';
+    }
+
+    if (entidadIds.length === 0) {
+      return { valida: false, faltantes: 0, vencidos: 0, rechazados: 0, pendientes: 0, provisorios: [] };
+    }
+
+    // Consultar documentos vía API (RLS con get_visible_*_ids permite cross-company)
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('❌ No hay sesión activa para validar documentación');
+      return { valida: false, faltantes: 0, vencidos: 0, rechazados: 0, pendientes: 0, provisorios: [] };
+    }
+
+    const params = new URLSearchParams();
+    if (choferId) params.set('chofer_id', choferId);
+    if (camionId) params.set('camion_id', camionId);
+    if (acopladoId) params.set('acoplado_id', acopladoId);
+
+    const response = await fetch(`/api/control-acceso/documentos-detalle?${params}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+
+    if (!response.ok) {
+      console.error('❌ Error al cargar documentos para validación:', response.status);
+      return { valida: false, faltantes: 0, vencidos: 0, rechazados: 0, pendientes: 0, provisorios: [] };
+    }
+
+    const json = await response.json();
+    const documentos = json.data?.documentos || [];
+
+    console.log('📋 Documentos cargados para validación:', documentos.length);
+
+    // Calcular estado de cada documento
+    let vencidos = 0;
+    let rechazados = 0;
+    let pendientes = 0;
+    const provisorios: any[] = [];
+
+    documentos.forEach((doc: any) => {
+      if (doc.estado_vigencia === 'rechazado') {
+        rechazados++;
+      } else if (doc.estado_vigencia === 'pendiente_validacion') {
+        pendientes++;
+      } else if (doc.estado_vigencia === 'aprobado_provisorio') {
+        provisorios.push(doc);
+        // Aprobado provisoriamente — NO bloquea, permite operar
+      } else if (doc.fecha_vencimiento) {
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const vto = new Date(doc.fecha_vencimiento);
+        vto.setHours(0, 0, 0, 0);
+        const dias = Math.floor((vto.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+        if (dias < 0) vencidos++;
+      }
+    });
+
+    // Calcular documentos faltantes
+    let faltantes = 0;
+    Object.entries(entidadesPorId).forEach(([entidadId, tipoEntidad]) => {
+      const requeridos = DOCS_REQUERIDOS[tipoEntidad] || [];
+      const docsEntidad = documentos.filter((d: any) => d.entidad_id === entidadId) || [];
+      const tiposPresentes = docsEntidad.map((d: any) => normalizarTipoDoc(d.tipo_documento));
+      
+      requeridos.forEach(tipoReq => {
+        if (!tiposPresentes.includes(tipoReq)) {
+          faltantes++;
+        }
+      });
+    });
+
+    const valida = faltantes === 0 && vencidos === 0 && rechazados === 0 && pendientes === 0;
+
+    console.log('✅ Resultado validación:', { valida, faltantes, vencidos, rechazados, pendientes, provisorios: provisorios.length });
+
+    return { valida, faltantes, vencidos, rechazados, pendientes, provisorios };
+  } catch (error) {
+    console.error('❌ Error en validarDocumentacionCompleta:', error);
+    return { valida: false, faltantes: 0, vencidos: 0, rechazados: 0, pendientes: 0, provisorios: [] };
+  }
+}
+
 interface RegistroAcceso {
   id: string;
   viaje_id: string;
@@ -58,7 +179,7 @@ interface RegistroAcceso {
 }
 
 export default function ControlAcceso() {
-  const { empresaId, user } = useUserRole();
+  const { empresaId, cuitEmpresa, user } = useUserRole();
   
   const [qrCode, setQrCode] = useState('');
   const [viaje, setViaje] = useState<ViajeQR | null>(null);
@@ -67,6 +188,16 @@ export default function ControlAcceso() {
   const [showDocumentacion, setShowDocumentacion] = useState(false);
   const [historial, setHistorial] = useState<RegistroAcceso[]>([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
+
+  // Incidencia modal state
+  const [showIncidenciaModal, setShowIncidenciaModal] = useState(false);
+  const [incidenciaTipo, setIncidenciaTipo] = useState('documentacion_faltante');
+  const [incidenciaDesc, setIncidenciaDesc] = useState('');
+  const [incidenciaSeveridad, setIncidenciaSeveridad] = useState('media');
+  const [incidenciaLoading, setIncidenciaLoading] = useState(false);
+
+  // Docs provisorios info
+  const [docsProvisorioBanner, setDocsProvisorioBanner] = useState<any[]>([]);
 
   // Remito preview state
   const [remitoUrl, setRemitoUrl] = useState<string | null>(null);
@@ -111,19 +242,40 @@ export default function ControlAcceso() {
     // Recargar cada 30 segundos
     const interval = setInterval(cargarHistorial, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [empresaId]);
 
   const cargarHistorial = async () => {
     setLoadingHistorial(true);
     try {
+      // Sin empresa determinada, no mostrar nada
+      if (!empresaId) {
+        setHistorial([]);
+        return;
+      }
+
       // Cargar registros de hoy
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
 
-      // Query registros + viajes por separado para evitar problemas de FK
+      // Paso 1: obtener todos los user_ids de MI empresa
+      // Solo mostrar registros creados por usuarios de esta misma planta
+      const { data: companyUsers } = await supabase
+        .from('usuarios_empresa')
+        .select('user_id')
+        .eq('empresa_id', empresaId)
+        .eq('activo', true);
+
+      const myCompanyUserIds = (companyUsers || []).map((u: any) => u.user_id).filter(Boolean);
+      if (myCompanyUserIds.length === 0) {
+        setHistorial([]);
+        return;
+      }
+
+      // Paso 2: registros_acceso creados por usuarios de MI empresa, solo hoy
       const { data: registros, error } = await supabase
         .from('registros_acceso')
         .select('id, viaje_id, tipo, timestamp')
+        .in('usuario_id', myCompanyUserIds)
         .gte('timestamp', hoy.toISOString())
         .order('timestamp', { ascending: false })
         .limit(20);
@@ -249,23 +401,25 @@ export default function ControlAcceso() {
       }
 
       // Paso 2.5: Verificar que el despacho pertenece a la empresa del usuario
-      // Verificar via empresa_ubicaciones junction table
+      // La relación canónica es: empresa.cuit == ubicaciones.cuit (origen o destino)
       let esOrigen = false;
       let esDestino = false;
 
-      if (empresaId && ubicacionIds.length > 0) {
-        const { data: empresaUbicaciones } = await supabase
-          .from('empresa_ubicaciones')
-          .select('ubicacion_id, es_origen, es_destino')
-          .eq('empresa_id', empresaId)
-          .in('ubicacion_id', ubicacionIds);
+      if (ubicacionIds.length > 0) {
+        // Buscar ubicaciones cuyo CUIT o empresa_id coincidan con la empresa del usuario
+        const filtro = cuitEmpresa
+          ? `empresa_id.eq.${empresaId},cuit.eq.${cuitEmpresa}`
+          : `empresa_id.eq.${empresaId}`;
 
-        if (empresaUbicaciones && empresaUbicaciones.length > 0) {
-          const origenMatch = empresaUbicaciones.find(eu => eu.ubicacion_id === origenRef);
-          const destinoMatch = empresaUbicaciones.find(eu => eu.ubicacion_id === destinoRef);
-          esOrigen = !!origenMatch;
-          esDestino = !!destinoMatch;
-        }
+        const { data: misUbics } = await supabase
+          .from('ubicaciones')
+          .select('id')
+          .in('id', ubicacionIds)
+          .or(filtro);
+
+        const misUbicIds = new Set((misUbics || []).map((u: any) => u.id));
+        esOrigen = misUbicIds.has(origenRef);
+        esDestino = misUbicIds.has(destinoRef);
       }
 
       if (!esOrigen && !esDestino) {
@@ -369,6 +523,15 @@ export default function ControlAcceso() {
       console.log(`🏢 Tipo operación detectado: ${tipoOp} (esOrigen=${esOrigen}, esDestino=${esDestino})`);
       const estadoUnidad = viajeData.estado || viajeData.estado_unidad || 'pendiente';
 
+      // Validar documentación real antes de permitir ingreso
+      const estadoDocumentacion = await validarDocumentacionCompleta(
+        viajeData.chofer_id,
+        viajeData.camion_id,
+        viajeData.acoplado_id
+      );
+
+      console.log('📋 Estado documentación:', estadoDocumentacion);
+
       const viajeCompleto: ViajeQR = {
         id: viajeData.id,
         numero_viaje: viajeData.numero_viaje?.toString() || despacho.pedido_id,
@@ -403,7 +566,7 @@ export default function ControlAcceso() {
           marca: 'N/A',
           año: null
         },
-        documentacion_validada: true, // Por ahora, asumir válida
+        documentacion_validada: estadoDocumentacion.valida,
         docs_chofer: {
           licencia_valida: true
         },
@@ -414,8 +577,20 @@ export default function ControlAcceso() {
       };
 
       setViaje(viajeCompleto);
+      setDocsProvisorioBanner(estadoDocumentacion.provisorios);
+      
+      let mensajeDocumentacion = '';
+      if (!estadoDocumentacion.valida) {
+        const problemas = [];
+        if (estadoDocumentacion.faltantes > 0) problemas.push(`${estadoDocumentacion.faltantes} faltante(s)`);
+        if (estadoDocumentacion.vencidos > 0) problemas.push(`${estadoDocumentacion.vencidos} vencido(s)`);
+        if (estadoDocumentacion.rechazados > 0) problemas.push(`${estadoDocumentacion.rechazados} rechazado(s)`);
+        if (estadoDocumentacion.pendientes > 0) problemas.push(`${estadoDocumentacion.pendientes} pendiente(s)`);
+        mensajeDocumentacion = ` - ⚠️ Documentación: ${problemas.join(', ')}`;
+      }
+      
       setMessage(
-        `📋 ${tipoOp === 'envio' ? 'Envío' : 'Recepción'} ${viajeCompleto.numero_viaje} encontrado - Estado: ${getLabelEstadoUnidad(estadoUnidad as EstadoUnidadViajeType)}`
+        `📋 ${tipoOp === 'envio' ? 'Envío' : 'Recepción'} ${viajeCompleto.numero_viaje} encontrado - Estado: ${getLabelEstadoUnidad(estadoUnidad as EstadoUnidadViajeType)}${mensajeDocumentacion}`
       );
       
     } catch (error: any) {
@@ -597,9 +772,91 @@ export default function ControlAcceso() {
   const crearIncidencia = () => {
     if (!viaje) return;
     
-    const descripcion = prompt('Describe la incidencia:');
-    if (descripcion) {
-      setMessage(`⚠️ Incidencia creada para ${viaje.numero_viaje}`);
+    // Pre-fill description with doc problems if available
+    if (!viaje.documentacion_validada) {
+      setIncidenciaTipo('documentacion_faltante');
+      setIncidenciaDesc('Documentación incompleta detectada al escanear QR');
+    } else {
+      setIncidenciaTipo('otro');
+      setIncidenciaDesc('');
+    }
+    setIncidenciaSeveridad('media');
+    setShowIncidenciaModal(true);
+  };
+
+  const enviarIncidencia = async () => {
+    if (!viaje || !incidenciaDesc.trim()) return;
+    setIncidenciaLoading(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const body: any = {
+        viaje_id: viaje.id,
+        tipo_incidencia: incidenciaTipo,
+        descripcion: incidenciaDesc.trim(),
+        severidad: incidenciaSeveridad,
+      };
+
+      // Si es incidencia de documentación, adjuntar problemas de docs
+      if (incidenciaTipo === 'documentacion_faltante') {
+        const docsAfectados: any[] = [];
+        // Intentar obtener detalles de los docs problemáticos
+        try {
+          const params = new URLSearchParams();
+          if (viaje.chofer_id) params.set('chofer_id', viaje.chofer_id);
+          if (viaje.camion_id) params.set('camion_id', viaje.camion_id);
+          if (viaje.acoplado_id) params.set('acoplado_id', viaje.acoplado_id);
+
+          const res = await fetch(`/api/control-acceso/verificar-documentacion?${params}`, {
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+          });
+          if (res.ok) {
+            const json = await res.json();
+            const data = json.data;
+            if (data?.problemas) {
+              data.problemas.forEach((p: any) => {
+                docsAfectados.push({
+                  tipo: p.detalle || 'desconocido',
+                  entidad_tipo: p.recurso,
+                  entidad_id: p.recurso === 'chofer' ? viaje.chofer_id : p.recurso === 'camion' ? viaje.camion_id : viaje.acoplado_id,
+                  problema: p.problema === 'documentacion_bloqueada' ? 'faltante' : 'por_vencer',
+                });
+              });
+            }
+          }
+        } catch (e) { /* best effort */ }
+
+        if (docsAfectados.length > 0) {
+          body.documentos_afectados = docsAfectados;
+        }
+      }
+
+      const res = await fetch('/api/incidencias', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setMessage(`✅ Incidencia creada para viaje ${viaje.numero_viaje}`);
+        setShowIncidenciaModal(false);
+        setIncidenciaDesc('');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('[Incidencia] Error response:', err);
+        setMessage(`❌ Error: ${err.error || 'No se pudo crear la incidencia'}${err.hint ? ` (${err.hint})` : ''}`);
+      }
+    } catch (error: any) {
+      console.error('[Incidencia] Catch error:', error);
+      setMessage('❌ Error al crear incidencia');
+    } finally {
+      setIncidenciaLoading(false);
     }
   };
 
@@ -655,11 +912,11 @@ export default function ControlAcceso() {
               <div className="flex gap-4 mb-4">
                 <input
                   type="text"
-                  placeholder="Ingrese código QR (ej: QR-VJ2025001, QR-VJ2025002)"
+                  placeholder="Ingrese N° despacho o viaje (ej: DSP-20260221-001)"
                   value={qrCode}
                   onChange={(e) => setQrCode(e.target.value)}
                   className="flex-1 px-4 py-3 border border-slate-600 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none bg-slate-700 text-slate-100 placeholder-slate-400 transition-colors"
-                  onKeyPress={(e) => e.key === 'Enter' && escanearQR()}
+                  onKeyDown={(e) => e.key === 'Enter' && escanearQR()}
                 />
                 <button
                   onClick={escanearQR}
@@ -823,6 +1080,28 @@ export default function ControlAcceso() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Banner documentación aprobada provisoriamente */}
+                  {docsProvisorioBanner && docsProvisorioBanner.length > 0 && (
+                    <div className="mt-3 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <ExclamationTriangleIcon className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-amber-300 font-semibold text-sm">Documentación aprobada provisoriamente</p>
+                          <p className="text-amber-200/70 text-xs mt-1">
+                            {docsProvisorioBanner.length} documento(s) con aprobación provisoria (válida 24h). Pendiente revalidación Admin Nodexia.
+                          </p>
+                          <ul className="mt-1 space-y-0.5">
+                            {docsProvisorioBanner.map((doc: any, idx: number) => (
+                              <li key={idx} className="text-amber-200/60 text-xs">
+                                • {doc.tipo_documento} — aprobado por {doc.aprobado_provisorio_por || 'Coordinador'}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Banners contextuales y remito */}
@@ -839,25 +1118,70 @@ export default function ControlAcceso() {
                 {/* Acciones */}
                 <div className="border-t border-slate-700 pt-6">
                   <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Acciones Disponibles</p>
-                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó */}
+                  
+                  {/* 🔥 Banner informativo para recepciones: cuando el camión aún no llegó a destino */}
+                  {viaje.tipo_operacion === 'recepcion' && !['en_transito_destino', 'ingresado_destino', 'llamado_descarga', 'descargando', 'descargado', 'egreso_destino', 'completado'].includes(viaje.estado_unidad) && (
+                    <div className="w-full bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <TruckIcon className="h-6 w-6 text-blue-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-blue-300 font-semibold text-sm">Camión en camino</p>
+                          <p className="text-blue-200/70 text-xs mt-1">
+                            Este viaje aún está en etapa de <strong>{viaje.estado_unidad === 'en_transito_origen' ? 'tránsito a planta origen' 
+                              : viaje.estado_unidad === 'ingresado_origen' ? 'ingresado en planta origen'
+                              : viaje.estado_unidad === 'llamado_carga' ? 'llamado a carga en origen'
+                              : viaje.estado_unidad === 'cargando' ? 'cargando en planta origen'
+                              : viaje.estado_unidad === 'cargado' ? 'cargado, pendiente egreso de origen'
+                              : viaje.estado_unidad === 'egreso_origen' ? 'egreso de planta origen'
+                              : viaje.estado_unidad}</strong>.
+                            Podrás confirmar el ingreso a destino cuando el camión esté en tránsito hacia tu planta.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-3">{/* Confirmar Ingreso - Solo si el camión llegó Y la documentación está validada */}
                     {((viaje.tipo_operacion === 'envio' && ['en_transito_origen', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer'].includes(viaje.estado_unidad)) ||
                       (viaje.tipo_operacion === 'recepcion' && ['en_transito_destino'].includes(viaje.estado_unidad))) && (
                       <button
                         onClick={confirmarIngreso}
-                        disabled={loading}
+                        disabled={loading || !viaje.documentacion_validada}
                         className="flex-1 bg-green-600 text-white px-6 py-4 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
+                        title={!viaje.documentacion_validada ? 'No se puede confirmar ingreso: Documentación incompleta o inválida' : ''}
                       >
                         <CheckCircleIcon className="h-6 w-6" />
                         <span>{viaje.tipo_operacion === 'envio' ? 'Confirmar Ingreso a Planta' : 'Confirmar Ingreso a Destino'}</span>
                       </button>
                     )}
+                    
+                    {/* Mensaje de advertencia si documentación no está validada */}
+                    {((viaje.tipo_operacion === 'envio' && ['en_transito_origen', 'transporte_asignado', 'camion_asignado', 'confirmado_chofer'].includes(viaje.estado_unidad)) ||
+                      (viaje.tipo_operacion === 'recepcion' && ['en_transito_destino'].includes(viaje.estado_unidad))) && 
+                      !viaje.documentacion_validada && (
+                      <div className="w-full bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <div className="flex items-center gap-2">
+                          <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+                          <p className="text-red-400 text-sm font-medium">
+                            No se puede confirmar ingreso: La documentación está incompleta, vencida o pendiente de validación. Revisar detalle arriba.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Asignar Playa de Espera - Solo en origen después del ingreso */}
                     {viaje.tipo_operacion === 'envio' && viaje.estado_unidad === 'ingresado_origen' && (
-                      <button
-                        onClick={() => {
-                          const playa = prompt('Número de playa de espera:');
-                          if (playa) {
+                      <div className="flex items-center gap-2 w-full">
+                        <input
+                          id="playa-input"
+                          type="text"
+                          defaultValue="1"
+                          placeholder="N° playa"
+                          className="w-20 px-3 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white text-center focus:ring-2 focus:ring-cyan-500 outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            const playa = (document.getElementById('playa-input') as HTMLInputElement)?.value || '1';
                             actualizarEstadoUnidad({
                               viaje_id: viaje.id,
                               nuevo_estado: 'ingresado_origen',
@@ -870,14 +1194,14 @@ export default function ControlAcceso() {
                                 setMessage(`❌ ${result.error}`);
                               }
                             });
-                          }
-                        }}
-                        disabled={loading}
-                        className="flex-1 bg-cyan-600 text-white px-6 py-4 rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
-                      >
-                        <TruckIcon className="h-6 w-6" />
-                        <span>Asignar Playa de Espera</span>
-                      </button>
+                          }}
+                          disabled={loading}
+                          className="flex-1 bg-cyan-600 text-white px-6 py-4 rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 transition-all shadow-lg hover:shadow-xl font-semibold"
+                        >
+                          <TruckIcon className="h-6 w-6" />
+                          <span>Asignar Playa de Espera</span>
+                        </button>
+                      </div>
                     )}
 
                     {/* Validar Documentación - Solo en origen después de carga completada */}
@@ -987,6 +1311,98 @@ export default function ControlAcceso() {
           acopladoId={viaje.acoplado_id}
           onClose={handleCloseDocumentacion}
         />
+      )}
+
+      {/* Modal de Creación de Incidencia */}
+      {showIncidenciaModal && viaje && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-amber-400" />
+                  Crear Incidencia
+                </h3>
+                <button onClick={() => setShowIncidenciaModal(false)} className="text-slate-400 hover:text-white text-xl">✕</button>
+              </div>
+
+              <div className="text-sm text-slate-400 mb-4">
+                Viaje: <span className="text-white font-medium">{viaje.numero_viaje}</span>
+              </div>
+
+              {/* Tipo */}
+              <div className="mb-4">
+                <label className="text-sm text-slate-400 block mb-1">Tipo de incidencia</label>
+                <select
+                  value={incidenciaTipo}
+                  onChange={e => setIncidenciaTipo(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="documentacion_faltante">📄 Documentación Faltante</option>
+                  <option value="retraso">⏰ Retraso</option>
+                  <option value="averia_camion">🔧 Avería Camión</option>
+                  <option value="producto_danado">📦 Producto Dañado</option>
+                  <option value="problema_carga">⚠️ Problema de Carga</option>
+                  <option value="problema_mecanico">🛠️ Problema Mecánico</option>
+                  <option value="accidente">🚨 Accidente</option>
+                  <option value="otro">❓ Otro</option>
+                </select>
+              </div>
+
+              {/* Severidad */}
+              <div className="mb-4">
+                <label className="text-sm text-slate-400 block mb-1">Severidad</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'baja', label: '🟢 Baja', color: 'border-green-500 bg-green-500/20' },
+                    { value: 'media', label: '🟡 Media', color: 'border-yellow-500 bg-yellow-500/20' },
+                    { value: 'alta', label: '🟠 Alta', color: 'border-orange-500 bg-orange-500/20' },
+                    { value: 'critica', label: '🔴 Crítica', color: 'border-red-500 bg-red-500/20' },
+                  ].map(s => (
+                    <button
+                      key={s.value}
+                      onClick={() => setIncidenciaSeveridad(s.value)}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
+                        incidenciaSeveridad === s.value ? `${s.color} text-white` : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Descripción */}
+              <div className="mb-4">
+                <label className="text-sm text-slate-400 block mb-1">Descripción</label>
+                <textarea
+                  value={incidenciaDesc}
+                  onChange={e => setIncidenciaDesc(e.target.value)}
+                  placeholder="Describe la incidencia con detalle..."
+                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm placeholder-slate-500 resize-none"
+                  rows={4}
+                />
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowIncidenciaModal(false)}
+                  className="flex-1 bg-slate-700 text-slate-300 px-4 py-3 rounded-xl hover:bg-slate-600 font-medium transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={enviarIncidencia}
+                  disabled={incidenciaLoading || !incidenciaDesc.trim()}
+                  className="flex-1 bg-amber-600 text-white px-4 py-3 rounded-xl hover:bg-amber-700 disabled:opacity-50 font-medium transition-all"
+                >
+                  {incidenciaLoading ? 'Creando...' : '⚠️ Crear Incidencia'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </MainLayout>
   );

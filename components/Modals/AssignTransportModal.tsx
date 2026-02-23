@@ -37,7 +37,7 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
   onAssignSuccess
 }) => {
   // 🔥 REFACTORIZADO: Usar contexto y hooks
-  const { empresaId } = useUserRole();
+  const { empresaId, user } = useUserRole();
   const { transports, loading: loadingTransports, error: transportsError, reload } = useTransports(empresaId);
   const { searchTerm, setSearchTerm, filteredItems: filteredTransports, clearSearch, resultsCount } = useSearch({
     items: transports,
@@ -274,6 +274,25 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
           console.error('❌ ERROR: Se intentaron asignar más viajes de los solicitados!');
           throw new Error(`No se pueden asignar ${cantidadViajesAsignar} viajes. Solo quedan ${viajesRealmenteDisponibles} disponibles.`);
         }
+
+        // 🔥 REGISTRAR EN HISTORIAL
+        const transporteNombre = transports.find(t => t.id === selectedTransport)?.nombre || 'Transporte';
+        await supabase
+          .from('historial_despachos')
+          .insert({
+            despacho_id: dispatch.id,
+            accion: 'transporte_asignado',
+            descripcion: `${cantidadViajesAsignar} viaje(s) asignado(s) a ${transporteNombre}`,
+            usuario_id: user?.id || null,
+            metadata: {
+              transporte_id: selectedTransport,
+              transporte_nombre: transporteNombre,
+              cantidad_viajes: cantidadViajesAsignar,
+              total_viajes_asignados: totalViajesAsignadosAhora,
+              viajes_pendientes: viajesPendientes
+            }
+          });
+        
       } else {
         // Despacho simple (1 solo viaje o sin especificar)
         console.log('📋 Despacho simple - Creando viaje en viajes_despacho...');
@@ -360,6 +379,22 @@ const AssignTransportModal: React.FC<AssignTransportModalProps> = ({
         }
         
         console.log('✅ Despacho simple asignado exitosamente');
+
+        // 🔥 REGISTRAR EN HISTORIAL
+        const transporteNombre = transports.find(t => t.id === selectedTransport)?.nombre || 'Transporte';
+        await supabase
+          .from('historial_despachos')
+          .insert({
+            despacho_id: dispatch.id,
+            accion: 'transporte_asignado',
+            descripcion: `Transporte ${transporteNombre} asignado al despacho`,
+            usuario_id: user?.id || null,
+            metadata: {
+              transporte_id: selectedTransport,
+              transporte_nombre: transporteNombre,
+              observaciones: assignmentNotes || null
+            }
+          });
       }
 
       console.log('✅ Asignación completada');

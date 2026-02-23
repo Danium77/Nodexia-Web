@@ -66,7 +66,20 @@ export default function CrearUnidadModal({ isOpen, onClose, onSuccess, empresaId
 
   const loadData = async () => {
     try {
-      // Cargar choferes disponibles (sin unidad asignada o inactivos)
+      // Obtener IDs de recursos ya asignados a unidades activas
+      const { data: unidadesActivas, error: unidadesError } = await supabase
+        .from('unidades_operativas')
+        .select('chofer_id, camion_id, acoplado_id')
+        .eq('empresa_id', empresaId)
+        .eq('activo', true);
+
+      if (unidadesError) throw unidadesError;
+
+      const choferesAsignados = unidadesActivas?.map(u => u.chofer_id).filter(Boolean) || [];
+      const camionesAsignados = unidadesActivas?.map(u => u.camion_id).filter(Boolean) || [];
+      const acoplaodosAsignados = unidadesActivas?.map(u => u.acoplado_id).filter(Boolean) || [];
+
+      // Cargar todos los choferes de la empresa
       const { data: choferesData, error: choferesError } = await supabase
         .from('choferes')
         .select('id, nombre, apellido, dni, telefono')
@@ -75,7 +88,7 @@ export default function CrearUnidadModal({ isOpen, onClose, onSuccess, empresaId
 
       if (choferesError) throw choferesError;
 
-      // Cargar camiones disponibles (sin unidad asignada o inactivos)
+      // Cargar todos los camiones de la empresa
       const { data: camionesData, error: camionesError } = await supabase
         .from('camiones')
         .select('id, patente, marca, modelo, anio')
@@ -84,7 +97,7 @@ export default function CrearUnidadModal({ isOpen, onClose, onSuccess, empresaId
 
       if (camionesError) throw camionesError;
 
-      // Cargar acoplados disponibles
+      // Cargar todos los acoplados de la empresa
       const { data: acoplaodosData, error: acoplaodosError } = await supabase
         .from('acoplados')
         .select('id, patente, marca, modelo, anio')
@@ -93,9 +106,10 @@ export default function CrearUnidadModal({ isOpen, onClose, onSuccess, empresaId
 
       if (acoplaodosError) throw acoplaodosError;
 
-      setChoferes(choferesData || []);
-      setCamiones(camionesData || []);
-      setAcoplados(acoplaodosData || []);
+      // Filtrar solo los disponibles (no asignados a unidades activas)
+      setChoferes(choferesData?.filter(c => !choferesAsignados.includes(c.id)) || []);
+      setCamiones(camionesData?.filter(c => !camionesAsignados.includes(c.id)) || []);
+      setAcoplados(acoplaodosData?.filter(a => !acoplaodosAsignados.includes(a.id)) || []);
     } catch (err: any) {
       console.error('Error loading data:', err);
       setError('Error al cargar datos: ' + err.message);
@@ -116,6 +130,26 @@ export default function CrearUnidadModal({ isOpen, onClose, onSuccess, empresaId
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
+
+      // Validar que no exista ya una unidad con este chofer y camión
+      const { data: existingUnidad } = await supabase
+        .from('unidades_operativas')
+        .select('id, nombre, activo')
+        .eq('empresa_id', empresaId)
+        .eq('chofer_id', choferId)
+        .eq('camion_id', camionId)
+        .maybeSingle();
+
+      if (existingUnidad) {
+        const chofer = choferes.find(c => c.id === choferId);
+        const camion = camiones.find(c => c.id === camionId);
+        setError(
+          `Ya existe una unidad operativa con este chofer (${chofer?.apellido}, ${chofer?.nombre}) y camión (${camion?.patente}). ` +
+          `${existingUnidad.activo ? 'La unidad está activa.' : 'La unidad está inactiva - puedes reactivarla desde la lista.'}`
+        );
+        setLoading(false);
+        return;
+      }
 
       // Generar código automático
       const chofer = choferes.find(c => c.id === choferId);

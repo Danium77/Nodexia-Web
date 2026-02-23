@@ -185,6 +185,62 @@ Registro de decisiones arquitectónicas y técnicas importantes.
 
 ---
 
+## DEC-015: CERO bypass RLS para usuarios autenticados (18-Feb-2026)
+
+**Contexto:** APIs usaban `supabaseAdmin` para servir datos a usuarios autenticados (bypassing RLS)  
+**Problema:** Violación de principios de seguridad profesional — datos cross-empresa accesibles sin autorización de BD  
+**Decisión:** **MANDATO DEL PO — PERMANENTE.** Toda query para servir datos a usuario autenticado DEBE pasar por RLS. `supabaseAdmin` solo para: verificar JWT, obtener rol, storage signed URLs, migraciones, cron jobs.  
+**Implementación:** `createUserSupabaseClient(token)` en `lib/supabaseServerClient.ts`, `AuthContext.token` en `withAuth.ts`  
+**Impacto:** Seguridad profesional — autorización en capa de BD, no en código  
+**Responsable:** PO (mandato) + Opus (implementación)
+
+---
+
+## DEC-016: Obsoleta DEC-011 — RLS reemplaza bypass cross-empresa (18-Feb-2026)
+
+**Contexto:** DEC-011 establecía usar `supabaseAdmin` para datos cross-empresa  
+**Problema:** Contradice DEC-015 (CERO bypass)  
+**Decisión:** DEC-011 queda **OBSOLETA**. Reemplazada por: RLS policies con `get_visible_*_ids()` functions que evalúan visibilidad cross-company vía `ubicaciones.empresa_id` (CUIT como puente)  
+**Migration:** 062_fix_rls_documentos_cross_company.sql  
+**Impacto:** Elimina necesidad de bypass — la BD autoriza correctamente  
+**Responsable:** Opus
+
+---
+
+## DEC-024: Badges estados-camiones unificados para todos los roles (21-Feb-2026)
+
+**Contexto:** estados-camiones mostraba badges diferentes por rol (11 detallados vs 6 simplificados)  
+**Problema:** Inconsistencia visual entre supervisor_carga y estados-camiones  
+**Decisión:** Eliminar condicional `esControlAcceso`, todos los roles ven 6 badges unificados  
+**Alternativas consideradas:** Mantener diferenciación (rechazada: confusión UX)  
+**Impacto:** Consistencia visual en toda la plataforma  
+**Responsable:** PO + Opus
+
+---
+
+## DEC-025: Estado visual de despacho computado desde viajes (21-Feb-2026)
+
+**Contexto:** Campo `estado` de despachos en BD puede estar desactualizado (ej: "cancelado" cuando hay viajes activos)  
+**Problema:** Despachos en tab incorrecto y badges mostrando estado DB crudo  
+**Decisión:** Computar estado visual desde viajes: activos → `en_proceso`, todos completados → `completado`  
+**Alternativas consideradas:** Sincronizar estado DB (rechazada: requiere triggers complejos y puede haber estados legítimos mixtos)  
+**Impacto:** Tabs y badges muestran estado real del despacho  
+**Responsable:** Opus
+
+---
+
+## DEC-026: supabaseAdmin permitido para INSERT incidencias (21-Feb-2026)
+
+**Contexto:** RLS policies de incidencias_viaje son muy restrictivas para inserts cross-empresa  
+**Problema:** Control de acceso no puede crear incidencias por RLS  
+**Decisión:** Usar supabaseAdmin para insert de incidencias (tabla write-once, lectura sigue por RLS)  
+**Alternativas consideradas:** Crear INSERT policy más permisiva (pendiente para profesionalización)  
+**Impacto:** Incidencias se pueden crear desde cualquier rol autorizado  
+**Responsable:** Opus  
+**Nota:** Excepción temporal al principio DEC-015. La lectura sigue por RLS, solo el insert bypasea.
+
+---
+
 ## Template para futuras decisiones:
 
 ```markdown

@@ -13,6 +13,7 @@
  * El handler recibe un tercer argumento AuthContext con:
  *   - user: User de Supabase Auth
  *   - userId: string (user.id)
+ *   - token: string (JWT para crear cliente con RLS)
  *   - empresaId: string | null
  *   - rolInterno: string | null
  *   - tipoEmpresa: string | null
@@ -25,6 +26,8 @@ import { supabaseAdmin } from '../supabaseAdmin';
 export interface AuthContext {
   user: User;
   userId: string;
+  /** JWT token del usuario - usar con createUserSupabaseClient() para queries con RLS */
+  token: string;
   empresaId: string | null;
   rolInterno: string | null;
   tipoEmpresa: string | null;
@@ -64,15 +67,18 @@ export function withAuth(handler: AuthenticatedHandler, options?: WithAuthOption
         .select('empresa_id, rol_interno, empresas:empresa_id(tipo_empresa)')
         .eq('user_id', user.id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       const empresaId = relacion?.empresa_id ?? null;
       const rolInterno = relacion?.rol_interno ?? null;
       const tipoEmpresa = (relacion?.empresas as any)?.tipo_empresa ?? null;
 
+      console.log(`[withAuth] User: ${user.id}, Rol: ${rolInterno}, Empresa: ${empresaId}`);
+
       // 4. Verificar rol si se especificó
       if (options?.roles && options.roles.length > 0) {
         if (!rolInterno || !options.roles.includes(rolInterno)) {
+          console.error(`[withAuth] Acceso denegado - Rol requerido: ${options.roles.join(', ')}, Actual: ${rolInterno}`);
           return res.status(403).json({
             error: 'Prohibido: rol insuficiente',
             required: options.roles,
@@ -85,6 +91,7 @@ export function withAuth(handler: AuthenticatedHandler, options?: WithAuthOption
       const authContext: AuthContext = {
         user,
         userId: user.id,
+        token,
         empresaId,
         rolInterno,
         tipoEmpresa,

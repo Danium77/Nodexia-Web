@@ -165,63 +165,47 @@ const PlanificacionPage = () => {
         console.log('📦 Despachos de la empresa:', despachosData?.length || 0);
 
         // 1.5. Cargar RECEPCIONES - despachos donde esta empresa es el destino
+        //   Cadena: despachos.destino_id → ubicaciones.empresa_id = mi empresa
+        //   Fallback: ubicaciones.cuit = mi empresa.cuit (por si empresa_id no está poblado)
         let recepcionesData: any[] = [];
-        if (cuitEmpresa) {
-          console.log('🔍 Buscando ubicaciones con CUIT:', cuitEmpresa);
-          // Buscar ubicaciones que pertenezcan a esta empresa por CUIT
+        const miEmpresaId = empresaActual?.id;
+        if (miEmpresaId) {
+          // Buscar ubicaciones por empresa_id directo O por CUIT match
+          const ubicacionFilters = cuitEmpresa
+            ? `empresa_id.eq.${miEmpresaId},cuit.eq.${cuitEmpresa}`
+            : `empresa_id.eq.${miEmpresaId}`;
           const { data: ubicaciones, error: ubicacionesError } = await supabase
             .from('ubicaciones')
-            .select('id, nombre, cuit, provincia, ciudad')
-            .eq('cuit', cuitEmpresa)
-            .eq('activo', true);
-
-          console.log('📍 Resultado búsqueda ubicaciones:', {
-            count: ubicaciones?.length || 0,
-            ubicaciones: ubicaciones,
-            error: ubicacionesError
-          });
+            .select('id')
+            .or(ubicacionFilters);
 
           if (ubicacionesError) {
-            console.error('❌ Error al buscar ubicaciones por CUIT:', ubicacionesError);
+            console.error('❌ Error al buscar ubicaciones por empresa_id:', ubicacionesError);
           } else if (ubicaciones && ubicaciones.length > 0) {
             const ubicacionIds = ubicaciones.map(u => u.id);
-            const nombresUbicaciones = ubicaciones.map(u => u.nombre);
-            console.log('📍 IDs de ubicaciones encontradas:', ubicacionIds);
-            console.log('📍 Nombres de ubicaciones:', nombresUbicaciones);
+            console.log('📍 Ubicaciones de mi empresa:', ubicacionIds.length);
 
-            // Buscar despachos que tengan como destino alguna de estas ubicaciones
-            // MÉTODO 1: Por destino_id (si la columna existe después de migración 023)
-            // MÉTODO 2: Por nombre del destino (texto) como fallback
+            // Buscar despachos cuyo destino_id apunte a una de mis ubicaciones
+            // Excluir los creados por mi propia empresa (ya aparecen en Despachos)
             const { data: despachosRecepcion, error: recepcionError } = await supabase
               .from('despachos')
               .select('*')
-              .or([
-                `destino_id.in.(${ubicacionIds.join(',')})`,
-                ...nombresUbicaciones.map(nombre => `destino.ilike.%${nombre}%`)
-              ].join(','))
-              .neq('created_by', user.id) // Excluir los propios
+              .in('destino_id', ubicacionIds)
+              .not('created_by', 'in', `(${allCompanyUserIds.join(',')})`)
               .order('created_at', { ascending: true });
 
-            console.log('📥 Resultado búsqueda recepciones:', {
-              count: despachosRecepcion?.length || 0,
-              despachos: despachosRecepcion,
-              error: recepcionError
-            });
+            console.log('📥 Recepciones encontradas:', despachosRecepcion?.length || 0);
 
             if (recepcionError) {
               console.error('❌ Error al cargar recepciones:', recepcionError);
             } else {
               recepcionesData = despachosRecepcion || [];
-              console.log('📥 Recepciones encontradas:', recepcionesData.length);
-              if (recepcionesData.length > 0) {
-                console.log('📦 Primera recepción:', recepcionesData[0]);
-              }
             }
           } else {
-            console.warn('⚠️ No se encontraron ubicaciones con CUIT:', cuitEmpresa);
+            console.warn('⚠️ No se encontraron ubicaciones para empresa:', miEmpresaId);
           }
         } else {
-          console.warn('⚠️ No hay CUIT de empresa para buscar recepciones');
+          console.warn('⚠️ No hay empresa_id para buscar recepciones');
         }
 
         // Combinar despachos propios + recepciones
@@ -399,11 +383,12 @@ const PlanificacionPage = () => {
         }
 
         // 3. Mapear DESPACHOS directamente (para mostrar los que aún no tienen viajes)
+        const companyUserIdsSet = new Set(allCompanyUserIds);
         const despachosMapeados = todosLosDespachos
           .filter(d => d.scheduled_local_date && d.scheduled_local_time) // Solo los que tienen fecha/hora
           .map((despacho: any) => {
-            // Determinar si es una recepción (no fue creado por este usuario)
-            const esRecepcion = despacho.created_by !== user.id;
+            // Determinar si es una recepción (no fue creado por ningún usuario de mi empresa)
+            const esRecepcion = !companyUserIdsSet.has(despacho.created_by);
             const ubicacionOrigen = despacho.origen_id ? ubicacionesMap[despacho.origen_id] : null;
             const ubicacionDestino = despacho.destino_id ? ubicacionesMap[despacho.destino_id] : null;
             
@@ -436,8 +421,8 @@ const PlanificacionPage = () => {
         const viajesMapeados = (viajesData || []).map((viaje: any) => {
           // Buscar el despacho padre
           const despachoPadre = todosLosDespachos.find((d: any) => d.id === viaje.despacho_id);
-          // Determinar si es recepción (el despacho no fue creado por este usuario)
-          const esRecepcion = despachoPadre && despachoPadre.created_by !== user.id;
+          // Determinar si es recepción (no creado por ningún usuario de mi empresa)
+          const esRecepcion = despachoPadre && !companyUserIdsSet.has(despachoPadre.created_by);
           const tipo = esRecepcion ? 'recepcion' : (despachoPadre?.type || 'despacho');
           
           // Obtener ubicaciones de origen y destino

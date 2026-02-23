@@ -500,15 +500,11 @@ export interface Despacho {
 }
 
 // =====================
-// Incident types
+// Incident types (tabla canónica: incidencias_viaje)
 // =====================
 
-export type TipoIncidencia = 
-  | 'retraso' 
-  | 'averia' 
-  | 'accidente' 
-  | 'documentacion' 
-  | 'otro';
+/** @deprecated Usar TipoIncidenciaViaje */
+export type TipoIncidencia = TipoIncidenciaViaje;
 
 export type EstadoIncidencia = 
   | 'abierta' 
@@ -516,6 +512,7 @@ export type EstadoIncidencia =
   | 'resuelta' 
   | 'cerrada';
 
+/** @deprecated Usar IncidenciaViaje — tabla canónica es incidencias_viaje */
 export interface Incidencia {
   id: UUID;
   despacho_id: UUID;
@@ -661,16 +658,20 @@ export interface RegistroControlAcceso {
 }
 
 /**
- * Tipos de incidencia en viajes (Migración 015 V2 - 10 Ene 2026)
- * Basado en: SQL migrations/015_sistema_estados_duales_v2.sql
+ * Tipos de incidencia en viajes (tabla canónica: incidencias_viaje)
+ * Sincronizado con CHECK constraint de BD (migración 064)
  */
 export type TipoIncidenciaViaje = 
-  | 'faltante_carga'           // Producto faltante en carga/descarga
-  | 'rechazo_carga'            // Carga rechazada por calidad
-  | 'demora_excesiva'          // Retraso significativo
-  | 'documentacion_incorrecta' // Problemas con remito/carta porte
-  | 'averia_camion'            // Problema mecánico
-  | 'accidente'                // Accidente de tránsito
+  | 'retraso'                  // Demora en llegada o salida
+  | 'averia_camion'            // Problema mecánico del vehículo
+  | 'documentacion_faltante'   // Falta documentación requerida
+  | 'producto_danado'          // Daño en la mercadería
+  | 'accidente'                // Accidente en ruta o planta
+  | 'demora'                   // Demora genérica
+  | 'problema_mecanico'        // Falla mecánica en planta
+  | 'problema_carga'           // Error durante carga/descarga
+  | 'ruta_bloqueada'           // Ruta cortada o impedida
+  | 'clima_adverso'            // Condiciones climáticas adversas
   | 'otro';                    // Otros casos
 
 /**
@@ -678,18 +679,22 @@ export type TipoIncidenciaViaje =
  */
 export type SeveridadIncidencia = 'baja' | 'media' | 'alta' | 'critica';
 
-/**
- * Estado de resolución de incidencia
- */
-export type EstadoResolucionIncidencia = 
-  | 'reportada'      // Recién reportada
-  | 'en_revision'    // Siendo analizada
-  | 'en_resolucion'  // En proceso de resolución
-  | 'resuelta'       // Resuelta
-  | 'cerrada';       // Cerrada (viaje continúa o se cancela)
+/** @deprecated Usar EstadoIncidencia */
+export type EstadoResolucionIncidencia = EstadoIncidencia;
 
 /**
- * Interface de incidencia en viaje (tabla: incidencias)
+ * Documento afectado por una incidencia de documentación
+ */
+export interface DocumentoAfectado {
+  doc_id?: string;
+  tipo: string;
+  entidad_tipo: 'chofer' | 'camion' | 'acoplado';
+  entidad_id: string;
+  problema: 'faltante' | 'vencido' | 'rechazado' | 'pendiente';
+}
+
+/**
+ * Interface de incidencia en viaje (tabla canónica: incidencias_viaje)
  * Las incidencias NO son estados del viaje, son registros separados
  */
 export interface IncidenciaViaje {
@@ -699,31 +704,36 @@ export interface IncidenciaViaje {
   // Clasificación
   tipo_incidencia: TipoIncidenciaViaje;
   severidad: SeveridadIncidencia;
-  estado_incidencia: EstadoResolucionIncidencia;
+  estado: EstadoIncidencia;
   
   // Descripción
-  titulo: string;
-  descripcion?: string;
+  descripcion: string;
   
-  // Impacto
-  bloquea_viaje: boolean;
-  requiere_cancelacion: boolean;
+  // Documentación afectada (cuando tipo = documentacion_faltante)
+  documentos_afectados?: DocumentoAfectado[];
+  
+  // Fotos (URLs en storage)
+  fotos_incidencia?: string[];
   
   // Actor que reporta
-  reportado_por_user_id?: UUID;
-  reportado_por_rol?: string;  // 'chofer', 'supervisor', etc.
+  reportado_por: UUID;
   
   // Resolución
-  resuelto_por_user_id?: UUID;
+  resuelto_por?: UUID;
   resolucion?: string;
   fecha_resolucion?: Timestamp;
+  fecha_incidencia: Timestamp;
   
   // Timestamps
   created_at: Timestamp;
   updated_at?: Timestamp;
   
-  // Relaciones populadas
+  // Relaciones populadas (joins opcionales)
   viaje?: ViajeDespacho;
+  reportado_por_nombre?: string;
+  resuelto_por_nombre?: string;
+  numero_viaje?: string;
+  despacho_pedido_id?: string;
 }
 
 // =====================

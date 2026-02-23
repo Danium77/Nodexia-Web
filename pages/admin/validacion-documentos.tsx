@@ -1,6 +1,6 @@
 // pages/admin/validacion-documentos.tsx
 // Panel de validación de documentos para admin_nodexia / super_admin
-// Rediseño: 3 tabs (PENDIENTE/APROBADO/RECHAZADO), modal de validación, notificaciones
+// Rediseño: 4 tabs (PENDIENTE/PROVISORIO/APROBADO/RECHAZADO), modal de validación, notificaciones
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import MainLayout from '../../components/layout/MainLayout';
@@ -42,7 +42,7 @@ interface DocumentoEnriquecido {
   remitente_nombre?: string;
 }
 
-type TabActivo = 'pendiente' | 'aprobado' | 'rechazado';
+type TabActivo = 'pendiente' | 'provisorio' | 'aprobado' | 'rechazado';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -74,6 +74,7 @@ const ENTIDAD_TIPO_LABEL: Record<string, string> = {
 
 const TAB_CONFIG: { key: TabActivo; label: string; icon: string; estadoFilter: string[] }[] = [
   { key: 'pendiente', label: 'PENDIENTE', icon: '🕐', estadoFilter: ['pendiente_validacion'] },
+  { key: 'provisorio', label: 'PROVISORIO', icon: '⚠️', estadoFilter: ['aprobado_provisorio'] },
   { key: 'aprobado', label: 'APROBADO', icon: '✅', estadoFilter: ['vigente', 'por_vencer', 'vencido'] },
   { key: 'rechazado', label: 'RECHAZADO', icon: '❌', estadoFilter: ['rechazado'] },
 ];
@@ -262,6 +263,7 @@ export default function ValidacionDocumentos() {
 
   const contadores = useMemo(() => ({
     pendiente: documentos.filter(d => d.estado_vigencia === 'pendiente_validacion').length,
+    provisorio: documentos.filter(d => d.estado_vigencia === 'aprobado_provisorio').length,
     aprobado: documentos.filter(d => ['vigente', 'por_vencer', 'vencido'].includes(d.estado_vigencia)).length,
     rechazado: documentos.filter(d => d.estado_vigencia === 'rechazado').length,
   }), [documentos]);
@@ -276,28 +278,55 @@ export default function ValidacionDocumentos() {
     setModalFechaEmision(doc.fecha_emision || '');
     setModalFechaVencimiento(doc.fecha_vencimiento || '');
 
+    console.log('📄 Abriendo modal para documento:', {
+      id: doc.id,
+      nombre: doc.nombre_archivo,
+      file_url: doc.file_url,
+      estado: doc.estado_vigencia
+    });
+
     try {
       // Usar API con service role para generar signed URL (bypasses storage RLS)
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
-      if (token) {
-        const res = await fetch('/api/documentacion/preview-url', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ file_url: doc.file_url }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.signedUrl) {
-            setModalDocUrl(data.signedUrl);
-          }
-        }
+      
+      if (!token) {
+        console.error('❌ No hay token de sesión');
+        setMensaje({ tipo: 'error', texto: '❌ No hay sesión activa. Recarga la página.' });
+        setCargandoPreview(false);
+        return;
+      }
+
+      console.log('🔑 Solicitando URL firmada para:', doc.file_url);
+      
+      const res = await fetch('/api/documentacion/preview-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ file_url: doc.file_url }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        console.error('❌ Error en API preview-url:', data);
+        setMensaje({ tipo: 'error', texto: `❌ Error al cargar vista previa: ${data.error || data.details || 'Error desconocido'}` });
+        setCargandoPreview(false);
+        return;
+      }
+
+      if (data.signedUrl) {
+        console.log('✅ URL firmada obtenida correctamente');
+        setModalDocUrl(data.signedUrl);
+      } else {
+        console.error('❌ API no devolvió signedUrl:', data);
+        setMensaje({ tipo: 'error', texto: '❌ No se recibió URL del documento' });
       }
     } catch (err) {
-      console.error('Error generando URL firmada:', err);
+      console.error('❌ Error generando URL firmada:', err);
+      setMensaje({ tipo: 'error', texto: '❌ Error al cargar documento. Verifica la consola.' });
     } finally {
       setCargandoPreview(false);
     }
@@ -453,6 +482,8 @@ export default function ValidacionDocumentos() {
         return { bg: 'bg-red-600/30 border-red-600 text-red-300', label: '⏰ Vencido' };
       case 'rechazado':
         return { bg: 'bg-red-600/30 border-red-600 text-red-300', label: '❌ Rechazado' };
+      case 'aprobado_provisorio':
+        return { bg: 'bg-amber-600/30 border-amber-600 text-amber-300', label: '⚠️ Provisorio' };
       default:
         return { bg: 'bg-gray-600/30 border-gray-600 text-gray-300', label: estado };
     }
@@ -522,6 +553,8 @@ export default function ValidacionDocumentos() {
                   isActive
                     ? tab.key === 'pendiente'
                       ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                      : tab.key === 'provisorio'
+                      ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
                       : tab.key === 'aprobado'
                       ? 'bg-green-600 text-white shadow-lg shadow-green-600/30'
                       : 'bg-red-600 text-white shadow-lg shadow-red-600/30'
@@ -599,6 +632,8 @@ export default function ValidacionDocumentos() {
             <p className="text-slate-400 text-lg font-medium">
               {tabActivo === 'pendiente'
                 ? 'No hay documentos pendientes de validación'
+                : tabActivo === 'provisorio'
+                ? 'No hay documentos con aprobación provisoria'
                 : tabActivo === 'aprobado'
                 ? 'No hay documentos aprobados'
                 : 'No hay documentos rechazados'}
@@ -619,6 +654,7 @@ export default function ValidacionDocumentos() {
               const badge = getEstadoBadge(doc.estado_vigencia);
               const entidadIcon = ENTIDAD_TIPO_ICONS[doc.entidad_tipo] || '📄';
               const isPendiente = doc.estado_vigencia === 'pendiente_validacion';
+              const isProvisorio = doc.estado_vigencia === 'aprobado_provisorio';
 
               return (
                 <div
@@ -626,6 +662,8 @@ export default function ValidacionDocumentos() {
                   className={`rounded-xl border overflow-hidden transition-all hover:shadow-lg ${
                     isPendiente
                       ? 'border-blue-700/40 bg-blue-950/10 hover:border-blue-600/60'
+                      : isProvisorio
+                      ? 'border-amber-700/40 bg-amber-950/10 hover:border-amber-600/60'
                       : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
                   }`}
                 >
@@ -854,9 +892,22 @@ export default function ValidacionDocumentos() {
                   </div>
 
                   {/* Action Buttons (only for pending) */}
-                  {modalDoc.estado_vigencia === 'pendiente_validacion' && (
+                  {(modalDoc.estado_vigencia === 'pendiente_validacion' || modalDoc.estado_vigencia === 'aprobado_provisorio') && (
                     <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700 space-y-4">
-                      <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-wider">Acción de Validación</h3>
+                      <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-wider">
+                        {modalDoc.estado_vigencia === 'aprobado_provisorio' ? 'Revalidación — Aprobación Provisoria' : 'Acción de Validación'}
+                      </h3>
+
+                      {/* Provisorio info banner */}
+                      {modalDoc.estado_vigencia === 'aprobado_provisorio' && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                          <p className="text-amber-300 text-sm font-semibold">⚠️ Documento aprobado provisoriamente</p>
+                          <p className="text-amber-200/70 text-xs mt-1">
+                            Este documento fue aprobado provisoriamente por un coordinador. Requiere su revalidación formal (aprobar o rechazar).
+                            La aprobación provisoria caduca a las 24h automáticamente.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Date inputs for admin */}
                       <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-700/50">

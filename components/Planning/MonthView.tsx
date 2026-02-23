@@ -217,6 +217,8 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                     className={`text-xs bg-gradient-to-r rounded p-1.5 cursor-pointer hover:shadow-lg hover:scale-105 transition-all border-l-2 ${
                       dispatch.estado === 'expirado'
                         ? 'from-gray-800/50 to-gray-700/50 border-gray-600 opacity-75'
+                        : dispatch.estado === 'completado'
+                        ? 'from-green-900/20 to-green-800/10 border-green-700/40 opacity-50'
                         : 'from-slate-800 to-slate-900 border-cyan-500'
                     }`}
                   >
@@ -224,13 +226,13 @@ const MonthView: React.FC<MonthViewProps> = ({ title, dispatches, type }) => {
                     <div className="flex flex-col gap-0.5 mb-0.5">
                       {(dispatch as any).destino_provincia && (
                         <div className={`text-[9px] font-bold uppercase tracking-wide ${
-                          dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-cyan-400'
+                          dispatch.estado === 'expirado' ? 'text-gray-200' : dispatch.estado === 'completado' ? 'text-green-400/70' : 'text-cyan-400'
                         }`}>
                           {(dispatch as any).destino_provincia}
                         </div>
                       )}
                       <div className={`flex items-start gap-1 text-[9px] ${
-                        dispatch.estado === 'expirado' ? 'text-gray-200' : 'text-slate-200'
+                        dispatch.estado === 'expirado' ? 'text-gray-200' : dispatch.estado === 'completado' ? 'text-green-200/60' : 'text-slate-200'
                       }`}>
                         <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0 mt-0.5" />
                         <span className="font-medium break-words">{dispatch.destino}</span>

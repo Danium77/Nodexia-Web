@@ -33,7 +33,7 @@ export default withAuth(async (req, res, _authCtx) => {
     // 1. Obtener datos del despacho
     const { data: despacho, error: despachoError } = await supabaseAdmin
       .from('despachos')
-      .select('id, pedido_id, estado, created_at, origen, destino, origen_asignacion, empresa_planta_id')
+      .select('id, pedido_id, estado, created_at, origen, destino, origen_asignacion, empresa_id')
       .eq('id', despachoId)
       .single();
 
@@ -52,7 +52,7 @@ export default withAuth(async (req, res, _authCtx) => {
         .maybeSingle();
 
       const empresaTransporte = viaje?.id_transporte;
-      if (despacho.empresa_planta_id !== _authCtx.empresaId && empresaTransporte !== _authCtx.empresaId) {
+      if (despacho.empresa_id !== _authCtx.empresaId && empresaTransporte !== _authCtx.empresaId) {
         return res.status(403).json({ error: 'No tiene acceso a este despacho' });
       }
     }
@@ -272,6 +272,8 @@ export default withAuth(async (req, res, _authCtx) => {
     historialEvents?.forEach(event => {
       const ACCION_CONFIG: Record<string, { icono: string; color: string; tipo: TimelineEvent['tipo'] }> = {
         'despacho_creado': { icono: '📋', color: 'blue', tipo: 'sistema' },
+        'despacho_editado': { icono: '✏️', color: 'blue', tipo: 'sistema' },
+        'despacho_reprogramado': { icono: '🔄', color: 'amber', tipo: 'sistema' },
         'transporte_asignado': { icono: '🚛', color: 'green', tipo: 'asignacion' },
         'transporte_desvinculado': { icono: '🔗', color: 'orange', tipo: 'asignacion' },
         'unidad_asignada': { icono: '🚚', color: 'cyan', tipo: 'asignacion' },
@@ -289,12 +291,28 @@ export default withAuth(async (req, res, _authCtx) => {
       const config = ACCION_CONFIG[event.accion] || { icono: '📌', color: 'gray', tipo: 'sistema' as const };
       const usuario = event.usuario_id ? usersMap.get(event.usuario_id) : undefined;
 
+      // Construir descripción basada en el tipo de evento
+      let descripcion = event.descripcion || '';
+      
+      // Para eventos de edición/reprogramación, si no hay descripción, construir desde metadata
+      if (!descripcion) {
+        if (event.accion === 'despacho_editado' && event.metadata) {
+          const { fecha_anterior, hora_anterior, fecha_nueva, hora_nueva } = event.metadata;
+          descripcion = `Fecha actualizada: ${fecha_anterior} ${hora_anterior} → ${fecha_nueva} ${hora_nueva}`;
+        } else if (event.accion === 'despacho_reprogramado' && event.metadata) {
+          const { fecha_anterior, hora_anterior, fecha_nueva, hora_nueva, mantener_recursos, motivo } = event.metadata;
+          const recursos = mantener_recursos ? 'manteniendo recursos' : 'limpiando asignaciones';
+          const motivoTexto = motivo ? ` (${motivo})` : '';
+          descripcion = `${fecha_anterior} ${hora_anterior} → ${fecha_nueva} ${hora_nueva} (${recursos})${motivoTexto}`;
+        }
+      }
+
       events.push({
         id: `hist-${event.id}`,
         timestamp: event.created_at,
         tipo: config.tipo,
         accion: event.accion.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-        descripcion: event.descripcion || '',
+        descripcion,
         usuario,
         icono: config.icono,
         color: config.color,

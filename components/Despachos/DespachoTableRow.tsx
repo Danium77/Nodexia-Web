@@ -17,6 +17,7 @@ interface DespachoTableRowProps {
   onOpenCancelar: (dispatch: any) => void;
   onOpenTimeline: (despachoId: string, pedidoId: string) => void;
   onOpenReprogram: (dispatch: any) => void;
+  onOpenEditar: (dispatch: any) => void;
   onVerEstadoRed: (viaje: any) => void;
   onReasignarViaje: (despacho: any, viaje: any) => void;
   onCancelarViaje: (viajeId: string, despachoId: string, motivo: string) => void;
@@ -35,6 +36,7 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
   onOpenCancelar,
   onOpenTimeline,
   onOpenReprogram,
+  onOpenEditar,
   onVerEstadoRed,
   onReasignarViaje,
   onCancelarViaje,
@@ -145,6 +147,7 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
           {(() => {
             const tieneDemorados = dispatch.tiene_viajes_demorados;
             const tieneExpirados = dispatch.tiene_viajes_expirados;
+            const estadoExpirado = dispatch.estado_operativo === 'expirado';
             
             if (tieneDemorados) {
               return (
@@ -152,7 +155,7 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
                   ⏰ Demorado
                 </span>
               );
-            } else if (tieneExpirados) {
+            } else if (tieneExpirados || estadoExpirado) {
               return (
                 <span className="px-1 py-0.5 rounded text-xs whitespace-nowrap bg-red-600 text-white">
                   ❌ Expirado
@@ -191,6 +194,18 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
             >
               📜 Historial
             </button>
+
+            {/* Botón Editar - Solo para Pendientes sin transporte */}
+            {activeTab === 'pendientes' && !dispatch.transporte_data && (
+              <button
+                type="button"
+                onClick={() => onOpenEditar(dispatch)}
+                className="px-2 py-1 rounded-md bg-blue-700 hover:bg-blue-600 text-white text-xs transition-colors"
+                title="Editar fecha, hora y observaciones"
+              >
+                ✏️ Editar
+              </button>
+            )}
             
             {/* Botones para tab Expirados */}
             {activeTab === 'expirados' && (

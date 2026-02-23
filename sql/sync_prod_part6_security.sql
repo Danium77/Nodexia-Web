@@ -210,7 +210,7 @@ CREATE POLICY "Usuarios ven auditoría de sus viajes" ON auditoria_estados FOR S
   );
 
 -- ============================================================================
--- SECCIÓN J: RLS - DOCUMENTOS_ENTIDAD (archive/046_CORREGIDO)
+-- SECCIÓN J: RLS - DOCUMENTOS_ENTIDAD (archive/046_CORREGIDO, updated 062)
 -- ============================================================================
 
 ALTER TABLE documentos_entidad ENABLE ROW LEVEL SECURITY;
@@ -218,9 +218,16 @@ ALTER TABLE documentos_entidad ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Ver documentos según rol" ON documentos_entidad;
 CREATE POLICY "Ver documentos según rol" ON documentos_entidad FOR SELECT
   USING (
+    -- 1. Super admins ven todo
     EXISTS (SELECT 1 FROM super_admins WHERE user_id = auth.uid() AND activo = TRUE)
+    -- 2. Documentos de mi propia empresa
     OR empresa_id IN (SELECT ue.empresa_id FROM usuarios_empresa ue WHERE ue.user_id = auth.uid() AND ue.activo = TRUE)
+    -- 3. Chofer viendo sus propios documentos
     OR (entidad_tipo = 'chofer' AND entidad_id IN (SELECT c.id FROM choferes c WHERE c.usuario_id = auth.uid()))
+    -- 4. Cross-company: documentos de entidades visibles por relación despacho/ubicación
+    OR (entidad_tipo = 'chofer' AND entidad_id IN (SELECT gi.chofer_id FROM get_visible_chofer_ids() gi))
+    OR (entidad_tipo = 'camion' AND entidad_id IN (SELECT gi.camion_id FROM get_visible_camion_ids() gi))
+    OR (entidad_tipo = 'acoplado' AND entidad_id IN (SELECT gi.acoplado_id FROM get_visible_acoplado_ids() gi))
   );
 
 DROP POLICY IF EXISTS "Subir documentos según rol" ON documentos_entidad;

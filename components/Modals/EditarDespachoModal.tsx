@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
 
 interface Props {
@@ -11,17 +11,26 @@ interface Props {
     destino: string;
     fecha_despacho: string;
     hora_despacho?: string;
+    observaciones?: string;
   } | null;
   onSuccess?: () => void;
 }
 
-export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess }: Props) {
+export default function EditarDespachoModal({ isOpen, onClose, despacho, onSuccess }: Props) {
   const [nuevaFecha, setNuevaFecha] = useState('');
   const [nuevaHora, setNuevaHora] = useState('');
-  const [motivo, setMotivo] = useState('');
-  const [mantenerRecursos, setMantenerRecursos] = useState(false);
+  const [observaciones, setObservaciones] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Cargar valores iniciales cuando se abre el modal
+  useEffect(() => {
+    if (isOpen && despacho) {
+      setNuevaFecha(despacho.fecha_despacho || '');
+      setNuevaHora(despacho.hora_despacho || '');
+      setObservaciones(despacho.observaciones || '');
+    }
+  }, [isOpen, despacho]);
 
   if (!isOpen || !despacho) return null;
 
@@ -41,39 +50,35 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
         return;
       }
 
-      // Llamar a la API de reprogramar
-      const response = await fetchWithAuth('/api/despachos/reprogramar', {
-        method: 'POST',
+      // Llamar a la API
+      const response = await fetchWithAuth('/api/despachos/actualizar', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           despacho_id: despacho.id,
-          nueva_fecha: nuevaFecha,
-          nueva_hora: nuevaHora,
-          mantener_recursos: mantenerRecursos,
-          motivo: motivo || null
+          fecha_despacho: nuevaFecha,
+          hora_despacho: nuevaHora,
+          observaciones: observaciones
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Error al reprogramar despacho');
+        throw new Error(data.error || data.mensaje || 'Error al actualizar despacho');
       }
 
-      console.log('✅ Despacho reprogramado:', data);
-      console.log(`📅 Nueva fecha/hora: ${nuevaFecha} ${nuevaHora}`);
-      console.log(`📦 Viajes actualizados: ${data.viajes_actualizados}`);
-      console.log(`📧 Notificaciones enviadas: ${data.notificaciones_enviadas}`);
+      console.log('✅ Despacho actualizado:', data);
       
       // Llamar onSuccess para que el componente padre recargue los datos
       if (onSuccess) onSuccess();
       
       handleClose();
     } catch (err: any) {
-      console.error('Error al reprogramar despacho:', err);
-      setError(err.message || 'Error al reprogramar el despacho');
+      console.error('Error al actualizar despacho:', err);
+      setError(err.message || 'Error al actualizar el despacho');
     } finally {
       setLoading(false);
     }
@@ -82,28 +87,27 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
   const handleClose = () => {
     setNuevaFecha('');
     setNuevaHora('');
-    setMotivo('');
-    setMantenerRecursos(false);
+    setObservaciones('');
     setError('');
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl max-w-xl w-full border border-amber-500/30 shadow-2xl">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl max-w-xl w-full border border-cyan-500/30 shadow-2xl">
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
+        <div className="bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              🔄 Reprogramar Despacho
+              ✏️ Editar Despacho
             </h2>
-            <p className="text-amber-100 text-sm mt-1">
-              Asignar nueva fecha y hora al despacho expirado
+            <p className="text-cyan-100 text-sm mt-1">
+              Modificar fecha, hora y observaciones
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="text-white hover:text-amber-200 text-2xl font-bold transition-colors"
+            className="text-white hover:text-cyan-200 text-2xl font-bold transition-colors"
             disabled={loading}
           >
             ×
@@ -120,7 +124,7 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
                 <span className="ml-2 text-white font-semibold">{despacho.pedido_id}</span>
               </div>
               <div>
-                <span className="text-slate-400">Fecha Original:</span>
+                <span className="text-slate-400">Fecha Actual:</span>
                 <span className="ml-2 text-white">{despacho.fecha_despacho} {despacho.hora_despacho}</span>
               </div>
               <div className="col-span-2">
@@ -136,7 +140,7 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Nueva Fecha *
+                Fecha *
               </label>
               <input
                 type="date"
@@ -144,62 +148,36 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
                 onChange={(e) => setNuevaFecha(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
                 required
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Nueva Hora *
+                Hora *
               </label>
               <input
                 type="time"
                 value={nuevaHora}
                 onChange={(e) => setNuevaHora(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
               />
             </div>
           </div>
 
-          {/* Motivo */}
+          {/* Observaciones */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Motivo de Reprogramación
+              Observaciones
               <span className="text-slate-500 ml-1">(opcional)</span>
             </label>
-            <select
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-            >
-              <option value="">Seleccionar motivo...</option>
-              <option value="Demora en ruta">Demora en ruta</option>
-              <option value="Problema mecánico resuelto">Problema mecánico resuelto</option>
-              <option value="Cambio horario cliente">Cambio de horario cliente</option>
-              <option value="Incidencia reportada">Incidencia reportada</option>
-              <option value="Falta de recursos">Falta de recursos</option>
-              <option value="Otros">Otros</option>
-            </select>
-          </div>
-
-          {/* Mantener recursos */}
-          <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={mantenerRecursos}
-                onChange={(e) => setMantenerRecursos(e.target.checked)}
-                className="mt-1 w-5 h-5 rounded border-slate-500 text-amber-600 focus:ring-amber-500 focus:ring-offset-slate-800"
-              />
-              <div className="flex-1">
-                <div className="text-white font-medium">
-                  Mantener recursos actuales
-                </div>
-                <div className="text-slate-400 text-sm mt-1">
-                  Mantiene el transporte, chofer y camión ya asignados. Si no se marca, se limpiarán las asignaciones y el despacho volverá a estado pendiente.
-                </div>
-              </div>
-            </label>
+            <textarea
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              rows={3}
+              placeholder="Agregar notas adicionales sobre el despacho..."
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 resize-none"
+            />
           </div>
 
           {/* Error message */}
@@ -211,10 +189,7 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
 
           {/* Info message */}
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-blue-300 text-sm">
-            {mantenerRecursos 
-              ? '✅ Los viajes mantendrán su transporte, chofer y camión asignados con la nueva fecha.'
-              : '🔄 Los viajes volverán a estado "Pendiente" y deberán ser asignados nuevamente.'
-            }
+            ℹ️ Solo puedes editar despachos cuyos viajes aún no hayan sido confirmados por el chofer.
           </div>
 
           {/* Actions */}
@@ -230,9 +205,9 @@ export default function ReprogramarModal({ isOpen, onClose, despacho, onSuccess 
             <button
               type="submit"
               disabled={loading || !nuevaFecha || !nuevaHora}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
-              {loading ? '⏳ Reprogramando...' : '🔄 Reprogramar Despacho'}
+              {loading ? '⏳ Guardando...' : '✅ Guardar Cambios'}
             </button>
           </div>
         </form>

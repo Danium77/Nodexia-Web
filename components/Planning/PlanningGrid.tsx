@@ -1,8 +1,15 @@
 // components/Planning/PlanningGrid.tsx
-import React, { useState, useMemo, useReducer } from 'react';
+import React, { useState, useMemo, useReducer, useRef } from 'react';
 import { MapPinIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../../lib/supabaseClient';
 import { getColorEstadoOperativo, getIconoEstadoOperativo, getLabelEstadoOperativo } from '../../lib/estados';
+
+// Extend window for drag tracking
+declare global {
+  interface Window {
+    _lastDragOverLog?: number;
+  }
+}
 
 interface Dispatch {
   id: string;
@@ -38,12 +45,14 @@ interface PlanningGridProps {
 const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, onReschedule, weekOffset = 0 }) => {
   const [selectedDispatch, setSelectedDispatch] = useState<Dispatch | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [draggedDispatch, setDraggedDispatch] = useState<Dispatch | null>(null);
+  const draggedDispatchRef = useRef<Dispatch | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleData, setRescheduleData] = useState<{ dispatch: Dispatch; newDate: string; newTime: string } | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [dropTarget, setDropTarget] = useState<{ day: string; time: string } | null>(null);
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   
   // 🔥 NUEVO: Forzar re-render cuando sea necesario
   const [, forceUpdate] = useReducer(x => x + 1, 0);
@@ -74,18 +83,6 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
       console.log('  - chofer:', dispatches[0].chofer);
     }
   }, [dispatches]);
-
-  // 🔥 NUEVO: Diagnóstico de estado de drag
-  React.useEffect(() => {
-    console.log('🔥 isDragging cambió a:', isDragging);
-    console.log('🔥 draggedDispatch:', draggedDispatch?.pedido_id);
-  }, [isDragging, draggedDispatch]);
-
-  // 🔥 NUEVO: Diagnóstico de estado de drag
-  React.useEffect(() => {
-    console.log('🔥 isDragging cambió a:', isDragging);
-    console.log('🔥 draggedDispatch:', draggedDispatch?.pedido_id);
-  }, [isDragging, draggedDispatch]);
 
   const getStatusColor = (estado: string) => {
     const colors: Record<string, string> = {
@@ -157,69 +154,126 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
   // 🔥 Funciones mejoradas para Drag & Drop
   const canBeDragged = (dispatch: Dispatch) => {
-    // Permitir arrastrar TODOS los viajes excepto completados, cancelados y en tránsito activo
-    const notAllowedStates = [
-      'terminado',
-      'completado', 
-      'cancelado',
-      'en_transito',
+    // Solo permitir drag para viajes editables (estados anteriores a confirmado_chofer)
+    // Alineado con /api/despachos/actualizar
+    const estadosNoEditables = [
+      'confirmado_chofer',
+      'en_transito_origen',
+      'ingresado_origen',
+      'llamado_carga',
+      'cargando',
+      'cargado',
+      'egreso_origen',
+      'en_transito_destino',
+      'ingresado_destino',
+      'llamado_descarga',
       'descargando',
-      'descargado'
+      'descargado',
+      'egreso_destino',
+      'completado',
+      'cancelado',
+      'terminado'
     ];
     const estado = dispatch.estado?.toLowerCase().trim() || '';
-    const allowed = !notAllowedStates.includes(estado);
+    const allowed = !estadosNoEditables.includes(estado);
     console.log(`🔍 canBeDragged ${dispatch.pedido_id}: estado="${estado}", allowed=${allowed}`);
     return allowed;
   };
 
   const handleDragStart = (e: React.DragEvent, dispatch: Dispatch) => {
-    console.log(`⚡ handleDragStart LLAMADO para ${dispatch.pedido_id}`);
     const dragAllowed = canBeDragged(dispatch);
-    console.log(`🎬 handleDragStart ${dispatch.pedido_id}: dragAllowed=${dragAllowed}`);
     
     if (!dragAllowed) {
-      console.log('❌ Drag no permitido, cancelando');
       e.preventDefault();
+      e.stopPropagation();
       return;
     }
     
-    console.log('✅ Iniciando drag de:', dispatch.pedido_id, 'ID:', dispatch.id);
+    console.log('🚀 Drag iniciado:', dispatch.pedido_id, 'target:', e.currentTarget);
     
-    // 🔥 Configurar dataTransfer ANTES de cambiar estados
+    // 🔥 Usar ref para evitar re-render que cancela el drag
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', dispatch.id);
     
-    // 🔥 CRÍTICO: Crear imagen transparente para evitar que bloquee el drop
-    const img = new Image();
-    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-    e.dataTransfer.setDragImage(img, 0, 0);
+    draggedDispatchRef.current = dispatch;
     
-    // Actualizar estados
-    setDraggedDispatch(dispatch);
-    setIsDragging(true);
-    
-    console.log('🚀 handleDragStart COMPLETADO para', dispatch.pedido_id);
+    // NO setear isDragging aquí, dejarlo en null hasta que realmente empiece a moverse
+    setTimeout(() => {
+      setIsDragging(true);
+      console.log('✅ Drag activo, isDragging=true');
+    }, 50); // Pequeño delay para evitar que el re-render cancele el drag
   };
 
-  const handleDragEnd = (_e: React.DragEvent) => {
-    console.log('🏁 DRAG END - Limpiando estado');
+  const handleDragEnd = (e: React.DragEvent) => {
+    console.log('🏁 DRAG END - dropEffect:', e.dataTransfer.dropEffect);
+    draggedDispatchRef.current = null;
     setIsDragging(false);
-    setDraggedDispatch(null);
     setDropTarget(null);
+    
+    // Limpiar auto-scroll
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    if (!isDragging || !draggedDispatch) return;
+    // CRÍTICO: Siempre preventDefault para permitir drop
     e.preventDefault();
     e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
+    
+    // Importante: configurar dropEffect después de preventDefault
+    if (draggedDispatchRef.current) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+    
+    // 🔄 AUTO-SCROLL: Usar scroll de window pero mantener encabezado visible
+    if (draggedDispatchRef.current) {
+      const scrollThreshold = 150;
+      const scrollSpeed = 40;
+      const mouseY = e.clientY;
+      const viewportHeight = window.innerHeight;
+      
+      // Distancias desde bordes del viewport
+      const distanceFromTop = mouseY;
+      const distanceFromBottom = viewportHeight - mouseY;
+      
+      // Log para debug
+      const now = Date.now();
+      if (!window._lastDragOverLog || now - window._lastDragOverLog > 500) {
+        console.log('📍 mouseY:', mouseY.toFixed(0), 'distBottom:', distanceFromBottom.toFixed(0), 'scrollY:', window.scrollY.toFixed(0));
+        window._lastDragOverLog = now;
+      }
+      
+      // Limpiar scroll previo
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
+      }
+      
+      // Scroll hacia arriba
+      if (distanceFromTop > 0 && distanceFromTop < scrollThreshold && window.scrollY > 0) {
+        console.log('⬆️ AUTO-SCROLL UP');
+        scrollIntervalRef.current = setInterval(() => {
+          if (window.scrollY > 0) {
+            window.scrollBy(0, -scrollSpeed);
+          }
+        }, 20);
+      }
+      // Scroll hacia abajo
+      else if (distanceFromBottom > 0 && distanceFromBottom < scrollThreshold) {
+        console.log('⬇️ AUTO-SCROLL DOWN');
+        scrollIntervalRef.current = setInterval(() => {
+          window.scrollBy(0, scrollSpeed);
+        }, 20);
+      }
+    }
   };
 
   const handleDragEnter = (e: React.DragEvent, dayName: string, timeSlot: string) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (isDragging) {
-      console.log(`📍 Drag entered: ${dayName} ${timeSlot}`);
+    console.log('🎯 DragEnter:', dayName, timeSlot);
+    if (draggedDispatchRef.current) {
       setDropTarget({ day: dayName, time: timeSlot });
     }
   };
@@ -235,17 +289,20 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
   const handleDrop = async (e: React.DragEvent, dayName: string, timeSlot: string) => {
     e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('💥 DROP detectado en:', dayName, timeSlot);
     
     setDropTarget(null);
+    setIsDragging(false);
+    
+    const draggedDispatch = draggedDispatchRef.current;
+    console.log('💥 DROP detectado en:', dayName, timeSlot, 'draggedDispatch:', draggedDispatch?.pedido_id);
     
     if (!draggedDispatch) {
       console.log('❌ No hay dispatch siendo arrastrado');
-      setIsDragging(false);
       return;
     }
+
+    const dispatch = draggedDispatch;
+    draggedDispatchRef.current = null;
 
     // Obtener la nueva fecha basada en el día de la semana
     const newDate = weekDates[dayName];
@@ -257,28 +314,24 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
     const newDateStr = formatLocalDate(newDate);
     const newTimeStr = timeSlot;
 
-    console.log('📅 Fecha actual:', draggedDispatch.scheduled_local_date, draggedDispatch.scheduled_local_time);
+    console.log('📅 Fecha actual:', dispatch.scheduled_local_date, dispatch.scheduled_local_time);
     console.log('📅 Nueva fecha:', newDateStr, newTimeStr);
 
     // Verificar si cambió realmente
-    if (draggedDispatch.scheduled_local_date === newDateStr && 
-        draggedDispatch.scheduled_local_time === newTimeStr) {
+    if (dispatch.scheduled_local_date === newDateStr && 
+        dispatch.scheduled_local_time === newTimeStr) {
       console.log('ℹ️ Misma ubicación, cancelando');
-      setDraggedDispatch(null);
-      setIsDragging(false);
       return;
     }
 
     // Mostrar modal de confirmación
     console.log('✅ Mostrando modal de confirmación');
     setRescheduleData({
-      dispatch: draggedDispatch,
+      dispatch: dispatch,
       newDate: newDateStr,
       newTime: newTimeStr
     });
     setShowRescheduleModal(true);
-    setDraggedDispatch(null);
-    setIsDragging(false);
   };
 
   const confirmReschedule = async () => {
@@ -286,6 +339,12 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
     try {
       setRescheduling(true);
+
+      // Obtener sesión para autenticación
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('No hay sesión activa');
+      }
 
       // Determinar el ID correcto (puede ser despacho_id o el ID si es un despacho directo)
       const despachoId = rescheduleData.dispatch.despacho_id || 
@@ -295,18 +354,28 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
       console.log('📅 Reprogramando despacho:', despachoId, 'a', rescheduleData.newDate, rescheduleData.newTime);
 
-      // Actualizar en la BD - tabla despachos
-      const { error } = await supabase
-        .from('despachos')
-        .update({
-          scheduled_local_date: rescheduleData.newDate,
-          scheduled_local_time: rescheduleData.newTime
+      // 🔥 USAR API /api/despachos/actualizar con validación de seguridad + historial
+      const response = await fetch('/api/despachos/actualizar', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          despacho_id: despachoId,
+          fecha_despacho: rescheduleData.newDate,
+          hora_despacho: rescheduleData.newTime,
+          observaciones: 'Reprogramación vía drag & drop en planificación semanal'
         })
-        .eq('id', despachoId);
+      });
 
-      if (error) throw error;
+      const result = await response.json();
 
-      console.log('✅ Viaje reprogramado exitosamente');
+      if (!response.ok) {
+        throw new Error(result.error || 'Error reprogramando despacho');
+      }
+
+      console.log('✅ Despacho reprogramado exitosamente vía API');
       
       // Cerrar modal
       setShowRescheduleModal(false);
@@ -318,7 +387,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
       }
     } catch (error) {
       console.error('❌ Error reprogramando viaje:', error);
-      alert('Error al reprogramar el viaje. Por favor, intenta nuevamente.');
+      alert(`Error al reprogramar el despacho: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
       setRescheduling(false);
     }
@@ -358,10 +427,10 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
     weekDates[dayName] = date;
   });
 
-  // 🔥 NUEVO: Generar franjas horarias fijas (cada hora de 06:00 a 22:00)
+  // 🔥 NUEVO: Generar franjas horarias fijas (cada hora de 00:00 a 23:00 - 24 horas)
   const generateTimeSlots = (): string[] => {
     const slots: string[] = [];
-    for (let hour = 6; hour <= 22; hour++) {
+    for (let hour = 0; hour <= 23; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
     return slots;
@@ -443,8 +512,8 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
 
   // 🔥 MODIFICADO: Mostrar solo franjas con viajes por defecto, todas durante drag
   console.log('🔄 Renderizando PlanningGrid:', { 
-    isDragging, 
-    draggedDispatch: draggedDispatch?.pedido_id,
+    isDragging: isDragging, 
+    draggedDispatch: draggedDispatchRef.current?.pedido_id,
     dispatchesCount: dispatches.length 
   });
   
@@ -495,15 +564,19 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
             </span>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div 
+          ref={tableContainerRef} 
+          className="overflow-x-auto"
+          onDragOver={handleDragOver}
+        >
           <table className="min-w-full divide-y divide-gray-700 text-[9px]">
-            <thead className="bg-[#0a0e1a]">
+            <thead className="bg-[#0a0e1a] sticky top-0 z-20">
               <tr>
-                <th scope="col" className="px-0.5 py-0.5 text-left text-[8px] font-medium text-cyan-400 uppercase tracking-tighter sticky left-0 bg-[#0a0e1a] z-10 w-6">
+                <th scope="col" className="px-0.5 py-0.5 text-left text-[8px] font-medium text-cyan-400 uppercase tracking-tighter sticky left-0 bg-[#0a0e1a] z-30 w-6">
                   ⏰ Hora
                 </th>
                 {daysOfWeek.map((day) => (
-                  <th key={day} scope="col" className="px-0.5 py-0.5 text-center text-[8px] font-medium text-cyan-400 uppercase tracking-wider min-w-[45px] max-w-[45px]">
+                  <th key={day} scope="col" className="px-0.5 py-0.5 text-center text-[8px] font-medium text-cyan-400 uppercase tracking-wider min-w-[45px] max-w-[45px] bg-[#0a0e1a]">
                     <div className="text-[9px]">{day}</div>
                     <div className="text-[9px] text-gray-500 font-normal">
                       {weekDates[day] ? formatLocalDate(weekDates[day]!) : '-'}
@@ -527,7 +600,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                 displayTimeSlots.map((time, timeIndex) => {
                   // 🔥 NUEVO: Logging para verificar que se renderiza correctamente
                   if (timeIndex === 0 || timeIndex === displayTimeSlots.length - 1) {
-                    console.log(`📍 Renderizando celda ${time} (${timeIndex + 1}/${displayTimeSlots.length}), isDragging=${isDragging}`);
+                    console.log(`📍 Renderizando celda ${time} (${timeIndex + 1}/${displayTimeSlots.length}), drag activo=${isDragging}`);
                   }
                   
                   return (
@@ -554,17 +627,22 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                           style={{ position: 'relative', zIndex: 1 }}
                         >
                           <div 
-                            className={`w-full transition-all ${despachosInSlot.length > 0 || isDropZone ? 'min-h-[60px]' : 'min-h-[30px]'}`}
+                            className={`w-full transition-all ${despachosInSlot.length > 0 ? 'min-h-[80px]' : isDragging ? 'min-h-[75px]' : 'min-h-[40px]'}`}
+                            onDragOver={handleDragOver}
+                            onDragEnter={(e) => handleDragEnter(e, day, time)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, day, time)}
                           >
                             {despachosInSlot.length > 0 ? (
                               despachosInSlot.map(dispatch => {
-                                const isBeingDragged = draggedDispatch?.id === dispatch.id;
+                                const isBeingDragged = draggedDispatchRef.current?.id === dispatch.id;
                                 const isDraggable = canBeDragged(dispatch);
                                 
                                 // 🔥 NUEVO: Calcular estado operativo para styling
                                 const estadoOp = (dispatch as any).estado_operativo;
                                 const estaExpirado = estadoOp === 'expirado';
                                 const estaDemorado = estadoOp === 'demorado';
+                                const estaCompletado = dispatch.estado?.toLowerCase().trim() === 'completado';
                                 
                                 // Log solo UNA VEZ al renderizar
                                 if (!(window as any)[`logged_${dispatch.id}`]) {
@@ -584,34 +662,22 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     draggable={isDraggable}
                                     data-draggable={isDraggable ? "true" : "false"}
                                     data-pedido={dispatch.pedido_id}
-                                    onDragStart={(e) => {
-                                      console.log(`🚀 onDragStart INLINE disparado para ${dispatch.pedido_id}`);
-                                      console.log(`   isDraggable=${isDraggable}, estado="${dispatch.estado}"`);
-                                      if (!isDraggable) {
-                                        console.log(`❌ Cancelando drag INLINE - no permitido para ${dispatch.pedido_id}`);
-                                        e.preventDefault();
-                                        return;
-                                      }
-                                      console.log(`📞 Llamando a handleDragStart para ${dispatch.pedido_id}`);
-                                      handleDragStart(e, dispatch);
-                                      console.log(`✅ handleDragStart terminado para ${dispatch.pedido_id}`);
-                                    }}
+                                    onDragStart={(e) => handleDragStart(e, dispatch)}
                                     onDragEnd={handleDragEnd}
                                     onClick={(_e) => {
-                                      if (!isDragging) {
-                                        handleViewDetail(dispatch);
-                                      }
+                                      if (isDragging) return;
+                                      handleViewDetail(dispatch);
                                     }}
-                                    className={`group relative p-1.5 rounded mb-1 last:mb-0 transition-all duration-200 border select-none
-                                      ${estaExpirado ? 'border-gray-600' : estaDemorado ? 'border-orange-500/50' : getPriorityBorderColor(dispatch.prioridad)}
-                                      bg-gradient-to-br ${estaExpirado ? 'from-gray-800/50 to-gray-700/50' : estaDemorado ? 'from-orange-900/30 to-orange-800/20' : getPriorityGradient(dispatch.prioridad)}
-                                      ${estaExpirado ? 'opacity-75' : ''}
+                                    className={`group relative p-1.5 rounded mb-1 last:mb-0 border select-none
+                                      ${estaExpirado ? 'border-gray-600' : estaCompletado ? 'border-green-700/40' : estaDemorado ? 'border-orange-500/50' : getPriorityBorderColor(dispatch.prioridad)}
+                                      bg-gradient-to-br ${estaExpirado ? 'from-gray-800/50 to-gray-700/50' : estaCompletado ? 'from-green-900/20 to-green-800/10' : estaDemorado ? 'from-orange-900/30 to-orange-800/20' : getPriorityGradient(dispatch.prioridad)}
+                                      ${estaExpirado ? 'opacity-75' : estaCompletado ? 'opacity-50' : ''}
                                       ${isDraggable
-                                        ? 'cursor-grab hover:cursor-grab active:cursor-grabbing hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1' 
+                                        ? 'cursor-grab active:cursor-grabbing' 
                                         : 'cursor-not-allowed opacity-75'
                                       }
                                     ${selectedDispatch?.id === dispatch.id ? 'ring-2 ring-cyan-500' : ''}
-                                    ${isBeingDragged ? 'opacity-80 scale-95 shadow-2xl ring-2 ring-cyan-400' : ''}
+                                    ${isBeingDragged ? 'opacity-0 invisible' : ''}
                                   `}
                                   style={{ 
                                     userSelect: 'none',
@@ -622,13 +688,12 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     WebkitTouchCallout: 'none'
                                   } as React.CSSProperties}
                                   >
-                                {/* CONTENEDOR INTERNO: user-select-none para que el drag funcione */}
+                                {/* CONTENEDOR INTERNO: elementos de solo lectura */}
                                 <div 
                                   className="relative" 
                                   style={{ 
                                     userSelect: 'none',
-                                    WebkitUserSelect: 'none',
-                                    pointerEvents: 'none' // Esto hace que todos los clics pasen al padre
+                                    WebkitUserSelect: 'none'
                                   }}
                                 >
                                   {/* Destino u Origen según el tipo de vista */}
@@ -637,7 +702,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     {((type === 'recepciones' && (dispatch as any).origen_provincia) || 
                                       (type === 'despachos' && (dispatch as any).destino_provincia)) && (
                                       <div className={`text-[9px] font-bold uppercase tracking-wide truncate ${
-                                        estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-300' : 'text-cyan-400'
+                                        estaExpirado ? 'text-gray-200' : estaCompletado ? 'text-green-400/70' : estaDemorado ? 'text-orange-300' : 'text-cyan-400'
                                       }`}>
                                         {type === 'recepciones' 
                                           ? (dispatch as any).origen_provincia
@@ -647,7 +712,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                     )}
                                     {/* Cliente/Ubicación ABAJO */}
                                     <div className={`flex items-center gap-0.5 text-[9px] truncate ${
-                                      estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-200' : 'text-slate-200'
+                                      estaExpirado ? 'text-gray-200' : estaCompletado ? 'text-green-200/60' : estaDemorado ? 'text-orange-200' : 'text-slate-200'
                                     }`}>
                                       <MapPinIcon className="h-2.5 w-2.5 flex-shrink-0" />
                                       <span className="truncate font-medium">
@@ -662,7 +727,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                   {/* Transporte */}
                                   {dispatch.transporte_data && (
                                     <div className={`flex items-center gap-0.5 text-[9px] truncate ${
-                                      estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-300' : 'text-emerald-300'
+                                      estaExpirado ? 'text-gray-200' : estaCompletado ? 'text-green-300/60' : estaDemorado ? 'text-orange-300' : 'text-emerald-300'
                                     }`}>
                                       <TruckIcon className="h-2.5 w-2.5 flex-shrink-0" />
                                       <span className="truncate">{dispatch.transporte_data.nombre}</span>
@@ -672,7 +737,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                   {/* Chofer y Camión */}
                                   {(dispatch.chofer || dispatch.camion_data) && (
                                     <div className={`text-[9px] truncate ${
-                                      estaExpirado ? 'text-gray-200' : estaDemorado ? 'text-orange-200' : 'text-blue-300'
+                                      estaExpirado ? 'text-gray-200' : estaCompletado ? 'text-green-300/60' : estaDemorado ? 'text-orange-200' : 'text-blue-300'
                                     }`}>
                                       <span className="truncate">
                                         {dispatch.chofer?.nombre_completo?.split(' ')[0] || ''}
@@ -702,7 +767,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                 {/* 🔥 Ícono flotante de reloj para viajes demorados - DEBAJO del pin de ubicación */}
                                 {estaDemorado && (
                                   <div 
-                                    className="absolute bottom-8 right-1 bg-orange-500 rounded-full p-1 z-50 pointer-events-auto shadow-lg" 
+                                    className="absolute bottom-8 right-1 bg-orange-500 rounded-full p-1 z-50 pointer-events-none shadow-lg" 
                                     title="Viaje demorado"
                                     style={{ zIndex: 999 }}
                                   >
@@ -726,25 +791,33 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                   </div>
                                 )}
 
-                                {/* Botón de ubicación - CON pointer-events-auto para que sea clickeable */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleViewLocation(dispatch);
-                                  }}
-                                  className="absolute top-2 right-2 text-slate-300 hover:text-cyan-400 p-1 rounded-full hover:bg-cyan-700/50 transition-colors opacity-0 group-hover:opacity-100 pointer-events-auto"
-                                  title="Ver en Mapa"
-                                >
-                                  <MapPinIcon className="h-4 w-4" />
-                                </button>
+                                {/* Botón de ubicación - completamente deshabilitado en elementos draggables */}
+                                {!isDraggable && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewLocation(dispatch);
+                                    }}
+                                    className="absolute top-2 right-2 text-slate-300 hover:text-cyan-400 p-1 rounded-full hover:bg-cyan-700/50 transition-colors opacity-0 group-hover:opacity-100 pointer-events-auto"
+                                    title="Ver en Mapa"
+                                  >
+                                    <MapPinIcon className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
-                                );
+                                )
                               })
                           ) : (
-                            <div className={`w-full flex items-center justify-center text-gray-600 text-xs transition-all rounded
-                              ${isDropTarget ? 'min-h-[100px] border-2 border-dashed border-cyan-400 bg-cyan-500/20 text-cyan-300 font-semibold' : 'min-h-[40px]'}
-                              ${isDropZone && !isDropTarget ? 'border-2 border-dashed border-cyan-500/30' : ''}
-                            `}>
+                            <div 
+                              className={`w-full flex items-center justify-center text-gray-600 text-xs transition-all rounded
+                                ${isDropTarget ? 'min-h-[100px] border-2 border-dashed border-cyan-400 bg-cyan-500/20 text-cyan-300 font-semibold' : isDragging ? 'min-h-[75px]' : 'min-h-[40px]'}
+                                ${isDropZone && !isDropTarget ? 'border-2 border-dashed border-cyan-500/30' : ''}
+                              `}
+                              onDragOver={handleDragOver}
+                              onDragEnter={(e) => handleDragEnter(e, day, time)}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, day, time)}
+                            >
                               {isDropTarget && '⬇️ Soltar aquí'}
                               {isDropZone && !isDropTarget && ''}
                             </div>

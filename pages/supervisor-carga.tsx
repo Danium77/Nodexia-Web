@@ -1,5 +1,5 @@
 // pages/supervisor-carga.tsx
-// Interfaz para Supervisor de Carga - Gestión de operaciones de carga en planta origen
+// Interfaz para Supervisor - Gestión de operaciones de carga y descarga en planta
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MainLayout from '../components/layout/MainLayout';
@@ -7,7 +7,6 @@ import {
   QrCodeIcon,
   TruckIcon,
   ScaleIcon,
-  PlayIcon,
   CheckCircleIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
@@ -36,6 +35,10 @@ const ESTADO_LABELS: Record<string, string> = {
   llamado_carga: '📢 Llamado',
   cargando: '⚙️ Cargando',
   cargado: '📦 Cargado',
+  ingresado_destino: '🏭 En Planta',
+  llamado_descarga: '📢 Llamado',
+  descargando: '⬇️ Descargando',
+  descargado: '✅ Descargado',
 };
 
 const ESTADO_COLORS: Record<string, string> = {
@@ -44,6 +47,10 @@ const ESTADO_COLORS: Record<string, string> = {
   llamado_carga: 'bg-yellow-900/30 text-yellow-400 border-yellow-800',
   cargando: 'bg-orange-900/30 text-orange-400 border-orange-800',
   cargado: 'bg-green-900/30 text-green-400 border-green-800',
+  ingresado_destino: 'bg-blue-900/30 text-blue-400 border-blue-800',
+  llamado_descarga: 'bg-yellow-900/30 text-yellow-400 border-yellow-800',
+  descargando: 'bg-orange-900/30 text-orange-400 border-orange-800',
+  descargado: 'bg-green-900/30 text-green-400 border-green-800',
 };
 
 // Estados que interesan al supervisor: carga en origen + descarga en destino
@@ -51,14 +58,14 @@ const ESTADOS_CARGA = ['ingresado_origen', 'llamado_carga', 'cargando', 'cargado
 const ESTADOS_DESCARGA = ['ingresado_destino', 'llamado_descarga', 'descargando', 'descargado'];
 const ESTADOS_SUPERVISOR = [...ESTADOS_CARGA, ...ESTADOS_DESCARGA];
 
-type TabType = 'scanner' | 'planta' | 'en_proceso' | 'completados';
+type TabType = 'scanner' | 'cargas' | 'descargas' | 'completados';
 
 // ─── Componente Principal ───────────────────────────────────────
 export default function SupervisorCarga() {
   const { empresaId, user } = useUserRole();
 
   // Estado general
-  const [activeTab, setActiveTab] = useState<TabType>('planta');
+  const [activeTab, setActiveTab] = useState<TabType>('cargas');
   const [viajes, setViajes] = useState<ViajeParaCarga[]>([]);
   const [loadingViajes, setLoadingViajes] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -90,7 +97,7 @@ export default function SupervisorCarga() {
 
     setLoadingViajes(true);
     try {
-      // Paso 1: Obtener usuarios de la misma empresa para filtrar despachos
+      // Paso 1: Obtener usuarios de la misma empresa para filtrar despachos origen
       const { data: companyUsers } = await supabase
         .from('usuarios_empresa')
         .select('user_id')
@@ -99,25 +106,45 @@ export default function SupervisorCarga() {
 
       const allUserIds = [...new Set((companyUsers || []).map(u => u.user_id).filter(Boolean))];
 
-      if (allUserIds.length === 0) {
+      // Paso 2a: Obtener despachos ORIGEN (creados por mi empresa)
+      const despachosOriginPromise = allUserIds.length > 0
+        ? supabase
+            .from('despachos')
+            .select('id, origen, destino')
+            .in('created_by', allUserIds)
+        : Promise.resolve({ data: [], error: null });
+
+      // Paso 2b: Obtener despachos DESTINO (destino es una ubicación de mi empresa)
+      // Cadena: despachos.destino_id → ubicaciones.empresa_id = mi empresa
+      const { data: myUbicaciones } = await supabase
+        .from('ubicaciones')
+        .select('id')
+        .eq('empresa_id', empresaId);
+
+      const ubicacionIds = (myUbicaciones || []).map(u => u.id).filter(Boolean);
+
+      const despachosDestinoPromise = ubicacionIds.length > 0
+        ? supabase
+            .from('despachos')
+            .select('id, origen, destino')
+            .in('destino_id', ubicacionIds)
+        : Promise.resolve({ data: [], error: null });
+
+      const [despOrigen, despDestino] = await Promise.all([despachosOriginPromise, despachosDestinoPromise]);
+
+      if (despOrigen.error) console.error('❌ [supervisor] Error despachos origen:', despOrigen.error);
+      if (despDestino.error) console.error('❌ [supervisor] Error despachos destino:', despDestino.error);
+
+      // Merge despachos sin duplicados
+      const allDespachos = [...(despOrigen.data || []), ...(despDestino.data || [])];
+      const despachosMap = new Map(allDespachos.map(d => [d.id, d]));
+      const despachoIds = [...despachosMap.keys()];
+
+      if (despachoIds.length === 0) {
         setViajes([]);
+        setLoadingViajes(false);
         return;
       }
-
-      // Paso 2: Obtener despachos de la empresa
-      const { data: despachos, error: despError } = await supabase
-        .from('despachos')
-        .select('id, origen, destino')
-        .in('created_by', allUserIds);
-
-      if (despError || !despachos || despachos.length === 0) {
-        if (despError) console.error('❌ [supervisor-carga] Error cargando despachos:', despError);
-        setViajes([]);
-        return;
-      }
-
-      const despachoIds = despachos.map(d => d.id);
-      const despachosMap = new Map(despachos.map(d => [d.id, d]));
 
       // Paso 3: Obtener viajes en estados relevantes
       const { data, error } = await supabase
@@ -498,6 +525,17 @@ export default function SupervisorCarga() {
   const finalizarDescarga = async (viajeId: string) => {
     setLoadingAction(viajeId);
     try {
+      // Subir foto de remito de entrega si no se subió aún
+      let remitoUrl: string | null = null;
+      if (remitoFile && !remitoUploaded) {
+        remitoUrl = await subirFotoRemito(viajeId);
+        if (!remitoUrl) {
+          showMessage('No se pudo subir la foto del remito de entrega', 'error');
+          setLoadingAction(null);
+          return;
+        }
+      }
+
       console.log('✅ [supervisor-carga] Finalizando descarga viaje:', viajeId);
       const result = await actualizarEstado(
         viajeId,
@@ -507,6 +545,7 @@ export default function SupervisorCarga() {
       if (result.success) {
         showMessage('✅ Descarga finalizada - Control de Acceso debe confirmar egreso');
         actualizarEscaneado(viajeId, 'descargado', 'descargado');
+        limpiarRemito();
         await cargarViajes();
       } else {
         showMessage(result.error || 'Error al finalizar descarga', 'error');
@@ -614,12 +653,12 @@ export default function SupervisorCarga() {
   };
 
   // ─── Filtros por Tab ───────────────────────────────────────────
-  const viajesEnPlanta = viajes.filter(v =>
-    ['ingresado_origen', 'ingresado_destino'].includes(v.estado)
+  const viajesCargas = viajes.filter(v =>
+    ESTADOS_CARGA.includes(v.estado) && v.estado !== 'cargado'
   );
 
-  const viajesEnProceso = viajes.filter(v =>
-    ['llamado_carga', 'cargando', 'llamado_descarga', 'descargando'].includes(v.estado)
+  const viajesDescargas = viajes.filter(v =>
+    ESTADOS_DESCARGA.includes(v.estado) && v.estado !== 'descargado'
   );
 
   const viajesCompletados = viajes.filter(v =>
@@ -724,7 +763,7 @@ export default function SupervisorCarga() {
 
   // ─── Render Principal ──────────────────────────────────────────
   return (
-    <MainLayout pageTitle="Supervisor de Carga">
+    <MainLayout pageTitle="Supervisor">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
@@ -733,9 +772,9 @@ export default function SupervisorCarga() {
               <ScaleIcon className="h-8 w-8 text-yellow-100" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-100">Supervisor de Carga</h1>
+              <h1 className="text-2xl font-bold text-slate-100">Supervisor</h1>
               <p className="text-slate-400 text-sm mt-0.5">
-                Gestión de operaciones de carga en planta
+                Gestión de operaciones de carga y descarga en planta
               </p>
             </div>
           </div>
@@ -753,12 +792,12 @@ export default function SupervisorCarga() {
       {/* Resumen rápido */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-400">{viajesEnPlanta.length}</p>
-          <p className="text-xs text-slate-400 mt-1">En Planta</p>
+          <p className="text-2xl font-bold text-blue-400">{viajesCargas.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Cargas</p>
         </div>
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-orange-400">{viajesEnProceso.length}</p>
-          <p className="text-xs text-slate-400 mt-1">En Proceso</p>
+          <p className="text-2xl font-bold text-orange-400">{viajesDescargas.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Descargas</p>
         </div>
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-green-400">{viajesCompletados.length}</p>
@@ -782,8 +821,8 @@ export default function SupervisorCarga() {
         <div className="border-b border-slate-700">
           <nav className="-mb-px flex space-x-1">
             {[
-              { key: 'planta' as TabType, label: 'En Planta', icon: TruckIcon, count: viajesEnPlanta.length },
-              { key: 'en_proceso' as TabType, label: 'En Proceso', icon: PlayIcon, count: viajesEnProceso.length },
+              { key: 'cargas' as TabType, label: 'Cargas', icon: ScaleIcon, count: viajesCargas.length },
+              { key: 'descargas' as TabType, label: 'Descargas', icon: TruckIcon, count: viajesDescargas.length },
               { key: 'completados' as TabType, label: 'Completados', icon: CheckCircleIcon, count: viajesCompletados.length },
               { key: 'scanner' as TabType, label: 'Escáner QR', icon: QrCodeIcon },
             ].map(tab => (
@@ -813,82 +852,51 @@ export default function SupervisorCarga() {
         </div>
       </div>
 
-      {/* ─── TAB: En Planta ──────────────────────────────────────── */}
-      {activeTab === 'planta' && (
+      {/* ─── TAB: Cargas ──────────────────────────────────────── */}
+      {activeTab === 'cargas' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-              <TruckIcon className="h-5 w-5 text-blue-400" />
-              Vehículos en Planta
+              <ScaleIcon className="h-5 w-5 text-blue-400" />
+              Operaciones de Carga
             </h2>
-            <p className="text-xs text-slate-500">Esperando ser llamados a carga/descarga</p>
+            <p className="text-xs text-slate-500">Vehículos cargando en tu planta (origen)</p>
           </div>
 
-          {viajesEnPlanta.length === 0 ? (
+          {viajesCargas.length === 0 ? (
             <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
-              <TruckIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">No hay vehículos esperando en planta</p>
+              <ScaleIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No hay operaciones de carga activas</p>
               <p className="text-slate-500 text-xs mt-1">Aparecen aquí después de pasar por Control de Acceso</p>
             </div>
           ) : (
             <div className="grid gap-4">
-              {viajesEnPlanta.map(renderViajeCard)}
+              {viajesCargas.map(renderViajeCard)}
             </div>
           )}
         </div>
       )}
 
-      {/* ─── TAB: En Proceso ─────────────────────────────────────── */}
-      {activeTab === 'en_proceso' && (
+      {/* ─── TAB: Descargas ──────────────────────────────────────── */}
+      {activeTab === 'descargas' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-              <PlayIcon className="h-5 w-5 text-orange-400" />
-              Operaciones en Proceso
+              <TruckIcon className="h-5 w-5 text-orange-400" />
+              Operaciones de Descarga
             </h2>
-            <p className="text-xs text-slate-500">Carga y descarga en curso</p>
+            <p className="text-xs text-slate-500">Vehículos descargando en tu planta (destino)</p>
           </div>
 
-          {/* Scanner QR inline — para escanear cuando el chofer se presenta */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
-            <div className="flex items-center gap-3">
-              <QrCodeIcon className="h-5 w-5 text-yellow-500 shrink-0" />
-              <input
-                type="text"
-                placeholder="Escanear QR del despacho o ingresar N° de viaje..."
-                value={qrCode}
-                onChange={(e) => setQrCode(e.target.value)}
-                className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none placeholder-slate-400"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    escanearQR();
-                    setActiveTab('scanner');
-                  }
-                }}
-              />
-              <button
-                onClick={() => {
-                  escanearQR();
-                  setActiveTab('scanner');
-                }}
-                disabled={loadingScanner || !qrCode.trim()}
-                className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-500 disabled:opacity-50 transition-colors flex items-center gap-2 shrink-0"
-              >
-                <QrCodeIcon className="h-4 w-4" />
-                Buscar
-              </button>
-            </div>
-          </div>
-
-          {viajesEnProceso.length === 0 ? (
+          {viajesDescargas.length === 0 ? (
             <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
-              <PlayIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">No hay operaciones en proceso</p>
-              <p className="text-slate-500 text-xs mt-1">Llame vehículos desde la pestaña «En Planta»</p>
+              <TruckIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No hay operaciones de descarga activas</p>
+              <p className="text-slate-500 text-xs mt-1">Aparecen aquí cuando un despacho llega a tu planta como destino</p>
             </div>
           ) : (
             <div className="grid gap-4">
-              {viajesEnProceso.map(renderViajeCard)}
+              {viajesDescargas.map(renderViajeCard)}
             </div>
           )}
         </div>

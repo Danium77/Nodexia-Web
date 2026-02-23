@@ -207,7 +207,8 @@ export default function SubirDocumento({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || errorData.details || 'Error al subir el documento');
+        const msg = [errorData.error, errorData.details, errorData.hint].filter(Boolean).join(' — ');
+        throw new Error(msg || 'Error al subir el documento');
       }
 
       setUploadState('success');

@@ -1,12 +1,12 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 17-Feb-2026 (Sesión 25 — Team Docs + Refactoring)
+**Actualizado:** 21-Feb-2026 (Sesión 29 — Badge Unificación + Despachos Tab Fix + Incidencias API Fix)
 
 ---
 
 ## 🔄 EN PROGRESO
 
-### Pre-Demo (28-Feb-2026 — 11 días)
+### Pre-Demo (28-Feb-2026 — 7 días)
 **Estado:** En preparación
 - ✅ Flujo E2E completo validado (todos los actores)
 - ✅ Self-delivery flow para destinos no-Nodexia
@@ -14,9 +14,50 @@
 - ✅ Security audit + performance indexes (Sesión 24)
 - ✅ Documentación de equipos (4 guías: Frontend, Backend, BD, Mobile)
 - ✅ Refactoring páginas grandes (15 componentes extraídos, 4 páginas)
+- ✅ Principios de arquitectura documentados (QUICK-START-OPUS.md)
+- ✅ Migration 062: RLS cross-company documentos_entidad (EJECUTADA en PROD)
+- ✅ Patrón API sin bypass: createUserSupabaseClient + withAuth.token
+- ✅ 4 endpoints control-acceso migrados a RLS
+- ✅ Bugs timestamp corregidos (llamado_carga + egreso, patrón best-effort)
+- ✅ Detalle despacho con remito images + timeline API
+- ✅ Supervisor tabs: Cargas | Descargas | Completados | Escáner QR
+- ✅ Descarga requiere foto remito entrega
+- ✅ Auto-completar viaje tras egreso destino (Sesión 28)
+- ✅ Badges unificados estados-camiones — 6 badges para todos los roles (Sesión 29)
+- ✅ Diseño sistema incidencias documentado (Sesión 28)
+- ✅ Migration 064 ejecutada — incidencias sistema provisorio (Sesión 29)
+- ✅ Fix clasificación despachos en tabs — estado computado desde viajes (Sesión 29)
+- ✅ Fix creación incidencias API 500 — supabaseAdmin + columna fix (Sesión 29)
+- ⬜ **Migration 063 pendiente ejecución en Supabase** (RLS documentos_viaje_planta)
+- ⬜ Restaurar `documentos_afectados` en API incidencias (migration 064 ya ejecutada)
+- ⬜ Verificar incidencias E2E completo
 - ⬜ Preparación datos demo
 - ⬜ Verificar UX general para presentación
 - ⬜ Script/guión de demo
+
+### Incidencias System (Sesión 28 — Diseño listo)
+**Estado:** Diseño completo, implementación pendiente
+**Diseño:** `docs/diagramas/INCIDENCIAS.md`
+**Estimación:** ~5-6 horas (8 fases)
+- ✅ Auditoría del estado actual (2 tablas, inconsistencias, gaps)
+- ✅ Diseño propuesto (tabla unificada, CRUD, permisos, UI)
+- ⬜ Fase 1: Unificar tipos TS con `incidencias_viaje`
+- ⬜ Fase 2: Hook `useIncidencias` → query `incidencias_viaje`
+- ⬜ Fase 3: CRUD API endpoints
+- ⬜ Fase 4: Rediseño `pages/incidencias.tsx`
+- ⬜ Fase 5: Crear `pages/incidencias/[id].tsx` (detalle)
+- ⬜ Fase 6: Componente de creación contextual
+- ⬜ Fase 7: Notificaciones
+- ⬜ Fase 8: Tests
+
+### Circuito Ambas-Plantas-Nodexia (Feature)
+**Estado:** Definición completa, implementación parcial
+- ✅ Circuito PM definido (4 preguntas respondidas por PO)
+- ✅ Supervisor tabs Cargas + Descargas implementados
+- ✅ ViajeAcciones soporta descarga con remito
+- ⬜ Planning: mostrar recepciones en grilla semanal (coordinador destino)
+- ⬜ Chofer: detectar destino-Nodexia, deshabilitar self-delivery
+- ⬜ Data pipeline: fetch despachos donde MI planta es destino (empresa_destino_id o similar)
 
 ### Testing Pendiente
 **Estado:** Pendiente
