@@ -21,6 +21,7 @@ import IncidenciasTab from '../components/Transporte/IncidenciasTab';
 import PerfilTab from '../components/Transporte/PerfilTab';
 import TripDetailsCard from '../components/Transporte/TripDetailsCard';
 import { QRModal, HamburgerMenu, IncidenciaModal } from '../components/Transporte/ChoferModals';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 interface ViajeChofer {
   id: string;
@@ -945,14 +946,7 @@ export default function ChoferMobile() {
   };
 
   if (loading && viajes.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-          <p className="text-slate-300">Cargando viajes...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Cargando viajes..." fullScreen />;
   }
 
   return (

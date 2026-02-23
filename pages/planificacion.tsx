@@ -110,9 +110,8 @@ const PlanificacionPage = () => {
       
       try {
         setLoading(true);
-        console.log('📊 Cargando datos de planificación para usuario:', user.id);
 
-        // 0. Obtener la empresa del usuario actual y su CUIT
+        // ═══ Phase 1: Get user's empresa (needed by all subsequent queries) ═══
         const { data: usuarioEmpresa, error: empresaError } = await supabase
           .from('usuarios_empresa')
           .select(`
@@ -134,253 +133,146 @@ const PlanificacionPage = () => {
 
         const empresaActual = usuarioEmpresa?.empresa as any;
         const cuitEmpresa = empresaActual?.cuit as string;
-        console.log('🏢 Empresa del usuario:', empresaActual?.nombre, '- CUIT:', cuitEmpresa);
+        const miEmpresaId = empresaActual?.id;
 
-        // 1. Cargar DESPACHOS de toda la empresa (no solo del usuario actual)
-        // Obtener todos los usuarios de la misma empresa
-        const { data: companyUsersData } = await supabase
-          .from('usuarios_empresa')
-          .select('user_id')
-          .eq('empresa_id', empresaActual?.id)
-          .eq('activo', true);
+        // ═══ Phase 2: Parallel queries that depend only on Phase 1 ═══
+        const ubicacionFilter = cuitEmpresa
+          ? `empresa_id.eq.${miEmpresaId},cuit.eq.${cuitEmpresa}`
+          : `empresa_id.eq.${miEmpresaId}`;
 
-        const allCompanyUserIds = [...new Set((companyUsersData || []).map(u => u.user_id).filter(Boolean))];
-        // Siempre incluir al usuario actual
+        const [companyUsersResult, myUbicacionesResult, transportesFiltroResult, metricasResult] = await Promise.all([
+          supabase
+            .from('usuarios_empresa')
+            .select('user_id')
+            .eq('empresa_id', miEmpresaId)
+            .eq('activo', true),
+          miEmpresaId
+            ? supabase.from('ubicaciones').select('id').or(ubicacionFilter)
+            : Promise.resolve({ data: [] as any[], error: null }),
+          supabase
+            .from('empresas')
+            .select('id, nombre')
+            .eq('tipo_empresa', 'Transporte')
+            .order('nombre'),
+          supabase.rpc('get_metricas_expiracion'),
+        ]);
+
+        // Process Phase 2 results
+        const allCompanyUserIds = [...new Set((companyUsersResult.data || []).map((u: any) => u.user_id).filter(Boolean))];
         if (!allCompanyUserIds.includes(user.id)) {
           allCompanyUserIds.push(user.id);
         }
 
-        const { data: despachosData, error: despachosError } = await supabase
-          .from('despachos')
-          .select(`
-            *
-          `)
-          .in('created_by', allCompanyUserIds)
-          .order('created_at', { ascending: true });
+        const ubicacionIds = (myUbicacionesResult.data || []).map((u: any) => u.id);
 
-        if (despachosError) {
-          console.error('❌ Error al cargar despachos:', despachosError);
+        if (transportesFiltroResult.data) {
+          setTransportes(transportesFiltroResult.data);
         }
 
-        console.log('📦 Despachos de la empresa:', despachosData?.length || 0);
-
-        // 1.5. Cargar RECEPCIONES - despachos donde esta empresa es el destino
-        //   Cadena: despachos.destino_id → ubicaciones.empresa_id = mi empresa
-        //   Fallback: ubicaciones.cuit = mi empresa.cuit (por si empresa_id no está poblado)
-        let recepcionesData: any[] = [];
-        const miEmpresaId = empresaActual?.id;
-        if (miEmpresaId) {
-          // Buscar ubicaciones por empresa_id directo O por CUIT match
-          const ubicacionFilters = cuitEmpresa
-            ? `empresa_id.eq.${miEmpresaId},cuit.eq.${cuitEmpresa}`
-            : `empresa_id.eq.${miEmpresaId}`;
-          const { data: ubicaciones, error: ubicacionesError } = await supabase
-            .from('ubicaciones')
-            .select('id')
-            .or(ubicacionFilters);
-
-          if (ubicacionesError) {
-            console.error('❌ Error al buscar ubicaciones por empresa_id:', ubicacionesError);
-          } else if (ubicaciones && ubicaciones.length > 0) {
-            const ubicacionIds = ubicaciones.map(u => u.id);
-            console.log('📍 Ubicaciones de mi empresa:', ubicacionIds.length);
-
-            // Buscar despachos cuyo destino_id apunte a una de mis ubicaciones
-            // Excluir los creados por mi propia empresa (ya aparecen en Despachos)
-            const { data: despachosRecepcion, error: recepcionError } = await supabase
-              .from('despachos')
-              .select('*')
-              .in('destino_id', ubicacionIds)
-              .not('created_by', 'in', `(${allCompanyUserIds.join(',')})`)
-              .order('created_at', { ascending: true });
-
-            console.log('📥 Recepciones encontradas:', despachosRecepcion?.length || 0);
-
-            if (recepcionError) {
-              console.error('❌ Error al cargar recepciones:', recepcionError);
-            } else {
-              recepcionesData = despachosRecepcion || [];
-            }
-          } else {
-            console.warn('⚠️ No se encontraron ubicaciones para empresa:', miEmpresaId);
-          }
+        if (metricasResult.error) {
+          console.error('❌ Error al cargar métricas de expiración:', metricasResult.error);
         } else {
-          console.warn('⚠️ No hay empresa_id para buscar recepciones');
+          setMetricasExpiracion(metricasResult.data?.[0] || null);
         }
 
-        // Combinar despachos propios + recepciones
-        const todosLosDespachos = [
-          ...(despachosData || []),
-          ...(recepcionesData || [])
-        ];
-
-        console.log('📦 Total despachos (propios + recepciones):', todosLosDespachos.length);
-        console.log('👤 User ID:', user.id);
-
-        // 1.5. Cargar datos de transportes, choferes y camiones de los despachos
-        const transporteIds = todosLosDespachos
-          .filter(d => d.transport_id)
-          .map(d => d.transport_id);
-        const choferIds = todosLosDespachos
-          .filter(d => d.driver_id)
-          .map(d => d.driver_id);
-        const camionIds = todosLosDespachos
-          .filter(d => d.truck_id)
-          .map(d => d.truck_id);
-        // Cargar datos relacionados en paralelo
-        const [transportesResult, choferesResult, camionesResult] = await Promise.all([
-          transporteIds.length > 0
-            ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', transporteIds)
-            : Promise.resolve({ data: [], error: null }),
-          choferIds.length > 0
-            ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', choferIds)
-            : Promise.resolve({ data: [], error: null }),
-          camionIds.length > 0
-            ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
-            : Promise.resolve({ data: [], error: null })
+        // ═══ Phase 3: Despachos + Recepciones (depend on Phase 2 results) ═══
+        const [despachosResult, recepcionesResult] = await Promise.all([
+          supabase
+            .from('despachos')
+            .select('*')
+            .in('created_by', allCompanyUserIds)
+            .order('created_at', { ascending: true }),
+          ubicacionIds.length > 0
+            ? supabase
+                .from('despachos')
+                .select('*')
+                .in('destino_id', ubicacionIds)
+                .not('created_by', 'in', `(${allCompanyUserIds.join(',')})`)
+                .order('created_at', { ascending: true })
+            : Promise.resolve({ data: [] as any[], error: null }),
         ]);
 
-        // 🔍 DEBUG: Ver errores en las queries
+        if (despachosResult.error) console.error('❌ Error al cargar despachos:', despachosResult.error);
+        if (recepcionesResult.error) console.error('❌ Error al cargar recepciones:', recepcionesResult.error);
+
+        const todosLosDespachos = [
+          ...(despachosResult.data || []),
+          ...(recepcionesResult.data || []),
+        ];
+
+        // ═══ Phase 4: Viajes + Ubicaciones (depend on Phase 3 results) ═══
+        const despachoIds = todosLosDespachos.map(d => d.id);
+        const origenIds = todosLosDespachos.filter(d => d.origen_id).map(d => d.origen_id);
+        const destinoIds = todosLosDespachos.filter(d => d.destino_id).map(d => d.destino_id);
+        const todasUbicacionIds = [...new Set([...origenIds, ...destinoIds])];
+
+        const [viajesResult, ubicacionesAllResult] = await Promise.all([
+          despachoIds.length > 0
+            ? supabase
+                .from('viajes_despacho')
+                .select('id, numero_viaje, estado, estado_carga, estado_unidad, id_transporte, camion_id, chofer_id, observaciones, created_at, despacho_id')
+                .in('despacho_id', despachoIds)
+                .order('created_at', { ascending: true })
+            : Promise.resolve({ data: [] as any[], error: null }),
+          todasUbicacionIds.length > 0
+            ? supabase
+                .from('ubicaciones')
+                .select('id, nombre, provincia, ciudad, direccion, latitud, longitud')
+                .in('id', todasUbicacionIds)
+            : Promise.resolve({ data: [] as any[], error: null }),
+        ]);
+
+        if (viajesResult.error) console.error('❌ Error al cargar viajes:', viajesResult.error);
+        if (ubicacionesAllResult.error) console.error('❌ Error cargando ubicaciones:', ubicacionesAllResult.error);
+
+        const viajesData = viajesResult.data || [];
+        const ubicacionesMap: Record<string, any> = {};
+        (ubicacionesAllResult.data || []).forEach((u: any) => { ubicacionesMap[u.id] = u; });
+
+        // ═══ Phase 5: Enrichment — transportes, choferes, camiones (ALL IDs from despachos + viajes) ═══
+        const allTransportIds = [...new Set([
+          ...todosLosDespachos.filter(d => d.transport_id).map(d => d.transport_id),
+          ...viajesData.filter(v => v.id_transporte).map(v => v.id_transporte),
+        ])];
+        const allChoferIds = [...new Set([
+          ...todosLosDespachos.filter(d => d.driver_id).map(d => d.driver_id),
+          ...viajesData.filter(v => v.chofer_id).map(v => v.chofer_id),
+        ])];
+        const allCamionIds = [...new Set([
+          ...todosLosDespachos.filter(d => d.truck_id).map(d => d.truck_id),
+          ...viajesData.filter(v => v.camion_id).map(v => v.camion_id),
+        ])];
+
+        const [transportesResult, choferesResult, camionesResult] = await Promise.all([
+          allTransportIds.length > 0
+            ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', allTransportIds)
+            : Promise.resolve({ data: [], error: null }),
+          allChoferIds.length > 0
+            ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', allChoferIds)
+            : Promise.resolve({ data: [], error: null }),
+          allCamionIds.length > 0
+            ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', allCamionIds)
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+
         if (transportesResult.error) console.error('❌ Error cargando transportes:', transportesResult.error);
         if (choferesResult.error) console.error('❌ Error cargando choferes:', choferesResult.error);
         if (camionesResult.error) console.error('❌ Error cargando camiones:', camionesResult.error);
 
-        // Crear mapas para acceso rápido
         const transportesMap: Record<string, any> = {};
         const choferesMap: Record<string, any> = {};
         const camionesMap: Record<string, any> = {};
 
-        transportesResult.data?.forEach(t => { transportesMap[t.id] = t; });
-        choferesResult.data?.forEach(c => { 
+        transportesResult.data?.forEach((t: any) => { transportesMap[t.id] = t; });
+        choferesResult.data?.forEach((c: any) => {
           choferesMap[c.id] = {
             ...c,
-            nombre_completo: `${c.nombre || ''} ${c.apellido || ''}`.trim()
+            nombre_completo: `${c.nombre || ''} ${c.apellido || ''}`.trim(),
           };
         });
-        camionesResult.data?.forEach(c => { camionesMap[c.id] = c; });
+        camionesResult.data?.forEach((c: any) => { camionesMap[c.id] = c; });
 
-        console.log('🚛 Transportes cargados:', Object.keys(transportesMap).length);
-        console.log('👤 Choferes cargados:', Object.keys(choferesMap).length);
-        console.log('🚗 Camiones cargados:', Object.keys(camionesMap).length);
-
-        // 2. Cargar VIAJES para mapear en la grilla
-        // Primero obtener IDs de todos los despachos (propios + recepciones)
-        const despachoIds = todosLosDespachos.map(d => d.id);
-        console.log('📋 IDs de despachos del usuario (propios + recepciones):', despachoIds);
-
-        let viajesData: any[] = [];
-        let viajesError = null;
-
-        if (despachoIds.length > 0) {
-          const { data, error } = await supabase
-            .from('viajes_despacho')
-            .select(`
-              id,
-              numero_viaje,
-              estado,
-              estado_carga,
-              estado_unidad,
-              id_transporte,
-              camion_id,
-              chofer_id,
-              observaciones,
-              created_at,
-              despacho_id
-            `)
-            .in('despacho_id', despachoIds)
-            .order('created_at', { ascending: true });
-          
-          viajesData = data || [];
-          viajesError = error;
-        }
-
-        if (viajesError) {
-          console.error('❌ Error al cargar viajes:', viajesError);
-        }
-
-        console.log('🚚 Viajes cargados:', viajesData?.length || 0);
-        // console.log('📦 Datos de viajes completos:', JSON.stringify(viajesData, null, 2));
-        
-        // 🔍 DEBUG: Ver datos crudos de viajes
-        if (viajesData && viajesData.length > 0) {
-          console.log('🔍 Primer viaje crudo:', viajesData[0]);
-          console.log('  - id_transporte:', viajesData[0].id_transporte);
-          console.log('  - camion_id:', viajesData[0].camion_id);
-          console.log('  - chofer_id:', viajesData[0].chofer_id);
-        }
-
-        // 2.5. Cargar datos de transportes, choferes y camiones de los VIAJES
-        const viajeTransporteIds = (viajesData || [])
-          .filter(v => v.id_transporte)
-          .map(v => v.id_transporte);
-        const viajeChoferIds = (viajesData || [])
-          .filter(v => v.chofer_id)
-          .map(v => v.chofer_id);
-        const viajeCamionIds = (viajesData || [])
-          .filter(v => v.camion_id)
-          .map(v => v.camion_id);
-
-        console.log('🔍 IDs de viajes:', {
-          transportes: viajeTransporteIds,
-          choferes: viajeChoferIds,
-          camiones: viajeCamionIds
-        });
-
-        // Cargar datos adicionales para viajes (RLS corregido en migración 052)
-        const [moreTransportesResult, moreChoferesResult, moreCamionesResult] = await Promise.all([
-          viajeTransporteIds.length > 0
-            ? supabase.from('empresas').select('id, nombre, tipo_empresa').in('id', viajeTransporteIds)
-            : Promise.resolve({ data: [], error: null }),
-          viajeChoferIds.length > 0
-            ? supabase.from('choferes').select('id, nombre, apellido, telefono').in('id', viajeChoferIds)
-            : Promise.resolve({ data: [], error: null }),
-          viajeCamionIds.length > 0
-            ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', viajeCamionIds)
-            : Promise.resolve({ data: [], error: null })
-        ]);
-
-        // 🔍 DEBUG: Ver errores en las queries de viajes
-        if (moreTransportesResult.error) console.error('❌ Error cargando transportes de viajes:', moreTransportesResult.error);
-        if (moreChoferesResult.error) console.error('❌ Error cargando choferes de viajes:', moreChoferesResult.error);
-        if (moreCamionesResult.error) console.error('❌ Error cargando camiones de viajes:', moreCamionesResult.error);
-
-        // Actualizar mapas con todos los datos
-        moreTransportesResult.data?.forEach(t => { transportesMap[t.id] = t; });
-        moreChoferesResult.data?.forEach(c => { 
-          choferesMap[c.id] = {
-            ...c,
-            nombre_completo: `${c.nombre || ''} ${c.apellido || ''}`.trim()
-          };
-        });
-        moreCamionesResult.data?.forEach(c => { camionesMap[c.id] = c; });
-
-        console.log('🚛 Total transportes en mapa:', Object.keys(transportesMap).length);
-        console.log('👤 Total choferes en mapa:', Object.keys(choferesMap).length);
-        console.log('🚗 Total camiones en mapa:', Object.keys(camionesMap).length);
-
-        // 🔥 NUEVO: Cargar ubicaciones de origen y destino para obtener provincias
-        const origenIds = todosLosDespachos
-          .filter(d => d.origen_id)
-          .map(d => d.origen_id);
-        const destinoIds = todosLosDespachos
-          .filter(d => d.destino_id)
-          .map(d => d.destino_id);
-        const todasUbicacionIds = [...new Set([...origenIds, ...destinoIds])];
-
-        let ubicacionesMap: Record<string, any> = {};
-        if (todasUbicacionIds.length > 0) {
-          const { data: ubicacionesData, error: ubicacionesError } = await supabase
-            .from('ubicaciones')
-            .select('id, nombre, provincia, ciudad, direccion, latitud, longitud')
-            .in('id', todasUbicacionIds);
-
-          if (ubicacionesError) {
-            console.error('❌ Error cargando ubicaciones:', ubicacionesError);
-          } else {
-            ubicacionesData?.forEach(u => { ubicacionesMap[u.id] = u; });
-            console.log('📍 Ubicaciones cargadas:', Object.keys(ubicacionesMap).length);
-          }
-        }
+        console.log('📊 Loaded:', todosLosDespachos.length, 'despachos,', viajesData.length, 'viajes,', Object.keys(ubicacionesMap).length, 'ubicaciones');
 
         // 3. Mapear DESPACHOS directamente (para mostrar los que aún no tienen viajes)
         const companyUserIdsSet = new Set(allCompanyUserIds);
@@ -561,28 +453,6 @@ const PlanificacionPage = () => {
           };
         });
         setDespachosOriginales(despachosConProvincia);
-
-        // 8. Cargar lista de transportes para filtros
-        const { data: transportesData } = await supabase
-          .from('empresas')
-          .select('id, nombre')
-          .eq('tipo_empresa', 'Transporte')
-          .order('nombre');
-        
-        if (transportesData) {
-          setTransportes(transportesData);
-        }
-
-        // 🔥 NUEVO: Cargar métricas de expiración
-        const { data: metricas, error: metricasError } = await supabase
-          .rpc('get_metricas_expiracion');
-        
-        if (metricasError) {
-          console.error('❌ Error al cargar métricas de expiración:', metricasError);
-        } else {
-          setMetricasExpiracion(metricas?.[0] || null);
-          console.log('📊 Métricas de expiración:', metricas?.[0]);
-        }
 
         console.log('📋 Despachos completos para tracking:', todosLosDespachos.length);
 

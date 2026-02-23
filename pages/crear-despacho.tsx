@@ -20,6 +20,7 @@ import type { DespachoTab } from '../components/Despachos/DespachoTabs';
 import { calcularEstadoOperativo, esEstadoEnMovimiento as estaEnMovimiento, esEstadoFinal as esFinal } from '../lib/estados';
 import { getEstadoDisplay } from '../lib/helpers/estados-helpers';
 import TimelineDespachoModal from '../components/Despachos/TimelineDespachoModal';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 interface EmpresaOption {
   id: string;
@@ -1584,11 +1585,7 @@ const CrearDespacho = () => {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0e1a2d] text-slate-100">
-        Cargando...
-      </div>
-    );
+    return <LoadingSpinner text="Cargando..." fullScreen />;
   }
 
   return (

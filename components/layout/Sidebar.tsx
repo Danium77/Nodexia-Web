@@ -1,5 +1,5 @@
 // components/Layout/Sidebar.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
@@ -18,20 +18,28 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   const router = useRouter();
   const { email, name, primaryRole, loading, tipoEmpresa } = useUserRole();
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Manejar hidratación del lado cliente
   useEffect(() => {
     setIsHydrated(true);
-    // Por defecto siempre contraído (no cargar de localStorage)
-    setIsCollapsed(true);
   }, []);
 
-  // Guardar estado de collapse
-  // const toggleCollapse = () => {
-  //   const newState = !isCollapsed;
-  //   setIsCollapsed(newState);
-  // };
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => { if (collapseTimer.current) clearTimeout(collapseTimer.current); };
+  }, []);
+
+  // Expand immediately, collapse with delay to prevent click-stealing
+  const handleMouseEnter = useCallback(() => {
+    if (collapseTimer.current) { clearTimeout(collapseTimer.current); collapseTimer.current = null; }
+    setIsCollapsed(false);
+  }, []);
+  const handleMouseLeave = useCallback(() => {
+    collapseTimer.current = setTimeout(() => setIsCollapsed(true), 300);
+  }, []);
 
   // Alertas de documentación para roles de transporte
   const { badgeCount: docAlertBadge } = useDocAlerts(10 * 60 * 1000); // refresh cada 10 min
@@ -189,19 +197,22 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   }
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
       router.push('/login');
-    } else {
-      console.error("Error al cerrar sesión:", error.message);
+    } catch (error: any) {
+      console.error('Error al cerrar sesión:', error?.message);
+      setLoggingOut(false);
     }
   };
 
   return (
     <aside 
       className={`${isCollapsed ? 'w-20' : 'w-64'} bg-[#1b273b] pt-0 pb-6 flex flex-col shadow-lg text-slate-100 min-h-screen transition-all duration-300 relative group`}
-      onMouseEnter={() => setIsCollapsed(false)}
-      onMouseLeave={() => setIsCollapsed(true)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Logo */}
       <div className="text-center mb-4 transform -translate-y-6 mx-auto" style={{ width: 'fit-content' }}>
@@ -279,11 +290,16 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         </div>
         <button
           onClick={handleLogout}
-          className={`flex items-center ${isCollapsed ? 'justify-center' : ''} p-3 mt-2 w-full rounded-lg text-red-400 hover:bg-red-900/30 transition-colors duration-200`}
+          disabled={loggingOut}
+          className={`flex items-center ${isCollapsed ? 'justify-center' : ''} p-3 mt-2 w-full rounded-lg text-red-400 hover:bg-red-900/30 transition-colors duration-200 ${loggingOut ? 'opacity-50 cursor-wait' : ''}`}
           title={isCollapsed ? 'Cerrar sesión' : ''}
         >
-          <ArrowLeftOnRectangleIcon className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'}`} />
-          {!isCollapsed && <span className="font-medium">Cerrar Sesión</span>}
+          {loggingOut ? (
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-red-400 border-t-transparent" />
+          ) : (
+            <ArrowLeftOnRectangleIcon className={`h-6 w-6 ${isCollapsed ? '' : 'mr-3'}`} />
+          )}
+          {!isCollapsed && <span className="font-medium">{loggingOut ? 'Cerrando...' : 'Cerrar Sesión'}</span>}
         </button>
       </div>
     </aside>

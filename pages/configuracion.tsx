@@ -5,6 +5,7 @@ import NetworkManager from '../components/Network/NetworkManager';
 import SuperAdminPanel from '../components/SuperAdmin/SuperAdminPanel';
 import { useSuperAdminAccess } from '../lib/hooks/useSuperAdminAccess';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const ConfiguracionPage = () => {
   const router = useRouter();
@@ -14,7 +15,7 @@ const ConfiguracionPage = () => {
   const { isSuperAdmin } = useSuperAdminAccess();
 
   if (loading) {
-    return <AdminLayout pageTitle="Configuración"><div className="text-white">Cargando configuración...</div></AdminLayout>;
+    return <AdminLayout pageTitle="Configuración"><LoadingSpinner text="Cargando configuración..." /></AdminLayout>;
   }
 
   // Definir tarjetas por rol

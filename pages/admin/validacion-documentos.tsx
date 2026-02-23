@@ -16,6 +16,7 @@ import {
   XMarkIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -506,14 +507,7 @@ export default function ValidacionDocumentos() {
   // ─── Loading / No Access ─────────────────────────────────────────────────
 
   if (roleLoading || !tieneAcceso) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0a0e1a]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-          <p className="text-slate-400">Verificando permisos...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Verificando permisos..." fullScreen />;
   }
 
   // ─── Render ──────────────────────────────────────────────────────────────

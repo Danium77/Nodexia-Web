@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
 import { supabase } from '../lib/supabaseClient';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const EstadisticasPage = () => {
   const [user, setUser] = useState<any>(null);
@@ -18,7 +19,7 @@ const EstadisticasPage = () => {
     load();
   }, []);
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center bg-[#0e1a2d] text-slate-100">Cargando...</div>;
+  if (!user) return <LoadingSpinner text="Cargando..." fullScreen />;
 
   return (
     <div className="flex min-h-screen bg-[#0e1a2d]">

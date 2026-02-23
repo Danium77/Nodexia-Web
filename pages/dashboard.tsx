@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useUserRole } from '../lib/contexts/UserRoleContext';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 /**
  * Dashboard Principal - REDIRECTOR ONLY
@@ -95,14 +96,7 @@ const Dashboard = () => {
   }, [user, primaryRole, tipoEmpresa, loading, hasRedirected, router]);
 
   // Mostrar loading mientras se determina la redirección
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-[#0a0e1a]">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-        <p className="text-slate-400 text-lg">Cargando...</p>
-      </div>
-    </div>
-  );
+  return <LoadingSpinner text="Cargando..." fullScreen />;
 };
 
 export default Dashboard;
