@@ -26,10 +26,11 @@ interface UserRoleContextType {
   user: User | null;
   roles: UserRole[];
   primaryRole: UserRole | null;
-  empresaId: string | null; // 🔥 ID de la empresa del usuario
-  cuitEmpresa: string | null; // 🔥 CUIT de la empresa del usuario
-  tipoEmpresa: string | null; // 🔥 NUEVO: tipo_empresa (planta/transporte/cliente)
-  userEmpresas: any[]; // 🔥 NUEVO: array de relaciones usuarios_empresa con datos de empresa
+  empresaId: string | null;
+  empresaNombre: string | null;
+  cuitEmpresa: string | null;
+  tipoEmpresa: string | null;
+  userEmpresas: any[];
   email: string;
   name: string;
   role: string;
@@ -117,11 +118,22 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
   
   // Derived values for backward compatibility
   const email = useMemo(() => user?.email || '', [user]);
-  const name = useMemo(() => 
-    (user as any)?.user_metadata?.nombre_completo || user?.email?.split('@')[0] || 'Usuario',
-    [user]
-  );
+  const name = useMemo(() => {
+    // Prioridad: nombre_completo de usuarios_empresa > user_metadata > email
+    if (userEmpresas?.length > 0 && userEmpresas[0]?.nombre_completo) {
+      return userEmpresas[0].nombre_completo;
+    }
+    return (user as any)?.user_metadata?.nombre_completo || user?.email?.split('@')[0] || 'Usuario';
+  }, [user, userEmpresas]);
   const role = useMemo(() => primaryRole || '', [primaryRole]);
+
+  // Nombre de la empresa principal del usuario
+  const empresaNombre = useMemo(() => {
+    if (userEmpresas?.length > 0) {
+      return (userEmpresas[0]?.empresas as any)?.nombre || null;
+    }
+    return null;
+  }, [userEmpresas]);
 
   // 🔥 PERSISTENCIA: Guardar en localStorage cuando cambien
   useEffect(() => {
@@ -272,6 +284,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
         .select(`
           rol_interno, 
           empresa_id,
+          nombre_completo,
           empresas (
             id,
             nombre,
@@ -289,6 +302,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             .select(`
               rol_interno, 
               empresa_id,
+              nombre_completo,
               empresas (
                 id,
                 nombre,
@@ -562,6 +576,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     roles,
     primaryRole,
     empresaId,
+    empresaNombre,
     cuitEmpresa,
     tipoEmpresa,
     userEmpresas,
@@ -574,7 +589,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     hasAnyRole,
     refreshRoles,
     signOut,
-  }), [user, roles, primaryRole, empresaId, cuitEmpresa, tipoEmpresa, userEmpresas, email, name, role, loading, error, hasRole, hasAnyRole, refreshRoles, signOut]);
+  }), [user, roles, primaryRole, empresaId, empresaNombre, cuitEmpresa, tipoEmpresa, userEmpresas, email, name, role, loading, error, hasRole, hasAnyRole, refreshRoles, signOut]);
 
   return (
     <UserRoleContext.Provider value={value}>

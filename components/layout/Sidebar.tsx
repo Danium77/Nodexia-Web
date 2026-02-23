@@ -1,5 +1,5 @@
 // components/Layout/Sidebar.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
@@ -16,7 +16,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   const router = useRouter();
-  const { email, name, primaryRole, loading, tipoEmpresa } = useUserRole();
+  const { email, name, primaryRole, loading, tipoEmpresa, userEmpresas } = useUserRole();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -47,6 +47,16 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   // allow override via props (some pages pass them)
   const finalEmail = userEmail || email;
   const finalUserName = userName || name;
+  
+  // Derivar nombre+apellido desde usuarios_empresa o user_metadata
+  const displayUserName = useMemo(() => {
+    // Primero intentar nombre_completo de usuarios_empresa
+    if (userEmpresas?.length > 0 && userEmpresas[0]?.nombre_completo) {
+      return userEmpresas[0].nombre_completo;
+    }
+    // Fallback a name del contexto (user_metadata o email)
+    return finalUserName || finalEmail?.split('@')[0] || 'Usuario';
+  }, [userEmpresas, finalUserName, finalEmail]);
   
   // Verificación alternativa para coordinador basada en email (backup)
   const isCoordinadorByEmail = finalEmail === 'coord_demo@example.com' || finalEmail === 'coordinador.demo@nodexia.com';
@@ -286,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       <div className="mt-auto pt-6 border-t border-gray-700">
         <div className={`flex items-center p-3 ${isCollapsed ? 'justify-center' : ''}`}>
           <UserCircleIcon className={`h-8 w-8 text-cyan-400 ${isCollapsed ? '' : 'mr-3'}`} />
-          {!isCollapsed && <span className="text-sm font-medium truncate">{finalUserName || finalEmail?.split('@')[0] || 'Usuario'}</span>}
+          {!isCollapsed && <span className="text-sm font-medium truncate">{displayUserName}</span>}
         </div>
         <button
           onClick={handleLogout}

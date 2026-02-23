@@ -332,51 +332,6 @@ export default function CargasEnRed() {
           </button>
         </div>
 
-        {/* Barra de búsqueda y filtros */}
-        <div className="bg-[#1b273b] rounded-lg border border-gray-800 p-4">
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por origen, destino o empresa..."
-                className="w-full pl-10 pr-4 py-2 bg-[#0a0e1a] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="px-4 py-2 bg-[#0a0e1a] border border-gray-700 rounded-lg text-white hover:border-cyan-500 transition-colors flex items-center gap-2"
-            >
-              <FunnelIcon className="h-5 w-5" />
-              Filtros
-            </button>
-          </div>
-
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-800 grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Tipo de Carga
-                </label>
-                <select
-                  value={tipoCargaFilter}
-                  onChange={(e) => setTipoCargaFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#0a0e1a] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="">Todos</option>
-                  <option value="Granos">Granos</option>
-                  <option value="Contenedor">Contenedor</option>
-                  <option value="General">General</option>
-                  <option value="Líquidos">Líquidos</option>
-                  <option value="Peligrosa">Peligrosa</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
-
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-start gap-3">
             <ExclamationTriangleIcon className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />

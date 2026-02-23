@@ -12,7 +12,7 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle }) => {
-    const { user, loading, error, hasRole } = useUserRole(); // primaryRole removed (not used)
+    const { user, loading, error, hasRole, empresaNombre } = useUserRole(); // primaryRole removed (not used)
     
     // Hooks para manejar problemas de HMR y reconexión
     useAutoReload();
@@ -70,7 +70,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle }) => {
                     <div className="flex items-center gap-4">
                         <NotificacionesDropdown />
                         <div className="text-gray-400 text-sm">
-                            {user.user_metadata?.name || user.email}
+                            {empresaNombre || user.email}
                         </div>
                     </div>
                 </div>

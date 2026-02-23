@@ -15,12 +15,22 @@ export default function App({ Component, pageProps }: AppProps) {
   // Registrar Service Worker para PWA
   useServiceWorker();
 
-  // Page transition loading indicator
+  // Page transition loading indicator with safety timeout
   useEffect(() => {
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleStart = (url: string) => {
-      if (url !== router.asPath) setIsNavigating(true);
+      if (url !== router.asPath) {
+        setIsNavigating(true);
+        // Safety timeout: force-clear after 8 seconds to avoid infinite loading
+        if (safetyTimer) clearTimeout(safetyTimer);
+        safetyTimer = setTimeout(() => setIsNavigating(false), 8000);
+      }
     };
-    const handleDone = () => setIsNavigating(false);
+    const handleDone = () => {
+      setIsNavigating(false);
+      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+    };
 
     router.events.on('routeChangeStart', handleStart);
     router.events.on('routeChangeComplete', handleDone);
@@ -29,6 +39,7 @@ export default function App({ Component, pageProps }: AppProps) {
       router.events.off('routeChangeStart', handleStart);
       router.events.off('routeChangeComplete', handleDone);
       router.events.off('routeChangeError', handleDone);
+      if (safetyTimer) clearTimeout(safetyTimer);
     };
   }, [router]);
   

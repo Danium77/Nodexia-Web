@@ -236,9 +236,9 @@ export default function GestionEmpresas() {
   }
 
   return (
-    <div className="flex h-screen bg-[#0a0e1a]">
+    <div className="flex min-h-screen bg-[#0a0e1a]">
       <Sidebar />
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-[#0a0e1a]">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Header */}
           <div className="mb-2 flex justify-between items-start">
