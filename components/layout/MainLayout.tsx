@@ -13,7 +13,7 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children, pageTitle }: MainLayoutProps) {
-  const { user, loading } = useUserRole();
+  const { user, loading, empresaNombre } = useUserRole();
 
   if (loading) {
     return (
@@ -71,6 +71,7 @@ export default function MainLayout({ children, pageTitle }: MainLayoutProps) {
           pageTitle={pageTitle}
           userName={user.email?.split('@')[0] || 'Usuario'} 
           userEmail={user.email || ''}
+          empresaNombre={empresaNombre || undefined}
         />
         
         <main className="flex-1 p-6 space-y-6 overflow-auto">
