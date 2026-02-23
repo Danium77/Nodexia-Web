@@ -93,7 +93,6 @@ export function useChoferes() {
       // La tabla choferes usa empresa_id Y id_transporte para asociar con la EMPRESA
       const empresaId = userEmpresa.empresa_id;
       chofer.empresa_id = empresaId;
-      (chofer as any).id_transporte = empresaId;
       chofer.usuario_alta = user.id;
 
       // Verificar si ya existe un chofer con ese DNI (puede estar desvinculado)
@@ -110,7 +109,6 @@ export function useChoferes() {
           .from('choferes')
           .update({
             empresa_id: empresaId,
-            id_transporte: empresaId,
             nombre: chofer.nombre,
             apellido: chofer.apellido,
             telefono: chofer.telefono,

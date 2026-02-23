@@ -40,7 +40,7 @@ ON tracking_gps FOR SELECT
 USING (
   EXISTS (
     SELECT 1 FROM choferes c
-    JOIN usuarios_empresa ue ON c.id_transporte = ue.empresa_id
+    JOIN usuarios_empresa ue ON c.empresa_id = ue.empresa_id
     WHERE c.id = tracking_gps.chofer_id
       AND ue.user_id = auth.uid()
   )

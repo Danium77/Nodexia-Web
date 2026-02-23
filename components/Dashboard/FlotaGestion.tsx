@@ -135,7 +135,6 @@ export default function FlotaGestion({ hideInternalTabs = false }: { hideInterna
           anio: anio ? parseInt(anio) : null,
           foto_url,
           empresa_id: userEmpresa.empresa_id,
-          id_transporte: userEmpresa.empresa_id, // Legacy column — PROD tiene NOT NULL
           usuario_alta: user.id
         }
       ]);
@@ -198,7 +197,6 @@ export default function FlotaGestion({ hideInternalTabs = false }: { hideInterna
           anio: anioA ? parseInt(anioA) : null,
           foto_url,
           empresa_id: userEmpresa.empresa_id,
-          id_transporte: userEmpresa.empresa_id, // Legacy column — PROD tiene NOT NULL
           usuario_alta: user.id
         }
       ]);

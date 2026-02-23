@@ -379,7 +379,8 @@ export interface Vehiculo {
   modelo: string;
   anio?: number;
   foto_url?: string | null;
-  id_transporte: UUID;
+  empresa_id: UUID;
+  id_transporte?: UUID | null; // DEPRECATED — usar empresa_id
   usuario_alta?: UUID | null;
   fecha_alta?: Timestamp;
   fecha_modificacion?: Timestamp;
@@ -403,7 +404,7 @@ export interface VehiculoCreateInput {
   modelo: string;
   anio?: number;
   foto_url?: string;
-  id_transporte: UUID;
+  empresa_id: UUID;
   tipo?: 'camion' | 'acoplado';
 }
 
@@ -421,7 +422,8 @@ export interface Chofer {
   foto_url?: string | null;
   licencia_conducir?: string;
   fecha_vencimiento_licencia?: Timestamp;
-  id_transporte: UUID;
+  empresa_id: UUID;
+  id_transporte?: UUID | null; // DEPRECATED — usar empresa_id
   usuario_alta?: UUID | null;
   fecha_alta?: Timestamp;
   fecha_modificacion?: Timestamp;
@@ -438,7 +440,7 @@ export interface ChoferCreateInput {
   foto_url?: string;
   licencia_conducir?: string;
   fecha_vencimiento_licencia?: Timestamp;
-  id_transporte: UUID;
+  empresa_id: UUID;
 }
 
 // =====================

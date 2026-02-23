@@ -21,7 +21,7 @@ interface Chofer {
   dni: string;
   email: string | null;
   user_id: string | null;
-  id_transporte: string;
+  empresa_id: string;
   empresas?: { nombre: string }[] | { nombre: string };
 }
 
@@ -30,7 +30,7 @@ interface Camion {
   patente: string;
   marca: string;
   modelo: string;
-  id_transporte: string;
+  empresa_id: string;
   estado: string;
   empresas?: { nombre: string }[] | { nombre: string };
 }
@@ -108,8 +108,8 @@ export default function AsignarViaje() {
           dni,
           email,
           user_id,
-          id_transporte,
-          empresas:id_transporte (
+          empresa_id,
+          empresas:empresa_id (
             nombre
           )
         `)
@@ -126,9 +126,9 @@ export default function AsignarViaje() {
           patente,
           marca,
           modelo,
-          id_transporte,
+          empresa_id,
           estado,
-          empresas:id_transporte (
+          empresas:empresa_id (
             nombre
           )
         `)
@@ -213,7 +213,7 @@ export default function AsignarViaje() {
           scheduled_local_time: hora,
           type: 'contenedor',
           estado: 'confirmado',
-          empresa_id: chofer.id_transporte
+          empresa_id: chofer.empresa_id
         })
         .select()
         .single();
@@ -233,7 +233,7 @@ export default function AsignarViaje() {
           estado: 'asignado',
           estado_unidad: 'asignado',
           observaciones: observaciones || 'Viaje creado desde panel de administración',
-          empresa_id: chofer.id_transporte
+          empresa_id: chofer.empresa_id
         })
         .select()
         .single();

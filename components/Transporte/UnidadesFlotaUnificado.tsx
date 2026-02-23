@@ -157,7 +157,6 @@ export default function UnidadesFlotaUnificado() {
         anio: formAnio ? parseInt(formAnio) : null,
         foto_url,
         empresa_id: empresaId,
-        id_transporte: empresaId, // Legacy column — PROD aún tiene NOT NULL constraint
         usuario_alta: user.id
       }]);
       if (insErr) throw insErr;
