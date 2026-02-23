@@ -1,12 +1,22 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 21-Feb-2026 (Sesión 29 — Badge Unificación + Despachos Tab Fix + Incidencias API Fix)
+**Actualizado:** 22-Feb-2026 (Sesión 30 — Incidencias System + Despacho Edit/Reprogramar + CA Rework + Security Audit)
 
 ---
 
 ## 🔄 EN PROGRESO
 
-### Pre-Demo (28-Feb-2026 — 7 días)
+### Evaluación Arquitectura para Equipos (PRÓXIMA SESIÓN)
+**Estado:** Pendiente — solicitado por PO
+**Objetivo:** Determinar si la arquitectura actual permite separar trabajo en equipos:
+- Frontend (React/Next.js)
+- Backend (API routes/Services)
+- BD (Supabase/PostgreSQL)
+- Android (app nativa)
+- iOS (app nativa)
+**Análisis requerido:** Acoplamiento actual, contratos API, shared types, migration strategy, mobile API contract
+
+### Pre-Demo (28-Feb-2026 — 6 días)
 **Estado:** En preparación
 - ✅ Flujo E2E completo validado (todos los actores)
 - ✅ Self-delivery flow para destinos no-Nodexia
@@ -28,27 +38,30 @@
 - ✅ Migration 064 ejecutada — incidencias sistema provisorio (Sesión 29)
 - ✅ Fix clasificación despachos en tabs — estado computado desde viajes (Sesión 29)
 - ✅ Fix creación incidencias API 500 — supabaseAdmin + columna fix (Sesión 29)
+- ✅ Restaurar `documentos_afectados` en API incidencias (Sesión 30)
+- ✅ Sistema incidencias completo: API CRUD + detail page + doc resolution (Sesión 30)
+- ✅ Incidencias en sidebar para 5 roles (Sesión 30)
+- ✅ APIs despachos actualizar + reprogramar con notificaciones (Sesión 30)
+- ✅ Estados-camiones CA rework — origin/destination tracking (Sesión 30)
+- ✅ Doc upload auto-resolve empresa_id cross-company (Sesión 30)
+- ✅ Doc listing cross_empresa role-gated (Sesión 30)
+- ✅ UX fixes para demo (6 fixes) (Sesión 30)
+- ✅ Security audit pre-deploy + fixes (Sesión 30)
+- ✅ Script/guión de demo (GUION-DEMO-28FEB.md) (Sesión 30)
 - ⬜ **Migration 063 pendiente ejecución en Supabase** (RLS documentos_viaje_planta)
-- ⬜ Restaurar `documentos_afectados` en API incidencias (migration 064 ya ejecutada)
 - ⬜ Verificar incidencias E2E completo
 - ⬜ Preparación datos demo
-- ⬜ Verificar UX general para presentación
-- ⬜ Script/guión de demo
 
-### Incidencias System (Sesión 28 — Diseño listo)
-**Estado:** Diseño completo, implementación pendiente
+### Incidencias System (Sesión 28-30 — COMPLETADO)
+**Estado:** ✅ Completado
 **Diseño:** `docs/diagramas/INCIDENCIAS.md`
-**Estimación:** ~5-6 horas (8 fases)
 - ✅ Auditoría del estado actual (2 tablas, inconsistencias, gaps)
 - ✅ Diseño propuesto (tabla unificada, CRUD, permisos, UI)
-- ⬜ Fase 1: Unificar tipos TS con `incidencias_viaje`
-- ⬜ Fase 2: Hook `useIncidencias` → query `incidencias_viaje`
-- ⬜ Fase 3: CRUD API endpoints
-- ⬜ Fase 4: Rediseño `pages/incidencias.tsx`
-- ⬜ Fase 5: Crear `pages/incidencias/[id].tsx` (detalle)
-- ⬜ Fase 6: Componente de creación contextual
-- ⬜ Fase 7: Notificaciones
-- ⬜ Fase 8: Tests
+- ✅ API CRUD: GET/POST /api/incidencias, GET/PATCH /api/incidencias/[id]
+- ✅ Detail page: pages/incidencias/[id].tsx con doc resolution panel
+- ✅ Sidebar links para 5 roles
+- ✅ Security: POST usa createUserSupabaseClient (RLS enforced)
+- ⬜ Tests (post-MVP)
 
 ### Circuito Ambas-Plantas-Nodexia (Feature)
 **Estado:** Definición completa, implementación parcial
@@ -72,6 +85,8 @@
 - ⬜ Edge Function CORS restrict (auditoría C3 - CRÍTICO)
 - ⬜ Ownership checks en 6 endpoints (auditoría H1 - ALTO)
 - ⬜ RLS fix: historial_despachos y paradas (auditoría - ALTO)
+- ⬜ **Refactor supabaseAdmin pre-existente:** upload.ts, validar.ts, timeline.ts, ubicaciones/crear.ts → createUserSupabaseClient
+- ⬜ **Refactor supabaseAdmin despachos:** actualizar.ts, reprogramar.ts → createUserSupabaseClient para queries principales
 
 ### Performance P1
 **Estado:** Pendiente (Post-MVP)

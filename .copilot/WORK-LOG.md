@@ -4,6 +4,80 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-22 (Sábado) - Sesión 30
+
+### Sesión 30 - Incidencias System + Despacho Edit/Reprogramar + CA Rework + Security Audit
+
+**Tiempo:** ~4 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Contexto:
+Pre-demo prep (28-Feb-2026). Mixed feature work, runtime bug fixing, estados-camiones CA filter rewrite, and comprehensive pre-deploy security/architecture audit.
+
+#### Logros:
+1. ✅ **Restaurar documentos_afectados** en API incidencias POST handler (migration 064 ya ejecutada)
+2. ✅ **Demo script creado**: `docs/GUION-DEMO-28FEB.md` — 8 fases, ~23 min
+3. ✅ **UX audit + 6 fixes**: debug panel hidden (chofer-mobile), QR placeholder + inline input (control-acceso), onKeyDown, colSpan fix (crear-despacho), email→nombre (transporte/dashboard)
+4. ✅ **Incidencias en sidebar**: Link para 5 roles (coordinador, supervisor, admin_nodexia, super_admin, control_acceso)
+5. ✅ **Incidencia detail page**: `pages/incidencias/[id].tsx` con panel de resolución docs (listar, aprobar provisorio, subir doc)
+6. ✅ **Incidencia API [id].ts**: GET detail + PATCH state machine con role-gating
+7. ✅ **Estados-camiones CA rework**: Origin/destination tracking via `_esOrigen`/`_esDestino`, filtros reescritos completamente
+8. ✅ **Doc upload auto-resolve empresa_id**: Lookup desde entidad para fix cross-company
+9. ✅ **Doc listing cross_empresa=true**: Role-gated para incidencia resolution
+10. ✅ **Security audit**: 10 CRITICAL (9 pre-existing), 6 WARNING. Fixed: incidencias POST → createUserSupabaseClient, role 'admin' → 'admin_nodexia'
+
+#### Bugs resueltos:
+- `docs.forEach is not a function` — API returns `{data:{documentos:[]}}` not `{data:[]}`
+- DB trigger `validar_entidad_existe` — planta empresa_id vs transporte empresa_id
+- Cross-empresa doc listing blocked by empresa_id scoping
+- CA showing wrong vehicles in badges — no origin/destination context
+- Post-egreso vehicles invisible — estadosPostEgresoOrigen array
+- Confusing internal state names → 'Egresado' badge
+
+#### Security fixes aplicados:
+- `pages/api/incidencias/index.ts` POST: supabaseAdmin → createUserSupabaseClient (RLS enforced)
+- `pages/api/despachos/actualizar.ts`: role 'admin' → 'admin_nodexia'
+- `pages/api/despachos/reprogramar.ts`: role 'admin' → 'admin_nodexia'
+- `pages/api/documentacion/listar.ts`: cross_empresa gated to coordinador/supervisor/admin_nodexia/super_admin
+
+#### Pre-existing issues flagged (NOT introduced by us, for post-MVP refactor):
+- upload.ts, validar.ts, timeline.ts, ubicaciones/crear.ts use supabaseAdmin for main queries
+- despachos/actualizar.ts, reprogramar.ts use supabaseAdmin for CRUD (with manual empresa_id validation)
+
+#### Archivos Nuevos (11):
+- `pages/api/incidencias/index.ts` — GET+POST incidencias
+- `pages/api/incidencias/[id].ts` — GET detail + PATCH state
+- `pages/incidencias/[id].tsx` — Detail page with doc resolution panel
+- `pages/api/despachos/actualizar.ts` — PUT despacho fields
+- `pages/api/despachos/reprogramar.ts` — POST reschedule despacho
+- `components/Modals/EditarDespachoModal.tsx` — Edit despacho modal
+- `lib/supabaseServerClient.ts` — createUserSupabaseClient helper
+- `docs/GUION-DEMO-28FEB.md` — Demo script
+- `docs/diagramas/INCIDENCIAS.md` — Incidencias system design
+- SQL migrations (061-064)
+
+#### Archivos Modificados (38):
+- Components: Sidebar, SubirDocumento, DespachoTableRow, DespachoTabs, TimelineDespachoModal, ReprogramarModal, AssignTransportModal, PlanningGrid, DayView, MonthView, ViajeAcciones, CrearUnidadModal
+- Pages: chofer-mobile, control-acceso, crear-despacho, estados-camiones, incidencias, planificacion, supervisor-carga, transporte/dashboard, despachos/[id]/detalle, admin/validacion-documentos
+- API: despachos/timeline, documentacion/listar, documentacion/upload, documentacion/validar, documentacion/preview-url, ubicaciones/crear, control-acceso/* (5 files)
+- Lib: types, estados/config, estados/operativo, services/viajeEstado, hooks/useDocAlerts, hooks/useIncidencias, contexts/UserRoleContext, middleware/withAuth
+
+#### Decisiones:
+- DEC-027: Incidencias POST usa createUserSupabaseClient (RLS), supabaseAdmin solo para user FK upsert, enrichment, notificaciones
+- DEC-028: Cross-empresa doc listing via `cross_empresa=true` param gated by role (no RLS bypass)
+- DEC-029: Estados-camiones CA filters track origin/destination via despacho plant IDs
+
+#### Commit: cac39db (49 files changed, 2861 insertions, 975 deletions)
+
+#### Próxima sesión:
+- **EVALUACIÓN ARQUITECTURA** para determinar si es posible trabajar en equipos Frontend/Backend/BD/Android/iOS
+- Migration 063 pendiente ejecución en Supabase
+- Pre-existing supabaseAdmin refactor (post-MVP)
+- Preparación datos demo
+- Verificar incidencias E2E completo
+
+---
+
 ## 📅 2026-02-21 (Sábado) - Sesión 29
 
 ### Sesión 29 - Badge Unificación + Despachos Tab Fix + Incidencias API Fix

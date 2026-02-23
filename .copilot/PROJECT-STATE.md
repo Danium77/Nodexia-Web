@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 21-Feb-2026 (Sesión 29 — Badge Unificación + Despachos Tab Fix + Incidencias API Fix)
+**Última actualización:** 22-Feb-2026 (Sesión 30 — Incidencias System + Despacho Edit/Reprogramar + CA Rework + Security Audit)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 28-Feb-2026 (7 días)
+**Próxima presentación:** 28-Feb-2026 (6 días)
 
 ---
 
@@ -38,13 +38,17 @@
 - **Services Layer:** `lib/services/viajeEstado.ts` (cambiarEstadoViaje, asignarUnidad) + `lib/services/notificaciones.ts` (notificarCambioEstado)
 - **Badges por Rol (Sesión 29):** `estados-camiones.tsx` muestra 6 badges unificados para todos los roles (Todos, En Planta, Por Arribar, Cargando, Descargando, Egresados)
 - **Estado Despacho Computado (Sesión 29):** Estado visual de despachos se computa desde viajes (en_proceso/completado) en vez de usar campo `estado` crudo de BD
-- **Incidencias API (Sesión 29):** POST /api/incidencias usa supabaseAdmin para insert, auto-ensure usuario en tabla `usuarios`, logging mejorado
+- **Incidencias System (Sesión 30):** API CRUD completo (/api/incidencias + /api/incidencias/[id]), detail page con doc resolution panel, POST usa createUserSupabaseClient (RLS), sidebar link para 5 roles
+- **Despachos Edit/Reprogramar (Sesión 30):** APIs actualizar (PUT) y reprogramar (POST) con notificaciones a choferes/coordinadores, EditarDespachoModal, ReprogramarModal
+- **Estados-camiones CA Rework (Sesión 30):** Origin/destination tracking via _esOrigen/_esDestino, filtros CA reescritos (caEnPlantaFilter, caPorArribarFilter, etc.), Egresados muestra badge 'Egresado'
+- **Doc Cross-Company (Sesión 30):** upload.ts auto-resolve empresa_id desde entidad, listar.ts cross_empresa=true (role-gated)
+- **Security Audit (Sesión 30):** 10 CRITICAL (9 pre-existentes, 1 corregido), 6 WARNING (2 corregidos). Fix: incidencias POST RLS, role names admin→admin_nodexia
 - **Incidencias (Sesión 28):** Diseño completo en `docs/diagramas/INCIDENCIAS.md` — tabla canónica `incidencias_viaje`, deprecar `incidencias`
 - **Thin API Routes:** API routes delegan a services layer (no lógica directa en handlers)
 - **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
 - **Sync estado_carga_viaje:** cambiarEstadoViaje() sincroniza automáticamente estado_carga_viaje (elimina actualizarEstadoDual)
 - **Vercel Config:** vercel.json creado (región gru1, pnpm, API maxDuration 30s)
-- **Git:** Pusheado a GitHub main (commit 1b7dd24)
+- **Git:** Pusheado a GitHub main (commit cac39db — Sesión 30)
 - **Vercel:** Proyecto `nodexia-web-j6wl` → www.nodexiaweb.com (proyecto roto `nodexia-web` eliminado)
 - **PROD Supabase:** `lkdcofsfjnltuzzzwoir` — Schema sincronizado con DEV
 - **DEV Supabase:** `yllnzkjpvaukeeqzuxit`
@@ -96,9 +100,11 @@
 - ✅ Gestionar transportes vinculados
 - ✅ Desvincular transporte con validación de viajes activos + modal confirmación
 - ✅ Crear despachos
+- ✅ Editar/reprogramar despachos (APIs actualizar + reprogramar con notificaciones)
 - ✅ Asignar transporte
 - ✅ Aceptar oferta Red Nodexia (API service role, 8 pasos atómicos)
 - ✅ Ver detalle de despachos completados (viajes + docs + timeline + facturación)
+- ✅ Gestionar incidencias (crear, resolver, cerrar, panel docs)
 
 ### Transporte:
 - ✅ Gestionar flota (camión, chofer, acoplado) — vista unificada en cards
@@ -283,6 +289,42 @@ components/
 ---
 
 ## 🔄 ÚLTIMA ACTIVIDAD
+
+**Sesión 22-Feb-2026 (Sesión 30 — Incidencias + Despacho Edit + CA Rework + Security Audit):**
+
+### Contexto:
+- Pre-demo prep (28-Feb). Feature work + bug fixing + security audit before PROD deploy.
+
+### Principales logros:
+1. ✅ Sistema incidencias completo: API CRUD, detail page con panel resolución docs
+2. ✅ Sidebar: Incidencias link para 5 roles
+3. ✅ APIs actualizar/reprogramar despachos con notificaciones
+4. ✅ EditarDespachoModal + ReprogramarModal components
+5. ✅ Estados-camiones CA rework: origin/destination tracking, filtros reescritos
+6. ✅ Doc upload auto-resolve empresa_id (cross-company fix)
+7. ✅ Doc listing cross_empresa=true (role-gated)
+8. ✅ UX fixes: debug panel hidden, QR placeholder, inline input, onKeyDown, colSpan
+9. ✅ Security audit: incidencias POST → createUserSupabaseClient, role 'admin' → 'admin_nodexia'
+10. ✅ Demo script (GUION-DEMO-28FEB.md)
+
+### Bugs resueltos:
+- `docs.forEach is not a function` — API returns `{data:{documentos:[]}}` not `{data:[]}`
+- DB trigger `validar_entidad_existe` — auto-resolve empresa_id from entity lookup
+- Cross-empresa doc listing blocked — cross_empresa=true param
+- CA showing wrong vehicles — origin/destination filter rewrite
+- Post-egreso vehicles invisible — estadosPostEgresoOrigen array
+- Confusing state labels → 'Egresado' badge
+
+### Commit: cac39db (49 files changed, 2861+, 975-)
+
+### Pendiente próxima sesión:
+- **EVALUACIÓN ARQUITECTURA para equipos** (Frontend/Backend/BD/Android/iOS)
+- Migration 063 pendiente ejecución en Supabase
+- Pre-existing supabaseAdmin usage in upload.ts, validar.ts, timeline.ts (refactor post-MVP)
+- Preparación datos demo
+- Verificar incidencias E2E completo
+
+---
 
 **Sesión 17-Feb-2026 (Sesión 25 — Team Docs):**
 

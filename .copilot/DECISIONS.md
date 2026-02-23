@@ -238,6 +238,40 @@ Registro de decisiones arquitectónicas y técnicas importantes.
 **Impacto:** Incidencias se pueden crear desde cualquier rol autorizado  
 **Responsable:** Opus  
 **Nota:** Excepción temporal al principio DEC-015. La lectura sigue por RLS, solo el insert bypasea.
+**ACTUALIZACIÓN (22-Feb-2026):** Revertido parcialmente — POST ahora usa createUserSupabaseClient para insert+viaje check. supabaseAdmin solo para user FK upsert, enrichment lookups, y notificaciones (DEC-027).
+
+---
+
+## DEC-027: Incidencias POST usa createUserSupabaseClient (22-Feb-2026)
+
+**Contexto:** Auditoría de seguridad pre-deploy encontró que incidencias POST usaba supabaseAdmin para insert  
+**Problema:** Violación del principio CERO bypass RLS para usuarios autenticados  
+**Decisión:** Cambiar insert y viaje check a createUserSupabaseClient. supabaseAdmin solo para: user FK upsert (tabla sin RLS adecuada), enrichment lookups (viaje empresa), notificaciones (cross-company)  
+**Alternativas consideradas:** Mantener supabaseAdmin (rechazada: viola principios)  
+**Impacto:** Insert respeta RLS, datos más seguros  
+**Responsable:** Opus
+
+---
+
+## DEC-028: Cross-empresa doc listing via param role-gated (22-Feb-2026)
+
+**Contexto:** Coordinador de planta no podía ver docs de recursos de transporte desde incidencia detail  
+**Problema:** listar.ts filtraba por empresa_id del usuario, pero docs pertenecen a empresa de transporte  
+**Decisión:** Agregar param `cross_empresa=true` que skippea filtro empresa_id, gated a roles ['coordinador', 'supervisor', 'admin_nodexia', 'super_admin']  
+**Alternativas consideradas:** RLS policy cross-company (rechazada: ya existe pero no cubre este caso sin refactor mayor)  
+**Impacto:** Coordinadores pueden ver/gestionar docs de recursos de transporte para resolver incidencias  
+**Responsable:** Opus
+
+---
+
+## DEC-029: Estados-camiones CA filters por origen/destino (22-Feb-2026)
+
+**Contexto:** CA de planta veía vehículos incorrectos porque no se distinguía si la planta era origen o destino  
+**Problema:** "En Planta" mostraba vehículos de destino, "Egresados" no mostraba post-egreso  
+**Decisión:** Track origin/destination via `despachosOrigenIds`/`despachosDestinoIds` Sets. Rewrite completo de filtros CA con funciones nombradas (caEnPlantaFilter, caPorArribarFilter, etc.)  
+**Alternativas consideradas:** Filtrar solo por empresa_id (rechazada: una empresa puede tener múltiples plantas)  
+**Impacto:** CA ve solo vehículos relevantes a su planta y dirección (origen vs destino)  
+**Responsable:** Opus
 
 ---
 
