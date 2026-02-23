@@ -4,6 +4,52 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-02-23 (Domingo) - Sesión 30b
+
+### Sesión 30b - UX Polish: Heartbeat Spinner + Parallel Queries + Sidebar/Nav Fixes
+
+**Tiempo:** ~1.5 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Contexto:
+Continuación de sesión 30. Testing en producción reveló 3 problemas de UX: spinners inconsistentes, carga lenta de planificación, clicks no responsivos en sidebar. + Sincronización de BD prod (migraciones 060-064).
+
+#### Logros:
+1. ✅ **PROD DB Sync**: Migraciones 060, 061, 063, 064 ejecutadas en PROD. 064 requirió ALTER TABLE ADD COLUMN para ubicaciones.empresa_id (faltaba en PROD)
+2. ✅ **LoadingSpinner unificado**: Reescrito con logo Nodexia X (`logo X gruesa.png`) + animación heartbeat + glow ring cyan. ButtonSpinner para botones inline
+3. ✅ **Animaciones CSS**: `@keyframes nodexia-heartbeat` (scale pulse 1→1.12→0.97→1.06→1) y `@keyframes nodexia-glow` (box-shadow cyan pulse) registradas en Tailwind v4 via `@theme inline`
+4. ✅ **Page transition overlay**: `_app.tsx` usa Router events (routeChangeStart/Complete/Error) para mostrar LoadingSpinner fullScreen durante navegación
+5. ✅ **Sidebar collapse delay**: 300ms timeout antes de colapsar al mouse leave — previene que el colapso robe clicks
+6. ✅ **Logout feedback**: Botón muestra spinner + disabled + "Cerrando..." durante signOut async
+7. ✅ **Planificación parallelized**: loadData() de ~10 serial DB round-trips a 5 parallel phases:
+   - Phase 1: empresa (sequential, needed by all)
+   - Phase 2: Promise.all(users, ubicaciones, transportes filter, métricas)
+   - Phase 3: Promise.all(despachos, recepciones)
+   - Phase 4: Promise.all(viajes, ubicaciones all)
+   - Phase 5: Promise.all(enrichment — combined IDs from despachos + viajes, single pass)
+
+#### Archivos Modificados (14):
+- `components/ui/LoadingSpinner.tsx` — Complete rewrite (heartbeat + ButtonSpinner)
+- `styles/globals.css` — Added nodexia-heartbeat + nodexia-glow keyframes
+- `pages/_app.tsx` — Page transition loading overlay
+- `components/layout/Sidebar.tsx` — Collapse delay + logout feedback
+- `pages/planificacion.tsx` — Parallel query optimization (130 lines removed)
+- 9 pages verified already using `<LoadingSpinner>` (dashboard, estados-camiones, chofer-mobile, chofer/viajes, super-admin-dashboard, validacion-documentos, estadisticas, configuracion, crear-despacho)
+
+#### Decisiones:
+- DEC-030: Unified spinner uses Nodexia X logo with heartbeat, not generic border-spin
+- DEC-031: Page transitions show fullScreen overlay via Next.js Router events
+
+#### Commit: 7a88214 (14 files changed, 235 insertions, 378 deletions)
+
+#### Próxima sesión:
+- **EVALUACIÓN ARQUITECTURA** para equipos Frontend/Backend/BD/Android/iOS
+- Verificar incidencias E2E completo
+- Preparación datos demo
+- Remaining inline spinners (53 button/section level — lower priority)
+
+---
+
 ## 📅 2026-02-22 (Sábado) - Sesión 30
 
 ### Sesión 30 - Incidencias System + Despacho Edit/Reprogramar + CA Rework + Security Audit

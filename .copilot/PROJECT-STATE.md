@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 22-Feb-2026 (Sesión 30 — Incidencias System + Despacho Edit/Reprogramar + CA Rework + Security Audit)
+**Última actualización:** 23-Feb-2026 (Sesión 30b — UX Polish: Heartbeat Spinner + Parallel Queries + Sidebar Fixes)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 28-Feb-2026 (6 días)
+**Próxima presentación:** 28-Feb-2026 (5 días)
 
 ---
 
@@ -43,12 +43,15 @@
 - **Estados-camiones CA Rework (Sesión 30):** Origin/destination tracking via _esOrigen/_esDestino, filtros CA reescritos (caEnPlantaFilter, caPorArribarFilter, etc.), Egresados muestra badge 'Egresado'
 - **Doc Cross-Company (Sesión 30):** upload.ts auto-resolve empresa_id desde entidad, listar.ts cross_empresa=true (role-gated)
 - **Security Audit (Sesión 30):** 10 CRITICAL (9 pre-existentes, 1 corregido), 6 WARNING (2 corregidos). Fix: incidencias POST RLS, role names admin→admin_nodexia
+- **UX Polish (Sesión 30b):** Heartbeat spinner (Nodexia X logo + glow), page transition overlay, sidebar collapse delay 300ms, logout spinner
+- **Planificación Perf (Sesión 30b):** loadData optimizado de ~10 serial RTTs a 5 parallel phases (Promise.all)
+- **Page Transitions (Sesión 30b):** _app.tsx usa Router events (routeChangeStart/Complete/Error) con LoadingSpinner fullScreen overlay
 - **Incidencias (Sesión 28):** Diseño completo en `docs/diagramas/INCIDENCIAS.md` — tabla canónica `incidencias_viaje`, deprecar `incidencias`
 - **Thin API Routes:** API routes delegan a services layer (no lógica directa en handlers)
 - **Timestamps automáticos:** cambiarEstadoViaje() upsert timestamp por fase en estado_unidad_viaje
 - **Sync estado_carga_viaje:** cambiarEstadoViaje() sincroniza automáticamente estado_carga_viaje (elimina actualizarEstadoDual)
 - **Vercel Config:** vercel.json creado (región gru1, pnpm, API maxDuration 30s)
-- **Git:** Pusheado a GitHub main (commit cac39db — Sesión 30)
+- **Git:** Pusheado a GitHub main (commit 7a88214 — Sesión 30b)
 - **Vercel:** Proyecto `nodexia-web-j6wl` → www.nodexiaweb.com (proyecto roto `nodexia-web` eliminado)
 - **PROD Supabase:** `lkdcofsfjnltuzzzwoir` — Schema sincronizado con DEV
 - **DEV Supabase:** `yllnzkjpvaukeeqzuxit`

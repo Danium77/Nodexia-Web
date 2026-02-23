@@ -1,6 +1,6 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 22-Feb-2026 (Sesión 30 — Incidencias System + Despacho Edit/Reprogramar + CA Rework + Security Audit)
+**Actualizado:** 23-Feb-2026 (Sesión 30b — UX Polish: Heartbeat Spinner + Parallel Queries + Sidebar/Nav Fixes)
 
 ---
 
@@ -16,7 +16,7 @@
 - iOS (app nativa)
 **Análisis requerido:** Acoplamiento actual, contratos API, shared types, migration strategy, mobile API contract
 
-### Pre-Demo (28-Feb-2026 — 6 días)
+### Pre-Demo (28-Feb-2026 — 5 días)
 **Estado:** En preparación
 - ✅ Flujo E2E completo validado (todos los actores)
 - ✅ Self-delivery flow para destinos no-Nodexia
@@ -48,6 +48,11 @@
 - ✅ UX fixes para demo (6 fixes) (Sesión 30)
 - ✅ Security audit pre-deploy + fixes (Sesión 30)
 - ✅ Script/guión de demo (GUION-DEMO-28FEB.md) (Sesión 30)
+- ✅ PROD DB sync: migraciones 060, 061, 063, 064 ejecutadas (Sesión 30b)
+- ✅ LoadingSpinner unificado con Nodexia X heartbeat + glow (Sesión 30b)
+- ✅ Page transition overlay en _app.tsx (Sesión 30b)
+- ✅ Sidebar collapse delay 300ms + logout spinner feedback (Sesión 30b)
+- ✅ Planificación: loadData ~10 serial → 5 parallel phases (Sesión 30b)
 - ⬜ **Migration 063 pendiente ejecución en Supabase** (RLS documentos_viaje_planta)
 - ⬜ Verificar incidencias E2E completo
 - ⬜ Preparación datos demo

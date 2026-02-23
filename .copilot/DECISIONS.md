@@ -275,6 +275,28 @@ Registro de decisiones arquitectónicas y técnicas importantes.
 
 ---
 
+## DEC-030: Spinner unificado con logo Nodexia X heartbeat (23-Feb-2026)
+
+**Contexto:** Testing en PROD mostró spinners inconsistentes (border-spin, SVG, texto plano) en ~101 puntos del codebase  
+**Problema:** Experiencia visual desunificada, apariencia no profesional  
+**Decisión:** Reescribir LoadingSpinner con logo `logo X gruesa.png` + animación heartbeat (scale pulse) + glow ring cyan. ButtonSpinner separado para botones inline.  
+**Implementación:** `@keyframes nodexia-heartbeat` y `@keyframes nodexia-glow` en globals.css, registradas como `--animate-nodexia-heartbeat` y `--animate-nodexia-glow` en `@theme inline` (Tailwind v4)  
+**Impacto:** Todas las pantallas de carga muestran identidad visual Nodexia  
+**Responsable:** PO (solicitud) + Opus (implementación)
+
+---
+
+## DEC-031: Page transitions con Router events overlay (23-Feb-2026)
+
+**Contexto:** Al navegar entre páginas, no había feedback visual — usuario creía que el click no funcionaba  
+**Problema:** Next.js no muestra indicador de carga entre navegaciones client-side  
+**Decisión:** `_app.tsx` escucha `routeChangeStart`/`routeChangeComplete`/`routeChangeError` y muestra `<LoadingSpinner fullScreen>` como overlay  
+**Alternativas consideradas:** NProgress bar (rechazada: no brand-aligned), skeleton loaders por página (rechazada: demasiado esfuerzo pre-demo)  
+**Impacto:** Click en sidebar/link muestra inmediatamente el spinner heartbeat durante la transición  
+**Responsable:** Opus
+
+---
+
 ## Template para futuras decisiones:
 
 ```markdown
