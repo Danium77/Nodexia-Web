@@ -15,9 +15,11 @@ export function filterDespachosByTab(dispatches: any[], tab: DespachoTab): any[]
     const tieneExpirados = d.tiene_viajes_expirados === true;
     const tieneViajesEnProceso = d.tiene_viajes_en_proceso === true;
     const todosViajesCompletados = d.todos_viajes_completados === true;
-    const esEstadoFinal = ['completado', 'cancelado', 'expirado', 'cancelado_por_transporte', 'finalizado', 'entregado'].includes(d.estado);
-    // Un despacho está completado sólo si NO tiene viajes activos en proceso
-    const esCompletado = (esEstadoFinal || todosViajesCompletados) && !tieneViajesEnProceso;
+    // 'expirado' NO es estado final para clasificación — tiene su propio tab
+    const esExpirado = d.estado === 'expirado' || tieneExpirados;
+    const esEstadoFinal = ['completado', 'cancelado', 'cancelado_por_transporte', 'finalizado', 'entregado'].includes(d.estado);
+    // Un despacho está completado sólo si NO tiene viajes activos y NO está expirado
+    const esCompletado = (esEstadoFinal || todosViajesCompletados) && !tieneViajesEnProceso && !esExpirado;
 
     switch (tab) {
       case 'completados':
@@ -26,7 +28,7 @@ export function filterDespachosByTab(dispatches: any[], tab: DespachoTab): any[]
         // Cualquier despacho con viajes activos entre confirmado y egreso_destino
         return tieneViajesEnProceso;
       case 'expirados':
-        return tieneExpirados && !esCompletado && !tieneViajesEnProceso;
+        return esExpirado && !tieneViajesEnProceso;
       case 'demorados':
         return tieneDemorados && !tieneExpirados && !esCompletado && !tieneViajesEnProceso;
       case 'pendientes':
