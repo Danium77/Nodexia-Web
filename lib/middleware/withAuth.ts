@@ -44,6 +44,45 @@ interface WithAuthOptions {
   roles?: string[];
 }
 
+/**
+ * Normaliza valores legacy de rol_interno al formato canónico.
+ * Debe coincidir con el mapeo de UserRoleContext.tsx.
+ */
+function normalizeRole(raw: string | null): string | null {
+  if (!raw) return null;
+  switch (raw) {
+    case 'admin_nodexia':
+    case 'Super Admin':
+    case 'super_admin':
+      return 'admin_nodexia';
+    case 'control_acceso':
+    case 'Control de Acceso':
+      return 'control_acceso';
+    case 'supervisor':
+    case 'Supervisor':
+    case 'Supervisor de Carga':
+    case 'supervisor_carga':
+      return 'supervisor';
+    case 'coordinador':
+    case 'Coordinador':
+    case 'Coordinador de Transporte':
+    case 'coordinador_transporte':
+      return 'coordinador';
+    case 'chofer':
+    case 'Chofer':
+      return 'chofer';
+    case 'administrativo':
+    case 'Operador':
+    case 'Administrativo':
+      return 'administrativo';
+    case 'visor':
+      return 'visor';
+    default:
+      console.warn(`[withAuth] Rol desconocido: ${raw} - sin normalizar`);
+      return raw;
+  }
+}
+
 export function withAuth(handler: AuthenticatedHandler, options?: WithAuthOptions) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
@@ -70,10 +109,11 @@ export function withAuth(handler: AuthenticatedHandler, options?: WithAuthOption
         .maybeSingle();
 
       const empresaId = relacion?.empresa_id ?? null;
-      const rolInterno = relacion?.rol_interno ?? null;
+      const rolRaw = relacion?.rol_interno ?? null;
+      const rolInterno = normalizeRole(rolRaw);
       const tipoEmpresa = (relacion?.empresas as any)?.tipo_empresa ?? null;
 
-      console.log(`[withAuth] User: ${user.id}, Rol: ${rolInterno}, Empresa: ${empresaId}`);
+      console.log(`[withAuth] User: ${user.id}, Rol: ${rolInterno}${rolRaw !== rolInterno ? ` (raw: ${rolRaw})` : ''}, Empresa: ${empresaId}`);
 
       // 4. Verificar rol si se especificó
       if (options?.roles && options.roles.length > 0) {

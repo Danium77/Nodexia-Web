@@ -81,4 +81,4 @@ export default withAuth(async (req, res, auth) => {
     console.error('[documentos-detalle] Error:', error.message);
     return res.status(500).json({ error: 'Error interno' });
   }
-}, { roles: ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'] });
+}, { roles: ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia', 'administrativo'] });
