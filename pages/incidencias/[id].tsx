@@ -56,6 +56,7 @@ function formatFechaCompleta(fecha: string): string {
 interface IncidenciaDetalle extends IncidenciaViaje {
   viaje?: any;
   producto?: string;
+  recursos_nombres?: Record<string, string>;
 }
 
 const IncidenciaDetallePage: React.FC = () => {
@@ -358,7 +359,7 @@ const IncidenciaDetallePage: React.FC = () => {
               {recursosAfectados.map((doc: any, i: number) => (
                 <div key={i} className="flex items-center justify-between bg-slate-900/50 rounded-lg px-3 py-2 text-sm">
                   <div>
-                    <span className="text-white font-medium">{doc.tipo}</span>
+                    <span className="text-white font-medium">{incidencia.recursos_nombres?.[doc.entidad_id] || doc.tipo}</span>
                     <span className="text-slate-500 ml-2">({doc.entidad_tipo})</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-xs ${
@@ -461,7 +462,7 @@ const IncidenciaDetallePage: React.FC = () => {
                         className="w-full px-4 py-2 bg-slate-700 text-slate-200 text-sm rounded-lg hover:bg-slate-600 transition-all text-left flex items-center gap-2"
                       >
                         <span>📤</span>
-                        <span>Subir documento para {da.entidad_tipo} {da.entidad_id?.substring(0, 8)}...</span>
+                        <span>Subir documento para {da.entidad_tipo}: {incidencia.recursos_nombres?.[da.entidad_id] || da.entidad_id?.substring(0, 8) + '...'}</span>
                       </button>
                     )}
                   </div>

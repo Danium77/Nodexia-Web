@@ -67,6 +67,37 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
         }
       }
 
+      // 3. Resolver nombres de recursos del viaje (chofer, camión, acoplado)
+      const recursosNombres: Record<string, string> = {};
+      if (viaje) {
+        const recursoQueries = [];
+        if (viaje.chofer_id) {
+          recursoQueries.push(
+            supabase.from('choferes').select('id, nombre, apellido').eq('id', viaje.chofer_id).maybeSingle()
+              .then(({ data }) => {
+                if (data) recursosNombres[viaje.chofer_id] = `${data.nombre} ${data.apellido}`.trim();
+              })
+          );
+        }
+        if (viaje.camion_id) {
+          recursoQueries.push(
+            supabase.from('camiones').select('id, patente, marca').eq('id', viaje.camion_id).maybeSingle()
+              .then(({ data }) => {
+                if (data) recursosNombres[viaje.camion_id] = `${data.patente}${data.marca ? ` (${data.marca})` : ''}`;
+              })
+          );
+        }
+        if (viaje.acoplado_id) {
+          recursoQueries.push(
+            supabase.from('acoplados').select('id, patente, marca').eq('id', viaje.acoplado_id).maybeSingle()
+              .then(({ data }) => {
+                if (data) recursosNombres[viaje.acoplado_id] = `${data.patente}${data.marca ? ` (${data.marca})` : ''}`;
+              })
+          );
+        }
+        await Promise.all(recursoQueries);
+      }
+
       // Nombres de usuarios
       const userIds = [incidencia.reportado_por, incidencia.resuelto_por].filter(Boolean);
       let usersMap: Record<string, string> = {};
@@ -90,6 +121,7 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
           producto: despachoData?.producto || null,
           reportado_por_nombre: usersMap[incidencia.reportado_por] || null,
           resuelto_por_nombre: incidencia.resuelto_por ? (usersMap[incidencia.resuelto_por] || null) : null,
+          recursos_nombres: recursosNombres,
         },
       });
     } catch (error: any) {
