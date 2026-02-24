@@ -38,12 +38,34 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
         return res.status(404).json({ error: 'Incidencia no encontrada' });
       }
 
-      // Enriquecer con datos de viaje
-      const { data: viaje } = await supabase
+      // Enriquecer con datos de viaje — queries separadas por seguridad
+      // 1. Viaje base (RLS: auth.uid() IS NOT NULL → acceso para cualquier autenticado)
+      const { data: viaje, error: viajeError } = await supabase
         .from('viajes_despacho')
-        .select('id, numero_viaje, estado, despacho_id, chofer_id, camion_id, acoplado_id, despachos:despacho_id(pedido_id, producto, empresa_id)')
+        .select('id, numero_viaje, estado, despacho_id, chofer_id, camion_id, acoplado_id')
         .eq('id', incidencia.viaje_id)
         .single();
+
+      if (viajeError) {
+        console.error('[GET /api/incidencias/[id]] Error viaje:', JSON.stringify(viajeError));
+      }
+
+      // 2. Despacho: query separada (puede tener RLS más restrictiva)
+      let despachoData: { pedido_id?: string; producto?: string; empresa_id?: string } = {};
+      if (viaje?.despacho_id) {
+        const { data: despacho, error: despachoError } = await supabase
+          .from('despachos')
+          .select('pedido_id, producto, empresa_id')
+          .eq('id', viaje.despacho_id)
+          .maybeSingle();
+
+        if (despachoError) {
+          console.warn('[GET /api/incidencias/[id]] Despacho no accesible (RLS):', despachoError.code);
+        }
+        if (despacho) {
+          despachoData = despacho;
+        }
+      }
 
       // Nombres de usuarios
       const userIds = [incidencia.reportado_por, incidencia.resuelto_por].filter(Boolean);
@@ -62,10 +84,10 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
         success: true,
         data: {
           ...incidencia,
-          viaje: viaje || null,
+          viaje: viaje ? { ...viaje, despachos: despachoData } : null,
           numero_viaje: viaje?.numero_viaje || null,
-          despacho_pedido_id: (viaje?.despachos as any)?.pedido_id || null,
-          producto: (viaje?.despachos as any)?.producto || null,
+          despacho_pedido_id: despachoData?.pedido_id || null,
+          producto: despachoData?.producto || null,
           reportado_por_nombre: usersMap[incidencia.reportado_por] || null,
           resuelto_por_nombre: incidencia.resuelto_por ? (usersMap[incidencia.resuelto_por] || null) : null,
         },
