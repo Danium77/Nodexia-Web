@@ -197,26 +197,50 @@ export default withAuth(async (req, res, { userId, token }) => {
         reportado_por: userId,
       };
 
-      // documentos_afectados: JSONB con docs problemáticos (migration 064 ejecutada)
+      // documentos_afectados: JSONB (requiere migration 064)
+      // Se intenta con la columna; si falla con PGRST204 se reintenta sin ella
       if (documentos_afectados && Array.isArray(documentos_afectados) && documentos_afectados.length > 0) {
         insertData.documentos_afectados = documentos_afectados;
       }
 
       console.log('[POST /api/incidencias] Inserting:', JSON.stringify(insertData));
 
-      const { data: incidencia, error: insertError } = await supabase
+      let incidencia: any = null;
+      let insertError: any = null;
+
+      const result1 = await supabase
         .from('incidencias_viaje')
         .insert(insertData)
         .select('id, tipo_incidencia, estado, severidad')
         .single();
 
-      if (insertError) {
+      if (!result1.error) {
+        incidencia = result1.data;
+      } else if (result1.error.code === 'PGRST204' || result1.error.message?.includes('documentos_afectados')) {
+        // Columna documentos_afectados no existe en PROD — reintentar sin ella
+        console.warn('[POST /api/incidencias] Columna documentos_afectados no existe, reintentando sin ella');
+        delete insertData.documentos_afectados;
+        const result2 = await supabase
+          .from('incidencias_viaje')
+          .insert(insertData)
+          .select('id, tipo_incidencia, estado, severidad')
+          .single();
+        if (!result2.error) {
+          incidencia = result2.data;
+        } else {
+          insertError = result2.error;
+        }
+      } else {
+        insertError = result1.error;
+      }
+
+      if (insertError || !incidencia) {
         console.error('[POST /api/incidencias] Insert error:', JSON.stringify(insertError));
         return res.status(500).json({
-          error: `Error al crear incidencia: ${insertError.message || 'desconocido'}`,
-          code: insertError.code,
-          details: insertError.details,
-          hint: insertError.hint,
+          error: `Error al crear incidencia: ${insertError?.message || 'desconocido'}`,
+          code: insertError?.code,
+          details: insertError?.details,
+          hint: insertError?.hint,
         });
       }
 
