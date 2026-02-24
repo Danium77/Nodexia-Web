@@ -99,10 +99,33 @@ const IncidenciaDetallePage: React.FC = () => {
     }
   };
 
+  // Derivar recursos afectados: usar documentos_afectados si existe, sino extraer del viaje
+  const recursosAfectados = React.useMemo(() => {
+    // Si documentos_afectados existe (migration 064 aplicada), usar eso
+    if (incidencia?.documentos_afectados && Array.isArray(incidencia.documentos_afectados) && incidencia.documentos_afectados.length > 0) {
+      return incidencia.documentos_afectados;
+    }
+    // Fallback: derivar del viaje asignado
+    if (incidencia?.viaje) {
+      const recursos: any[] = [];
+      if (incidencia.viaje.chofer_id) {
+        recursos.push({ entidad_tipo: 'chofer', entidad_id: incidencia.viaje.chofer_id, tipo: 'documentacion', problema: 'faltante' });
+      }
+      if (incidencia.viaje.camion_id) {
+        recursos.push({ entidad_tipo: 'camion', entidad_id: incidencia.viaje.camion_id, tipo: 'documentacion', problema: 'faltante' });
+      }
+      if (incidencia.viaje.acoplado_id) {
+        recursos.push({ entidad_tipo: 'acoplado', entidad_id: incidencia.viaje.acoplado_id, tipo: 'documentacion', problema: 'faltante' });
+      }
+      return recursos;
+    }
+    return [];
+  }, [incidencia]);
+
   // Cargar documentos del recurso afectado (para incidencias de documentación)
   const fetchDocsRecurso = useCallback(async () => {
     if (!incidencia || incidencia.tipo_incidencia !== 'documentacion_faltante') return;
-    if (!incidencia.documentos_afectados || !Array.isArray(incidencia.documentos_afectados)) return;
+    if (recursosAfectados.length === 0) return;
     
     setDocsLoading(true);
     try {
@@ -111,7 +134,7 @@ const IncidenciaDetallePage: React.FC = () => {
 
       // Obtener IDs únicos de entidades
       const entidades = new Map<string, string>();
-      incidencia.documentos_afectados.forEach((doc: any) => {
+      recursosAfectados.forEach((doc: any) => {
         if (doc.entidad_tipo && doc.entidad_id) {
           entidades.set(`${doc.entidad_tipo}:${doc.entidad_id}`, doc.entidad_tipo);
         }
@@ -139,7 +162,7 @@ const IncidenciaDetallePage: React.FC = () => {
     } finally {
       setDocsLoading(false);
     }
-  }, [incidencia]);
+  }, [incidencia, recursosAfectados]);
 
   // Aprobar provisoriamente un documento
   const aprobarProvisorio = async (docId: string) => {
@@ -328,11 +351,11 @@ const IncidenciaDetallePage: React.FC = () => {
         </div>
 
         {/* Documentos afectados (si los hay) */}
-        {incidencia.documentos_afectados && Array.isArray(incidencia.documentos_afectados) && incidencia.documentos_afectados.length > 0 && (
+        {recursosAfectados.length > 0 && (
           <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-4">
             <h3 className="text-purple-300 font-medium mb-3 text-sm">📄 Documentos Afectados</h3>
             <div className="space-y-2">
-              {incidencia.documentos_afectados.map((doc: any, i: number) => (
+              {recursosAfectados.map((doc: any, i: number) => (
                 <div key={i} className="flex items-center justify-between bg-slate-900/50 rounded-lg px-3 py-2 text-sm">
                   <div>
                     <span className="text-white font-medium">{doc.tipo}</span>
@@ -367,7 +390,7 @@ const IncidenciaDetallePage: React.FC = () => {
               <div className="space-y-2 mb-4">
                 <p className="text-slate-300 text-xs font-medium mb-2">Documentos actuales del recurso:</p>
                 {docsRecurso.map((doc) => {
-                  const esProblematico = incidencia.documentos_afectados?.some(
+                  const esProblematico = recursosAfectados.some(
                     (da: any) => da.tipo === doc.tipo_documento && da.entidad_tipo === doc._entidad_tipo
                   );
                   const esVigente = doc.estado_vigencia === 'vigente' || doc.estado_vigencia === 'aprobado_provisorio';
@@ -413,10 +436,10 @@ const IncidenciaDetallePage: React.FC = () => {
             )}
 
             {/* Botones para subir documentos nuevos por cada recurso afectado */}
-            {incidencia.documentos_afectados && Array.isArray(incidencia.documentos_afectados) && (
+            {recursosAfectados.length > 0 && (
               <div className="space-y-2">
                 {/* Agrupar por entidad para no repetir botones */}
-                {[...new Map(incidencia.documentos_afectados.map((da: any) => [`${da.entidad_tipo}:${da.entidad_id}`, da])).values()].map((da: any) => (
+                {[...new Map(recursosAfectados.map((da: any) => [`${da.entidad_tipo}:${da.entidad_id}`, da])).values()].map((da: any) => (
                   <div key={`${da.entidad_tipo}:${da.entidad_id}`}>
                     {showUploadFor?.entidadTipo === da.entidad_tipo && showUploadFor?.entidadId === da.entidad_id ? (
                       <div className="bg-slate-900/50 rounded-lg p-3">
