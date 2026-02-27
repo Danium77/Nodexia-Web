@@ -2,17 +2,25 @@
  * NODEXIA - Migration Runner con Tracking
  * =========================================
  * Ejecuta migraciones pendientes y registra cada una en schema_migrations.
+ * Soporta múltiples entornos (dev / production).
  * 
  * Uso:
- *   pnpm migrate              - Ejecutar migraciones pendientes
- *   pnpm migrate:status       - Ver estado de migraciones
- *   pnpm migrate:run 069      - Ejecutar una migración específica
+ *   pnpm migrate                    - Ejecutar pendientes en DEV
+ *   pnpm migrate:prod               - Ejecutar pendientes en PRODUCTION
+ *   pnpm migrate:status             - Ver estado en DEV
+ *   pnpm migrate:status:prod        - Ver estado en PRODUCTION
+ *   pnpm migrate:run 069            - Ejecutar una migración específica (DEV)
+ *   pnpm migrate:run:prod 069       - Ejecutar una migración específica (PROD)
+ *   pnpm migrate:mark 065           - Marcar como aplicada sin ejecutar (DEV)
  * 
- * Requiere en .env.local:
- *   DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres
- *   
- * O alternativamente:
- *   NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+ * Entornos:
+ *   DEV  → lee .env.local           (DATABASE_URL o DATABASE_URL_DEV)
+ *   PROD → lee .env.production      (DATABASE_URL_PRODUCTION)
+ *         o .env.local con DATABASE_URL_PRODUCTION
+ * 
+ * Configuración mínima en .env.local:
+ *   DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-DEV].supabase.co:5432/postgres
+ *   DATABASE_URL_PRODUCTION=postgresql://postgres:[PASSWORD]@db.[PROJECT-PROD].supabase.co:5432/postgres
  */
 
 const { Pool } = require('pg');
@@ -25,6 +33,7 @@ const C = {
   reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
   green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m',
   blue: '\x1b[34m', cyan: '\x1b[36m', magenta: '\x1b[35m',
+  bgRed: '\x1b[41m', white: '\x1b[37m',
 };
 
 function log(msg, color = 'reset') {
@@ -38,19 +47,77 @@ function logHeader(msg) {
   log(line, 'cyan');
 }
 
-// ── Configuración ────────────────────────────────────────────────
-require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+// ── Detección de entorno ─────────────────────────────────────────
 
-const MIGRATIONS_DIR = path.join(__dirname, '..', 'sql', 'migrations');
-
-function getConnectionString() {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+/** Detectar si el usuario quiere prod o dev basado en args */
+function detectEnvironment(args) {
+  // Explicit --env flag
+  const envIdx = args.indexOf('--env');
+  if (envIdx !== -1 && args[envIdx + 1]) {
+    const env = args[envIdx + 1].toLowerCase();
+    args.splice(envIdx, 2); // Remove --env and value from args
+    if (['prod', 'production'].includes(env)) return 'production';
+    if (['dev', 'development'].includes(env)) return 'development';
+  }
   
+  // Also check NODE_ENV
+  if (process.env.MIGRATE_ENV === 'production') return 'production';
+  
+  return 'development';
+}
+
+// ── Configuración ────────────────────────────────────────────────
+
+const ROOT_DIR = path.join(__dirname, '..');
+const MIGRATIONS_DIR = path.join(ROOT_DIR, 'sql', 'migrations');
+
+/** Cargar variables de entorno según el ambiente */
+function loadEnvForEnvironment(env) {
+  // Siempre cargar .env.local primero (tiene las vars base)
+  const envLocal = path.join(ROOT_DIR, '.env.local');
+  if (fs.existsSync(envLocal)) {
+    require('dotenv').config({ path: envLocal });
+  }
+  
+  // Si es producción, cargar .env.production que sobrescribe
+  if (env === 'production') {
+    const envProd = path.join(ROOT_DIR, '.env.production');
+    if (fs.existsSync(envProd)) {
+      require('dotenv').config({ path: envProd, override: true });
+    }
+  }
+}
+
+function getConnectionString(env) {
+  if (env === 'production') {
+    // Producción: buscar DATABASE_URL_PRODUCTION primero, luego DATABASE_URL de .env.production
+    const prodUrl = process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL;
+    if (prodUrl && prodUrl !== 'postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres') {
+      return prodUrl;
+    }
+    
+    log('❌ Falta DATABASE_URL_PRODUCTION', 'red');
+    log('', 'reset');
+    log('  Opción A: Agregar en .env.local:', 'yellow');
+    log('    DATABASE_URL_PRODUCTION=postgresql://postgres:[PASSWORD]@db.[PROJECT-PROD].supabase.co:5432/postgres', 'cyan');
+    log('', 'reset');
+    log('  Opción B: Crear archivo .env.production:', 'yellow');
+    log('    DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-PROD].supabase.co:5432/postgres', 'cyan');
+    log('', 'reset');
+    log('  Obtener desde: Supabase Dashboard → Project Settings → Database → Connection string (URI)', 'dim');
+    process.exit(1);
+  }
+  
+  // Development: buscar DATABASE_URL_DEV o DATABASE_URL
+  const devUrl = process.env.DATABASE_URL_DEV || process.env.DATABASE_URL;
+  if (devUrl) return devUrl;
+  
+  // Intentar construir desde SUPABASE_URL
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (url) {
     const match = url.match(/https:\/\/([^.]+)\.supabase\.co/);
     if (match) {
-      log('⚠  DATABASE_URL no encontrado. Necesitás configurarlo en .env.local:', 'yellow');
+      log('⚠  DATABASE_URL no encontrado. Configuralo en .env.local:', 'yellow');
       log(`   DATABASE_URL=postgresql://postgres:[PASSWORD]@db.${match[1]}.supabase.co:5432/postgres`, 'cyan');
       process.exit(1);
     }
@@ -59,6 +126,12 @@ function getConnectionString() {
   log('❌ Falta DATABASE_URL en .env.local', 'red');
   log('   Formato: postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres', 'yellow');
   process.exit(1);
+}
+
+/** Extraer project ref de un connection string para mostrar al usuario */
+function extractProjectRef(connStr) {
+  const match = connStr.match(/db\.([^.]+)\.supabase/);
+  return match ? match[1] : '???';
 }
 
 // ── Utilidades ───────────────────────────────────────────────────
@@ -119,8 +192,8 @@ async function getAppliedVersions(client) {
 // ── Comandos ─────────────────────────────────────────────────────
 
 /** STATUS: Mostrar estado de todas las migraciones */
-async function cmdStatus(client) {
-  logHeader('ESTADO DE MIGRACIONES');
+async function cmdStatus(client, env, projectRef) {
+  logHeader(`ESTADO DE MIGRACIONES — ${env.toUpperCase()} (${projectRef})`);
   
   await ensureTrackingTable(client);
   const applied = await getAppliedVersions(client);
@@ -165,10 +238,10 @@ async function cmdStatus(client) {
 }
 
 /** MIGRATE: Ejecutar migraciones pendientes */
-async function cmdMigrate(client, specificVersion = null) {
+async function cmdMigrate(client, env, projectRef, specificVersion = null) {
   logHeader(specificVersion 
-    ? `EJECUTAR MIGRACIÓN ${specificVersion}` 
-    : 'EJECUTAR MIGRACIONES PENDIENTES'
+    ? `EJECUTAR MIGRACIÓN ${specificVersion} — ${env.toUpperCase()} (${projectRef})`
+    : `EJECUTAR MIGRACIONES PENDIENTES — ${env.toUpperCase()} (${projectRef})`
   );
   
   await ensureTrackingTable(client);
@@ -288,12 +361,53 @@ async function cmdMark(client, version) {
 
 // ── Main ─────────────────────────────────────────────────────────
 
+/** Prompt de confirmación para producción */
+function confirmProduction(projectRef) {
+  return new Promise((resolve) => {
+    const readline = require('readline');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    
+    log('');
+    log(`  ${C.bgRed}${C.white}${C.bold}  ⚠  PRODUCCIÓN  ⚠  ${C.reset}`);
+    log(`  Proyecto: ${projectRef}`, 'yellow');
+    log(`  Los cambios afectarán datos reales de usuarios.`, 'yellow');
+    log('');
+    
+    rl.question(`  Escribí "PROD" para confirmar: `, (answer) => {
+      rl.close();
+      resolve(answer.trim() === 'PROD');
+    });
+  });
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  const env = detectEnvironment(args);
   const command = args[0] || 'run';
   const param = args[1];
   
-  const connectionString = getConnectionString();
+  // Cargar env vars del entorno correspondiente
+  loadEnvForEnvironment(env);
+  
+  const connectionString = getConnectionString(env);
+  const projectRef = extractProjectRef(connectionString);
+  
+  // Banner de entorno
+  if (env === 'production') {
+    log(`\n  🔴 ENTORNO: PRODUCCIÓN (${projectRef})`, 'red');
+  } else {
+    log(`\n  🟢 ENTORNO: DESARROLLO (${projectRef})`, 'green');
+  }
+  
+  // Confirmación para producción (excepto status)
+  if (env === 'production' && command !== 'status') {
+    const confirmed = await confirmProduction(projectRef);
+    if (!confirmed) {
+      log('\n  Cancelado.', 'dim');
+      process.exit(0);
+    }
+  }
+  
   const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
@@ -303,22 +417,20 @@ async function main() {
   
   let client;
   try {
-    log('🔌 Conectando a PostgreSQL...', 'dim');
+    log('  🔌 Conectando a PostgreSQL...', 'dim');
     client = await pool.connect();
-    log('✓ Conectado\n', 'dim');
+    log('  ✓ Conectado\n', 'dim');
     
     switch (command) {
       case 'status':
-        await cmdStatus(client);
+        await cmdStatus(client, env, projectRef);
         break;
         
       case 'run':
         if (param) {
-          // pnpm migrate:run 069
-          await cmdMigrate(client, param);
+          await cmdMigrate(client, env, projectRef, param);
         } else {
-          // pnpm migrate (run all pending)
-          await cmdMigrate(client);
+          await cmdMigrate(client, env, projectRef);
         }
         break;
         
@@ -333,16 +445,28 @@ async function main() {
         
       default:
         log('Uso:', 'bold');
-        log('  pnpm migrate              Ejecutar migraciones pendientes', 'cyan');
-        log('  pnpm migrate:status       Ver estado de migraciones', 'cyan');
-        log('  pnpm migrate:run <ver>    Ejecutar una migración específica', 'cyan');
-        log('  pnpm migrate:mark <ver>   Marcar como aplicada sin ejecutar', 'cyan');
+        log('', 'reset');
+        log('  Desarrollo (default):', 'cyan');
+        log('    pnpm migrate                 Ejecutar pendientes en DEV', 'dim');
+        log('    pnpm migrate:status          Ver estado en DEV', 'dim');
+        log('    pnpm migrate:run 069         Ejecutar migración específica en DEV', 'dim');
+        log('    pnpm migrate:mark 065        Marcar como aplicada en DEV', 'dim');
+        log('', 'reset');
+        log('  Producción:', 'cyan');
+        log('    pnpm migrate:prod            Ejecutar pendientes en PROD', 'dim');
+        log('    pnpm migrate:status:prod     Ver estado en PROD', 'dim');
+        log('    pnpm migrate:run:prod 069    Ejecutar migración específica en PROD', 'dim');
+        log('', 'reset');
+        log('  Configuración:', 'cyan');
+        log('    .env.local                   DATABASE_URL (dev)', 'dim');
+        log('    .env.local                   DATABASE_URL_PRODUCTION (prod)', 'dim');
+        log('    .env.production              o archivo separado para prod', 'dim');
     }
     
   } catch (error) {
     if (error.message.includes('ECONNREFUSED') || error.message.includes('timeout')) {
       log('❌ No se pudo conectar a la base de datos', 'red');
-      log('   Verificar DATABASE_URL en .env.local', 'yellow');
+      log(`   Verificar DATABASE_URL en ${env === 'production' ? '.env.production' : '.env.local'}`, 'yellow');
     } else {
       log(`❌ Error: ${error.message}`, 'red');
     }

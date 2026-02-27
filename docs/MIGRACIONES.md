@@ -2,7 +2,7 @@
 
 ## Resumen
 
-Nodexia usa un sistema de tracking de migraciones basado en una tabla `schema_migrations` en PostgreSQL. Cada migración aplicada se registra con su versión, nombre, checksum SHA256 y timestamp.
+Nodexia usa un sistema de tracking de migraciones basado en una tabla `schema_migrations` en PostgreSQL. Cada migración aplicada se registra con su versión, nombre, checksum SHA256 y timestamp. Soporta múltiples entornos (dev / production) con confirmación obligatoria para producción.
 
 ## Estructura
 
@@ -17,23 +17,50 @@ sql/migrations/
 
 ## Comandos
 
+### Desarrollo (default)
+
 | Comando | Descripción |
 |---------|-------------|
-| `pnpm migrate` | Ejecutar todas las migraciones pendientes |
-| `pnpm migrate:status` | Ver cuáles están aplicadas vs pendientes |
-| `pnpm migrate:run 069` | Ejecutar una migración específica |
-| `pnpm migrate:mark 065` | Marcar como aplicada SIN ejecutar el SQL |
+| `pnpm migrate` | Ejecutar pendientes en DEV |
+| `pnpm migrate:status` | Ver estado en DEV |
+| `pnpm migrate:run 069` | Ejecutar migración específica en DEV |
+| `pnpm migrate:mark 065` | Marcar como aplicada sin ejecutar en DEV |
+
+### Producción
+
+| Comando | Descripción |
+|---------|-------------|
+| `pnpm migrate:prod` | Ejecutar pendientes en PROD (pide confirmación) |
+| `pnpm migrate:status:prod` | Ver estado en PROD |
+| `pnpm migrate:run:prod 069` | Ejecutar migración específica en PROD |
+| `pnpm migrate:mark:prod 065` | Marcar como aplicada sin ejecutar en PROD |
+
+> **Protección**: Los comandos `:prod` piden escribir "PROD" como confirmación antes de ejecutar.
 
 ## Configuración
 
-Requiere `DATABASE_URL` en `.env.local`:
+### Opción A: Todo en `.env.local` (recomendado para un solo dev)
+
+```env
+# Dev database
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-DEV].supabase.co:5432/postgres
+
+# Prod database
+DATABASE_URL_PRODUCTION=postgresql://postgres:[PASSWORD]@db.[PROJECT-PROD].supabase.co:5432/postgres
+```
+
+### Opción B: Archivos separados
 
 ```
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres
+.env.local              → DATABASE_URL (apunta a dev)
+.env.production         → DATABASE_URL (apunta a prod)
 ```
 
-Si no tenés `DATABASE_URL`, podés obtenerla desde:
+### ¿De dónde saco el DATABASE_URL?
+
 **Supabase Dashboard → Project Settings → Database → Connection string (URI)**
+
+Reemplazar `[YOUR-PASSWORD]` con la contraseña del proyecto.
 
 ## Crear una nueva migración
 
