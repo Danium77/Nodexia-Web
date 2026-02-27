@@ -67,32 +67,46 @@ CREATE POLICY "Coordinador Planta valida por incidencia" ON documentos_recursos 
 
 -- ============================================================================
 -- 5. planta_transportes — ALL ("planta_gestiona_sus_transportes")
+-- NOTA: Tabla puede no existir en todos los entornos
 -- ============================================================================
-DROP POLICY IF EXISTS "planta_gestiona_sus_transportes" ON planta_transportes;
-CREATE POLICY "planta_gestiona_sus_transportes" ON planta_transportes
-    FOR ALL
-    USING (
-        empresa_planta_id IN (
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'planta_transportes' AND table_schema = 'public') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "planta_gestiona_sus_transportes" ON planta_transportes';
+    EXECUTE '
+      CREATE POLICY "planta_gestiona_sus_transportes" ON planta_transportes
+        FOR ALL
+        USING (
+          empresa_planta_id IN (
             SELECT ue.empresa_id 
             FROM usuarios_empresa ue
             WHERE ue.user_id = auth.uid()
-            AND ue.rol_interno IN ('coordinador', 'coordinador_integral')
-        )
-    );
+            AND ue.rol_interno IN (''coordinador'', ''coordinador_integral'')
+          )
+        )';
+  END IF;
+END $$;
 
 -- ============================================================================
 -- 6. ofertas_red_nodexia — ALL ("plantas_gestionan_ofertas")
+-- NOTA: Tabla puede no existir en todos los entornos
 -- ============================================================================
-DROP POLICY IF EXISTS "plantas_gestionan_ofertas" ON ofertas_red_nodexia;
-CREATE POLICY "plantas_gestionan_ofertas" ON ofertas_red_nodexia
-    FOR ALL
-    USING (
-        empresa_planta_id IN (
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'ofertas_red_nodexia' AND table_schema = 'public') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "plantas_gestionan_ofertas" ON ofertas_red_nodexia';
+    EXECUTE '
+      CREATE POLICY "plantas_gestionan_ofertas" ON ofertas_red_nodexia
+        FOR ALL
+        USING (
+          empresa_planta_id IN (
             SELECT ue.empresa_id 
             FROM usuarios_empresa ue
             WHERE ue.user_id = auth.uid()
-            AND ue.rol_interno IN ('coordinador', 'coordinador_integral')
-        )
-    );
+            AND ue.rol_interno IN (''coordinador'', ''coordinador_integral'')
+          )
+        )';
+  END IF;
+END $$;
 
 COMMIT;
