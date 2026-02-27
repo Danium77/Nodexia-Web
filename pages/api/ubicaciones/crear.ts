@@ -16,13 +16,8 @@ export default withAuth(async (req, res, authCtx) => {
       });
     }
 
-    // Obtener empresa_id del usuario autenticado
-    const { data: userEmpresa } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select('empresa_id')
-      .eq('user_id', authCtx.userId)
-      .eq('activo', true)
-      .single();
+    // Usar empresa_id del contexto de auth (ya verificado por withAuth)
+    const empresaIdUsuario = authCtx.empresaId;
 
     // Auto-set empresa_id: por CUIT match o por empresa del usuario
     let empresaId = null;
@@ -34,8 +29,8 @@ export default withAuth(async (req, res, authCtx) => {
         .maybeSingle();
       empresaId = empresaCuit?.id || null;
     }
-    if (!empresaId && userEmpresa?.empresa_id) {
-      empresaId = userEmpresa.empresa_id;
+    if (!empresaId && empresaIdUsuario) {
+      empresaId = empresaIdUsuario;
     }
 
     // Agregar updated_at y empresa_id
@@ -45,7 +40,8 @@ export default withAuth(async (req, res, authCtx) => {
       updated_at: new Date().toISOString()
     };
 
-    // Usar supabaseAdmin para evitar problemas de RLS
+    // Usar supabaseAdmin para INSERT (ubicaciones no tiene INSERT RLS para usuarios normales)
+    // Ownership está garantizado: empresa_id viene del auth context o CUIT match
     const { data, error } = await supabaseAdmin
       .from('ubicaciones')
       .insert([dataToInsert])

@@ -4,7 +4,7 @@ import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
 
-export default withAuth(async (req, res) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -15,7 +15,30 @@ export default withAuth(async (req, res) => {
       return res.status(400).json({ error: 'Missing viaje_id' });
     }
 
-    // Query documentos_viaje_seguro using admin client (bypasses RLS)
+    // Verificar que el usuario tiene acceso al viaje
+    if (authCtx.empresaId && authCtx.rolInterno !== 'admin_nodexia') {
+      const { data: viajeAccess } = await supabaseAdmin
+        .from('viajes_despacho')
+        .select('id, id_transporte, despachos!inner(empresa_id, origen_empresa_id, destino_empresa_id)')
+        .eq('id', viajeId)
+        .maybeSingle();
+
+      if (!viajeAccess) {
+        return res.status(404).json({ error: 'Viaje no encontrado' });
+      }
+
+      const despacho = viajeAccess.despachos as any;
+      const empresasPermitidas = [
+        despacho?.empresa_id, despacho?.origen_empresa_id,
+        despacho?.destino_empresa_id, viajeAccess.id_transporte,
+      ].filter(Boolean);
+
+      if (!empresasPermitidas.includes(authCtx.empresaId)) {
+        return res.status(403).json({ error: 'No tenés acceso a este viaje' });
+      }
+    }
+
+    // Query documentos_viaje_seguro (admin needed for storage signed URLs)
     const { data, error } = await supabaseAdmin
       .from('documentos_viaje_seguro')
       .select('id, file_url, nombre_archivo, tipo, created_at')

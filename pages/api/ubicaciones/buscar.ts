@@ -1,6 +1,7 @@
 import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
 import type { UbicacionAutocomplete } from '@/types/ubicaciones';
 
 /**
@@ -12,7 +13,7 @@ import type { UbicacionAutocomplete } from '@/types/ubicaciones';
 export default withAuth(async (
   req,
   res: NextApiResponse<UbicacionAutocomplete[] | { error: string }>,
-  { empresaId }
+  { empresaId, token }
 ) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
@@ -33,6 +34,7 @@ export default withAuth(async (
     }
 
     // Buscar ubicaciones VINCULADAS a la empresa del usuario
+    // Usar supabaseAdmin ya que empresa_ubicaciones ya está scoped por empresaId del auth context
     let query = supabaseAdmin
       .from('empresa_ubicaciones')
       .select(`

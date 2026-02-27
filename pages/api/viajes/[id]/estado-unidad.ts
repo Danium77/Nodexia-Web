@@ -49,4 +49,4 @@ export default withAuth(async (req, res, authCtx) => {
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-});
+}, { roles: ['supervisor', 'coordinador', 'control_acceso', 'admin_nodexia'] });

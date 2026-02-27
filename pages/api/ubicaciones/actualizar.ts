@@ -1,7 +1,8 @@
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
 
-export default withAuth(async (req, res, _authCtx) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'PUT') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -13,13 +14,36 @@ export default withAuth(async (req, res, _authCtx) => {
       return res.status(400).json({ error: 'ID de ubicación requerido' });
     }
 
+    // Verificar que la ubicación pertenece a la empresa del usuario
+    if (authCtx.empresaId) {
+      const { data: vinculo } = await supabaseAdmin
+        .from('empresa_ubicaciones')
+        .select('id')
+        .eq('empresa_id', authCtx.empresaId)
+        .eq('ubicacion_id', id)
+        .eq('activo', true)
+        .maybeSingle();
+
+      // También verificar si la ubicación pertenece directamente a la empresa
+      const { data: ubicDirecta } = await supabaseAdmin
+        .from('ubicaciones')
+        .select('id')
+        .eq('id', id)
+        .eq('empresa_id', authCtx.empresaId)
+        .maybeSingle();
+
+      if (!vinculo && !ubicDirecta && authCtx.rolInterno !== 'admin_nodexia') {
+        return res.status(403).json({ error: 'No tenés permiso para modificar esta ubicación' });
+      }
+    }
+
     // Agregar updated_at
     const dataToUpdate = {
       ...ubicacionData,
       updated_at: new Date().toISOString()
     };
 
-    // Usar supabaseAdmin para evitar problemas de RLS
+    // Usar supabaseAdmin para el update (ubicaciones no tiene INSERT/UPDATE RLS por diseño)
     const { data, error } = await supabaseAdmin
       .from('ubicaciones')
       .update(dataToUpdate)
