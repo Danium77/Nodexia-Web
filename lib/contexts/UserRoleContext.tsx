@@ -13,11 +13,13 @@ import type { User } from '@supabase/supabase-js';
 function getPrimaryRole(roles: string[]): UserRole {
   if (roles.includes('super_admin')) return 'super_admin';
   if (roles.includes('admin_nodexia')) return 'admin_nodexia';
+  if (roles.includes('coordinador_integral')) return 'coordinador_integral' as UserRole;
   if (roles.includes('coordinador')) return 'coordinador';
   if (roles.includes('control_acceso')) return 'control_acceso';
   if (roles.includes('supervisor')) return 'supervisor';
   if (roles.includes('chofer')) return 'chofer';
   if (roles.includes('administrativo')) return 'administrativo';
+  if (roles.includes('vendedor')) return 'vendedor' as UserRole;
   if (roles.includes('visor')) return 'visor';
   return 'coordinador';
 }
