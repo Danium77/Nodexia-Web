@@ -67,7 +67,7 @@ const CoordinatorDashboard = () => {
     }
 
     // Solo coordinadores pueden acceder
-    if (primaryRole !== 'coordinador') {
+    if (primaryRole !== 'coordinador' && primaryRole !== 'coordinador_integral') {
       console.log(`⚠️ [coordinator-dashboard] Invalid role: ${primaryRole}`);
       router.replace('/dashboard');
       return;

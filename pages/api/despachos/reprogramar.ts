@@ -166,7 +166,7 @@ export default withAuth(
             .from('usuarios_empresa')
             .select('usuario_id')
             .eq('empresa_id', viaje.id_transporte)
-            .eq('rol_interno', 'coordinador');
+            .in('rol_interno', ['coordinador', 'coordinador_integral']);
 
           if (coordinadores && coordinadores.length > 0) {
             console.log(`📧 Enviando notificaciones a empresa transporte: ${coordinadores.length} coordinador(es)`);

@@ -35,7 +35,7 @@ const Dashboard = () => {
     if (!primaryRole) return;
 
     // Para roles contextuales, esperar a que cargue tipoEmpresa
-    if ((primaryRole === 'coordinador' || primaryRole === 'supervisor') && !tipoEmpresa) return;
+    if ((primaryRole === 'coordinador' || primaryRole === 'coordinador_integral' || primaryRole === 'supervisor') && !tipoEmpresa) return;
 
     // Redirigir según rol
     switch (primaryRole) {
@@ -50,6 +50,7 @@ const Dashboard = () => {
         break;
       
       case 'coordinador':
+      case 'coordinador_integral':
         // Coordinador es contextual - redirige según tipo de empresa
         setHasRedirected(true);
         if (tipoEmpresa === 'transporte') {

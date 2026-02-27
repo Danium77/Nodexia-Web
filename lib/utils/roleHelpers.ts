@@ -6,6 +6,8 @@
 export type RolInterno = 
   | 'admin_nodexia'
   | 'coordinador'
+  | 'coordinador_integral'
+  | 'vendedor'
   | 'control_acceso'
   | 'chofer'
   | 'supervisor'
@@ -59,6 +61,12 @@ export function getRolDisplayName(
       
     case 'chofer':
       return 'Chofer';
+
+    case 'coordinador_integral':
+      return 'Coordinador Integral (PyME)';
+
+    case 'vendedor':
+      return 'Vendedor';
       
     case 'administrativo':
       switch (tipo_empresa) {
@@ -88,7 +96,7 @@ export function getDashboardRoute(rol_interno: string, tipo_empresa?: string): s
   }
   
   // Coordinador según tipo de empresa
-  if (rol === 'coordinador') {
+  if (rol === 'coordinador' || rol === 'coordinador_integral') {
     switch (tipo_empresa) {
       case 'transporte':
         return '/transporte/dashboard';
@@ -172,7 +180,7 @@ export function puedeAccederRuta(
   }
   
   // Coordinador tiene acceso amplio según tipo empresa
-  if (rol === 'coordinador') {
+  if (rol === 'coordinador' || rol === 'coordinador_integral') {
     if (tipo_empresa === 'transporte') {
       return !ruta.startsWith('/admin') && !ruta.startsWith('/control-acceso');
     }
@@ -192,6 +200,8 @@ export function getRolColor(rol_interno: string): string {
   const colores: Record<string, string> = {
     'admin_nodexia': 'bg-yellow-500',
     'coordinador': 'bg-blue-500',
+    'coordinador_integral': 'bg-blue-600',
+    'vendedor': 'bg-teal-500',
     'control_acceso': 'bg-green-500',
     'chofer': 'bg-orange-500',
     'supervisor': 'bg-purple-500',
@@ -210,6 +220,8 @@ export function getRolIcon(rol_interno: string): string {
   const iconos: Record<string, string> = {
     'admin_nodexia': '👑',
     'coordinador': '📋',
+    'coordinador_integral': '📋',
+    'vendedor': '💼',
     'control_acceso': '🛡️',
     'chofer': '🚚',
     'supervisor': '👁️',
@@ -244,7 +256,7 @@ export function esRolValidoParaEmpresa(
   }
   
   // Roles genéricos válidos para todos
-  if (['coordinador', 'supervisor', 'administrativo'].includes(rol)) {
+  if (['coordinador', 'coordinador_integral', 'vendedor', 'supervisor', 'administrativo'].includes(rol)) {
     return true;
   }
   

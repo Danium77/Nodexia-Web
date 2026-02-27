@@ -157,7 +157,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
       ];
     }
-  } else if (userRole === 'coordinador' || String(userRole).trim().toLowerCase() === 'coordinador' || isCoordinadorByEmail) {
+  } else if (userRole === 'coordinador' || userRole === 'coordinador_integral' || String(userRole).trim().toLowerCase() === 'coordinador' || isCoordinadorByEmail) {
     // Coordinador (contextual según tipo de empresa)
     if (tipoEmpresa === 'transporte') {
       navItems = [

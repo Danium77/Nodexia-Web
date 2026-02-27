@@ -259,7 +259,7 @@ export default withAuth(async (req, res, { userId, token }) => {
             .from('usuarios_empresa')
             .select('user_id')
             .eq('empresa_id', empresaOrigenId)
-            .in('rol_interno', ['coordinador', 'supervisor'])
+            .in('rol_interno', ['coordinador', 'coordinador_integral', 'supervisor'])
             .eq('activo', true);
 
           if (destinatarios && destinatarios.length > 0) {

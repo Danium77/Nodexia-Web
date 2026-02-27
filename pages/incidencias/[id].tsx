@@ -254,9 +254,9 @@ const IncidenciaDetallePage: React.FC = () => {
     }
   };
 
-  const puedeActuar = ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'].includes(primaryRole || '');
-  const puedeCerrar = ['supervisor', 'coordinador', 'admin_nodexia'].includes(primaryRole || '');
-  const puedeGestionarDocs = ['coordinador', 'supervisor', 'admin_nodexia'].includes(primaryRole || '');
+  const puedeActuar = ['control_acceso', 'supervisor', 'coordinador', 'coordinador_integral', 'admin_nodexia'].includes(primaryRole || '');
+  const puedeCerrar = ['supervisor', 'coordinador', 'coordinador_integral', 'admin_nodexia'].includes(primaryRole || '');
+  const puedeGestionarDocs = ['coordinador', 'coordinador_integral', 'supervisor', 'admin_nodexia'].includes(primaryRole || '');
 
   if (loading) {
     return (

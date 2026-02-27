@@ -20,7 +20,7 @@ const ConfiguracionPage = () => {
 
   // Definir tarjetas por rol
   const isAdmin = primaryRole === 'admin';
-  const isCoordinador = primaryRole === 'coordinador';
+  const isCoordinador = primaryRole === 'coordinador' || primaryRole === 'coordinador_integral';
   const isSuperAdminRole = primaryRole === 'super_admin';
 
   // Tarjetas para admin

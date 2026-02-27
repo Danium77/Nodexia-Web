@@ -14,8 +14,8 @@ const TRANSICIONES_ESTADO: Record<string, string[]> = {
 };
 
 // Roles que pueden cambiar estado
-const ROLES_RESOLVER: string[] = ['control_acceso', 'supervisor', 'coordinador', 'admin_nodexia'];
-const ROLES_CERRAR: string[] = ['supervisor', 'coordinador', 'admin_nodexia'];
+const ROLES_RESOLVER: string[] = ['control_acceso', 'supervisor', 'coordinador', 'coordinador_integral', 'admin_nodexia'];
+const ROLES_CERRAR: string[] = ['supervisor', 'coordinador', 'coordinador_integral', 'admin_nodexia'];
 
 export default withAuth(async (req, res, { userId, token, rolInterno }) => {
   const supabase = createUserSupabaseClient(token);

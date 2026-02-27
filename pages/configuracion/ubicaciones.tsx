@@ -22,7 +22,7 @@ export default function ConfiguracionUbicaciones() {
     if (!loading && !user) {
       router.push('/login');
     }
-    if (!loading && primaryRole && !['coordinador', 'admin', 'super_admin'].includes(primaryRole)) {
+    if (!loading && primaryRole && !['coordinador', 'coordinador_integral', 'admin', 'super_admin'].includes(primaryRole)) {
       console.log('⚠️ Rol no permitido:', primaryRole);
       router.push('/dashboard');
     }
@@ -155,7 +155,7 @@ export default function ConfiguracionUbicaciones() {
     u => !ubicacionesVinculadas.some(v => v.ubicacion_id === u.id)
   );
 
-  if (loading || !primaryRole || !['coordinador', 'admin', 'super_admin'].includes(primaryRole)) {
+  if (loading || !primaryRole || !['coordinador', 'coordinador_integral', 'admin', 'super_admin'].includes(primaryRole)) {
     return null;
   }
 

@@ -67,7 +67,7 @@ export default withAuth(async (req, res, { userId }) => {
         .eq('user_id', userId)
         .single();
 
-      const isAuthorized = userRole && ['coordinador', 'admin_nodexia', 'supervisor'].includes(userRole.rol_interno);
+      const isAuthorized = userRole && ['coordinador', 'coordinador_integral', 'admin_nodexia', 'supervisor'].includes(userRole.rol_interno);
 
       if (!isAuthorized) {
         return res.status(403).json({ error: 'No autorizado para actualizar esta ubicación' });

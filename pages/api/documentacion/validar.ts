@@ -34,7 +34,7 @@ export default withAuth(async (req, res, authCtx) => {
       .maybeSingle();
 
     const esAdmin = !!isSuperAdmin || authCtx.rolInterno === 'admin_nodexia';
-    const esCoordinador = authCtx.rolInterno === 'coordinador';
+    const esCoordinador = authCtx.rolInterno === 'coordinador' || authCtx.rolInterno === 'coordinador_integral';
 
     // ── Validar body ──
     const { documento_id, accion, motivo_rechazo, motivo_provisorio, fecha_emision, fecha_vencimiento, incidencia_id } = req.body as ValidarBody;

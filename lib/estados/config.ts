@@ -258,17 +258,18 @@ export function calcularProgreso(estado: EstadoViajeType): number {
 // ROLES AUTORIZADOS — Quién puede cambiar a cada estado
 // ============================================================================
 
-export type RolInterno = 'coordinador' | 'supervisor' | 'chofer' | 'control_acceso' | 'admin' | 'superadmin';
+export type RolInterno = 'coordinador' | 'coordinador_integral' | 'supervisor' | 'chofer' | 'control_acceso' | 'admin' | 'superadmin';
 
 /**
  * Roles que pueden actualizar el viaje a cada estado.
  * 'AUTOMATIC' = transición automática del sistema, no manual.
  * 'coordinador' incluye coordinador_planta y coordinador_transporte.
+ * 'coordinador_integral' tiene los mismos permisos que 'coordinador'.
  */
 export const ROLES_AUTORIZADOS: Record<EstadoViajeType, RolInterno[] | 'AUTOMATIC'> = {
-  [EstadoViaje.PENDIENTE]: ['coordinador', 'admin'],
-  [EstadoViaje.TRANSPORTE_ASIGNADO]: ['coordinador', 'admin'],
-  [EstadoViaje.CAMION_ASIGNADO]: ['coordinador', 'admin'],
+  [EstadoViaje.PENDIENTE]: ['coordinador', 'coordinador_integral', 'admin'],
+  [EstadoViaje.TRANSPORTE_ASIGNADO]: ['coordinador', 'coordinador_integral', 'admin'],
+  [EstadoViaje.CAMION_ASIGNADO]: ['coordinador', 'coordinador_integral', 'admin'],
   [EstadoViaje.CONFIRMADO_CHOFER]: ['chofer'],
   [EstadoViaje.EN_TRANSITO_ORIGEN]: ['chofer'],
   [EstadoViaje.INGRESADO_ORIGEN]: ['control_acceso'],
@@ -283,7 +284,7 @@ export const ROLES_AUTORIZADOS: Record<EstadoViajeType, RolInterno[] | 'AUTOMATI
   [EstadoViaje.DESCARGADO]: ['supervisor'],
   [EstadoViaje.EGRESO_DESTINO]: ['control_acceso'],
   [EstadoViaje.COMPLETADO]: 'AUTOMATIC',
-  [EstadoViaje.CANCELADO]: ['coordinador', 'admin'],
+  [EstadoViaje.CANCELADO]: ['coordinador', 'coordinador_integral', 'admin'],
 };
 
 /**

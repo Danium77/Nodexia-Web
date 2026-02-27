@@ -122,8 +122,13 @@ export function withAuth(handler: AuthenticatedHandler, options?: WithAuthOption
       console.log(`[withAuth] User: ${user.id}, Rol: ${rolInterno}${rolRaw !== rolInterno ? ` (raw: ${rolRaw})` : ''}, Empresa: ${empresaId}`);
 
       // 4. Verificar rol si se especificó
+      // coordinador_integral hereda todos los permisos de coordinador
       if (options?.roles && options.roles.length > 0) {
-        if (!rolInterno || !options.roles.includes(rolInterno)) {
+        const effectiveRoles: string[] = rolInterno ? [rolInterno] : [];
+        if (rolInterno === 'coordinador_integral') {
+          effectiveRoles.push('coordinador');
+        }
+        if (!rolInterno || !effectiveRoles.some(r => options.roles!.includes(r))) {
           console.error(`[withAuth] Acceso denegado - Rol requerido: ${options.roles.join(', ')}, Actual: ${rolInterno}`);
           return res.status(403).json({
             error: 'Prohibido: rol insuficiente',

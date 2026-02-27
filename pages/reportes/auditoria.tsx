@@ -67,7 +67,7 @@ const ReporteAuditoria = () => {
       setError('');
 
       // Verificar permisos
-      if (!hasAnyRole(['super_admin', 'coordinador', 'transporte'] as any[])) {
+      if (!hasAnyRole(['super_admin', 'coordinador', 'coordinador_integral', 'transporte'] as any[])) {
         setError('No tienes permisos para ver los reportes de auditoría');
         return;
       }
@@ -201,7 +201,7 @@ const ReporteAuditoria = () => {
     document.body.removeChild(link);
   };
 
-  if (!hasAnyRole(['super_admin', 'coordinador', 'transporte'] as any[])) {
+  if (!hasAnyRole(['super_admin', 'coordinador', 'coordinador_integral', 'transporte'] as any[])) {
     return (
       <AdminLayout pageTitle="Reportes de Auditoría">
         <div className="bg-red-900/20 border border-red-700 rounded-lg p-6 text-center">

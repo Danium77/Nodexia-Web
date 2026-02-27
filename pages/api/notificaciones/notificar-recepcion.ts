@@ -59,7 +59,7 @@ export default withAuth(async (req, res, _authCtx) => {
         .from('relaciones_empresas')
         .select('user_id')
         .eq('empresa_cliente_id', ubicacionDestino.empresa_id)
-        .eq('role_type', 'coordinador')
+        .in('role_type', ['coordinador', 'coordinador_integral'])
         .eq('activo', true);
 
       if (coordError) {
