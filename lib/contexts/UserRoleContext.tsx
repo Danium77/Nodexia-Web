@@ -373,6 +373,14 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             case 'Administrativo':
               mappedRole = 'administrativo';
               break;
+            case 'coordinador_integral':
+            case 'Coordinador Integral':
+              mappedRole = 'coordinador_integral' as UserRole;
+              break;
+            case 'vendedor':
+            case 'Vendedor':
+              mappedRole = 'vendedor' as UserRole;
+              break;
             case 'visor':
               mappedRole = 'visor';
               break;
@@ -428,6 +436,14 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             case 'Operador':
             case 'Administrativo':
               mappedRole = 'administrativo';
+              break;
+            case 'coordinador_integral':
+            case 'Coordinador Integral':
+              mappedRole = 'coordinador_integral' as UserRole;
+              break;
+            case 'vendedor':
+            case 'Vendedor':
+              mappedRole = 'vendedor' as UserRole;
               break;
             case 'visor':
               mappedRole = 'visor';

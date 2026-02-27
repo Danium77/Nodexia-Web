@@ -41,10 +41,12 @@ export type TipoEmpresa = 'planta' | 'transporte' | 'cliente' | 'admin';
 export type RolInterno = 
   | 'admin_nodexia'      // Super admin global
   | 'coordinador'        // Coordinador genérico (planta o transporte)
+  | 'coordinador_integral' // PyME: coordinador + control_acceso + supervisor + administrativo
   | 'control_acceso'     // Control de acceso (solo planta)
   | 'chofer'             // Chofer (solo transporte)
   | 'supervisor'         // Supervisor genérico (carga o flota)
   | 'administrativo'     // Administrativo (ambos)
+  | 'vendedor'           // Vendedor: solo lectura de despachos de sus clientes
   | 'visor';             // Visor (clientes)
 
 /**
@@ -52,7 +54,7 @@ export type RolInterno =
  * Los roles genéricos se adaptan al contexto
  */
 export const ROLES_BY_TIPO: Record<TipoEmpresa, RolInterno[]> = {
-  planta: ['coordinador', 'control_acceso', 'supervisor', 'administrativo'],
+  planta: ['coordinador', 'coordinador_integral', 'control_acceso', 'supervisor', 'administrativo', 'vendedor'],
   transporte: ['coordinador', 'chofer', 'supervisor', 'administrativo'],
   cliente: ['visor'],
   admin: ['admin_nodexia'],
@@ -81,6 +83,12 @@ export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): st
       cliente: 'Coordinador',
       admin: 'Coordinador'
     },
+    coordinador_integral: {
+      planta: 'Coordinador Integral (PyME)',
+      transporte: 'Coordinador Integral',
+      cliente: 'Coordinador Integral',
+      admin: 'Coordinador Integral'
+    },
     supervisor: { 
       planta: 'Supervisor de Carga', 
       transporte: 'Supervisor de Flota',
@@ -95,6 +103,7 @@ export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): st
       cliente: 'Administrativo',
       admin: 'Administrativo'
     },
+    vendedor: { planta: 'Vendedor' },
     visor: { cliente: 'Visor' },
   };
 
@@ -107,10 +116,12 @@ export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): st
 export const ROL_INTERNO_LABELS: Record<RolInterno, string> = {
   admin_nodexia: 'Administrador Nodexia',
   coordinador: 'Coordinador',
+  coordinador_integral: 'Coordinador Integral',
   control_acceso: 'Control de Acceso',
   supervisor: 'Supervisor',
   chofer: 'Chofer',
   administrativo: 'Administrativo',
+  vendedor: 'Vendedor',
   visor: 'Visor',
 };
 

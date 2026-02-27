@@ -75,6 +75,12 @@ function normalizeRole(raw: string | null): string | null {
     case 'Operador':
     case 'Administrativo':
       return 'administrativo';
+    case 'coordinador_integral':
+    case 'Coordinador Integral':
+      return 'coordinador_integral';
+    case 'vendedor':
+    case 'Vendedor':
+      return 'vendedor';
     case 'visor':
       return 'visor';
     default:
