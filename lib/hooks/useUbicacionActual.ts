@@ -171,6 +171,6 @@ export function useUbicacionActual() {
     setUbicacionActualId,
     loading,
     error,
-    requiereUbicacion: role === 'control_acceso' && !ubicacionActualId,
+    requiereUbicacion: (role === 'control_acceso' || role === 'coordinador_integral') && !ubicacionActualId,
   };
 }
