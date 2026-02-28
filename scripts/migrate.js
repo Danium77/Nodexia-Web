@@ -130,8 +130,13 @@ function getConnectionString(env) {
 
 /** Extraer project ref de un connection string para mostrar al usuario */
 function extractProjectRef(connStr) {
-  const match = connStr.match(/db\.([^.]+)\.supabase/);
-  return match ? match[1] : '???';
+  // Direct connection: db.PROJECT.supabase.co
+  const directMatch = connStr.match(/db\.([^.]+)\.supabase/);
+  if (directMatch) return directMatch[1];
+  // Session pooler: postgres.PROJECT@aws-...
+  const poolerMatch = connStr.match(/postgres\.([^:@]+)[@:]/);
+  if (poolerMatch) return poolerMatch[1];
+  return '???';
 }
 
 // ── Utilidades ───────────────────────────────────────────────────
@@ -143,21 +148,39 @@ function discoverMigrations() {
     process.exit(1);
   }
 
-  return fs.readdirSync(MIGRATIONS_DIR)
+  const files = fs.readdirSync(MIGRATIONS_DIR)
     .filter(f => f.match(/^\d{3}[a-z]?_.*\.sql$/))  // 001_nombre.sql o 060a_nombre.sql
-    .sort()
-    .map(filename => {
-      // Extraer version: "067" de "067_rls_coordinador.sql" o "060a" de "060a_xxx.sql"  
-      const match = filename.match(/^(\d{3}[a-z]?)_(.+)\.sql$/);
-      if (!match) return null;
-      return {
-        version: match[1],
-        name: match[2],
-        filename,
-        filepath: path.join(MIGRATIONS_DIR, filename),
-      };
-    })
-    .filter(Boolean);
+    .sort();
+
+  // Detectar versiones duplicadas (ej: 060_index.sql y 060_indices.sql)
+  const versionCount = {};
+  for (const f of files) {
+    const m = f.match(/^(\d{3})[a-z]?_/);
+    if (m) versionCount[m[1]] = (versionCount[m[1]] || 0) + 1;
+  }
+
+  const versionIndex = {}; // track suffix assignment for duplicates
+  return files.map(filename => {
+    const match = filename.match(/^(\d{3})([a-z]?)_(.+)\.sql$/);
+    if (!match) return null;
+    
+    let version = match[1] + match[2]; // e.g. "060" or "060a" if file already has suffix
+    const name = match[3];
+    
+    // If file has no letter suffix but there are duplicates, auto-assign a/b/c
+    if (!match[2] && versionCount[match[1]] > 1) {
+      const idx = versionIndex[match[1]] || 0;
+      version = match[1] + String.fromCharCode(97 + idx); // a, b, c...
+      versionIndex[match[1]] = idx + 1;
+    }
+    
+    return {
+      version,
+      name,
+      filename,
+      filepath: path.join(MIGRATIONS_DIR, filename),
+    };
+  }).filter(Boolean);
 }
 
 /** Calcular SHA256 checksum de un archivo */
@@ -204,12 +227,13 @@ async function cmdStatus(client, env, projectRef) {
   let modifiedCount = 0;
   
   for (const m of discovered) {
+    const isApplied = applied.has(m.version);
     const appliedChecksum = applied.get(m.version);
     const currentChecksum = fileChecksum(m.filepath);
     
-    if (appliedChecksum) {
+    if (isApplied) {
       appliedCount++;
-      if (appliedChecksum && appliedChecksum !== currentChecksum && appliedChecksum !== null) {
+      if (appliedChecksum && appliedChecksum !== currentChecksum) {
         modifiedCount++;
         log(`  ⚠  ${m.version} │ ${m.name}  [MODIFICADO DESPUÉS DE APLICAR]`, 'yellow');
       } else {
