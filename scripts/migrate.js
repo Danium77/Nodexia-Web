@@ -383,6 +383,264 @@ async function cmdMark(client, version) {
   log(`✓ Migración ${version} marcada como aplicada (sin ejecutar SQL)`, 'green');
 }
 
+// ── Diff ─────────────────────────────────────────────────────────
+
+/** Queries para extraer schema */
+const SCHEMA_QUERIES = {
+  tables: `
+    SELECT table_name 
+    FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+      AND table_type = 'BASE TABLE'
+    ORDER BY table_name
+  `,
+  columns: `
+    SELECT table_name, column_name, data_type, is_nullable, column_default,
+           character_maximum_length, numeric_precision
+    FROM information_schema.columns 
+    WHERE table_schema = 'public'
+    ORDER BY table_name, ordinal_position
+  `,
+  policies: `
+    SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+    FROM pg_policies 
+    WHERE schemaname = 'public'
+    ORDER BY tablename, policyname
+  `,
+  indexes: `
+    SELECT tablename, indexname, indexdef
+    FROM pg_indexes 
+    WHERE schemaname = 'public'
+    ORDER BY tablename, indexname
+  `,
+  functions: `
+    SELECT routine_name, routine_type, data_type as return_type
+    FROM information_schema.routines 
+    WHERE routine_schema = 'public'
+    ORDER BY routine_name
+  `,
+};
+
+/** DIFF: Comparar schema entre DEV y PROD */
+async function cmdDiff() {
+  logHeader('COMPARACIÓN DE SCHEMA: DEV vs PROD');
+  
+  // Necesitamos ambas conexiones
+  const ROOT = path.join(__dirname, '..');
+  const envLocal = path.join(ROOT, '.env.local');
+  if (fs.existsSync(envLocal)) {
+    require('dotenv').config({ path: envLocal });
+  }
+  
+  const devUrl = process.env.DATABASE_URL_DEV || process.env.DATABASE_URL;
+  const prodUrl = process.env.DATABASE_URL_PRODUCTION;
+  
+  if (!devUrl || !prodUrl) {
+    log('❌ Se necesitan ambas URLs configuradas en .env.local:', 'red');
+    log('   DATABASE_URL=...              (dev)', 'yellow');
+    log('   DATABASE_URL_PRODUCTION=...   (prod)', 'yellow');
+    return;
+  }
+  
+  const devRef = extractProjectRef(devUrl);
+  const prodRef = extractProjectRef(prodUrl);
+  
+  log(`  DEV:  ${devRef}`, 'green');
+  log(`  PROD: ${prodRef}`, 'red');
+  log('');
+  
+  const poolOpts = { ssl: { rejectUnauthorized: false }, statement_timeout: 60000 };
+  const devPool = new Pool({ connectionString: devUrl, ...poolOpts });
+  const prodPool = new Pool({ connectionString: prodUrl, ...poolOpts });
+  
+  let devClient, prodClient;
+  try {
+    log('  🔌 Conectando a ambas BDs...', 'dim');
+    [devClient, prodClient] = await Promise.all([devPool.connect(), prodPool.connect()]);
+    log('  ✓ Ambas conectadas\n', 'dim');
+    
+    let totalDiffs = 0;
+    
+    // 1. Comparar tablas
+    const [devTables, prodTables] = await Promise.all([
+      devClient.query(SCHEMA_QUERIES.tables),
+      prodClient.query(SCHEMA_QUERIES.tables),
+    ]);
+    const devTableSet = new Set(devTables.rows.map(r => r.table_name));
+    const prodTableSet = new Set(prodTables.rows.map(r => r.table_name));
+    
+    const onlyDev = [...devTableSet].filter(t => !prodTableSet.has(t));
+    const onlyProd = [...prodTableSet].filter(t => !devTableSet.has(t));
+    
+    log('  ┌─ TABLAS ─────────────────────────────────────', 'bold');
+    if (onlyDev.length === 0 && onlyProd.length === 0) {
+      log('  │ ✓ Mismas tablas en ambos entornos', 'green');
+    } else {
+      for (const t of onlyDev) {
+        log(`  │ + ${t}  (solo en DEV)`, 'green');
+        totalDiffs++;
+      }
+      for (const t of onlyProd) {
+        log(`  │ - ${t}  (solo en PROD)`, 'red');
+        totalDiffs++;
+      }
+    }
+    log(`  │ Total: DEV=${devTableSet.size}  PROD=${prodTableSet.size}`, 'dim');
+    log('  │', 'dim');
+    
+    // 2. Comparar columnas (solo tablas en común)
+    const [devCols, prodCols] = await Promise.all([
+      devClient.query(SCHEMA_QUERIES.columns),
+      prodClient.query(SCHEMA_QUERIES.columns),
+    ]);
+    
+    const colKey = (r) => `${r.table_name}.${r.column_name}`;
+    const colDetail = (r) => `${r.data_type}${r.character_maximum_length ? `(${r.character_maximum_length})` : ''}${r.is_nullable === 'NO' ? ' NOT NULL' : ''}`;
+    
+    const devColMap = new Map(devCols.rows.map(r => [colKey(r), { ...r, detail: colDetail(r) }]));
+    const prodColMap = new Map(prodCols.rows.map(r => [colKey(r), { ...r, detail: colDetail(r) }]));
+    
+    const colOnlyDev = [];
+    const colOnlyProd = [];
+    const colTypeDiff = [];
+    
+    // Columns in common tables
+    const commonTables = [...devTableSet].filter(t => prodTableSet.has(t));
+    for (const table of commonTables) {
+      const devTableCols = devCols.rows.filter(r => r.table_name === table);
+      const prodTableCols = prodCols.rows.filter(r => r.table_name === table);
+      const devNames = new Set(devTableCols.map(r => r.column_name));
+      const prodNames = new Set(prodTableCols.map(r => r.column_name));
+      
+      for (const c of devTableCols) {
+        if (!prodNames.has(c.column_name)) {
+          colOnlyDev.push(`${table}.${c.column_name}`);
+        } else {
+          const prodCol = prodColMap.get(colKey(c));
+          if (prodCol && colDetail(c) !== prodCol.detail) {
+            colTypeDiff.push({ col: `${table}.${c.column_name}`, dev: colDetail(c), prod: prodCol.detail });
+          }
+        }
+      }
+      for (const c of prodTableCols) {
+        if (!devNames.has(c.column_name)) {
+          colOnlyProd.push(`${table}.${c.column_name}`);
+        }
+      }
+    }
+    
+    log('  ├─ COLUMNAS ───────────────────────────────────', 'bold');
+    if (colOnlyDev.length === 0 && colOnlyProd.length === 0 && colTypeDiff.length === 0) {
+      log('  │ ✓ Mismas columnas en tablas comunes', 'green');
+    } else {
+      for (const c of colOnlyDev) {
+        log(`  │ + ${c}  (solo en DEV)`, 'green');
+        totalDiffs++;
+      }
+      for (const c of colOnlyProd) {
+        log(`  │ - ${c}  (solo en PROD)`, 'red');
+        totalDiffs++;
+      }
+      for (const d of colTypeDiff) {
+        log(`  │ ~ ${d.col}  DEV: ${d.dev}  │  PROD: ${d.prod}`, 'yellow');
+        totalDiffs++;
+      }
+    }
+    log('  │', 'dim');
+    
+    // 3. Comparar RLS policies
+    const [devPolicies, prodPolicies] = await Promise.all([
+      devClient.query(SCHEMA_QUERIES.policies),
+      prodClient.query(SCHEMA_QUERIES.policies),
+    ]);
+    
+    const policyKey = (r) => `${r.tablename}::${r.policyname}`;
+    const devPolicySet = new Set(devPolicies.rows.map(policyKey));
+    const prodPolicySet = new Set(prodPolicies.rows.map(policyKey));
+    
+    const polOnlyDev = devPolicies.rows.filter(r => !prodPolicySet.has(policyKey(r)));
+    const polOnlyProd = prodPolicies.rows.filter(r => !devPolicySet.has(policyKey(r)));
+    
+    // Check policy definition diffs
+    const polDefDiffs = [];
+    for (const dp of devPolicies.rows) {
+      const key = policyKey(dp);
+      if (prodPolicySet.has(key)) {
+        const pp = prodPolicies.rows.find(r => policyKey(r) === key);
+        if (pp && (dp.qual !== pp.qual || dp.with_check !== pp.with_check || dp.cmd !== pp.cmd)) {
+          polDefDiffs.push({ name: key, field: dp.qual !== pp.qual ? 'USING' : dp.cmd !== pp.cmd ? 'CMD' : 'WITH CHECK' });
+        }
+      }
+    }
+    
+    log('  ├─ RLS POLICIES ──────────────────────────────', 'bold');
+    if (polOnlyDev.length === 0 && polOnlyProd.length === 0 && polDefDiffs.length === 0) {
+      log('  │ ✓ Mismas policies en ambos entornos', 'green');
+    } else {
+      for (const p of polOnlyDev) {
+        log(`  │ + ${p.tablename} → ${p.policyname}  (solo en DEV)`, 'green');
+        totalDiffs++;
+      }
+      for (const p of polOnlyProd) {
+        log(`  │ - ${p.tablename} → ${p.policyname}  (solo en PROD)`, 'red');
+        totalDiffs++;
+      }
+      for (const d of polDefDiffs) {
+        log(`  │ ~ ${d.name}  (${d.field} difiere)`, 'yellow');
+        totalDiffs++;
+      }
+    }
+    log(`  │ Total: DEV=${devPolicies.rows.length}  PROD=${prodPolicies.rows.length}`, 'dim');
+    log('  │', 'dim');
+    
+    // 4. Comparar funciones
+    const [devFuncs, prodFuncs] = await Promise.all([
+      devClient.query(SCHEMA_QUERIES.functions),
+      prodClient.query(SCHEMA_QUERIES.functions),
+    ]);
+    
+    const devFuncSet = new Set(devFuncs.rows.map(r => r.routine_name));
+    const prodFuncSet = new Set(prodFuncs.rows.map(r => r.routine_name));
+    const funcOnlyDev = [...devFuncSet].filter(f => !prodFuncSet.has(f));
+    const funcOnlyProd = [...prodFuncSet].filter(f => !devFuncSet.has(f));
+    
+    log('  ├─ FUNCIONES ─────────────────────────────────', 'bold');
+    if (funcOnlyDev.length === 0 && funcOnlyProd.length === 0) {
+      log('  │ ✓ Mismas funciones en ambos entornos', 'green');
+    } else {
+      for (const f of funcOnlyDev) {
+        log(`  │ + ${f}()  (solo en DEV)`, 'green');
+        totalDiffs++;
+      }
+      for (const f of funcOnlyProd) {
+        log(`  │ - ${f}()  (solo en PROD)`, 'red');
+        totalDiffs++;
+      }
+    }
+    log(`  │ Total: DEV=${devFuncSet.size}  PROD=${prodFuncSet.size}`, 'dim');
+    log('  └─────────────────────────────────────────────', 'dim');
+    
+    // Resumen
+    log('');
+    if (totalDiffs === 0) {
+      log('  ✓ Los schemas son idénticos', 'green');
+    } else {
+      log(`  ⚠  ${totalDiffs} diferencia(s) encontrada(s)`, 'yellow');
+      log('  Las diferencias marcadas con + solo existen en DEV', 'dim');
+      log('  Las diferencias marcadas con - solo existen en PROD', 'dim');
+      log('  Las diferencias marcadas con ~ tienen definiciones distintas', 'dim');
+    }
+    
+  } catch (error) {
+    log(`❌ Error: ${error.message}`, 'red');
+    process.exit(1);
+  } finally {
+    if (devClient) devClient.release();
+    if (prodClient) prodClient.release();
+    await Promise.all([devPool.end(), prodPool.end()]);
+  }
+}
+
 // ── Main ─────────────────────────────────────────────────────────
 
 /** Prompt de confirmación para producción */
@@ -409,6 +667,12 @@ async function main() {
   const env = detectEnvironment(args);
   const command = args[0] || 'run';
   const param = args[1];
+  
+  // Diff es especial: conecta a ambas BDs, no necesita seleccionar entorno
+  if (command === 'diff') {
+    await cmdDiff();
+    return;
+  }
   
   // Cargar env vars del entorno correspondiente
   loadEnvForEnvironment(env);
@@ -467,6 +731,10 @@ async function main() {
         await cmdMark(client, param);
         break;
         
+      case 'diff':
+        await cmdDiff();
+        break;
+        
       default:
         log('Uso:', 'bold');
         log('', 'reset');
@@ -480,6 +748,9 @@ async function main() {
         log('    pnpm migrate:prod            Ejecutar pendientes en PROD', 'dim');
         log('    pnpm migrate:status:prod     Ver estado en PROD', 'dim');
         log('    pnpm migrate:run:prod 069    Ejecutar migración específica en PROD', 'dim');
+        log('', 'reset');
+        log('  Comparación:', 'cyan');
+        log('    pnpm migrate:diff            Comparar schema DEV vs PROD', 'dim');
         log('', 'reset');
         log('  Configuración:', 'cyan');
         log('    .env.local                   DATABASE_URL (dev)', 'dim');
