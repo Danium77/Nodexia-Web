@@ -65,6 +65,12 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
                 </span>
               )}
             </div>
+            {/* Referencia cliente (NP/OC) */}
+            {(dispatch as any).referencia_cliente && (
+              <span className="text-[10px] text-amber-400 truncate" title={`Ref: ${(dispatch as any).referencia_cliente}`}>
+                📎 {(dispatch as any).referencia_cliente}
+              </span>
+            )}
             {/* Contador de viajes */}
             {dispatch.viajes_generados !== undefined && dispatch.viajes_generados > 0 && (
               <div className="flex flex-col gap-0.5">

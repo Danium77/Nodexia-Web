@@ -28,8 +28,8 @@ const Header: React.FC<HeaderProps> = ({ userEmail, userName, pageTitle, empresa
       <div className="flex items-center space-x-4">
         {/* Campana de notificaciones con badge */}
         <NotificationBell />
-        {/* Selector de ubicación para Control de Acceso */}
-        {role === 'control_acceso' && <UbicacionSelector />}
+        {/* Selector de ubicación para Control de Acceso y Coordinador Integral */}
+        {(role === 'control_acceso' || role === 'coordinador_integral') && <UbicacionSelector />}
         
         
         <button 

@@ -15,6 +15,7 @@ export interface FormDispatchRow {
   cantidad_viajes_solicitados: number;
   unidad_type: string;
   observaciones: string;
+  referencia_cliente: string;
 }
 
 interface DespachoFormProps {
@@ -220,6 +221,22 @@ const DespachoForm: React.FC<DespachoFormProps> = ({
                     autoComplete="off"
                     className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                     placeholder="Notas adicionales..."
+                  />
+                </div>
+              </div>
+
+              {/* Fila 3: Referencia Cliente */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-100 mb-1.5">Ref. Cliente (NP/OC)</label>
+                  <input
+                    type="text"
+                    value={row.referencia_cliente || ''}
+                    onChange={(e) => onRowChange(row.tempId, 'referencia_cliente', e.target.value)}
+                    autoComplete="off"
+                    className="w-full bg-[#1b273b] border border-gray-600 rounded-md px-3 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    placeholder="Ej: NP-2026-0845, OC-12345"
+                    maxLength={100}
                   />
                 </div>
               </div>

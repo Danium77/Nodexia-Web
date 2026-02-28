@@ -122,11 +122,11 @@ export function withAuth(handler: AuthenticatedHandler, options?: WithAuthOption
       console.log(`[withAuth] User: ${user.id}, Rol: ${rolInterno}${rolRaw !== rolInterno ? ` (raw: ${rolRaw})` : ''}, Empresa: ${empresaId}`);
 
       // 4. Verificar rol si se especificó
-      // coordinador_integral hereda todos los permisos de coordinador
+      // coordinador_integral hereda permisos de: coordinador + control_acceso + supervisor + administrativo
       if (options?.roles && options.roles.length > 0) {
         const effectiveRoles: string[] = rolInterno ? [rolInterno] : [];
         if (rolInterno === 'coordinador_integral') {
-          effectiveRoles.push('coordinador');
+          effectiveRoles.push('coordinador', 'control_acceso', 'supervisor', 'administrativo');
         }
         if (!rolInterno || !effectiveRoles.some(r => options.roles!.includes(r))) {
           console.error(`[withAuth] Acceso denegado - Rol requerido: ${options.roles.join(', ')}, Actual: ${rolInterno}`);

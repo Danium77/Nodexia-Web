@@ -32,7 +32,7 @@ type TabEstado = 'todos' | 'confirmado' | 'ingresado_planta' | 'llamado_carga' |
 
 export default function EstadosCamiones() {
   const { userEmpresas, primaryRole } = useUserRole();
-  const esControlAcceso = primaryRole === 'control_acceso';
+  const esControlAcceso = primaryRole === 'control_acceso' || primaryRole === 'coordinador_integral';
   const [viajes, setViajes] = useState<ViajeEstado[]>([]);
   const [loading, setLoading] = useState(true);
   const [tabActivo, setTabActivo] = useState<TabEstado>('todos');

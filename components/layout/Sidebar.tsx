@@ -157,7 +157,34 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
       ];
     }
-  } else if (userRole === 'coordinador' || userRole === 'coordinador_integral' || String(userRole).trim().toLowerCase() === 'coordinador' || isCoordinadorByEmail) {
+  } else if (userRole === 'coordinador_integral') {
+    // Coordinador Integral (PyME): coordinador + control_acceso + supervisor + administrativo
+    if (tipoEmpresa === 'transporte') {
+      navItems = [
+        { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
+        { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
+        { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
+        { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
+        { name: '🚙 Flota', icon: TruckIcon, href: '/transporte/flota', badge: docAlertBadge > 0 ? docAlertBadge : undefined },
+        { name: '🗺️ Tracking GPS', icon: ChartBarIcon, href: '/transporte/tracking-flota' },
+        { name: '⚙️ Configuración', icon: Cog6ToothIcon, href: '/transporte/configuracion' },
+      ];
+    } else {
+      navItems = [
+        { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
+        { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
+        { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
+        { name: '🚪 Control de Acceso', icon: TruckIcon, href: '/control-acceso' },
+        { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
+        { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
+        { name: '📄 Viajes', icon: CalendarDaysIcon, href: '/viajes' },
+        { name: '📄 Documentación', icon: ChartBarIcon, href: '/documentos' },
+        { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
+        { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
+        { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
+      ];
+    }
+  } else if (userRole === 'coordinador' || String(userRole).trim().toLowerCase() === 'coordinador' || isCoordinadorByEmail) {
     // Coordinador (contextual según tipo de empresa)
     if (tipoEmpresa === 'transporte') {
       navItems = [

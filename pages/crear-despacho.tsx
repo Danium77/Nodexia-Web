@@ -41,6 +41,7 @@ interface GeneratedDispatch {
   prioridad: string;
   unidad_type: string;
   observaciones: string;
+  referencia_cliente?: string;
   cantidad_viajes_solicitados?: number;
   viajes_generados?: number; // Total de viajes creados
   viajes_asignados?: number; // 🔥 NUEVO: Solo viajes con transporte asignado
@@ -92,6 +93,7 @@ const CrearDespacho = () => {
       cantidad_viajes_solicitados: 1, // NUEVO - Default 1 viaje
       unidad_type: '',
       observaciones: '',
+      referencia_cliente: '',
     },
   ]);
 
@@ -220,6 +222,7 @@ const CrearDespacho = () => {
           comentarios,
           transport_id,
           cantidad_viajes_solicitados,
+          referencia_cliente,
           origen_asignacion,
           created_by
         `)
@@ -433,6 +436,7 @@ const CrearDespacho = () => {
           prioridad: (['Baja', 'Media', 'Alta', 'Urgente'].includes(d.prioridad)) ? d.prioridad : 'Media',
           unidad_type: d.unidad_type || 'N/A',
           observaciones: d.comentarios || '',
+          referencia_cliente: (d as any).referencia_cliente || '',
           cantidad_viajes_solicitados: d.cantidad_viajes_solicitados,
           viajes_generados: viajesGenerados, // 🔥 Total de viajes creados
           viajes_asignados: viajesAsignados, // 🔥 NUEVO: Solo viajes con transporte asignado
@@ -1449,6 +1453,7 @@ const CrearDespacho = () => {
         prioridad: (['Baja', 'Media', 'Alta', 'Urgente'].includes(rowToSave.prioridad)) ? rowToSave.prioridad : 'Media', // Validación estricta
         unidad_type: rowToSave.unidad_type || 'semi',
         cantidad_viajes_solicitados: rowToSave.cantidad_viajes_solicitados || 1, // NUEVO
+        referencia_cliente: rowToSave.referencia_cliente || null, // Ref. cliente (NP/OC)
       };
 
 
@@ -1567,7 +1572,8 @@ const CrearDespacho = () => {
               prioridad: 'Media',
               cantidad_viajes_solicitados: 1, // NUEVO
               unidad_type: '',
-              observaciones: '' 
+              observaciones: '',
+              referencia_cliente: '',
             },
           ]);
         }
