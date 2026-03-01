@@ -1,9 +1,9 @@
 # NODEXIA-WEB - Estado Actual del Proyecto
 
-**Última actualización:** 23-Feb-2026 (Sesión 30b — UX Polish: Heartbeat Spinner + Parallel Queries + Sidebar Fixes)
+**Última actualización:** 01-Mar-2026 (Sesiones 33-34 — Schema Sync PROD + Coordinador Integral PyME)
 **Arquitecto/Tech Lead:** Opus (Claude)  
 **Product Owner:** Usuario  
-**Próxima presentación:** 28-Feb-2026 (5 días)
+**Última demo:** 28-Feb-2026
 
 ---
 
@@ -13,7 +13,9 @@
 - **Stack:** Next.js 16 + React 19 + Supabase + TypeScript + Tailwind v4
 - **Deployado:** SÍ — Vercel (`nodexia-web-j6wl`) → www.nodexiaweb.com
 - **Tests:** 4 archivos (56 tests para sistema de estados centralizados)
-- **Migraciones BD:** 112 archivos (055 + 056 + 058 + 059 + 064 ejecutadas en PROD)
+- **Migraciones BD:** 074 migraciones tracked (schema_migrations table)
+- **Migration Tracking:** Tabla `schema_migrations` + `scripts/run-migration.js` + multi-env (dev/prod)
+- **Schema Sync PROD↔DEV:** 527 diferencias → 5 irrelevantes (4 backup tables + 1 cosmetic policy)
 - **BD lista para documentación:** SÍ (3 tablas + 7 funciones + 3 triggers + 6 RLS + 14 indexes)
 - **Red Nodexia BD:** 4 tablas (`viajes_red_nodexia`, `requisitos_viaje_red`, `ofertas_red_nodexia`, `historial_red_nodexia`)
 - **Historial Despachos BD:** Tabla `historial_despachos` (migración 055, ✅ ejecutada en PROD)
@@ -22,6 +24,14 @@
 - **RLS documentos_entidad:** Policy SELECT incluye cross-company vía `get_visible_*_ids()` (migration 062)
 - **RLS gap:** `ofertas_red_nodexia` sin UPDATE policy (bypaseado por API service role)
 - **PRINCIPIO MANDATO PO (18-Feb-2026):** CERO bypass RLS para usuarios autenticados, CERO inserts directos, CERO parches — documentado en QUICK-START-OPUS.md
+- **Coordinador Integral PyME:** ✅ COMPLETO — hereda 4 roles (coordinador + control_acceso + supervisor + administrativo), sidebar 11 ítems, 11 transiciones de estado, UbicacionSelector, referencia_cliente en despachos
+- **Perfil PyME BD:** Migration 066 — `empresas.tiene_flota_propia`, `despachos.referencia_cliente`, `vendedor_clientes` table
+- **Perfil PyME RLS:** Migration 067 — coordinador_integral en 6+ RLS policies
+- **Migration 065:** DROP NOT NULL id_transporte + FK constraints empresa_id en camiones/acoplados/choferes (✅ EJECUTADA EN PROD)
+- **withAuth normalizeRole():** Mapea roles legacy (Coordinador de Transporte → coordinador) para evitar 403
+- **PostgREST resiliencia:** Queries separadas en vez de embedded joins para evitar fallas por schema cache
+- **Resumen técnico clientes:** `docs/auditorias/RESUMEN-TECNICO-NODEXIA.md` — Documento comercial-técnico completo
+- **Integración readiness:** Evaluado — falta API pública (Swagger), API keys, webhooks, rate limiting (plan ~3 semanas)
 - **Patrón API con RLS:** `withAuth` → `AuthContext.token` → `createUserSupabaseClient(token)` → queries con RLS
 - **supabaseServerClient.ts:** Helper `createUserSupabaseClient(token)` para API routes sin bypass
 - **Storage Buckets:** documentacion-entidades, documentacion-viajes (privados, 10MB, PDF/JPG/PNG), remitos (público, 10MB)
@@ -292,6 +302,32 @@ components/
 ---
 
 ## 🔄 ÚLTIMA ACTIVIDAD
+
+**Sesión 24-Feb-2026 (Sesión 32 — 6 PROD Bug Fixes + Migration 065 + Resumen Técnico):**
+
+### Contexto:
+- PO testeó PROD, encontró 6 bugs adicionales. Cliente consultó sobre integración PostgreSQL. Demo en 4 días.
+
+### Principales logros:
+1. ✅ Migration 065: deprecate id_transporte en flota (ejecutada en PROD en 2 fases)
+2. ✅ withAuth normalizeRole(): fix 403 por roles legacy en BD
+3. ✅ PGRST204 fallback en incidencias insert (columna faltante en PROD)
+4. ✅ recursosAfectados fallback cuando documentos_afectados es NULL
+5. ✅ Queries separadas viaje/despacho (fix embedded join PostgREST)
+6. ✅ Nombres de recursos en vez de UUIDs en incidencia detail
+7. ✅ Resumen técnico completo para clientes (docs/auditorias/)
+8. ✅ Evaluación de readiness para integraciones externas
+
+### Commits (6): 48eb519, c6151e4, eed9b8d, 6731881, 2863e79, 1dd3fa3
+
+### Pendiente próxima sesión:
+- NOTIFY pgrst, 'reload schema' en PROD
+- Verificar deploy PROD de todos los fixes
+- Testing continuado pre-demo
+- Preparación datos demo (28-Feb)
+- Evaluación arquitectura para equipos
+
+---
 
 **Sesión 22-Feb-2026 (Sesión 30 — Incidencias + Despacho Edit + CA Rework + Security Audit):**
 

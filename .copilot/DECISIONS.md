@@ -297,6 +297,50 @@ Registro de decisiones arquitectónicas y técnicas importantes.
 
 ---
 
+## DEC-034: normalizeRole() en withAuth para roles legacy (24-Feb-2026)
+
+**Contexto:** Usuarios en PROD tienen `rol_interno` con valores legacy en BD (ej: 'Coordinador de Transporte', 'supervisor_carga')  
+**Problema:** `withAuth` comparaba estos valores raw contra roles normalizados ('coordinador', 'supervisor'), causando 403  
+**Decisión:** Añadir función `normalizeRole()` en `withAuth.ts` que mapea variantes conocidas a nombres canónicos, consistente con el mapeo de `UserRoleContext.tsx`  
+**Alternativas consideradas:** Migrar datos en BD (rechazada: no hay control sobre qué pongan los admins en el futuro), case-insensitive compare (rechazada: no resuelve 'Coordinador de Transporte' → 'coordinador')  
+**Impacto:** Compatibilidad transparente con datos legacy sin tocar BD  
+**Responsable:** Opus
+
+---
+
+## DEC-035: Queries separadas vs embedded joins PostgREST (24-Feb-2026)
+
+**Contexto:** Query en incidencias/[id].ts usaba embedded join `despachos:despacho_id(...)` que fallaba silenciosamente  
+**Problema:** PostgREST schema cache desactualizado causaba que `.single()` retornara null para el viaje completo  
+**Decisión:** Separar en queries independientes: (1) viaje sin join, (2) despacho por ID con `maybeSingle()`. Cada query pasa por RLS del usuario.  
+**Alternativas consideradas:** Bypass con supabaseAdmin (RECHAZADA POR PO — viola DEC-015), NOTIFY pgrst 'reload schema' (complementario pero no suficiente como única solución)  
+**Impacto:** Resiliencia ante problemas de schema cache. Pattern recomendado para futuras queries complejas.  
+**Responsable:** PO (rechazó bypass) + Opus (implementación)
+
+---
+
+## DEC-036: coordinador_integral hereda 4 roles completos (01-Mar-2026)
+
+**Contexto:** PyME necesita un solo usuario que haga todo (coordinador + control_acceso + supervisor + administrativo)  
+**Problema:** `coordinador_integral` solo heredaba `coordinador` en withAuth, bloqueando APIs gated en `control_acceso` o `supervisor`  
+**Decisión:** Añadir las 4 herencias en `withAuth.ts`, sidebar dedicado con 11 ítems, y frontend checks explícitos en 4 archivos  
+**Alternativas consideradas:** Herencia dinámica en hook central (rechazada: solo 2 puntos de herencia, sobre-ingeniería), crear helper `isRoleOrIntegral()` (rechazada: dispersión innecesaria)  
+**Impacto:** Coordinador integral puede ejecutar todas las operaciones de planta sin cambiar perfil  
+**Responsable:** Opus
+
+---
+
+## DEC-037: ROLES_AUTORIZADOS explícito vs herencia automática (01-Mar-2026)
+
+**Contexto:** Frontend usa `puedeActualizar(rol, estado)` con `.includes()` directo — no tiene herencia  
+**Problema:** coordinador_integral bloqueado de 10 transiciones de estado (ingreso, carga, descarga, egreso)  
+**Decisión:** Añadir `coordinador_integral` explícitamente a cada array de ROLES_AUTORIZADOS en vez de implementar herencia en `puedeActualizar()`  
+**Alternativas consideradas:** Herencia en puedeActualizar() (rechazada: oculta la intención, difícil auditar quién puede qué), crear ROL_HERENCIA map (rechazada: complejidad para un solo caso)  
+**Impacto:** Transparencia total — se ve directamente qué rol puede qué estado  
+**Responsable:** Opus
+
+---
+
 ## Template para futuras decisiones:
 
 ```markdown

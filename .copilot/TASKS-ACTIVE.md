@@ -1,12 +1,28 @@
 # TAREAS ACTIVAS
 
-**Actualizado:** 23-Feb-2026 (Sesión 30b — UX Polish: Heartbeat Spinner + Parallel Queries + Sidebar/Nav Fixes)
+**Actualizado:** 01-Mar-2026 (Sesiones 33-34 — Schema Sync PROD + Coordinador Integral PyME)
 
 ---
 
 ## 🔄 EN PROGRESO
 
-### Evaluación Arquitectura para Equipos (PRÓXIMA SESIÓN)
+### Perfil PyME — Features Pendientes
+**Estado:** Parcialmente completado
+**Completado:**
+- ✅ Migration 066: `tiene_flota_propia`, `referencia_cliente`, `vendedor_clientes` (BD)
+- ✅ Migration 067: RLS coordinador_integral en 6+ policies (BD)
+- ✅ Coordinador integral: herencia 4 roles en withAuth (API)
+- ✅ Coordinador integral: sidebar dedicado 11 ítems (Frontend)
+- ✅ Coordinador integral: UbicacionSelector + esControlAcceso (Frontend)
+- ✅ Coordinador integral: 11 transiciones de estado en ROLES_AUTORIZADOS (Frontend)
+- ✅ Coordinador integral: useUbicacionActual requiereUbicacion (Frontend)
+- ✅ referencia_cliente: campo en DespachoForm + save/load + badge display (Frontend)
+**Pendiente:**
+- ⬜ UI toggle `tiene_flota_propia` en configuración de empresa
+- ⬜ UI gestión `vendedor_clientes` (asignaciones vendedor-cliente)
+- ⬜ Testing coordinador_integral login completo en PROD
+
+### Evaluación Arquitectura para Equipos
 **Estado:** Pendiente — solicitado por PO
 **Objetivo:** Determinar si la arquitectura actual permite separar trabajo en equipos:
 - Frontend (React/Next.js)
@@ -15,6 +31,30 @@
 - Android (app nativa)
 - iOS (app nativa)
 **Análisis requerido:** Acoplamiento actual, contratos API, shared types, migration strategy, mobile API contract
+
+### Integración con Sistemas Externos (Post-Demo)
+**Estado:** Evaluado, pendiente implementación
+**Contexto:** Cliente consultó si Nodexia se integra con su sistema PostgreSQL
+**Evaluación guardada:** Respuesta completa dada al PO + `docs/auditorias/RESUMEN-TECNICO-NODEXIA.md`
+**Componentes faltantes para integración productiva:**
+- ⬜ API pública documentada (OpenAPI/Swagger) — 2-3 días
+- ⬜ Sistema de API Keys para terceros (solo JWT interno hoy) — 1-2 días
+- ⬜ Rate limiting / throttling — 1 día
+- ⬜ Webhooks salientes (notificar eventos a sistemas externos) — 2-3 días
+- ⬜ Logs de auditoría de acceso API — 1-2 días
+- ⬜ Versionado de API (/api/v1/) — 1 día
+**Plan estimado:** ~3 semanas para API pública productiva
+
+### Migration 063 pendiente en PROD
+**Estado:** Pendiente ejecución
+**Contexto:** RLS documentos_viaje_planta — nunca se ejecutó en PROD
+**Acción:** Ejecutar en SQL Editor de Supabase PROD
+
+### NOTIFY pgrst 'reload schema' en PROD
+**Estado:** Pendiente
+**Contexto:** PostgREST schema cache desactualizado causa fallas en embedded joins
+**Acción:** Ejecutar `NOTIFY pgrst, 'reload schema'` en SQL Editor de Supabase PROD
+**Impacto:** Resolvería el problema raíz de las queries embedded que fallaban en incidencias
 
 ### Pre-Demo (28-Feb-2026 — 5 días)
 **Estado:** En preparación
@@ -49,11 +89,20 @@
 - ✅ Security audit pre-deploy + fixes (Sesión 30)
 - ✅ Script/guión de demo (GUION-DEMO-28FEB.md) (Sesión 30)
 - ✅ PROD DB sync: migraciones 060, 061, 063, 064 ejecutadas (Sesión 30b)
+- ✅ Migration 065: deprecate id_transporte en flota (ejecutada en PROD, Sesión 32)
+- ✅ withAuth normalizeRole() fix 403 (Sesión 32)
+- ✅ PGRST204 fallback incidencias insert (Sesión 32)
+- ✅ recursosAfectados fallback doc management (Sesión 32)
+- ✅ Queries separadas viaje/despacho PostgREST (Sesión 32)
+- ✅ Resource names en vez de UUIDs en incidencia detail (Sesión 32)
+- ✅ Resumen técnico para clientes (docs/auditorias/) (Sesión 32)
+- ✅ Evaluación readiness integraciones externas (Sesión 32)
 - ✅ LoadingSpinner unificado con Nodexia X heartbeat + glow (Sesión 30b)
 - ✅ Page transition overlay en _app.tsx (Sesión 30b)
 - ✅ Sidebar collapse delay 300ms + logout spinner feedback (Sesión 30b)
 - ✅ Planificación: loadData ~10 serial → 5 parallel phases (Sesión 30b)
 - ⬜ **Migration 063 pendiente ejecución en Supabase** (RLS documentos_viaje_planta)
+- ⬜ **NOTIFY pgrst, 'reload schema' en PROD** (refrescar schema cache PostgREST)
 - ⬜ Verificar incidencias E2E completo
 - ⬜ Preparación datos demo
 

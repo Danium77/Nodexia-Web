@@ -4,6 +4,154 @@ Registro cronológico de todas las actividades del proyecto.
 
 ---
 
+## 📅 2026-03-01 (Domingo) - Sesiones 33-34
+
+### Sesiones 33-34 - Schema Sync PROD + Coordinador Integral PyME Complete
+
+**Tiempo:** ~3 horas (2 sesiones)  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Contexto:
+Continuación del perfil coordinador_integral para PyMEs. Se completó primero la sincronización de esquemas PROD↔DEV, luego se implementó cobertura completa del rol coordinador_integral en frontend y backend.
+
+#### Logros:
+
+**Sesión 33 — Schema Sync PROD:**
+1. ✅ **Migration tracking system (068)**: Tabla `schema_migrations`, script runner `scripts/run-migration.js`, documentación
+2. ✅ **Multi-environment support**: Scripts `pnpm migrate:dev`, `pnpm migrate:prod`, `pnpm migrate:diff` para DEV y PROD
+3. ✅ **Schema sync PROD (069-074)**: 527 diferencias reducidas a 5 (4 tablas backup irrelevantes + 1 normalización cosmética de policy)
+4. ✅ **Migration 067 fixes**: Auto-detect column names, conditional tables para PROD compatibility
+
+**Sesión 34 — Coordinador Integral PyME:**
+5. ✅ **withAuth role inheritance**: `coordinador_integral` ahora hereda `coordinador` + `control_acceso` + `supervisor` + `administrativo` (antes solo heredaba `coordinador`)
+6. ✅ **Sidebar dedicado**: Menú exclusivo con 11 ítems (Panel, Planificación, Despachos, Control Acceso, Supervisor Carga, Estados Camiones, Viajes, Documentación, Incidencias, Estadísticas, Configuración)
+7. ✅ **Header UbicacionSelector**: Visible para `coordinador_integral` (antes solo `control_acceso`)
+8. ✅ **estados-camiones esControlAcceso**: Incluye `coordinador_integral`
+9. ✅ **referencia_cliente**: Campo añadido a DespachoForm (UI + interface + save + load + display badge)
+10. ✅ **ROLES_AUTORIZADOS**: `coordinador_integral` añadido a 11 transiciones de estado de viaje (ingreso, carga, descarga, egreso)
+11. ✅ **useUbicacionActual**: Flag `requiereUbicacion` incluye `coordinador_integral`
+
+#### Archivos Modificados (9):
+- `lib/middleware/withAuth.ts` — 4-role inheritance para coordinador_integral
+- `components/layout/Sidebar.tsx` — Dedicated nav block (11 items)
+- `components/layout/Header.tsx` — UbicacionSelector for coordinador_integral
+- `pages/estados-camiones.tsx` — esControlAcceso includes coordinador_integral
+- `components/Despachos/DespachoForm.tsx` — referencia_cliente field + interface
+- `components/Despachos/DespachoTableRow.tsx` — referencia_cliente badge display
+- `pages/crear-despacho.tsx` — referencia_cliente save/load/interface
+- `lib/estados/config.ts` — 11 ROLES_AUTORIZADOS entries updated
+- `lib/hooks/useUbicacionActual.ts` — requiereUbicacion flag
+
+#### Decisiones:
+- DEC-036: coordinador_integral hereda 4 roles (coordinador + control_acceso + supervisor + administrativo) — cubre todas las funciones de planta en un solo perfil PyME
+- DEC-037: ROLES_AUTORIZADOS incluye coordinador_integral explícitamente (no herencia automática en frontend, solo en API middleware)
+
+#### Commits (8 en total, 2 de hoy):
+- `0067fd7` — feat: coordinador_integral PyME - complete role coverage (7 files, +63/-7)
+- `297d5a2` — fix: coordinador_integral - add to ROLES_AUTORIZADOS state transitions + ubicacion flag (2 files, +12/-12)
+
+#### Próxima sesión:
+- Migration 063 pendiente ejecución en PROD (RLS documentos_viaje_planta)
+- NOTIFY pgrst, 'reload schema' en PROD
+- UI para `tiene_flota_propia` toggle (empresas settings)
+- UI para gestión `vendedor_clientes` (asignaciones vendedor-cliente)
+- Evaluación arquitectura para equipos (solicitado por PO)
+- Testing coordinador_integral en PROD
+
+---
+
+## 📅 2026-02-24 (Lunes) - Sesión 32
+
+### Sesión 32 - 6 PROD Bug Fixes + Migration 065 + Resumen Técnico
+
+**Tiempo:** ~2 horas  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Contexto:
+Continuación de testing en PROD. PO encontró 6 bugs adicionales. Cliente consultó sobre integración PostgreSQL. Demo en 4 días (28-Feb).
+
+#### Logros:
+1. ✅ **Migration 065 ejecutada en PROD**: DROP NOT NULL id_transporte + FK constraints empresa_id en camiones/acoplados/choferes. Ejecutada en 2 fases (transacción original rollback por orphan data → fases separadas)
+2. ✅ **Fix 403 documentos-detalle**: `normalizeRole()` en withAuth.ts mapea roles legacy BD ('Coordinador de Transporte') a canónicos ('coordinador')
+3. ✅ **Fix PGRST204 incidencias**: Fallback — retry insert sin `documentos_afectados` si columna no existe en PROD
+4. ✅ **Fix doc management invisible**: `recursosAfectados` useMemo fallback a viaje.chofer_id/camion_id/acoplado_id cuando documentos_afectados es NULL
+5. ✅ **Fix viaje null PostgREST**: Queries separadas (viaje + despacho independientes) en vez de embedded join que fallaba por schema cache. PO rechazó bypass con supabaseAdmin.
+6. ✅ **Fix UUIDs en botones**: API resuelve nombres chofer/camion/acoplado vía queries paralelas. Frontend usa `recursos_nombres` map.
+7. ✅ **Resumen técnico clientes**: `docs/auditorias/RESUMEN-TECNICO-NODEXIA.md` — doc comercial-técnico completo (11 secciones)
+8. ✅ **Evaluación integraciones**: Análisis honesto de readiness — falta API pública, API keys, webhooks, rate limiting (~3 semanas)
+
+#### Archivos Modificados (7):
+- `lib/middleware/withAuth.ts` — normalizeRole() function
+- `pages/api/incidencias/index.ts` — PGRST204 fallback
+- `pages/api/incidencias/[id].ts` — separated queries + resource names
+- `pages/incidencias/[id].tsx` — recursosAfectados + recursos_nombres display
+- `pages/api/control-acceso/documentos-detalle.ts` — broadened allowed roles
+- `sql/migrations/065_deprecate_id_transporte_flota.sql` — new migration
+- `docs/auditorias/RESUMEN-TECNICO-NODEXIA.md` — new document
+
+#### Decisiones:
+- DEC-034: normalizeRole() en withAuth para compatibilidad con roles legacy en BD
+- DEC-035: Queries separadas vs embedded joins en PostgREST (resiliencia ante schema cache)
+
+#### Commits (6):
+- `48eb519` — migration 065 + empresa_id code cleanup
+- `c6151e4` — withAuth role normalization
+- `eed9b8d` — PGRST204 fallback for incidencias insert
+- `6731881` — recursosAfectados fallback for doc management
+- `2863e79` — separated viaje/despacho queries (no embedded join)
+- `1dd3fa3` — resource names instead of UUIDs
+
+#### Próxima sesión:
+- NOTIFY pgrst, 'reload schema' en PROD Supabase
+- Verificar deploy PROD
+- Testing continuado pre-demo
+- Preparación datos demo (28-Feb)
+- Evaluación arquitectura para equipos
+
+---
+
+## 📅 2026-02-23 (Domingo) - Sesión 31
+
+### Sesión 31 - 5 Production Bug Fixes (Pre-Demo Testing)
+
+**Tiempo:** ~1 hora  
+**Equipo:** Opus (Tech Lead) + Usuario (PO)
+
+#### Contexto:
+PO testeó producción (nodexiaweb.com) y reportó 5 bugs con screenshots. Demo en 5 días (28-Feb-2026). Sesión enfocada en corrección rápida.
+
+#### Logros:
+1. ✅ **Bug 1 — White stripe bottom**: `body { background: var(--background) }` (white) cambiado a `#0a0e1a`. `empresas.tsx` cambió `h-screen` → `min-h-screen` + bg explícito
+2. ✅ **Bug 2 — Duplicate search filter**: `cargas-en-red.tsx` tenía barra de búsqueda duplicada (una fuera de tabs siempre visible + otra dentro de tab "Ofertas"). Eliminada la externa
+3. ✅ **Bug 3 — Empresa name + user name**: Header muestra `empresaNombre` (nuevo campo en UserRoleContext, derivado de `userEmpresas[0].empresas.nombre`). Sidebar muestra `nombre_completo` de `usuarios_empresa`
+4. ✅ **Bug 4 — Camion insert id_transporte NULL**: PROD DB tiene `id_transporte NOT NULL` (legacy). Añadido `id_transporte: empresaId` al insert de camiones/acoplados
+5. ✅ **Bug 5 — Infinite loading transitions**: `_app.tsx` tenía overlay sin timeout. Añadido safety timeout de 8 segundos que auto-limpia `isNavigating`
+
+#### Archivos Modificados (8):
+- `styles/globals.css` — body bg `var(--background)` → `#0a0e1a`
+- `pages/admin/empresas.tsx` — `h-screen` → `min-h-screen`, bg explícito
+- `pages/transporte/cargas-en-red.tsx` — Removed duplicate search bar (45 lines)
+- `pages/_app.tsx` — 8s safety timeout on page transition overlay
+- `components/layout/AdminLayout.tsx` — Header shows `empresaNombre`
+- `components/layout/Sidebar.tsx` — Footer shows `displayUserName` (nombre_completo)
+- `lib/contexts/UserRoleContext.tsx` — Added `empresaNombre`, improved `name` derivation, added `nombre_completo` to select
+- `components/Transporte/UnidadesFlotaUnificado.tsx` — Added `id_transporte: empresaId` to insert
+
+#### Decisiones:
+- DEC-032: Body bg hardcoded to `#0a0e1a` (all pages are dark theme, CSS var was causing white bleed)
+- DEC-033: id_transporte pragmatic fix (send both empresa_id + id_transporte) until PROD migration drops NOT NULL
+
+#### Commit: 22564f8 (8 files changed, 57 insertions, 65 deletions)
+
+#### Próxima sesión:
+- Verificar deploy PROD en nodexiaweb.com
+- Testing continuado — más bugs posibles
+- Evaluación arquitectura para equipos (diferido)
+- Preparación datos demo (28-Feb)
+- Considerar migración PROD para DROP NOT NULL en id_transporte
+
+---
+
 ## 📅 2026-02-23 (Domingo) - Sesión 30b
 
 ### Sesión 30b - UX Polish: Heartbeat Spinner + Parallel Queries + Sidebar/Nav Fixes
