@@ -463,28 +463,66 @@ const CrearDespacho = () => {
       setLoadingOptions(true);
       if (!user?.id) return;
 
-      // Obtener las empresas asociadas al usuario actual con rol y permisos
-      const { data: userEmpresasData } = await supabase
+      // Obtener las empresas asociadas al usuario actual con rol
+      const { data: userEmpresasData, error: userEmpresasError } = await supabase
         .from('usuarios_empresa')
         .select(`
           empresa_id,
           rol_empresa_id,
           empresas(id, nombre, tipo_empresa, configuracion_empresa),
-          roles_empresa(id, nombre, permisos)
+          roles_empresa(id, nombre)
         `)
         .eq('user_id', user.id)
         .eq('activo', true);
 
+      if (userEmpresasError) {
+        console.error('❌ [cargarEmpresas] Error query usuarios_empresa:', userEmpresasError);
+        // Fallback: intentar sin join a roles_empresa
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('usuarios_empresa')
+          .select(`
+            empresa_id,
+            rol_empresa_id,
+            empresas(id, nombre, tipo_empresa, configuracion_empresa)
+          `)
+          .eq('user_id', user.id)
+          .eq('activo', true);
+        
+        if (fallbackError || !fallbackData || fallbackData.length === 0) {
+          console.error('❌ [cargarEmpresas] Fallback también falló:', fallbackError);
+          setLoadingOptions(false);
+          return;
+        }
+        
+        console.log('✅ [cargarEmpresas] Fallback exitoso, empresas:', fallbackData.length);
+        setUserEmpresas(fallbackData);
+        // Continuar con fallbackData sin roles
+        return cargarEmpresasConDatos(fallbackData);
+      }
+
       if (!userEmpresasData || userEmpresasData.length === 0) {
+        console.warn('⚠️ [cargarEmpresas] No se encontraron empresas para user:', user.id);
         setLoadingOptions(false);
         return;
       }
+      
+      console.log('✅ [cargarEmpresas] Empresas cargadas:', userEmpresasData.length);
 
       // Guardar en el estado para usar en Red Nodexia
       setUserEmpresas(userEmpresasData);
 
-      const userEmpresas = userEmpresasData;
+      await cargarEmpresasConDatos(userEmpresasData);
 
+    } catch (error) {
+      console.error('Error cargando empresas asociadas:', error);
+      setErrorMsg('Error cargando empresas asociadas');
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
+
+  const cargarEmpresasConDatos = async (userEmpresas: any[]) => {
+    try {
       const empresaIds = userEmpresas.map(rel => rel.empresa_id);
       const tiposEmpresa = userEmpresas.map(rel => (rel.empresas as any)?.tipo_empresa);
       const roles = userEmpresas.map(rel => (rel.roles_empresa as any)?.nombre);
@@ -607,10 +645,8 @@ const CrearDespacho = () => {
         ).map((rel: any) => rel.empresa_transporte) || [];
       }      setTransportes(transportesFiltrados);
       
-
     } catch (error) {
-      console.error('Error cargando empresas asociadas:', error);
-      setErrorMsg('Error cargando empresas asociadas');
+      console.error('Error cargando empresas con datos:', error);
     } finally {
       setLoadingOptions(false);
     }
