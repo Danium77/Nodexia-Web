@@ -669,21 +669,41 @@ const CrearDespacho = () => {
 
   // Función para abrir modal de Red Nodexia
   const handleOpenRedNodexia = async (dispatch: GeneratedDispatch) => {
+    console.log('🌐 [RED] handleOpenRedNodexia llamado para:', dispatch.pedido_id, 'id:', dispatch.id);
+    
+    // Validar pre-requisitos antes de abrir el modal
+    if (!user) {
+      console.error('🌐 [RED] user es null/undefined');
+      alert('Error: Sesión de usuario no disponible. Recargá la página.');
+      return;
+    }
+    if (!empresaPlanta) {
+      console.error('🌐 [RED] empresaPlanta es null/undefined. userEmpresas:', userEmpresas);
+      alert('Error: No se encontró la empresa asociada al usuario. Recargá la página.');
+      return;
+    }
     
     try {
-      // Cargar los viajes de este despacho
+      // Primero intentar usar viajes cacheados (si el despacho está expandido)
+      let viajes = viajesDespacho[dispatch.id];
       
-      const { data: viajes, error } = await supabase
-        .from('viajes_despacho')
-        .select('id, numero_viaje, estado, despacho_id')
-        .eq('despacho_id', dispatch.id)
-        .order('numero_viaje', { ascending: true });
+      if (!viajes || viajes.length === 0) {
+        // Cargar los viajes de este despacho
+        console.log('🌐 [RED] Cache vacío, consultando viajes_despacho...');
+        const { data, error } = await supabase
+          .from('viajes_despacho')
+          .select('id, numero_viaje, estado, despacho_id')
+          .eq('despacho_id', dispatch.id)
+          .order('numero_viaje', { ascending: true });
 
-
-      if (error) {
-        console.error('❌ Error cargando viajes:', error);
-        alert('Error al cargar los viajes. Intente nuevamente.');
-        return;
+        if (error) {
+          console.error('🌐 [RED] Error cargando viajes:', error);
+          alert('Error al cargar los viajes. Intente nuevamente.');
+          return;
+        }
+        viajes = data;
+      } else {
+        console.log('🌐 [RED] Usando viajes cacheados:', viajes.length);
       }
 
       if (!viajes || viajes.length === 0) {
@@ -692,14 +712,14 @@ const CrearDespacho = () => {
       }
 
       // Seleccionar el primer viaje pendiente o el primero disponible
-      const primerViaje = viajes.find(v => !v.estado || v.estado === 'pendiente') || viajes[0];
+      const primerViaje = viajes.find((v: any) => !v.estado || v.estado === 'pendiente') || viajes[0];
       
-      
+      console.log('🌐 [RED] Abriendo modal con viaje:', primerViaje.id, 'numero:', primerViaje.numero_viaje);
       setSelectedDispatchForRed(dispatch);
       setSelectedViajeForRed(primerViaje);
       setIsRedNodexiaModalOpen(true);
     } catch (err) {
-      console.error('❌ Error:', err);
+      console.error('🌐 [RED] Error:', err);
       alert('Error al abrir Red Nodexia');
     }
   };
@@ -1755,7 +1775,7 @@ const CrearDespacho = () => {
       )}
 
       {/* Modal de Red Nodexia */}
-      {selectedDispatchForRed && selectedViajeForRed && empresaPlanta && user && (
+      {isRedNodexiaModalOpen && selectedDispatchForRed && selectedViajeForRed && (
         <AbrirRedNodexiaModal
           isOpen={isRedNodexiaModalOpen}
           onClose={handleCloseRedNodexia}
@@ -1763,8 +1783,8 @@ const CrearDespacho = () => {
           numeroViaje={selectedViajeForRed.numero_viaje}
           origen={selectedDispatchForRed.origen}
           destino={selectedDispatchForRed.destino}
-          empresaId={empresaPlanta.empresa_id}
-          usuarioId={user.id}
+          empresaId={empresaPlanta?.empresa_id || ''}
+          usuarioId={user?.id || ''}
         />
       )}
 
