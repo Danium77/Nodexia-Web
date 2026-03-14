@@ -463,41 +463,21 @@ const CrearDespacho = () => {
       setLoadingOptions(true);
       if (!user?.id) return;
 
-      // Obtener las empresas asociadas al usuario actual con rol
+      // Obtener las empresas asociadas al usuario actual con rol_interno (sin join a roles_empresa)
       const { data: userEmpresasData, error: userEmpresasError } = await supabase
         .from('usuarios_empresa')
         .select(`
           empresa_id,
-          rol_empresa_id,
-          empresas(id, nombre, tipo_empresa, configuracion_empresa),
-          roles_empresa(id, nombre)
+          rol_interno,
+          empresas(id, nombre, tipo_empresa, configuracion_empresa)
         `)
         .eq('user_id', user.id)
         .eq('activo', true);
 
       if (userEmpresasError) {
         console.error('❌ [cargarEmpresas] Error query usuarios_empresa:', userEmpresasError);
-        // Fallback: intentar sin join a roles_empresa
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('usuarios_empresa')
-          .select(`
-            empresa_id,
-            rol_empresa_id,
-            empresas(id, nombre, tipo_empresa, configuracion_empresa)
-          `)
-          .eq('user_id', user.id)
-          .eq('activo', true);
-        
-        if (fallbackError || !fallbackData || fallbackData.length === 0) {
-          console.error('❌ [cargarEmpresas] Fallback también falló:', fallbackError);
-          setLoadingOptions(false);
-          return;
-        }
-        
-        console.log('✅ [cargarEmpresas] Fallback exitoso, empresas:', fallbackData.length);
-        setUserEmpresas(fallbackData);
-        // Continuar con fallbackData sin roles
-        return cargarEmpresasConDatos(fallbackData);
+        setLoadingOptions(false);
+        return;
       }
 
       if (!userEmpresasData || userEmpresasData.length === 0) {
@@ -525,11 +505,11 @@ const CrearDespacho = () => {
     try {
       const empresaIds = userEmpresas.map(rel => rel.empresa_id);
       const tiposEmpresa = userEmpresas.map(rel => (rel.empresas as any)?.tipo_empresa);
-      const roles = userEmpresas.map(rel => (rel.roles_empresa as any)?.nombre);
+      const rolesInternos = userEmpresas.map(rel => rel.rol_interno?.toLowerCase() || '');
       
-      // Determinar si es coordinador por tipo de empresa o rol
-      const esCoordinador = tiposEmpresa.includes('coordinador') || 
-                           roles.some(rol => rol?.toLowerCase().includes('coordinador'));
+      // Determinar si es coordinador por tipo_empresa o rol_interno
+      const esCoordinador = tiposEmpresa.some((t: string) => t === 'coordinador' || t === 'planta') || 
+                           rolesInternos.some((rol: string) => rol.includes('coordinador'));
       
 
       let plantasFiltradas: any[] = [];
