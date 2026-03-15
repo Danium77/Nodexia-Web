@@ -35,14 +35,16 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [ ] Configurar `tsconfig.json` paths
 - [ ] Migrar imports progresivamente (114 relativos)
 
-### A5. Sync migraciones PROD [NOT STARTED]
-- [ ] Ejecutar migración 063 en PROD
-- [ ] Registrar `vista_disponibilidad_unidades` en schema_migrations
-- [ ] Auditar cuáles de las 54 migraciones están ejecutadas en PROD
+### A5. Sync migraciones PROD [DONE]
+- [x] Auditar cuáles de las 54 migraciones están ejecutadas en PROD (todas 001-074 ✅)
+- [x] Verificar migración 063 aplicada en PROD (policy existe ✅)
+- [x] Registrar `vista_disponibilidad_unidades` en schema_migrations (017v ✅)
+- [x] Fix `ofertas_red_nodexia` UPDATE policy (migración 075, 2 policies ✅)
+- [x] Supabase CLI linked a PROD
 
 ### A6. Seguridad y auditoría [NOT STARTED]
 - [ ] Auditoría RLS completa (todas las tablas)
-- [ ] Fix: `ofertas_red_nodexia` UPDATE policy
+- ~~[ ] Fix: `ofertas_red_nodexia` UPDATE policy~~ ✅ (movido a A5)
 - [ ] Logging de acciones sensibles
 - [ ] Revisar IDOR en endpoints restantes
 

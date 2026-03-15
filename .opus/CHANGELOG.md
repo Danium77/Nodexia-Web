@@ -4,6 +4,18 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 16-Mar-2026 — Sesión 39: A5 Sync PROD
+
+### Migración 075 (aplicada en PROD)
+- Audit PROD: 54 migraciones verificadas, 063 ya aplicada, vista ya existe
+- Creado 2 UPDATE policies en `ofertas_red_nodexia`: plantas + transportes
+- Registrado `vista_disponibilidad_unidades` en `schema_migrations` (version 017v)
+- Fix `supabase/config.toml`: removido campo `cron` no soportado por CLI + `timeout` int→map
+- Supabase CLI instalado (npx), logueado, linked a PROD
+- Scripts: `scripts/audit_prod.js`, `scripts/run_migration_075.js`
+
+---
+
 ## 16-Mar-2026 — Sesión 38: A3 Giant File Splits
 
 ### Commit `57e011b`

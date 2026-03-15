@@ -27,16 +27,16 @@
 
 ### Qué está roto o incompleto en PROD
 - **FK `usuarios_empresa.rol_empresa_id` roto** — migración 070 destruyó FK (DROP CASCADE). Campo dead. No restaurar.
-- **12 refs a `roles_empresa`** en código — join embebido falla en PROD. Limpiar.
+- ~~**12 refs a `roles_empresa`** en código~~ — 0 refs ✅
 - ~~**88 usos de `.single()`** — migrados a `.maybeSingle()` (commit `f57583f`)~~ ✅
-- **Migración 063 no ejecutada** — RLS `documentos_viaje_planta`
-- **`ofertas_red_nodexia`** sin UPDATE policy RLS (bypaseado por API service role)
+- ~~**Migración 063 no ejecutada**~~ — verificada aplicada en PROD ✅
+- ~~**`ofertas_red_nodexia`** sin UPDATE policy RLS~~ — 2 UPDATE policies creadas (migración 075) ✅
 - **7 pages con `supabase.from()` directo** — viola separación de capas
 
 ### Migraciones PROD
-- 074 migraciones tracked vía tabla `schema_migrations`
-- Vista `vista_disponibilidad_unidades` creada manualmente hoy (no tracking)
-- Migración 063 pendiente de ejecución
+- 075 migraciones tracked vía tabla `schema_migrations` (+ 017v vista manual)
+- Vista `vista_disponibilidad_unidades` registrada en tracking ✅
+- Supabase CLI linked a PROD (`lkdcofsfjnltuzzzwoir`)
 
 ---
 
