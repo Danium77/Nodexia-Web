@@ -4,6 +4,17 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 15-Mar-2026 — Sesión 36: A1 roles_empresa cleanup
+
+### Commit `77be298`
+- Eliminados TODOS los `roles_empresa` references (9 archivos, -1546 líneas)
+- Borrados: `pages/admin/roles.tsx`, `components/Admin/FormularioRol.tsx`
+- Migrados a `ROLES_BY_TIPO`: WizardUsuario, GestionEmpresasReal, roleValidator
+- Limpiados: AdminSidebar (nav link), usuarios.tsx (dead lookup), crear-despacho (comment)
+- Tests reescritos para funciones migradas (getRolesForCompanyType, roleExists ahora sincrónicas)
+
+---
+
 ## 15-Mar-2026 — Sesión 35: Fixes PROD + Auditoría + Nuevo sistema memoria
 
 ### Fixes desplegados
