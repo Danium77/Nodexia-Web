@@ -10,7 +10,7 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 
 ### A1. Limpieza de código muerto [IN PROGRESS]
 - [x] Eliminar 12 referencias a `roles_empresa` en código (commit `77be298`, -1546 líneas)
-- [ ] Reemplazar 31 `.single()` → `.maybeSingle()` 
+- [x] Reemplazar 88 `.single()` → `.maybeSingle()` (commit `f57583f`, 53 archivos) 
 - [ ] Eliminar imports no usados
 - [ ] Limpiar campos deprecados de types
 

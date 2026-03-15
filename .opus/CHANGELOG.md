@@ -4,6 +4,17 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 15-Mar-2026 — Sesión 37: A1 .single() → .maybeSingle() migration
+
+### Commit `f57583f`
+- Migrados 88 `.single()` → `.maybeSingle()` en 53 archivos (SELECT/UPDATE queries)
+- Conservados 18 INSERT `.single()` (patrón correcto post-insert)
+- Eliminados backups muertos: `usuarios.tsx.old` (-1123 líneas), `roles.tsx.backup` (-660 líneas)
+- Previene error PGRST116 cuando filas no existen
+- Build verificado passing
+
+---
+
 ## 15-Mar-2026 — Sesión 36: A1 roles_empresa cleanup
 
 ### Commit `77be298`

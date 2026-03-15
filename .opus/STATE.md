@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `5288d6d` (15-Mar-2026)
+- **Último commit:** `f57583f` (15-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 
 ### Qué funciona en PROD
@@ -28,7 +28,7 @@
 ### Qué está roto o incompleto en PROD
 - **FK `usuarios_empresa.rol_empresa_id` roto** — migración 070 destruyó FK (DROP CASCADE). Campo dead. No restaurar.
 - **12 refs a `roles_empresa`** en código — join embebido falla en PROD. Limpiar.
-- **31 usos de `.single()`** — riesgo de error silencioso. Migrar a `.maybeSingle()`.
+- ~~**88 usos de `.single()`** — migrados a `.maybeSingle()` (commit `f57583f`)~~ ✅
 - **Migración 063 no ejecutada** — RLS `documentos_viaje_planta`
 - **`ofertas_red_nodexia`** sin UPDATE policy RLS (bypaseado por API service role)
 - **7 pages con `supabase.from()` directo** — viola separación de capas
@@ -57,8 +57,8 @@
 | Componentes | ~80 | — |
 | Archivos >400 líneas | 48 | 0 |
 | Pages con queries directas | 7 | 0 |
-| Refs a `roles_empresa` | 12 | 0 |
-| Usos de `.single()` | 31 | 0 |
+| Refs a `roles_empresa` | ~~12~~ 0 ✅ | 0 |
+| Usos de `.single()` (SELECT/UPDATE) | ~~88~~ 0 ✅ | 0 |
 | Imports relativos `../../` | 114 | 0 (migrar a `@/`) |
 | Tests | 56 | — |
 
