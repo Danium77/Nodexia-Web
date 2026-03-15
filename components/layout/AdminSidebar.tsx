@@ -11,7 +11,6 @@ import {
     CogIcon,
     BuildingOfficeIcon,
     CreditCardIcon,
-    UserGroupIcon,
     InboxIcon
 } from '@heroicons/react/24/outline';
 
@@ -37,12 +36,7 @@ const AdminSidebar = () => {
             icon: CreditCardIcon,
             description: 'Planes de suscripción y límites'
         },
-        { 
-            name: 'Roles', 
-            href: '/admin/roles', 
-            icon: UserGroupIcon,
-            description: 'Catálogo maestro de roles'
-        },
+
         { 
             name: 'Usuarios', 
             href: '/admin/usuarios', 

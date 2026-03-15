@@ -463,7 +463,7 @@ const CrearDespacho = () => {
       setLoadingOptions(true);
       if (!user?.id) return;
 
-      // Obtener las empresas asociadas al usuario actual con rol_interno (sin join a roles_empresa)
+      // Obtener las empresas asociadas al usuario actual
       const { data: userEmpresasData, error: userEmpresasError } = await supabase
         .from('usuarios_empresa')
         .select(`

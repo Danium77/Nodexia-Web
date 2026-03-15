@@ -31,15 +31,6 @@ interface Empresa {
   tipo_empresa: string;
 }
 
-interface Rol {
-  id: string;
-  nombre_rol: string;
-  tipo_empresa: string;
-  descripcion?: string;
-  permisos?: any;
-  activo?: boolean;
-}
-
 interface WizardData {
   empresa: string;
   rol: string;
@@ -104,7 +95,6 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
 
   // Opciones para selectores
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [roles, setRoles] = useState<Rol[]>([]);
   const [rolesDisponibles, setRolesDisponibles] = useState<RolInterno[]>([]);
 
   // Validaciones por paso
@@ -160,7 +150,6 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
         }
       }
       loadEmpresas();
-      loadRoles();
     } else {
       // Limpiar sessionStorage cuando se cierra el modal intencionalmente
       sessionStorage.removeItem('wizardUsuarioState');
@@ -189,7 +178,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
     if (formData.empresa) {
       filterRolesByEmpresa();
     }
-  }, [formData.empresa, empresas, roles]);
+  }, [formData.empresa, empresas]);
 
   const loadEmpresas = async () => {
     try {
@@ -212,131 +201,6 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
     } catch (err: any) {
       console.error('Error completo cargando empresas:', err);
       setError(`Error al cargar las empresas: ${err.message}`);
-    }
-  };
-
-  // Función para setup automático de roles (NO SE USA - COMENTADA)
-  /*
-  const setupRolesEmpresa = async () => {
-    console.log('🚀 Ejecutando setup automático de roles...');
-
-    try {
-      const rolesData = [
-        // Roles para empresas coordinadoras
-        {
-          nombre_rol: 'Administrador',
-          tipo_empresa: 'coordinador',
-          descripcion: 'Acceso completo al sistema',
-          permisos: { admin: true, crear: true, editar: true, eliminar: true },
-          activo: true
-        },
-        {
-          nombre_rol: 'Coordinador',
-          tipo_empresa: 'coordinador',
-          descripcion: 'Gestión de despachos y seguimiento',
-          permisos: { admin: false, crear: true, editar: true, eliminar: false },
-          activo: true
-        },
-        {
-          nombre_rol: 'Operador',
-          tipo_empresa: 'coordinador',
-          descripcion: 'Seguimiento y monitoreo de operaciones',
-          permisos: { admin: false, crear: false, editar: true, eliminar: false },
-          activo: true
-        },
-        // Roles para empresas de transporte
-        {
-          nombre_rol: 'Administrador',
-          tipo_empresa: 'transporte',
-          descripcion: 'Acceso completo al sistema de transporte',
-          permisos: { admin: true, crear: true, editar: true, eliminar: true },
-          activo: true
-        },
-        {
-          nombre_rol: 'Supervisor',
-          tipo_empresa: 'transporte',
-          descripcion: 'Supervisión de flota y choferes',
-          permisos: { admin: false, crear: true, editar: true, eliminar: false },
-          activo: true
-        },
-        {
-          nombre_rol: 'Chofer',
-          tipo_empresa: 'transporte',
-          descripcion: 'Acceso básico para conductores',
-          permisos: { admin: false, crear: false, editar: false, eliminar: false },
-          activo: true
-        },
-        // Roles para empresas mixtas
-        {
-          nombre_rol: 'Administrador General',
-          tipo_empresa: 'ambos',
-          descripcion: 'Acceso completo a coordinación y transporte',
-          permisos: { admin: true, crear: true, editar: true, eliminar: true },
-          activo: true
-        },
-        {
-          nombre_rol: 'Coordinador de Operaciones',
-          tipo_empresa: 'ambos',
-          descripcion: 'Gestión integral de despachos y flota',
-          permisos: { admin: false, crear: true, editar: true, eliminar: false },
-          activo: true
-        }
-      ];
-
-      // Intentar insertar los roles
-      for (const rol of rolesData) {
-        const { data: existing } = await supabase
-          .from('roles_empresa')
-          .select('id')
-          .eq('nombre_rol', rol.nombre_rol)
-          .eq('tipo_empresa', rol.tipo_empresa)
-          .maybeSingle();
-
-        if (!existing) {
-          await supabase.from('roles_empresa').insert(rol);
-          console.log(`✅ Rol creado: ${rol.nombre_rol} (${rol.tipo_empresa})`);
-        }
-      }
-
-      return true;
-    } catch (error: any) {
-      console.error('❌ Error en setup de roles:', error.message);
-      return false;
-    }
-  };
-  */
-
-  const loadRoles = async () => {
-    try {
-      console.log('🔄 Cargando roles desde el módulo centralizado...');
-      
-      // Cargar solo roles activos desde la base de datos
-      const { data, error } = await supabase
-        .from('roles_empresa')
-        .select('*')
-        .eq('activo', true)
-        .order('tipo_empresa, nombre_rol');
-
-      console.log('📋 Resultado consulta roles:', { data, error });
-      
-      if (error) {
-        console.error('❌ Error cargando roles:', error);
-        // Mostrar mensaje al usuario sobre la necesidad de configurar roles
-        setRoles([]);
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        console.log('⚠️ No hay roles configurados en el sistema');
-        setRoles([]);
-      } else {
-        setRoles(data);
-        console.log('✅ Roles cargados exitosamente:', data.length);
-      }
-      
-    } catch (err: any) {
-      console.error('❌ Error completo cargando roles:', err);
-      setRoles([]);
     }
   };
 
@@ -966,18 +830,7 @@ const WizardUsuario: React.FC<WizardUsuarioProps> = ({
                   <div className="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-3 mt-2">
                     <p className="text-yellow-400 text-sm flex items-center gap-2">
                       <ExclamationTriangleIcon className="h-4 w-4" />
-                      No hay roles disponibles para esta empresa
-                    </p>
-                    <p className="text-yellow-300 text-xs mt-1">
-                      Debes crear roles en el{' '}
-                      <a 
-                        href="/admin/roles" 
-                        target="_blank"
-                        className="underline hover:text-yellow-200 font-medium"
-                      >
-                        módulo de Roles
-                      </a>
-                      {' '}antes de crear usuarios.
+                      No hay roles configurados para este tipo de empresa.
                     </p>
                   </div>
                 )}

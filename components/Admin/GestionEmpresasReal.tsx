@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { ROLES_BY_TIPO, RolInterno, TipoEmpresa as TipoEmpresaType, getRolDisplayName, ROL_INTERNO_LABELS } from '../../lib/types';
 
 interface Plan {
   id: string;
@@ -8,17 +9,16 @@ interface Plan {
   caracteristicas: any;
 }
 
-interface TipoEmpresa {
+interface TipoEmpresaEcosistema {
   id: string;
   nombre: string;
   descripcion: string;
 }
 
-interface RolEmpresa {
+interface RolOption {
   id: string;
   nombre: string;
-  descripcion: string;
-  tipo_ecosistema_id: string;
+  tipo_empresa: string;
 }
 
 interface Empresa {
@@ -31,8 +31,8 @@ interface Empresa {
 
 export default function GestionEmpresasReal() {
   const [planes, setPlanes] = useState<Plan[]>([]);
-  const [tiposEmpresa, setTiposEmpresa] = useState<TipoEmpresa[]>([]);
-  const [roles, setRoles] = useState<RolEmpresa[]>([]);
+  const [tiposEmpresa, setTiposEmpresa] = useState<TipoEmpresaEcosistema[]>([]);
+  const [roles, setRoles] = useState<RolOption[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,13 +87,14 @@ export default function GestionEmpresasReal() {
 
       if (tiposError) throw tiposError;
 
-      // Cargar roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('roles_empresa')
-        .select('*')
-        .eq('activo', true);
-
-      if (rolesError) throw rolesError;
+      // Roles derivados de ROLES_BY_TIPO (fuente de verdad local)
+      const allRoles: RolOption[] = Object.entries(ROLES_BY_TIPO).flatMap(
+        ([tipo, rolesArr]) => rolesArr.map(rol => ({
+          id: `${tipo}-${rol}`,
+          nombre: getRolDisplayName(rol, tipo as TipoEmpresaType),
+          tipo_empresa: tipo,
+        }))
+      );
 
       // Cargar empresas
       const { data: empresasData, error: empresasError } = await supabase
@@ -104,7 +105,7 @@ export default function GestionEmpresasReal() {
 
       setPlanes(planesData || []);
       setTiposEmpresa(tiposData || []);
-      setRoles(rolesData || []);
+      setRoles(allRoles);
       setEmpresas(empresasData || []);
 
     } catch (err: any) {
@@ -206,12 +207,11 @@ export default function GestionEmpresasReal() {
       }
 
       // 2. Asignar a empresa con insert directo
-      const rolData = roles.find(r => r.id === rolSeleccionado);
-      
+      // rolSeleccionado es el rol_interno directo (e.g. 'coordinador')
       const usuarioEmpresaData = {
         user_id: authData.user.id,
         empresa_id: empresaSeleccionada,
-        rol_interno: rolData?.nombre || 'Usuario',
+        rol_interno: rolSeleccionado,
         nombre_completo: nombreUsuario,
         email_interno: emailUsuario,
         activo: true,
@@ -242,12 +242,19 @@ export default function GestionEmpresasReal() {
     }
   };
 
-  const rolesParaEmpresa = empresaSeleccionada ? 
-    roles.filter(r => {
-      const empresa = empresas.find(e => e.id === empresaSeleccionada);
-      const tipo = tiposEmpresa.find(t => t.nombre === empresa?.tipo_ecosistema);
-      return tipo ? r.tipo_ecosistema_id === tipo.id : false;
-    }) : [];
+  const rolesParaEmpresa = empresaSeleccionada ? (() => {
+    const empresa = empresas.find(e => e.id === empresaSeleccionada);
+    if (!empresa) return [];
+    // Mapear tipo_ecosistema a TipoEmpresa
+    const tipoMap: Record<string, TipoEmpresaType> = { 'Transporte': 'transporte', 'Planta': 'planta', 'Cliente': 'cliente' };
+    const tipoEmpresa = tipoMap[empresa.tipo_ecosistema] || (empresa.tipo_ecosistema as TipoEmpresaType);
+    const rolesPermitidos = ROLES_BY_TIPO[tipoEmpresa] || [];
+    return rolesPermitidos.map(rol => ({
+      id: rol,
+      nombre: getRolDisplayName(rol, tipoEmpresa),
+      descripcion: ROL_INTERNO_LABELS[rol] || rol,
+    }));
+  })() : [];
 
   if (loading) {
     return (

@@ -124,41 +124,31 @@ export async function validateMultipleRolesForCompany(
 /**
  * Lista todos los roles disponibles para un tipo de empresa específico
  * 
- * Útil para generar dropdowns dinámicos o validar que un rol esté disponible
+ * Migrado: usa ROLES_BY_TIPO en vez de consultar roles_empresa
  * 
  * @param tipoEmpresa - Tipo de empresa: 'planta' o 'transporte'
- * @returns Lista de roles aplicables
+ * @returns Lista de roles aplicables con nombre e id compuesto
  */
-export async function getRolesForCompanyType(tipoEmpresa: 'planta' | 'transporte') {
-  const { data: roles, error } = await supabaseAdmin
-    .from('roles_empresa')
-    .select('id, nombre_rol, descripcion, tipo_empresa')
-    .in('tipo_empresa', [tipoEmpresa, 'ambos'])
-    .eq('activo', true)
-    .order('nombre_rol');
-
-  if (error) {
-    console.error('Error fetching roles for company type:', error);
-    return [];
-  }
-
-  return roles || [];
+export function getRolesForCompanyType(tipoEmpresa: 'planta' | 'transporte') {
+  const rolesPermitidos = ROLES_BY_TIPO[tipoEmpresa] || [];
+  return rolesPermitidos.map(rol => ({
+    id: `${tipoEmpresa}-${rol}`,
+    nombre_rol: getRolDisplayName(rol, tipoEmpresa),
+    descripcion: getRolDisplayName(rol, tipoEmpresa),
+    tipo_empresa: tipoEmpresa,
+  }));
 }
 
 /**
- * Verifica si un rol específico existe en el sistema (sin validar compatibilidad con empresa)
+ * Verifica si un rol específico existe en el sistema
  * 
- * @param roleName - Nombre del rol
- * @returns true si el rol existe y está activo
+ * Migrado: verifica contra ROLES_BY_TIPO en vez de consultar roles_empresa
+ * 
+ * @param roleName - Nombre del rol (rol_interno, e.g. 'coordinador', 'control_acceso')
+ * @returns true si el rol existe en algún tipo de empresa
  */
-export async function roleExists(roleName: string): Promise<boolean> {
-  const { data, error } = await supabaseAdmin
-    .from('roles_empresa')
-    .select('id')
-    .eq('nombre_rol', roleName)
-    .eq('activo', true)
-    .limit(1)
-    .single();
-
-  return !error && !!data;
+export function roleExists(roleName: string): boolean {
+  return Object.values(ROLES_BY_TIPO).some(roles =>
+    roles.includes(roleName as RolInterno)
+  );
 }

@@ -336,17 +336,7 @@ const UsuariosPage = () => {
       return;
     }
     
-    // Obtener nombre del rol desde roles_empresa
-    let rolNombre = primerRol.rol_interno; // fallback
-    if (primerRol.rol_empresa_id) {
-      const { data: rolData } = await supabase
-        .from('roles_empresa')
-        .select('nombre_rol')
-        .eq('id', primerRol.rol_empresa_id)
-        .single();
-      
-      if (rolData) rolNombre = rolData.nombre_rol;
-    }
+    const rolNombre = primerRol.rol_interno;
     
     setEditingUser({
       user_id: usuario.user_id,

@@ -16,27 +16,16 @@ describe('roleValidator', () => {
   });
 
   describe('validateRoleForCompany', () => {
-    it('debe validar correctamente un rol válido para tipo de empresa', async () => {
-      // Mock de empresa tipo "planta"
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockIn = jest.fn().mockReturnThis();
-      const mockOrder = jest.fn().mockReturnThis();
-      const mockLimit = jest.fn().mockReturnThis();
-      const mockSingle = jest.fn();
-
+    const mockCompanyQuery = (companyData: any) => {
+      const mockSingle = jest.fn().mockResolvedValue(companyData);
+      const mockEq = jest.fn().mockReturnValue({ single: mockSingle });
+      const mockSelect = jest.fn().mockReturnValue({ eq: mockEq });
+      const mockFrom = jest.fn().mockReturnValue({ select: mockSelect });
       (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValueOnce({
+    };
+
+    it('debe validar correctamente un rol válido para tipo de empresa planta', async () => {
+      mockCompanyQuery({
         data: {
           id: 'company-123',
           nombre: 'Aceitera San Miguel S.A',
@@ -45,59 +34,16 @@ describe('roleValidator', () => {
         error: null,
       });
 
-      // Segunda llamada para roles_empresa
-      mockEq.mockReturnValueOnce({
-        in: mockIn,
-      });
-      mockIn.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        order: mockOrder,
-      });
-      mockOrder.mockReturnValue({
-        limit: mockLimit,
-      });
-      mockLimit.mockReturnValue({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValueOnce({
-        data: {
-          id: 'role-123',
-          nombre_rol: 'Control de Acceso',
-          tipo_empresa: 'ambos',
-        },
-        error: null,
-      });
-
-      const result = await validateRoleForCompany('Control de Acceso', 'company-123');
+      const result = await validateRoleForCompany('control_acceso', 'company-123');
 
       expect(result.valid).toBe(true);
-      expect(result.roleId).toBe('role-123');
+      expect(result.roleId).toBe('planta-control_acceso');
       expect(result.roleData?.nombre_rol).toBe('Control de Acceso');
       expect(result.error).toBeUndefined();
     });
 
     it('debe rechazar un rol inválido para tipo de empresa', async () => {
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockIn = jest.fn().mockReturnThis();
-      const mockOrder = jest.fn().mockReturnThis();
-      const mockLimit = jest.fn().mockReturnThis();
-      const mockSingle = jest.fn();
-
-      (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValueOnce({
+      mockCompanyQuery({
         data: {
           id: 'company-123',
           nombre: 'Aceitera San Miguel S.A',
@@ -106,28 +52,7 @@ describe('roleValidator', () => {
         error: null,
       });
 
-      // Segunda llamada - rol no encontrado
-      mockEq.mockReturnValueOnce({
-        in: mockIn,
-      });
-      mockIn.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        order: mockOrder,
-      });
-      mockOrder.mockReturnValue({
-        limit: mockLimit,
-      });
-      mockLimit.mockReturnValue({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValueOnce({
-        data: null,
-        error: { message: 'Not found' },
-      });
-
-      const result = await validateRoleForCompany('Rol Inexistente', 'company-123');
+      const result = await validateRoleForCompany('chofer', 'company-123');
 
       expect(result.valid).toBe(false);
       expect(result.error).toContain('not valid for company type');
@@ -135,237 +60,82 @@ describe('roleValidator', () => {
     });
 
     it('debe manejar empresa no encontrada', async () => {
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockSingle = jest.fn();
-
-      (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValue({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValueOnce({
+      mockCompanyQuery({
         data: null,
         error: { message: 'Company not found' },
       });
 
-      const result = await validateRoleForCompany('Control de Acceso', 'invalid-company-id');
+      const result = await validateRoleForCompany('control_acceso', 'invalid-company-id');
 
       expect(result.valid).toBe(false);
       expect(result.error).toContain('Company not found');
     });
 
-    it('debe validar rol "Control de Acceso" para empresa tipo "planta"', async () => {
-      // Este es el caso específico del bug que resolvimos
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockIn = jest.fn().mockReturnThis();
-      const mockOrder = jest.fn().mockReturnThis();
-      const mockLimit = jest.fn().mockReturnThis();
-      const mockSingle = jest.fn();
-
-      (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValueOnce({
+    it('debe validar rol "coordinador" para empresa tipo "transporte"', async () => {
+      mockCompanyQuery({
         data: {
-          id: '3cc1979e-1672-48b8-a5e5-2675f5cac527',
-          nombre: 'Aceitera San Miguel S.A',
-          tipo_empresa: 'planta',
+          id: 'transport-123',
+          nombre: 'Transportes LogiCorp',
+          tipo_empresa: 'transporte',
         },
         error: null,
       });
 
-      mockEq.mockReturnValueOnce({
-        in: mockIn,
-      });
-      mockIn.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        order: mockOrder,
-      });
-      mockOrder.mockReturnValue({
-        limit: mockLimit,
-      });
-      mockLimit.mockReturnValue({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValueOnce({
-        data: {
-          id: '7918bf3d-b10a-418a-8b8d-24b67e6bad74',
-          nombre_rol: 'Control de Acceso',
-          tipo_empresa: 'ambos',
-        },
-        error: null,
-      });
-
-      const result = await validateRoleForCompany(
-        'Control de Acceso',
-        '3cc1979e-1672-48b8-a5e5-2675f5cac527'
-      );
+      const result = await validateRoleForCompany('coordinador', 'transport-123');
 
       expect(result.valid).toBe(true);
-      expect(result.roleId).toBe('7918bf3d-b10a-418a-8b8d-24b67e6bad74');
-      expect(result.roleData?.tipo_empresa).toBe('ambos');
+      expect(result.roleId).toBe('transporte-coordinador');
+      expect(result.roleData?.tipo_empresa).toBe('transporte');
     });
   });
 
   describe('validateMultipleRolesForCompany', () => {
-    // TODO: Mejorar este test - el mock es complejo debido a múltiples llamadas
-    // La función es un simple wrapper de Promise.all sobre validateRoleForCompany
-    // que ya está testeada exhaustivamente arriba
     it.skip('debe validar múltiples roles simultáneamente', async () => {
       // Skipped - función es wrapper de validateRoleForCompany que ya está testeada
     });
   });
 
   describe('getRolesForCompanyType', () => {
-    it('debe retornar roles para tipo de empresa "planta"', async () => {
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockIn = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockOrder = jest.fn();
+    it('debe retornar roles para tipo de empresa "planta"', () => {
+      const roles = getRolesForCompanyType('planta');
 
-      (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        in: mockIn,
-      });
-      mockIn.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValue({
-        order: mockOrder,
-      });
-      mockOrder.mockResolvedValue({
-        data: [
-          { id: '1', nombre_rol: 'Control de Acceso', tipo_empresa: 'ambos' },
-          { id: '2', nombre_rol: 'Supervisor de Carga', tipo_empresa: 'planta' },
-        ],
-        error: null,
-      });
-
-      const roles = await getRolesForCompanyType('planta');
-
-      expect(roles).toHaveLength(2);
-      expect(roles[0].nombre_rol).toBe('Control de Acceso');
-      expect(roles[1].nombre_rol).toBe('Supervisor de Carga');
+      expect(roles.length).toBeGreaterThan(0);
+      expect(roles.some(r => r.nombre_rol === 'Control de Acceso')).toBe(true);
+      expect(roles.some(r => r.nombre_rol === 'Coordinador de Planta')).toBe(true);
+      expect(roles.every(r => r.tipo_empresa === 'planta')).toBe(true);
     });
 
-    it('debe retornar array vacío si hay error', async () => {
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockIn = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockOrder = jest.fn();
+    it('debe retornar roles para tipo de empresa "transporte"', () => {
+      const roles = getRolesForCompanyType('transporte');
 
-      (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        in: mockIn,
-      });
-      mockIn.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValue({
-        order: mockOrder,
-      });
-      mockOrder.mockResolvedValue({
-        data: null,
-        error: { message: 'Database error' },
-      });
+      expect(roles.length).toBeGreaterThan(0);
+      expect(roles.some(r => r.nombre_rol === 'Chofer')).toBe(true);
+      expect(roles.some(r => r.nombre_rol === 'Coordinador de Transporte')).toBe(true);
+      expect(roles.every(r => r.tipo_empresa === 'transporte')).toBe(true);
+    });
 
-      const roles = await getRolesForCompanyType('planta');
+    it('no debe incluir roles de otro tipo de empresa', () => {
+      const plantaRoles = getRolesForCompanyType('planta');
+      const transporteRoles = getRolesForCompanyType('transporte');
 
-      expect(roles).toEqual([]);
+      // Chofer solo en transporte
+      expect(plantaRoles.some(r => r.id.includes('chofer'))).toBe(false);
+      // Control de acceso solo en planta
+      expect(transporteRoles.some(r => r.id.includes('control_acceso'))).toBe(false);
     });
   });
 
   describe('roleExists', () => {
-    it('debe retornar true si el rol existe y está activo', async () => {
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockLimit = jest.fn().mockReturnThis();
-      const mockSingle = jest.fn();
-
-      (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        limit: mockLimit,
-      });
-      mockLimit.mockReturnValue({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValue({
-        data: { id: 'role-123' },
-        error: null,
-      });
-
-      const exists = await roleExists('Control de Acceso');
-
-      expect(exists).toBe(true);
+    it('debe retornar true si el rol existe en el sistema', () => {
+      expect(roleExists('control_acceso')).toBe(true);
+      expect(roleExists('coordinador')).toBe(true);
+      expect(roleExists('chofer')).toBe(true);
+      expect(roleExists('supervisor')).toBe(true);
     });
 
-    it('debe retornar false si el rol no existe', async () => {
-      const mockFrom = jest.fn().mockReturnThis();
-      const mockSelect = jest.fn().mockReturnThis();
-      const mockEq = jest.fn().mockReturnThis();
-      const mockLimit = jest.fn().mockReturnThis();
-      const mockSingle = jest.fn();
-
-      (supabaseAdmin.from as jest.Mock) = mockFrom;
-      mockFrom.mockReturnValue({
-        select: mockSelect,
-      });
-      mockSelect.mockReturnValue({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        eq: mockEq,
-      });
-      mockEq.mockReturnValueOnce({
-        limit: mockLimit,
-      });
-      mockLimit.mockReturnValue({
-        single: mockSingle,
-      });
-      mockSingle.mockResolvedValue({
-        data: null,
-        error: { message: 'Not found' },
-      });
-
-      const exists = await roleExists('Rol Inexistente');
-
-      expect(exists).toBe(false);
+    it('debe retornar false si el rol no existe', () => {
+      expect(roleExists('rol_inexistente')).toBe(false);
+      expect(roleExists('')).toBe(false);
     });
   });
 });
