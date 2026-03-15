@@ -749,6 +749,7 @@ const CrearDespacho = () => {
 
   // Función para abrir modal Ver Estado Red Nodexia
   const handleVerEstadoRed = async (viaje: any) => {
+    console.log('🌐 [VER ESTADO] handleVerEstadoRed llamado. viaje_id:', viaje.id, 'estado_red:', viaje.estado_red);
     
     // Buscar el viaje_red_id en la tabla viajes_red_nodexia
     try {
@@ -756,20 +757,28 @@ const CrearDespacho = () => {
         .from('viajes_red_nodexia')
         .select('id, estado_red, viaje_id')
         .eq('viaje_id', viaje.id)
-        .single();
+        .maybeSingle();
 
-      if (error || !viajeRed) {
-        console.error('❌ [crear-despacho] Error buscando viaje en red:', error);
-        alert('No se encontró el viaje en la Red Nodexia');
+      console.log('🌐 [VER ESTADO] Query result:', { viajeRed, error });
+
+      if (error) {
+        console.error('❌ [VER ESTADO] Error buscando viaje en red:', error);
+        alert(`Error al buscar viaje en Red Nodexia: ${error.message}`);
+        return;
+      }
+      
+      if (!viajeRed) {
+        console.error('❌ [VER ESTADO] No se encontró viaje en red para viaje_id:', viaje.id);
+        alert('No se encontró el viaje en la Red Nodexia. Es posible que haya sido eliminado.');
         return;
       }
 
-
+      console.log('🌐 [VER ESTADO] Abriendo modal con viajeRedId:', viajeRed.id);
       setSelectedViajeRedId(viajeRed.id);
       setSelectedViajeNumero(viaje.numero_viaje?.toString() || 'N/A');
       setIsVerEstadoModalOpen(true);
     } catch (err) {
-      console.error('❌ [crear-despacho] Error:', err);
+      console.error('❌ [VER ESTADO] Error:', err);
       alert('Error al abrir estado de Red Nodexia');
     }
   };

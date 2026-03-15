@@ -193,13 +193,13 @@ export default function ViajesSubTable({
 
                 {/* Acción */}
                 <td className="py-2 px-2">
-                  {viaje.en_red_nodexia && !viaje.transporte && viaje.estado_red !== 'asignado' ? (
+                  {viaje.en_red_nodexia && viaje.estado_red && viaje.estado_red !== 'cerrado' ? (
                     <button
                       onClick={() => onVerEstadoRed(viaje)}
                       className="px-3 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-lg shadow-cyan-500/30"
-                      title="Ver ofertas recibidas y seleccionar transporte"
+                      title={viaje.estado_red === 'asignado' ? 'Ver detalle de asignación vía Red Nodexia' : 'Ver ofertas recibidas y seleccionar transporte'}
                     >
-                      🌐 Ver Estado
+                      🌐 {viaje.estado_red === 'asignado' ? 'Ver Red' : 'Ver Estado'}
                     </button>
                   ) : viaje.estado === 'cancelado_por_transporte' ? (
                     <button
