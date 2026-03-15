@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 15-Mar-2026
+**Última actualización:** 16-Mar-2026
 
 ---
 
@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `e8746d3` (15-Mar-2026)
+- **Último commit:** `691c418` (16-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 
 ### Qué funciona en PROD
@@ -55,7 +55,7 @@
 | API routes | 60 | — |
 | Páginas | 25+ | — |
 | Componentes | ~80 | — |
-| Archivos >400 líneas | 48 | 0 |
+| Archivos >400 líneas | ~42 (-6) | 0 |
 | Pages con queries directas | ~~7~~ 4 (A3 pending) | 0 |
 | Refs a `roles_empresa` | ~~12~~ 0 ✅ | 0 |
 | Usos de `.single()` (SELECT/UPDATE) | ~~88~~ 0 ✅ | 0 |
@@ -64,13 +64,19 @@
 
 ---
 
-## SESIÓN ACTUAL (15-Mar-2026)
+## SESIÓN ACTUAL (16-Mar-2026)
 
-### Completado hoy
-- Fix: RED button coordinador planta (3 iteraciones — FK roto por migración 070)
-- Fix: "Ver Estado" button (broadened condition, `.maybeSingle()`, logging)
-- Fix: CrearUnidadModal dropdowns vacíos (query `unidades_operativas` bloqueaba carga)
-- Fix: `vista_disponibilidad_unidades` creada en PROD (SQL manual)
-- Auditoría completa del codebase (286 archivos, 48 >400 líneas, 7 anti-patterns)
-- Feedback MVP: validación exitosa con empresas transporte + planta
-- Plan de refactorización definido (Bloque A: refactor+enterprise, Bloque B: features)
+### Completado hoy — A3 Giant File Splits
+- `crear-despacho.tsx`: 1908 → ~190 líneas (hook `useCrearDespacho` 1536l + `DespachoModals` 219l)
+- `chofer-mobile.tsx`: 1440 → ~380 líneas (hook `useChoferMobile` 580l)
+- `control-acceso.tsx`: 1409 → ~350 líneas (hook `useControlAcceso` 610l)
+- 3 builds verified, 3 commits pushed, zero regressions
+
+### Hooks creados
+| Hook | Líneas | State | Effects | Handlers |
+|------|--------|-------|---------|----------|
+| `useCrearDespacho` | 1536 | 41 useState | 2 | 17 |
+| `useChoferMobile` | 580 | 25 useState | 9 | 12 |
+| `useControlAcceso` | 610 | 16 useState | 2 | 9 |
+| `useEstadosCamiones` | ~140 | — | — | — |
+| `useSupervisorCarga` | ~270 | — | — | — |

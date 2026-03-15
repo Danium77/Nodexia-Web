@@ -4,6 +4,28 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 16-Mar-2026 — Sesión 38: A3 Giant File Splits
+
+### Commit `57e011b`
+- Split `crear-despacho.tsx` (1908 → ~190 líneas)
+- Creado `lib/hooks/useCrearDespacho.ts` (1536 líneas): 41 useState, 2 useEffect, 4 data loading, 17 handlers
+- Creado `components/Despachos/DespachoModals.tsx` (219 líneas): 8 modals consolidated
+- Fix: `onAceptarOferta` type `void` → `Promise<void>`
+- Fix: Added `handleCloseCancelarModal` to hook (missing export)
+
+### Commit `cc68fcb`
+- Split `chofer-mobile.tsx` (1440 → ~380 líneas)
+- Creado `lib/hooks/useChoferMobile.ts` (~580 líneas): 25 useState, 9 useEffect, GPS tracking, realtime subscription, 12 handlers
+- Exported `ViajeChofer` and `UbicacionGPS` interfaces
+
+### Commit `691c418`
+- Split `control-acceso.tsx` (1409 → ~350 líneas)
+- Creado `lib/hooks/useControlAcceso.ts` (~610 líneas): 16 useState, 2 useEffect, QR scanning, doc validation, incidencia creation
+- Extracted module-level helpers: `validarDocumentacionCompleta`, `DOCS_REQUERIDOS`, `normalizarTipoDoc`
+- Added `handleValidarDocumentacion` and `handleAsignarPlaya` handlers to hook
+
+---
+
 ## 15-Mar-2026 — Sesión 37: A1 .single() + A2 hooks extraction
 
 ### Commit `f57583f`
