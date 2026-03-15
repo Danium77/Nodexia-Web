@@ -28,7 +28,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('viajes_despacho')
       .select('id, estado, numero_viaje, tipo_operacion, producto, peso_estimado, fecha_llamado_carga, chofer_id, camion_id')
       .eq('qr_code', qr_code)
-      .single();
+      .maybeSingle();
 
     if (viajeError || !viaje) {
       return res.status(404).json({

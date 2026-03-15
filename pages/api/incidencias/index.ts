@@ -153,7 +153,7 @@ export default withAuth(async (req, res, { userId, token }) => {
         .from('viajes_despacho')
         .select('id, numero_viaje')
         .eq('id', viaje_id)
-        .single();
+        .maybeSingle();
 
       if (viajeError || !viaje) {
         console.error('[POST /api/incidencias] Viaje not found:', viaje_id, JSON.stringify(viajeError));
@@ -250,7 +250,7 @@ export default withAuth(async (req, res, { userId, token }) => {
           .from('viajes_despacho')
           .select('despacho_id, despachos:despacho_id(empresa_id, pedido_id)')
           .eq('id', viaje_id)
-          .single();
+          .maybeSingle();
 
         const empresaOrigenId = (viajeData?.despachos as any)?.empresa_id;
         if (empresaOrigenId) {

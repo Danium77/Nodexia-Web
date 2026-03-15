@@ -379,7 +379,7 @@ const UsuariosPage = () => {
         .eq('user_id', selectedUserForRol.user_id)
         .eq('empresa_id', selectedUserForRol.empresa_id)
         .eq('rol_interno', newRol)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         alert('Este usuario ya tiene ese rol en esta empresa.');

@@ -35,7 +35,7 @@ export default withAuth(async (req, res, _authCtx) => {
       .from('despachos')
       .select('id, pedido_id, estado, created_at, origen, destino, origen_asignacion, empresa_id')
       .eq('id', despachoId)
-      .single();
+      .maybeSingle();
 
     if (despachoError || !despacho) {
       return res.status(404).json({ error: 'Despacho no encontrado' });

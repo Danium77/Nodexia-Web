@@ -50,7 +50,7 @@ export default function ClienteDetalle() {
         .from('empresas')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (empresaError) throw empresaError;
 
@@ -61,7 +61,7 @@ export default function ClienteDetalle() {
           .from('tipos_empresa_ecosistema')
           .select('nombre')
           .eq('id', empresaData.tipo_ecosistema_id)
-          .single();
+          .maybeSingle();
         tipoEcosistema = tipoData?.nombre || 'No definido';
       }
 
@@ -72,7 +72,7 @@ export default function ClienteDetalle() {
           .from('planes_suscripcion')
           .select('nombre, precio_mensual')
           .eq('id', empresaData.plan_suscripcion_id)
-          .single();
+          .maybeSingle();
         planInfo = planData || planInfo;
       }
 

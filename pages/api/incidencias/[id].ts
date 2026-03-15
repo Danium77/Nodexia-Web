@@ -32,7 +32,7 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
         .from('incidencias_viaje')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (error || !incidencia) {
         return res.status(404).json({ error: 'Incidencia no encontrada' });
@@ -44,7 +44,7 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
         .from('viajes_despacho')
         .select('id, numero_viaje, estado, despacho_id, chofer_id, camion_id, acoplado_id')
         .eq('id', incidencia.viaje_id)
-        .single();
+        .maybeSingle();
 
       if (viajeError) {
         console.error('[GET /api/incidencias/[id]] Error viaje:', JSON.stringify(viajeError));
@@ -137,7 +137,7 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
         .from('incidencias_viaje')
         .select('id, estado, viaje_id, tipo_incidencia, reportado_por')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (fetchError || !incActual) {
         return res.status(404).json({ error: 'Incidencia no encontrada' });
@@ -185,7 +185,7 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
         .update(updateData)
         .eq('id', id)
         .select('id, estado, resolucion, resuelto_por, fecha_resolucion')
-        .single();
+        .maybeSingle();
 
       if (updateError) {
         console.error('[PATCH /api/incidencias/[id]] Error:', updateError);
@@ -199,7 +199,7 @@ export default withAuth(async (req, res, { userId, token, rolInterno }) => {
             .from('viajes_despacho')
             .select('numero_viaje')
             .eq('id', incActual.viaje_id)
-            .single();
+            .maybeSingle();
 
           await supabaseAdmin.from('notificaciones').insert({
             user_id: incActual.reportado_por,

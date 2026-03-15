@@ -28,7 +28,7 @@ const TransporteDetail: React.FC = () => {
         .select('*')
         .eq('id', transporteId)
         .eq('tipo_empresa', 'transporte')
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       

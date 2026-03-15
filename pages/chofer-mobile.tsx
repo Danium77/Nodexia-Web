@@ -316,7 +316,7 @@ export default function ChoferMobile() {
         .from('choferes')
         .select('*')
         .eq('usuario_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setChoferData(data);
@@ -334,7 +334,7 @@ export default function ChoferMobile() {
         .from('choferes')
         .select('id')
         .eq('usuario_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (choferError || !chofer) {
         console.error('❌ Chofer no encontrado:', choferError);

@@ -28,7 +28,7 @@ const PlantaDetail: React.FC = () => {
         .select('*')
         .eq('id', plantaId)
         .eq('tipo_empresa', 'coordinador')
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       

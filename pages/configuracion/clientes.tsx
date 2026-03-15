@@ -42,7 +42,7 @@ const ClientesPage = () => {
         .select('empresa_id')
         .eq('user_id', user.id)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
       if (userError || !usuarioEmpresa) {
         console.error('Error al obtener empresa del usuario:', userError);
@@ -121,7 +121,7 @@ const ClientesPage = () => {
         .select('*')
         .or(`cuit.eq.${cuitLimpio},cuit.like.${cuitLimpio}%`)
         .eq('tipo_empresa', 'coordinador')
-        .single();
+        .maybeSingle();
 
       if (error || !clienteEncontrado) {
         setMensaje('El cliente no existe en la red Nodexia. Debe registrarse antes de poder asociarlo.');
@@ -145,7 +145,7 @@ const ClientesPage = () => {
         .select('empresa_id')
         .eq('user_id', user.id)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
       if (!usuarioEmpresa) {
         setMensaje('Error: No se pudo obtener la empresa del usuario');
@@ -158,7 +158,7 @@ const ClientesPage = () => {
         .eq('empresa_coordinadora_id', usuarioEmpresa.empresa_id)
         .eq('empresa_transporte_id', clienteEncontrado.id)
         .eq('estado', 'activa')
-        .single();
+        .maybeSingle();
 
       if (relacionExiste) {
         setMensaje('Este cliente ya está asociado a tu empresa.');
@@ -208,7 +208,7 @@ const ClientesPage = () => {
         .select('empresa_id')
         .eq('user_id', user.id)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
       if (userError || !usuarioEmpresa) {
         setMensaje('Error: No se pudo obtener la empresa del usuario');

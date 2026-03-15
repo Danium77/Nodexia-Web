@@ -99,7 +99,7 @@ const UsuarioDetallePage = () => {
           )
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       if (!data) throw new Error('Usuario no encontrado');

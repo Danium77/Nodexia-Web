@@ -413,7 +413,7 @@ const DespachosOfrecidos = () => {
         .from('viajes_despacho')
         .select('*, despachos(pedido_id)')
         .eq('id', viajeToReject.id)
-        .single();
+        .maybeSingle();
 
       if (viajeError) {
         console.error('❌ Error obteniendo viaje:', viajeError);

@@ -29,7 +29,7 @@ export default withAuth(async (req, res, _authCtx) => {
       `
       )
       .eq('id', despacho_id)
-      .single();
+      .maybeSingle();
 
     if (despachoError || !despacho) {
       return res.status(404).json({ error: 'Despacho no encontrado' });
@@ -46,7 +46,7 @@ export default withAuth(async (req, res, _authCtx) => {
       .from('ubicaciones')
       .select('id, nombre, empresa_id')
       .eq('id', despacho.destino_id)
-      .single();
+      .maybeSingle();
 
     if (!ubicacionDestino) {
       return res.status(200).json({ message: 'Ubicación de destino no encontrada' });

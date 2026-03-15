@@ -39,7 +39,7 @@ export default withAuth(
         .from('despachos')
         .select('id, pedido_id, empresa_id, created_by, scheduled_local_date, scheduled_local_time')
         .eq('id', despacho_id)
-        .single();
+      .maybeSingle();
 
       if (despachoError || !despacho) {
         return res.status(404).json({ error: 'Despacho no encontrado' });
@@ -174,7 +174,7 @@ export default withAuth(
             .from('choferes')
             .select('usuario_id, nombre, apellido')
             .eq('id', viaje.chofer_id)
-            .single();
+            .maybeSingle();
 
           if (choferData?.usuario_id) {
             await supabaseAdmin.from('notificaciones').insert({

@@ -34,7 +34,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('viajes_despacho')
       .select('id, estado, numero_viaje, tipo_operacion, producto, peso_estimado, fecha_inicio_carga')
       .eq('id', viaje_id)
-      .single();
+      .maybeSingle();
 
     if (viajeError || !viaje) {
       return res.status(404).json({ error: 'Viaje no encontrado' });

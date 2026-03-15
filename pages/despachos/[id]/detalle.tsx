@@ -56,7 +56,7 @@ export default function DetalleDespacho() {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) { router.push('/login'); return; }
       setUser(user);
-      const { data } = await supabase.from('usuarios').select('nombre_completo').eq('id', user.id).single();
+      const { data } = await supabase.from('usuarios').select('nombre_completo').eq('id', user.id).maybeSingle();
       setUserName(data?.nombre_completo || user.email?.split('@')[0] || 'Usuario');
     };
     checkUser();
@@ -75,7 +75,7 @@ export default function DetalleDespacho() {
         .from('despachos')
         .select('id, pedido_id, origen, destino, estado, scheduled_local_date, scheduled_local_time, prioridad, tipo_carga, observaciones, created_at')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       setDespacho(desp);
 
       // 2. Viajes con datos completos

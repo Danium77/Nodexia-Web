@@ -272,7 +272,7 @@ export default function AsignarViaje() {
         .from('viajes_despacho')
         .select('despacho_id')
         .eq('id', viajeId)
-        .single();
+        .maybeSingle();
 
       if (!viaje) throw new Error('Viaje no encontrado');
 

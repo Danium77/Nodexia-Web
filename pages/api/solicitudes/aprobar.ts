@@ -29,7 +29,7 @@ export default withAuth(async (req, res, _authCtx) => {
       .from('solicitudes_registro')
       .select('*')
       .eq('id', solicitud_id)
-      .single();
+      .maybeSingle();
 
     if (errorSolicitud || !solicitud) {
       throw new Error(`Solicitud no encontrada: ${errorSolicitud?.message}`);

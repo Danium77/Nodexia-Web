@@ -89,7 +89,7 @@ const TransporteDashboard = () => {
           .from('empresas')
           .select('id, nombre, tipo_empresa')
           .eq('id', empresaIdContext)
-          .single();
+          .maybeSingle();
         
         if (empresaData && empresaData.tipo_empresa === 'transporte') {
           empresaTransporte = { empresa_id: empresaData.id, empresas: empresaData };

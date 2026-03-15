@@ -47,7 +47,7 @@ async function getDocsCriticosChofer(supabase: SupabaseClient, choferId: string)
     .from('choferes')
     .select('empresa_id, empresas:empresa_id(tipo_empresa)')
     .eq('id', choferId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     // Si no se puede determinar, exigir ambos para ser conservador

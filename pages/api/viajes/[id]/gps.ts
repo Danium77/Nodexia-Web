@@ -34,7 +34,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('choferes')
       .select('id')
       .eq('user_id', user_id)
-      .single();
+      .maybeSingle();
 
     if (errorChofer || !chofer) {
       return res.status(404).json({

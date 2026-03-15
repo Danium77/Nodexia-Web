@@ -83,7 +83,7 @@ export default withAuth(async (req, res, authCtx) => {
           .from(tabla)
           .select('empresa_id')
           .eq('id', metadata.entidad_id)
-          .single();
+          .maybeSingle();
         if (entidad?.empresa_id) {
           metadata.empresa_id = entidad.empresa_id;
         }

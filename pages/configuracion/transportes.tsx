@@ -44,7 +44,7 @@ const TransportesPage = () => {
         .select('empresa_id')
         .eq('user_id', user.id)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
       if (userError || !usuarioEmpresa) {
         console.error('Error al obtener empresa del usuario:', userError);
@@ -201,7 +201,7 @@ const TransportesPage = () => {
         .select('empresa_id')
         .eq('user_id', user.id)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
       if (userError || !usuarioEmpresa) {
         console.error('Error obteniendo empresa del usuario:', userError);
@@ -302,7 +302,7 @@ const TransportesPage = () => {
         .select('empresa_id')
         .eq('user_id', user.id)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
       if (!usuarioEmpresa) {
         setMensaje('Error: No se pudo obtener la empresa del usuario');

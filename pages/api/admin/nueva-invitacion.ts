@@ -36,7 +36,7 @@ export default withAuth(async (req, res) => {
       .from('empresas')
       .select('id, nombre, tipo_empresa')
       .eq('id', empresa_id)
-      .single();
+      .maybeSingle();
 
     if (empresaError || !empresa) {
       return res.status(404).json({ error: 'Company not found', empresa_id });

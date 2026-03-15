@@ -301,7 +301,7 @@ export default function GestionRelaciones() {
         .update(updateData)
         .eq('id', selectedRelacion.id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

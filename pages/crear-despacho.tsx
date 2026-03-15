@@ -168,7 +168,7 @@ const CrearDespacho = () => {
         .from('usuarios')
         .select('nombre_completo')
         .eq('id', currentUserData.id)
-        .single();
+        .maybeSingle();
 
       if (userError || !userData || !userData.nombre_completo) {
         setUserName(currentUserData.email?.split('@')[0] || 'Usuario');
@@ -1117,7 +1117,7 @@ const CrearDespacho = () => {
             .from('despachos')
             .select('origen_asignacion')
             .eq('id', despachoId)
-            .single();
+            .maybeSingle();
           
           if (despachoError) {
             console.error('❌ Error obteniendo despacho:', despachoError);
@@ -1259,7 +1259,7 @@ const CrearDespacho = () => {
         .from('viajes_despacho')
         .select('*, despachos(pedido_id)')
         .eq('id', viajeId)
-        .single();
+        .maybeSingle();
 
       if (viajeError) throw viajeError;
 

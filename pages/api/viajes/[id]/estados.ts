@@ -46,7 +46,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('vista_estado_viaje_completo')
       .select('*')
       .eq('viaje_id', viajeId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error obteniendo estados:', error);

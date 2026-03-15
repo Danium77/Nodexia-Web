@@ -19,7 +19,7 @@ export default function CamionDetalle() {
 
   async function fetchCamion() {
     setLoading(true);
-    const { data } = await supabase.from('camiones').select('*').eq('id', id).single();
+    const { data } = await supabase.from('camiones').select('*').eq('id', id).maybeSingle();
     setCamion(data);
     setLoading(false);
   }

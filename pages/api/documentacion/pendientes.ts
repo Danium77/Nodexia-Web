@@ -133,21 +133,21 @@ export default withAuth(async (req, res, authCtx) => {
             .from('choferes')
             .select('id, nombre, apellido, dni, telefono')
             .eq('id', doc.entidad_id)
-            .single();
+            .maybeSingle();
           entidadInfo = chofer ? { ...chofer, label: `${chofer.nombre} ${chofer.apellido}` } : null;
         } else if (doc.entidad_tipo === 'camion') {
           const { data: camion } = await supabaseAdmin
             .from('camiones')
             .select('id, patente, marca, modelo, anio')
             .eq('id', doc.entidad_id)
-            .single();
+            .maybeSingle();
           entidadInfo = camion ? { ...camion, label: camion.patente } : null;
         } else if (doc.entidad_tipo === 'acoplado') {
           const { data: acoplado } = await supabaseAdmin
             .from('acoplados')
             .select('id, patente, tipo, marca')
             .eq('id', doc.entidad_id)
-            .single();
+            .maybeSingle();
           entidadInfo = acoplado ? { ...acoplado, label: acoplado.patente } : null;
         } else if (doc.entidad_tipo === 'transporte') {
           const { data: empresa } = await supabaseAdmin

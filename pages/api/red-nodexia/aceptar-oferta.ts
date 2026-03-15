@@ -24,7 +24,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('viajes_red_nodexia')
       .select('viaje_id, empresa_solicitante_id')
       .eq('id', viajeRedId)
-      .single();
+      .maybeSingle();
 
     if (viajeRedError || !viajeRed) {
       return res.status(404).json({ error: 'No se encontró el viaje en Red Nodexia' });
@@ -35,7 +35,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('viajes_despacho')
       .select('despacho_id, numero_viaje')
       .eq('id', viajeRed.viaje_id)
-      .single();
+      .maybeSingle();
 
     if (viajeDespachoError || !viajeDespacho) {
       return res.status(404).json({ error: 'No se encontró el viaje de despacho' });
@@ -117,7 +117,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('empresas')
       .select('nombre')
       .eq('id', transporteId)
-      .single();
+      .maybeSingle();
 
     // 9. Registrar en historial
     await supabaseAdmin

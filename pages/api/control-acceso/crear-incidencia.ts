@@ -61,7 +61,7 @@ export default withAuth(async (req, res, { userId, token }) => {
       .from('viajes_despacho')
       .select('id, numero_viaje')
       .eq('id', viaje_id)
-      .single();
+      .maybeSingle();
 
     if (viajeError || !viaje) {
       return res.status(404).json({ error: 'Viaje no encontrado' });

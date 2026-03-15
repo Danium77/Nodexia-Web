@@ -40,7 +40,7 @@ export default withAuth(async (req, res, authCtx) => {
         .from('viajes_despacho')
         .select('id, id_transporte, despachos!inner(empresa_planta_id)')
         .eq('id', viaje_id)
-        .single();
+        .maybeSingle();
 
       if (!viaje) {
         return res.status(404).json({ error: 'Viaje no encontrado' });

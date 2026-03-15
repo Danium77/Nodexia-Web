@@ -27,7 +27,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('choferes')
       .select('id')
       .eq('usuario_id', authCtx.userId)
-      .single();
+      .maybeSingle();
 
     const chofer_id = chofer?.id || data.chofer_id;
 
@@ -151,7 +151,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('viajes_despacho')
       .select('id, estado, despacho_id, despachos(origen_id, destino_id, ubicaciones_origen:origen_id(latitud, longitud), ubicaciones_destino:destino_id(latitud, longitud))')
       .eq('id', viajeActivo.id)
-      .single()
+      .maybeSingle()
       : { data: null };
 
     let estado_detectado: string | null = null;

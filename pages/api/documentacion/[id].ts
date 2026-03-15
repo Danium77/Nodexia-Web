@@ -235,7 +235,7 @@ export default withAuth(async (req, res, authCtx) => {
         })
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (updateError) {
         return res.status(500).json({

@@ -47,7 +47,7 @@ export default withAuth(async (req, res, authCtx) => {
       .eq('id', notificacion_id)
       .eq('user_id', user_id) // Seguridad: solo puede marcar sus propias notificaciones
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       return res.status(500).json({ error: error.message });

@@ -49,7 +49,7 @@ export default withAuth(async (req, res, { userId }) => {
       .from('choferes')
       .select('id, email')
       .eq('id', locationData.chofer_id)
-      .single();
+      .maybeSingle();
 
     if (choferError || !chofer) {
       return res.status(404).json({ error: 'Chofer no encontrado' });
@@ -65,7 +65,7 @@ export default withAuth(async (req, res, { userId }) => {
         .from('usuarios_empresa')
         .select('rol_interno')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       const isAuthorized = userRole && ['coordinador', 'coordinador_integral', 'admin_nodexia', 'supervisor'].includes(userRole.rol_interno);
 

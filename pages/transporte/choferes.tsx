@@ -44,7 +44,7 @@ export default function ChoferesGestion() {
             .select('empresa_id, empresas(nombre)')
             .eq('user_id', user.id)
             .eq('activo', true)
-            .single();
+            .maybeSingle();
             
           if (empresaError) {
             console.error('Error getting empresa:', empresaError);

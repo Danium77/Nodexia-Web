@@ -428,7 +428,7 @@ export default function ControlAcceso() {
           .from('usuarios_empresa')
           .select('empresa_id')
           .eq('user_id', despacho.created_by)
-          .single();
+          .maybeSingle();
 
         if (!usuarioDespacho || usuarioDespacho.empresa_id !== empresaId) {
           console.error('❌ [control-acceso] Despacho no pertenece a esta empresa (ni origen ni destino)');

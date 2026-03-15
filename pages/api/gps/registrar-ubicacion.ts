@@ -57,7 +57,7 @@ export default withAuth(async (req, res, { userId }) => {
       .from('viajes_despacho')
       .select('chofer_id, numero_viaje, estado')
       .eq('id', viaje_id)
-      .single();
+      .maybeSingle();
 
     if (viajeError || !viajeData) {
       return res.status(404).json({ 
@@ -78,7 +78,7 @@ export default withAuth(async (req, res, { userId }) => {
       .from('choferes')
       .select('id, usuario_id')
       .eq('id', chofer_id)
-      .single();
+      .maybeSingle();
 
     if (choferError || !choferData) {
       return res.status(403).json({ error: 'No autorizado', details: 'Chofer no encontrado' });

@@ -35,7 +35,7 @@ const ClienteDetail: React.FC = () => {
         .select('*')
         .eq('id', clientId)
         .eq('tipo_empresa', 'coordinador')
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       
@@ -81,7 +81,7 @@ const ClienteDetail: React.FC = () => {
             .select('rol_interno')
             .eq('user_id', user.id)
             .eq('activo', true)
-            .single();
+            .maybeSingle();
           
           if (ue?.rol_interno) {
             setUserRole(ue.rol_interno === 'transporte' ? 'transporte' : ue.rol_interno);

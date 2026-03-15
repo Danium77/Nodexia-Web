@@ -49,7 +49,7 @@ export default withAuth(async (req, res, authCtx) => {
       .update(dataToUpdate)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error actualizando ubicación:', error);

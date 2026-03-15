@@ -20,7 +20,7 @@ export default withAuth(async (req, res) => {
       .update({ profile_id: profileId, role_id: roleId })
       .eq('user_id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateError) {
       if (updateError.code === 'PGRST116') {

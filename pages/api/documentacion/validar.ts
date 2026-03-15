@@ -83,7 +83,7 @@ export default withAuth(async (req, res, authCtx) => {
       .from('documentos_entidad')
       .select('id, estado_vigencia, activo, tipo_documento, entidad_tipo, entidad_id, empresa_id')
       .eq('id', documento_id)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !documento) {
       return res.status(404).json({
@@ -122,7 +122,7 @@ export default withAuth(async (req, res, authCtx) => {
         .select('empresa_id')
         .eq('user_id', authCtx.userId)
         .eq('activo', true)
-        .single();
+        .maybeSingle();
 
       if (!empresaCoord) {
         return res.status(403).json({ error: 'No se pudo determinar empresa del coordinador' });
@@ -156,7 +156,7 @@ export default withAuth(async (req, res, authCtx) => {
         .update(updateData)
         .eq('id', documento_id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (updateError) {
         return res.status(500).json({ error: 'Error al aprobar documento', details: updateError.message });
@@ -195,7 +195,7 @@ export default withAuth(async (req, res, authCtx) => {
         .update(updateData)
         .eq('id', documento_id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (updateError) {
         return res.status(500).json({ error: 'Error al aprobar provisoriamente', details: updateError.message });
@@ -214,7 +214,7 @@ export default withAuth(async (req, res, authCtx) => {
             .from('usuarios')
             .select('nombre_completo')
             .eq('id', authCtx.userId)
-            .single();
+            .maybeSingle();
 
           const notifs = admins.map(a => ({
             user_id: a.user_id,
@@ -265,7 +265,7 @@ export default withAuth(async (req, res, authCtx) => {
       })
       .eq('id', documento_id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateError) {
       return res.status(500).json({ error: 'Error al rechazar documento', details: updateError.message });

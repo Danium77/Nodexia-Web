@@ -102,7 +102,7 @@ export default function TrackingGPS() {
         .from('choferes')
         .select('id, nombre, email')
         .eq('usuario_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (choferError || !choferData) {
         console.error('❌ Chofer no encontrado en BD:', {

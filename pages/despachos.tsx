@@ -22,7 +22,7 @@ const DespachosPage: React.FC = () => {
       }
       setUser(user);
 
-      const { data: userData, error: userError } = await supabase.from('usuarios').select('nombre_completo').eq('id', user.id).single();
+      const { data: userData, error: userError } = await supabase.from('usuarios').select('nombre_completo').eq('id', user.id).maybeSingle();
       if (!userError && userData?.nombre_completo) setUserName(userData.nombre_completo);
       else setUserName(user.email?.split('@')[0] || 'Usuario');
     };

@@ -19,7 +19,7 @@ export default function AcopladoDetalle() {
 
   async function fetchAcoplado() {
     setLoading(true);
-    const { data } = await supabase.from('acoplados').select('*').eq('id', id).single();
+    const { data } = await supabase.from('acoplados').select('*').eq('id', id).maybeSingle();
     setAcoplado(data);
     setLoading(false);
   }
