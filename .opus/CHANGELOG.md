@@ -4,14 +4,22 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
-## 15-Mar-2026 — Sesión 37: A1 .single() → .maybeSingle() migration
+## 15-Mar-2026 — Sesión 37: A1 .single() + A2 hooks extraction
 
 ### Commit `f57583f`
 - Migrados 88 `.single()` → `.maybeSingle()` en 53 archivos (SELECT/UPDATE queries)
 - Conservados 18 INSERT `.single()` (patrón correcto post-insert)
 - Eliminados backups muertos: `usuarios.tsx.old` (-1123 líneas), `roles.tsx.backup` (-660 líneas)
-- Previene error PGRST116 cuando filas no existen
-- Build verificado passing
+
+### Commit `c8d9246`
+- Removido campo dead `rol_empresa_id` de `pages/admin/usuarios.tsx`
+- Fixed WizardUsuario edit: usa `rol_interno` en lugar de FK UUID muerto
+
+### Commit `e8746d3`
+- Creado `useEstadosCamiones.ts`: datos + filtros + conteo memoizado
+- Creado `useSupervisorCarga.ts`: datos + scanner QR + filtros por tab
+- `estados-camiones.tsx`: 529 → 189 líneas (-64%)
+- `supervisor-carga.tsx`: 1023 → 726 líneas (-29%)
 
 ---
 

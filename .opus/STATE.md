@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `f57583f` (15-Mar-2026)
+- **Último commit:** `e8746d3` (15-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 
 ### Qué funciona en PROD
@@ -56,7 +56,7 @@
 | Páginas | 25+ | — |
 | Componentes | ~80 | — |
 | Archivos >400 líneas | 48 | 0 |
-| Pages con queries directas | 7 | 0 |
+| Pages con queries directas | ~~7~~ 4 (A3 pending) | 0 |
 | Refs a `roles_empresa` | ~~12~~ 0 ✅ | 0 |
 | Usos de `.single()` (SELECT/UPDATE) | ~~88~~ 0 ✅ | 0 |
 | Imports relativos `../../` | 114 | 0 (migrar a `@/`) |

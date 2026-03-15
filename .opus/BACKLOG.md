@@ -8,27 +8,27 @@
 
 Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 
-### A1. Limpieza de código muerto [IN PROGRESS]
+### A1. Limpieza de código muerto [DONE]
 - [x] Eliminar 12 referencias a `roles_empresa` en código (commit `77be298`, -1546 líneas)
 - [x] Reemplazar 88 `.single()` → `.maybeSingle()` (commit `f57583f`, 53 archivos) 
-- [ ] Eliminar imports no usados
-- [ ] Limpiar campos deprecados de types
+- [x] Dead imports: ninguno encontrado (limpieza anterior fue exhaustiva)
+- [x] Campos deprecados: `rol_empresa_id` removido de usuarios.tsx (commit `c8d9246`)
 
-### A2. Migrar queries de pages a hooks [NOT STARTED]
-Pages afectadas (7):
-- [ ] `crear-despacho.tsx` — extraer a `useDespachos()`
-- [ ] `chofer-mobile.tsx` — extraer a `useChoferViajes()`
-- [ ] `control-acceso.tsx` — extraer a `useControlAcceso()`
-- [ ] `supervisor-carga.tsx` — extraer a `useSupervisorCarga()`
-- [ ] `despachos.tsx` — extraer a `useDespachosList()`
-- [ ] `estados-camiones.tsx` — extraer a `useEstadosCamiones()`
-- [ ] `planificacion.tsx` — extraer a `usePlanificacion()`
+### A2. Migrar queries de pages a hooks [IN PROGRESS]
+- [x] `estados-camiones.tsx` → `useEstadosCamiones()` (529→189 líneas, -64%)
+- [x] `supervisor-carga.tsx` → `useSupervisorCarga()` (1023→726, -29%)
+- [x] `despachos.tsx` → ya usa `useDispatches()` (solo 1 query auth, OK)
+- [ ] `crear-despacho.tsx` — defer a A3 (1908 líneas, necesita split completo)
+- [ ] `chofer-mobile.tsx` — defer a A3 (1439 líneas, necesita split completo)
+- [ ] `control-acceso.tsx` — defer a A3 (1409 líneas, necesita split completo)
+- [ ] `planificacion.tsx` — defer a A3 (862 líneas, queries muy entrelazadas)
 
 ### A3. Partir archivos gigantes [NOT STARTED]
-- [ ] `crear-despacho.tsx` (1743 líneas) → componentes + hook
-- [ ] `chofer-mobile.tsx` (1315) → componentes + hook
-- [ ] `control-acceso.tsx` (1277) → componentes + hook
-- [ ] `lib/types.ts` (902) → dividir por dominio
+- [ ] `crear-despacho.tsx` (1908 líneas) → componentes + hook
+- [ ] `chofer-mobile.tsx` (1439) → componentes + hook
+- [ ] `control-acceso.tsx` (1409) → componentes + hook
+- [ ] `planificacion.tsx` (862) → componentes + hook
+- [ ] `lib/types.ts` (993) → dividir por dominio
 - [ ] `lib/contexts/UserRoleContext.tsx` (602) → separar lógica
 
 ### A4. Configurar imports alias `@/` [NOT STARTED]
