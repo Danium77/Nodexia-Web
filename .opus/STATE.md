@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 16-Mar-2026
+**Última actualización:** 15-Mar-2026 (sesión 39)
 
 ---
 
@@ -9,8 +9,9 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `691c418` (16-Mar-2026)
+- **Último commit:** `a8cff30` (15-Mar-2026)
 - **Estado general:** Funcional con bugs menores
+- **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
 ### Qué funciona en PROD
 - Login/signup con roles multi-empresa
@@ -64,15 +65,24 @@
 
 ---
 
-## SESIÓN ACTUAL (16-Mar-2026)
+## ÚLTIMA SESIÓN (39 — 15-Mar-2026)
 
-### Completado hoy — A3 Giant File Splits
-- `crear-despacho.tsx`: 1908 → ~190 líneas (hook `useCrearDespacho` 1536l + `DespachoModals` 219l)
-- `chofer-mobile.tsx`: 1440 → ~380 líneas (hook `useChoferMobile` 580l)
-- `control-acceso.tsx`: 1409 → ~350 líneas (hook `useControlAcceso` 610l)
-- 3 builds verified, 3 commits pushed, zero regressions
+### Completado — A5 Sync PROD
+- Supabase CLI instalado (via npx), logueado, linked a PROD
+- Auditía completa: 54 migraciones verificadas aplicadas (001-074)
+- Migración 063: verificada aplicada (policy existía)
+- Vista `vista_disponibilidad_unidades`: verificada existente, registrada en tracking (017v)
+- **Migración 075 ejecutada en PROD**: 2 UPDATE policies en `ofertas_red_nodexia`
+- Fix `config.toml`: removidos campos inválidos (`cron`, `timeout` int)
+- `.gitignore`: agregado `supabase/.temp/`
+- Scripts temporales creados y eliminados: `audit_prod.js`, `run_migration_075.js`
+- Commit `a8cff30` pushed
 
-### Hooks creados
+### Sesión 38 — A3 Giant File Splits
+- 3 pages gigantes partidos (crear-despacho, chofer-mobile, control-acceso)
+- 3 hooks creados, 3 builds verified, zero regressions
+
+### Hooks en el proyecto
 | Hook | Líneas | State | Effects | Handlers |
 |------|--------|-------|---------|----------|
 | `useCrearDespacho` | 1536 | 41 useState | 2 | 17 |
@@ -80,3 +90,9 @@
 | `useControlAcceso` | 610 | 16 useState | 2 | 9 |
 | `useEstadosCamiones` | ~140 | — | — | — |
 | `useSupervisorCarga` | ~270 | — | — | — |
+
+### Próximos pasos sugeridos
+- **A4**: Configurar import aliases `@/` (114 imports relativos)
+- **A6**: Auditoría RLS completa
+- **A3 bonus**: `despachos-ofrecidos.tsx` (1067 líneas)
+- **Bloque B**: Features (admin dinámico, reportes, turnos)

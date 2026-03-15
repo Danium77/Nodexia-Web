@@ -1,6 +1,6 @@
 # BACKLOG — NODEXIA-WEB
 
-**Última actualización:** 15-Mar-2026
+**Última actualización:** 15-Mar-2026 (sesión 39)
 
 ---
 
@@ -14,20 +14,21 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [x] Dead imports: ninguno encontrado (limpieza anterior fue exhaustiva)
 - [x] Campos deprecados: `rol_empresa_id` removido de usuarios.tsx (commit `c8d9246`)
 
-### A2. Migrar queries de pages a hooks [IN PROGRESS]
+### A2. Migrar queries de pages a hooks [DONE]
 - [x] `estados-camiones.tsx` → `useEstadosCamiones()` (529→189 líneas, -64%)
 - [x] `supervisor-carga.tsx` → `useSupervisorCarga()` (1023→726, -29%)
 - [x] `despachos.tsx` → ya usa `useDispatches()` (solo 1 query auth, OK)
-- [ ] `crear-despacho.tsx` — defer a A3 (1908 líneas, necesita split completo)
-- [ ] `chofer-mobile.tsx` — defer a A3 (1439 líneas, necesita split completo)
-- [ ] `control-acceso.tsx` — defer a A3 (1409 líneas, necesita split completo)
-- [ ] `planificacion.tsx` — defer a A3 (862 líneas, queries muy entrelazadas)
+- [x] `crear-despacho.tsx` → completado en A3
+- [x] `chofer-mobile.tsx` → completado en A3
+- [x] `control-acceso.tsx` → completado en A3
+- [ ] `planificacion.tsx` — 862 líneas, bajo threshold, queries entrelazadas (defer)
 
-### A3. Partir archivos gigantes [NOT STARTED]
-- [ ] `crear-despacho.tsx` (1908 líneas) → componentes + hook
-- [ ] `chofer-mobile.tsx` (1439) → componentes + hook
-- [ ] `control-acceso.tsx` (1409) → componentes + hook
-- [ ] `planificacion.tsx` (862) → componentes + hook
+### A3. Partir archivos gigantes [DONE]
+- [x] `crear-despacho.tsx` (1908 → ~190 líneas) — hook `useCrearDespacho` + `DespachoModals`
+- [x] `chofer-mobile.tsx` (1440 → ~380 líneas) — hook `useChoferMobile`
+- [x] `control-acceso.tsx` (1409 → ~350 líneas) — hook `useControlAcceso`
+- [ ] `despachos-ofrecidos.tsx` (1067 líneas) — bonus, único >1000 restante
+- [ ] `planificacion.tsx` (862) — bajo threshold
 - [ ] `lib/types.ts` (993) → dividir por dominio
 - [ ] `lib/contexts/UserRoleContext.tsx` (602) → separar lógica
 
