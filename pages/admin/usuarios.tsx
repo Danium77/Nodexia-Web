@@ -37,7 +37,6 @@ interface UsuarioAgrupado {
     roles: Array<{
       id: string; // ID del registro usuarios_empresa
       rol_interno: RolInterno;
-      rol_empresa_id?: string;
       activo: boolean;
       fecha_vinculacion: string;
     }>;
@@ -165,7 +164,6 @@ const UsuariosPage = () => {
           user_id,
           empresa_id,
           rol_interno,
-          rol_empresa_id,
           activo,
           fecha_vinculacion,
           nombre_completo,
@@ -259,7 +257,6 @@ const UsuariosPage = () => {
           empresaEntry.roles.push({
             id: registro.id,
             rol_interno: registro.rol_interno,
-            rol_empresa_id: registro.rol_empresa_id,
             activo: registro.activo,
             fecha_vinculacion: registro.fecha_vinculacion
           });
@@ -342,7 +339,7 @@ const UsuariosPage = () => {
       user_id: usuario.user_id,
       empresa_id: primeraEmpresa.empresa_id,
       empresa_nombre: primeraEmpresa.empresa_nombre,
-      rol_id: primerRol.rol_empresa_id || '',
+      rol_id: primerRol.rol_interno || '',
       rol_nombre: rolNombre,
       email: usuario.email,
       nombre_completo: usuario.nombre_completo || '',
