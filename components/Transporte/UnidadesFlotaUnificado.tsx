@@ -115,12 +115,17 @@ export default function UnidadesFlotaUnificado() {
       if (!ue) return;
       setEmpresaId(ue.empresa_id);
 
-      const [camRes, acoRes, choRes, uniRes] = await Promise.all([
+      const [camRes, acoRes, choRes] = await Promise.all([
         supabase.from('camiones').select('id, patente, marca, modelo, anio, foto_url').eq('empresa_id', ue.empresa_id).order('fecha_alta', { ascending: false }),
         supabase.from('acoplados').select('id, patente, marca, modelo, anio, foto_url').eq('empresa_id', ue.empresa_id).order('fecha_alta', { ascending: false }),
         supabase.from('choferes').select('id, nombre, apellido, dni, telefono, foto_url, usuario_id').eq('empresa_id', ue.empresa_id).order('nombre', { ascending: true }),
-        supabase.from('vista_disponibilidad_unidades').select('*').eq('empresa_id', ue.empresa_id).order('codigo', { ascending: true }),
       ]);
+
+      // Vista puede no existir aún en PROD — query separada para no bloquear
+      const uniRes = await supabase.from('vista_disponibilidad_unidades').select('*').eq('empresa_id', ue.empresa_id).order('codigo', { ascending: true });
+      if (uniRes.error) {
+        console.warn('vista_disponibilidad_unidades no disponible:', uniRes.error.message);
+      }
 
       setCamiones(camRes.data || []);
       setAcoplados(acoRes.data || []);

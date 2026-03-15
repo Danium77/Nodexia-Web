@@ -66,52 +66,57 @@ export default function CrearUnidadModal({ isOpen, onClose, onSuccess, empresaId
 
   const loadData = async () => {
     try {
+      console.log('🔧 [CREAR UNIDAD] loadData inicio, empresaId:', empresaId);
+
       // Obtener IDs de recursos ya asignados a unidades activas
+      // Si la tabla no existe aún en PROD, no bloquear la carga de recursos
+      let choferesAsignados: string[] = [];
+      let camionesAsignados: string[] = [];
+      let acoplaodosAsignados: string[] = [];
+
       const { data: unidadesActivas, error: unidadesError } = await supabase
         .from('unidades_operativas')
         .select('chofer_id, camion_id, acoplado_id')
         .eq('empresa_id', empresaId)
         .eq('activo', true);
 
-      if (unidadesError) throw unidadesError;
+      if (unidadesError) {
+        console.warn('🔧 [CREAR UNIDAD] unidades_operativas query failed (tabla puede no existir):', unidadesError.message);
+        // No throw — continuamos sin filtrar asignados
+      } else {
+        choferesAsignados = unidadesActivas?.map(u => u.chofer_id).filter(Boolean) || [];
+        camionesAsignados = unidadesActivas?.map(u => u.camion_id).filter(Boolean) || [];
+        acoplaodosAsignados = unidadesActivas?.map(u => u.acoplado_id).filter(Boolean) || [];
+      }
 
-      const choferesAsignados = unidadesActivas?.map(u => u.chofer_id).filter(Boolean) || [];
-      const camionesAsignados = unidadesActivas?.map(u => u.camion_id).filter(Boolean) || [];
-      const acoplaodosAsignados = unidadesActivas?.map(u => u.acoplado_id).filter(Boolean) || [];
+      // Cargar todos los recursos en paralelo
+      const [choferesRes, camionesRes, acoplaodosRes] = await Promise.all([
+        supabase.from('choferes').select('id, nombre, apellido, dni, telefono').eq('empresa_id', empresaId).order('apellido'),
+        supabase.from('camiones').select('id, patente, marca, modelo, anio').eq('empresa_id', empresaId).order('patente'),
+        supabase.from('acoplados').select('id, patente, marca, modelo, anio').eq('empresa_id', empresaId).order('patente'),
+      ]);
 
-      // Cargar todos los choferes de la empresa
-      const { data: choferesData, error: choferesError } = await supabase
-        .from('choferes')
-        .select('id, nombre, apellido, dni, telefono')
-        .eq('empresa_id', empresaId)
-        .order('apellido');
+      if (choferesRes.error) console.error('🔧 [CREAR UNIDAD] Error choferes:', choferesRes.error.message);
+      if (camionesRes.error) console.error('🔧 [CREAR UNIDAD] Error camiones:', camionesRes.error.message);
+      if (acoplaodosRes.error) console.error('🔧 [CREAR UNIDAD] Error acoplados:', acoplaodosRes.error.message);
 
-      if (choferesError) throw choferesError;
+      const choferesData = choferesRes.data || [];
+      const camionesData = camionesRes.data || [];
+      const acoplaodosData = acoplaodosRes.data || [];
 
-      // Cargar todos los camiones de la empresa
-      const { data: camionesData, error: camionesError } = await supabase
-        .from('camiones')
-        .select('id, patente, marca, modelo, anio')
-        .eq('empresa_id', empresaId)
-        .order('patente');
-
-      if (camionesError) throw camionesError;
-
-      // Cargar todos los acoplados de la empresa
-      const { data: acoplaodosData, error: acoplaodosError } = await supabase
-        .from('acoplados')
-        .select('id, patente, marca, modelo, anio')
-        .eq('empresa_id', empresaId)
-        .order('patente');
-
-      if (acoplaodosError) throw acoplaodosError;
+      console.log('🔧 [CREAR UNIDAD] Recursos cargados:', {
+        choferes: choferesData.length,
+        camiones: camionesData.length,
+        acoplados: acoplaodosData.length,
+        asignados: { choferes: choferesAsignados.length, camiones: camionesAsignados.length, acoplados: acoplaodosAsignados.length }
+      });
 
       // Filtrar solo los disponibles (no asignados a unidades activas)
-      setChoferes(choferesData?.filter(c => !choferesAsignados.includes(c.id)) || []);
-      setCamiones(camionesData?.filter(c => !camionesAsignados.includes(c.id)) || []);
-      setAcoplados(acoplaodosData?.filter(a => !acoplaodosAsignados.includes(a.id)) || []);
+      setChoferes(choferesData.filter(c => !choferesAsignados.includes(c.id)));
+      setCamiones(camionesData.filter(c => !camionesAsignados.includes(c.id)));
+      setAcoplados(acoplaodosData.filter(a => !acoplaodosAsignados.includes(a.id)));
     } catch (err: any) {
-      console.error('Error loading data:', err);
+      console.error('🔧 [CREAR UNIDAD] Error loading data:', err);
       setError('Error al cargar datos: ' + err.message);
     }
   };
