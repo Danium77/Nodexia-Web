@@ -3,9 +3,9 @@
 
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import Sidebar from '../../components/layout/Sidebar';
-import DocumentacionAdmin from '../../components/Admin/DocumentacionAdmin';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import Sidebar from '@/components/layout/Sidebar';
+import DocumentacionAdmin from '@/components/Admin/DocumentacionAdmin';
 
 export default function DocumentacionAdminPage() {
   const router = useRouter();

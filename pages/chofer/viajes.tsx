@@ -2,10 +2,10 @@
 // Dashboard del Chofer - Vista Mobile-First con GPS Tracking
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { supabase } from '../../lib/supabaseClient';
-import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
-import { useGPSTracking } from '../../lib/hooks/useGPSTracking';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
+import { useGPSTracking } from '@/lib/hooks/useGPSTracking';
 import {
   TruckIcon,
   MapPinIcon,
@@ -17,7 +17,7 @@ import {
   SignalSlashIcon,
   MapIcon
 } from '@heroicons/react/24/outline';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Viaje {
   id: string;

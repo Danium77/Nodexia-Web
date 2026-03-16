@@ -2,8 +2,8 @@
 // Reescrito: consulta tabla canónica incidencias_viaje via /api/incidencias
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { supabase } from '../supabaseClient';
-import type { IncidenciaViaje, EstadoIncidencia } from '../types';
+import { supabase } from '@/lib/supabaseClient';
+import type { IncidenciaViaje, EstadoIncidencia } from '@/lib/types';
 
 interface UseIncidenciasOptions {
   /** Filtrar por estado */

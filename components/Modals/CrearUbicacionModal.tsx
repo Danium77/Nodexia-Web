@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
-import type { Ubicacion, UbicacionFormData } from '../../types/ubicaciones';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
+import type { Ubicacion, UbicacionFormData } from '@/types/ubicaciones';
 
 interface CrearUbicacionModalProps {
   isOpen: boolean;

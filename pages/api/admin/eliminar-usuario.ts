@@ -1,6 +1,6 @@
 // pages/api/admin/eliminar-usuario.ts
-import { withAuth } from '../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export default withAuth(async (req, res) => {
   if (req.method !== 'POST') {

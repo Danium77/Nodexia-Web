@@ -1,8 +1,8 @@
 // pages/api/viajes/[id]/gps.ts
 // API para registrar ubicación GPS del chofer
 
-import { withAuth } from '../../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {

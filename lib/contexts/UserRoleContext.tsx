@@ -5,8 +5,8 @@
 
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../supabaseClient';
-import { UserRole } from '../types';
+import { supabase } from '@/lib/supabaseClient';
+import { UserRole } from '@/lib/types';
 import type { User } from '@supabase/supabase-js';
 
 /** Determine the highest-priority role from a list */

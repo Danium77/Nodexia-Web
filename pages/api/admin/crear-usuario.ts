@@ -1,7 +1,7 @@
 // pages/api/admin/crear-usuario.ts
 import type { NextApiResponse } from 'next';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { withAuth } from '../../../lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 export default withAuth(async (req, res) => {
   if (req.method !== 'POST') {

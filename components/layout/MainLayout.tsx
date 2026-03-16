@@ -2,10 +2,10 @@
 // Layout principal que evita re-renders innecesarios del Sidebar
 
 import { ReactNode } from 'react';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import LoadingSkeleton from '../ui/LoadingSkeleton';
+import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 
 interface MainLayoutProps {
   children: ReactNode;

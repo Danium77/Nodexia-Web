@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import type { 
   UserNetworkContext, 
   TransportistaDisponible, 
@@ -7,7 +7,7 @@ import type {
   RelacionEmpresa,
   CreateRelacionData,
   NetworkStats
-} from '../../types/network';
+} from '@/types/network';
 
 export function useNetworkContext() {
   const [context, setContext] = useState<UserNetworkContext | null>(null);

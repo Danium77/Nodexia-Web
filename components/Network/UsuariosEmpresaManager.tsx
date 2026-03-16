@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useUsuariosEmpresa, useRolesEmpresa } from '../../lib/hooks/useUsuariosEmpresa';
-import type { CreateUsuarioEmpresaData, UsuarioEmpresa, UpdateUsuarioEmpresaData } from '../../types/network';
+import { useUsuariosEmpresa, useRolesEmpresa } from '@/lib/hooks/useUsuariosEmpresa';
+import type { CreateUsuarioEmpresaData, UsuarioEmpresa, UpdateUsuarioEmpresaData } from '@/types/network';
 
 interface UsuariosEmpresaManagerProps {
   onClose?: () => void;

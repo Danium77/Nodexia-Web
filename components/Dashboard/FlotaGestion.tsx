@@ -1,10 +1,10 @@
 
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import FormCard from '../ui/FormCard';
-// import { useChoferes } from '../../lib/hooks/useChoferes';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import FormCard from '@/components/ui/FormCard';
+// import { useChoferes } from '@/lib/hooks/useChoferes';
 
 export default function FlotaGestion({ hideInternalTabs = false }: { hideInternalTabs?: boolean }) {
   const router = useRouter();

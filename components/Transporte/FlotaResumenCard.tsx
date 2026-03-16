@@ -1,7 +1,7 @@
 // components/Transporte/FlotaResumenCard.tsx
 // Resumen de flota (choferes, camiones, acoplados) para dashboard
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { UserGroupIcon, TruckIcon } from '@heroicons/react/24/outline';
 
 interface FlotaResumenCardProps {

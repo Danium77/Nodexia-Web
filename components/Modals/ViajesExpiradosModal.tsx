@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 
 interface ViajeExpirado {
   viaje_id: string;

@@ -1,7 +1,7 @@
 // pages/admin/planes.tsx
 // Gestión de planes de suscripción — Admin Nodexia
 import React from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 const PLANES = [

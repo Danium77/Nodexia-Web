@@ -1,7 +1,7 @@
 // pages/admin/suscripciones.tsx
 // Stub - Gestión de suscripciones (pendiente de implementación)
 import React from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function SuscripcionesAdmin() {
   return (

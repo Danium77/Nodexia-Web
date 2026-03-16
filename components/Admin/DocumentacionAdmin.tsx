@@ -12,7 +12,7 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import DocumentoPendienteCard, { type DocumentoPendiente } from './DocumentoPendienteCard';
 
 interface Empresa {

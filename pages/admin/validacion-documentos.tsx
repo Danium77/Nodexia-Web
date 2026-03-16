@@ -3,9 +3,9 @@
 // Rediseño: 4 tabs (PENDIENTE/PROVISORIO/APROBADO/RECHAZADO), modal de validación, notificaciones
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import MainLayout from '../../components/layout/MainLayout';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { supabase } from '../../lib/supabaseClient';
+import MainLayout from '@/components/layout/MainLayout';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -16,7 +16,7 @@ import {
   XMarkIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

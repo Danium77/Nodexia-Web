@@ -1,5 +1,5 @@
-import { withAuth } from '../../../lib/middleware/withAuth'
-import { supabaseAdmin } from '../../../lib/supabaseAdmin'
+import { withAuth } from '@/lib/middleware/withAuth'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 interface ActualizarUsuarioRequest {
   user_id: string;

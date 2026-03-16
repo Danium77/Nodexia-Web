@@ -4,8 +4,8 @@
 // vía get_visible_*_ids() functions (migration 062)
 
 import type { NextApiResponse } from 'next';
-import { createUserSupabaseClient } from '../../../lib/supabaseServerClient';
-import { withAuth } from '../../../lib/middleware/withAuth';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 export default withAuth(async (req, res, auth) => {
   if (req.method !== 'GET') {

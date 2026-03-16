@@ -1,6 +1,6 @@
 import type { NextApiResponse } from 'next';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { withAuth } from '../../../lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 export default withAuth(async (req, res, { user, userId }) => {
   if (req.method !== 'POST') {

@@ -6,7 +6,7 @@
  *   const res = await fetchWithAuth('/api/mi-ruta', { method: 'POST', body: JSON.stringify(data) });
  */
 
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 export async function fetchWithAuth(
   url: string,

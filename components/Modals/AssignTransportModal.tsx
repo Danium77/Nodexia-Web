@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { useTransports, useSearch } from '../../lib/hooks';
-import { SearchInput, Button } from '../ui';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { useTransports, useSearch } from '@/lib/hooks';
+import { SearchInput, Button } from '@/components/ui';
 
 interface TransportOption {
   id: string;

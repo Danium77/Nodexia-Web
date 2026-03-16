@@ -1,11 +1,11 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { usePageVisibility } from '../../lib/hooks/usePageVisibility';
-import { supabase } from '../../lib/supabaseClient';
-import Sidebar from '../../components/layout/Sidebar';
-import CrearUbicacionModal from '../../components/Modals/CrearUbicacionModal';
-import type { Ubicacion } from '../../types/ubicaciones';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { usePageVisibility } from '@/lib/hooks/usePageVisibility';
+import { supabase } from '@/lib/supabaseClient';
+import Sidebar from '@/components/layout/Sidebar';
+import CrearUbicacionModal from '@/components/Modals/CrearUbicacionModal';
+import type { Ubicacion } from '@/types/ubicaciones';
 
 export default function GestionUbicaciones() {
   const router = useRouter();

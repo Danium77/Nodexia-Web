@@ -3,7 +3,7 @@
 // ⚠️ SOLO visible en desarrollo — en producción redirige al login
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 

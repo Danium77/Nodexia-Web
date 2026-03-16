@@ -1,8 +1,8 @@
 ﻿import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import Sidebar from '../../components/layout/Sidebar';
-import { supabase } from '../../lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import Sidebar from '@/components/layout/Sidebar';
+import { supabase } from '@/lib/supabaseClient';
 import {
   BuildingOfficeIcon,
   TruckIcon,
@@ -16,7 +16,7 @@ import {
   EnvelopeIcon,
   PhoneIcon
 } from '@heroicons/react/24/outline';
-import CrearEmpresaModal from '../../components/Admin/CrearEmpresaModal';
+import CrearEmpresaModal from '@/components/Admin/CrearEmpresaModal';
 
 interface Empresa {
   id: string;

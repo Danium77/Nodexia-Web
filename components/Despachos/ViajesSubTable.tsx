@@ -1,5 +1,5 @@
 import React from 'react';
-import { getEstadoDisplay } from '../../lib/helpers/estados-helpers';
+import { getEstadoDisplay } from '@/lib/helpers/estados-helpers';
 
 interface ViajeRow {
   id: string;

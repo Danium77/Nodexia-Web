@@ -1,10 +1,10 @@
 // pages/notificaciones.tsx
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import AdminLayout from '../components/layout/AdminLayout';
-import { supabase } from '../lib/supabaseClient';
-import { fetchWithAuth } from '../lib/api/fetchWithAuth';
-import { useUserRole } from '../lib/contexts/UserRoleContext';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import {
   BellIcon,
   CheckIcon,

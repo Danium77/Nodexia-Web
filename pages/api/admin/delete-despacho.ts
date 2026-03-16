@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { withAuth } from '../../../lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
 
 type Data = { success: boolean; error?: string; deleted?: any };
 

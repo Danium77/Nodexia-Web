@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import Header from '../components/layout/Header';
-import Sidebar from '../components/layout/Sidebar';
-import useDispatches from '../lib/hooks/useDispatches';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import useDispatches from '@/lib/hooks/useDispatches';
 import Link from 'next/link';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/router';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const DespachosPage: React.FC = () => {
   const router = useRouter();

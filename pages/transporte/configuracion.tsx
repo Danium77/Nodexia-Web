@@ -1,6 +1,6 @@
 
 import React from 'react';
-import MainLayout from '../../components/layout/MainLayout';
+import MainLayout from '@/components/layout/MainLayout';
 import { useRouter } from 'next/router';
 
 

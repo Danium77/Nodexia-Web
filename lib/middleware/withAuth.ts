@@ -21,7 +21,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import type { User } from '@supabase/supabase-js';
-import { supabaseAdmin } from '../supabaseAdmin';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export interface AuthContext {
   user: User;

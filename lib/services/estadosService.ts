@@ -15,7 +15,7 @@ import {
   ESTADO_DISPLAY,
   type EstadoViajeType,
   type ResultadoTransicion,
-} from '../estados';
+} from '@/lib/estados';
 
 // Re-export tipos para compatibilidad 
 export type EstadoUnidadViaje = EstadoViajeType;

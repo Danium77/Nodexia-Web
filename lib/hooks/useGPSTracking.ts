@@ -2,7 +2,7 @@
 // Hook para tracking GPS automático del chofer
 
 import { useEffect, useRef, useState } from 'react';
-import { registrarUbicacionGPS } from '../api/estado-unidad';
+import { registrarUbicacionGPS } from '@/lib/api/estado-unidad';
 
 interface GPSPosition {
   latitud: number;

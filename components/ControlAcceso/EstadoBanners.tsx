@@ -2,7 +2,7 @@
 // Contextual information banners based on viaje state + Remito preview
 
 import { TruckIcon, DocumentTextIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import type { EstadoUnidadViaje as EstadoUnidadViajeType } from '../../lib/types';
+import type { EstadoUnidadViaje as EstadoUnidadViajeType } from '@/lib/types';
 
 interface EstadoBannersProps {
   estadoUnidad: EstadoUnidadViajeType;

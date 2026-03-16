@@ -2,7 +2,7 @@
 // Hook para consultar alertas de documentación (vencidos, por vencer, faltantes)
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 export interface DocAlerta {
   tipo: 'vencido' | 'por_vencer' | 'faltante';

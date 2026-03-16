@@ -1,7 +1,7 @@
 // pages/admin/configuracion.tsx
 // Configuración del sistema — Admin Nodexia
 import React from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 import {
   Cog6ToothIcon,
   EnvelopeIcon,

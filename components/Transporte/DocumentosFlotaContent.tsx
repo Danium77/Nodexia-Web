@@ -3,7 +3,7 @@
 // UX: al seleccionar entidad, muestra documentos requeridos con estado inline
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import {
   ArrowUpTrayIcon,
   XMarkIcon,
@@ -14,8 +14,8 @@ import {
   EyeIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
-import FormCard from '../ui/FormCard';
-import { SubirDocumento } from '../Documentacion';
+import FormCard from '@/components/ui/FormCard';
+import { SubirDocumento } from '@/components/Documentacion';
 
 // Documentos requeridos por tipo de entidad
 // Para chofer: licencia es obligatoria + (ART o Seguro de Vida - al menos uno)

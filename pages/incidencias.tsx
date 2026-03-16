@@ -3,11 +3,11 @@
 // Tabs: Abiertas | En Proceso | Resueltas | Cerradas + Filtros
 
 import React, { useState, useMemo } from 'react';
-import MainLayout from '../components/layout/MainLayout';
+import MainLayout from '@/components/layout/MainLayout';
 import Link from 'next/link';
-import useIncidencias from '../lib/hooks/useIncidencias';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import type { IncidenciaViaje, TipoIncidenciaViaje, SeveridadIncidencia, EstadoIncidencia } from '../lib/types';
+import useIncidencias from '@/lib/hooks/useIncidencias';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import type { IncidenciaViaje, TipoIncidenciaViaje, SeveridadIncidencia, EstadoIncidencia } from '@/lib/types';
 
 type TabKey = 'abiertas' | 'en_proceso' | 'resueltas' | 'cerradas';
 

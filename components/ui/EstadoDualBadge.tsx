@@ -7,8 +7,8 @@ import {
   getColorEstadoCarga,
   getLabelEstadoCarga,
   calcularProgresoViaje
-} from '../../lib/helpers/estados-helpers';
-import type { EstadoUnidadViaje, EstadoCargaViaje } from '../../lib/types';
+} from '@/lib/helpers/estados-helpers';
+import type { EstadoUnidadViaje, EstadoCargaViaje } from '@/lib/types';
 
 interface EstadoDualBadgeProps {
   tipo: 'unidad' | 'carga';

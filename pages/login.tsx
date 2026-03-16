@@ -2,7 +2,7 @@
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import { AtSymbolIcon, KeyIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 // Función para traducir errores de Supabase a mensajes profesionales
 const getErrorMessage = (error: any): string => {

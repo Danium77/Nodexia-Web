@@ -1,7 +1,7 @@
 // components/Documentacion/DocAlertsBanner.tsx
 // Banner compacto de alertas de documentación para dashboards
 import React, { useState } from 'react';
-import { DocAlerta, DocAlertasResumen } from '../../lib/hooks/useDocAlerts';
+import { DocAlerta, DocAlertasResumen } from '@/lib/hooks/useDocAlerts';
 import { ExclamationTriangleIcon, ClockIcon, DocumentMinusIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface DocAlertsBannerProps {

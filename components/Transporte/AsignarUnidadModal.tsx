@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import { TruckIcon, XMarkIcon, MapPinIcon, ClockIcon, CheckCircleIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
-import RouteMap from '../Maps/RouteMap';
+import RouteMap from '@/components/Maps/RouteMap';
 
 interface DocStatus {
   total_requeridos: number;

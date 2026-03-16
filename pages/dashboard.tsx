@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { useUserRole } from '../lib/contexts/UserRoleContext';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 /**
  * Dashboard Principal - REDIRECTOR ONLY

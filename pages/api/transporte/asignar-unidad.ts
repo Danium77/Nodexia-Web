@@ -5,7 +5,7 @@
 
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { asignarUnidad } from '../../../lib/services/viajeEstado';
+import { asignarUnidad } from '@/lib/services/viajeEstado';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {

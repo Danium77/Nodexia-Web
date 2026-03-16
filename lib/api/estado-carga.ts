@@ -3,8 +3,8 @@
  * Incluye validación de roles y transiciones de estado
  */
 
-import { supabase } from '../supabaseClient';
-import type { EstadoCargaViaje as EstadoCargaViajeType, UUID } from '../types';
+import { supabase } from '@/lib/supabaseClient';
+import type { EstadoCargaViaje as EstadoCargaViajeType, UUID } from '@/lib/types';
 
 export interface ActualizarEstadoCargaInput {
   viaje_id: UUID;

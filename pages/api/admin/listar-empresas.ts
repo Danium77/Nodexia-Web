@@ -1,8 +1,8 @@
 // pages/api/admin/listar-empresas.ts
 // API para obtener lista de empresas con sus IDs
 
-import { withAuth } from '../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {

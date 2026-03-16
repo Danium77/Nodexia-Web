@@ -3,8 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import {
   TruckIcon,
   UserIcon,

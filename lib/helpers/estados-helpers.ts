@@ -17,7 +17,7 @@ import {
   filtrarPorRol,
   type EstadoViajeType,
   type RolInterno,
-} from '../estados';
+} from '@/lib/estados';
 
 // =====================================================
 // BACKWARD-COMPATIBLE TYPES

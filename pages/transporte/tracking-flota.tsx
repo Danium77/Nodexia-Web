@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import FleetMap from '../../components/Maps/FleetMap';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import FleetMap from '@/components/Maps/FleetMap';
 import { TruckIcon, MapPinIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
 
 interface UnidadTracking {

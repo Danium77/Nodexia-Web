@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../components/layout/Sidebar';
-import Header from '../components/layout/Header';
-import { supabase } from '../lib/supabaseClient';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import Sidebar from '@/components/layout/Sidebar';
+import Header from '@/components/layout/Header';
+import { supabase } from '@/lib/supabaseClient';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const EstadisticasPage = () => {
   const [user, setUser] = useState<any>(null);

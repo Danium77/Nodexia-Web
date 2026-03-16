@@ -2,7 +2,7 @@
 // Lista de documentos de una entidad con filtros y estados
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import {
   DocumentTextIcon,
   FunnelIcon,

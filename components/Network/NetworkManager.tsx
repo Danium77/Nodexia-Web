@@ -5,9 +5,9 @@ import {
   useClientesEmpresa, 
   useRelacionesEmpresa,
   useNetworkStats 
-} from '../../lib/hooks/useNetwork';
+} from '@/lib/hooks/useNetwork';
 import UsuariosEmpresaManager from './UsuariosEmpresaManager';
-// import type { TransportistaDisponible } from '../../types/network';
+// import type { TransportistaDisponible } from '@/types/network';
 
 interface NetworkManagerProps {
   onClose?: () => void;

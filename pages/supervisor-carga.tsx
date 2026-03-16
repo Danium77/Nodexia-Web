@@ -3,7 +3,7 @@
 // Lógica de datos extraída a lib/hooks/useSupervisorCarga.ts
 
 import { useState, useCallback, useRef } from 'react';
-import MainLayout from '../components/layout/MainLayout';
+import MainLayout from '@/components/layout/MainLayout';
 import {
   QrCodeIcon,
   TruckIcon,
@@ -12,18 +12,18 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { actualizarEstadoUnidad } from '../lib/api/estado-unidad';
-import { supabase } from '../lib/supabaseClient';
-import ViajeAcciones from '../components/SuperAdmin/ViajeAcciones';
-import type { ViajeParaCarga } from '../components/SuperAdmin/ViajeAcciones';
-import type { EstadoUnidadViaje } from '../lib/types';
+import { actualizarEstadoUnidad } from '@/lib/api/estado-unidad';
+import { supabase } from '@/lib/supabaseClient';
+import ViajeAcciones from '@/components/SuperAdmin/ViajeAcciones';
+import type { ViajeParaCarga } from '@/components/SuperAdmin/ViajeAcciones';
+import type { EstadoUnidadViaje } from '@/lib/types';
 import useSupervisorCarga, {
   ESTADOS_CARGA,
   ESTADOS_SUPERVISOR,
   ESTADO_LABELS,
   ESTADO_COLORS,
   type DocStatus,
-} from '../lib/hooks/useSupervisorCarga';
+} from '@/lib/hooks/useSupervisorCarga';
 
 type TabType = 'scanner' | 'cargas' | 'descargas' | 'completados';
 

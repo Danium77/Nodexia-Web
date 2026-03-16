@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import AdminLayout from '../../components/layout/AdminLayout';
-import { supabase } from '../../lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { supabase } from '@/lib/supabaseClient';
 
 interface Planta {
   id: string;

@@ -1,5 +1,5 @@
 import React from 'react';
-import UbicacionAutocompleteInput from '../forms/UbicacionAutocompleteInput';
+import UbicacionAutocompleteInput from '@/components/forms/UbicacionAutocompleteInput';
 
 export interface FormDispatchRow {
   tempId: number;

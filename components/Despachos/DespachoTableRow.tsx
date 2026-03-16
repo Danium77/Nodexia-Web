@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouter } from 'next/router';
 import ViajesSubTable from './ViajesSubTable';
-import { getEstadoDisplay } from '../../lib/helpers/estados-helpers';
+import { getEstadoDisplay } from '@/lib/helpers/estados-helpers';
 import type { DespachoTab } from './DespachoTabs';
 
 interface DespachoTableRowProps {

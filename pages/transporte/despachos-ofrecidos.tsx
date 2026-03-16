@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import AdminLayout from '../../components/layout/AdminLayout';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import {
   TruckIcon,
   MapPinIcon,
@@ -12,9 +12,9 @@ import {
   XCircleIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import AceptarDespachoModal from '../../components/Transporte/AceptarDespachoModal';
-import RechazarViajeModal from '../../components/Transporte/RechazarViajeModal';
-import AsignarUnidadModal from '../../components/Transporte/AsignarUnidadModal';
+import AceptarDespachoModal from '@/components/Transporte/AceptarDespachoModal';
+import RechazarViajeModal from '@/components/Transporte/RechazarViajeModal';
+import AsignarUnidadModal from '@/components/Transporte/AsignarUnidadModal';
 
 interface Despacho {
   id: string;

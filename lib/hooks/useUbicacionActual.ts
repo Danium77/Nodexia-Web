@@ -2,8 +2,8 @@
 // Hook para manejar la ubicación actual del usuario de Control de Acceso
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
-import { useUserRole } from '../contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 
 export interface Ubicacion {
   id: string;

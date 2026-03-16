@@ -2,7 +2,7 @@
 // Tarjeta de compliance de documentación para dashboard de transporte
 import React from 'react';
 import { DocumentCheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { DocAlertasResumen } from '../../lib/hooks/useDocAlerts';
+import { DocAlertasResumen } from '@/lib/hooks/useDocAlerts';
 
 interface DocComplianceCardProps {
   resumen: DocAlertasResumen;

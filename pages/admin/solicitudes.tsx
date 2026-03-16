@@ -1,9 +1,9 @@
 ﻿import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import Sidebar from '../../components/layout/Sidebar';
-import { supabase } from '../../lib/supabaseClient';
-import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import Sidebar from '@/components/layout/Sidebar';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
 import {
   DocumentTextIcon,
   ClockIcon,

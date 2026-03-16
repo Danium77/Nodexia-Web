@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabaseClient';
-import { useUserRole } from '../lib/contexts/UserRoleContext';
-import Header from '../components/layout/Header';
-import Sidebar from '../components/layout/Sidebar';
-import NetworkMetrics from '../components/Dashboard/NetworkMetrics';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import NetworkMetrics from '@/components/Dashboard/NetworkMetrics';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface DashboardStats {
   totalDespachos: number;

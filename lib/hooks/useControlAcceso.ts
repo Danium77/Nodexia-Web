@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useUserRole } from '../contexts/UserRoleContext';
-import { supabase } from '../supabaseClient';
-import { actualizarEstadoUnidad } from '../api/estado-unidad';
-import type { EstadoUnidadViaje as EstadoUnidadViajeType } from '../types';
-import { getLabelEstadoUnidad } from '../helpers/estados-helpers';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { actualizarEstadoUnidad } from '@/lib/api/estado-unidad';
+import type { EstadoUnidadViaje as EstadoUnidadViajeType } from '@/lib/types';
+import { getLabelEstadoUnidad } from '@/lib/helpers/estados-helpers';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 

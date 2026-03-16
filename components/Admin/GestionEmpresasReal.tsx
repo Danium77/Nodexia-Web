@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { ROLES_BY_TIPO, RolInterno, TipoEmpresa as TipoEmpresaType, getRolDisplayName, ROL_INTERNO_LABELS } from '../../lib/types';
+import { supabase } from '@/lib/supabaseClient';
+import { ROLES_BY_TIPO, RolInterno, TipoEmpresa as TipoEmpresaType, getRolDisplayName, ROL_INTERNO_LABELS } from '@/lib/types';
 
 interface Plan {
   id: string;

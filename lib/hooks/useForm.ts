@@ -1,6 +1,6 @@
 // lib/hooks/useForm.ts
 import { useState, useCallback } from 'react';
-import { validate, ValidationSchema } from '../validation';
+import { validate, ValidationSchema } from '@/lib/validation';
 
 interface UseFormOptions<T> {
   initialValues: T;

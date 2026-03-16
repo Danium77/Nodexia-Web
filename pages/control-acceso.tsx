@@ -3,12 +3,12 @@
 // Gestiona ingresos/egresos tanto en ORIGEN como en DESTINO
 
 import { QrCodeIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon, TruckIcon, DocumentTextIcon, ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import DocumentacionDetalle from '../components/DocumentacionDetalle';
-import MainLayout from '../components/layout/MainLayout';
-import HistorialAccesos from '../components/ControlAcceso/HistorialAccesos';
-import EstadoBanners from '../components/ControlAcceso/EstadoBanners';
-import { getColorEstadoUnidad, getLabelEstadoUnidad } from '../lib/helpers/estados-helpers';
-import useControlAcceso from '../lib/hooks/useControlAcceso';
+import DocumentacionDetalle from '@/components/DocumentacionDetalle';
+import MainLayout from '@/components/layout/MainLayout';
+import HistorialAccesos from '@/components/ControlAcceso/HistorialAccesos';
+import EstadoBanners from '@/components/ControlAcceso/EstadoBanners';
+import { getColorEstadoUnidad, getLabelEstadoUnidad } from '@/lib/helpers/estados-helpers';
+import useControlAcceso from '@/lib/hooks/useControlAcceso';
 
 export default function ControlAcceso() {
   const h = useControlAcceso();

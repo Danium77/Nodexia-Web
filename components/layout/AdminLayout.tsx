@@ -1,10 +1,10 @@
 // components/layout/AdminLayout.tsx
 import React from 'react';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import AdminSidebar from './AdminSidebar';
 import Sidebar from './Sidebar';
-import NotificacionesDropdown from '../ui/NotificacionesDropdown';
-import { useAutoReload, useHMRStatus } from '../../lib/hooks/useAutoReload';
+import NotificacionesDropdown from '@/components/ui/NotificacionesDropdown';
+import { useAutoReload, useHMRStatus } from '@/lib/hooks/useAutoReload';
 
 interface AdminLayoutProps {
     children: React.ReactNode;

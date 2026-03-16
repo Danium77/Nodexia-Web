@@ -1,8 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import MainLayout from '../../components/layout/MainLayout';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { supabase } from '../../lib/supabaseClient';
+import MainLayout from '@/components/layout/MainLayout';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
 import { 
   BuildingOfficeIcon, 
   UsersIcon, 
@@ -11,7 +11,7 @@ import {
   Cog6ToothIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface DashboardStats {
   totalEmpresas: number;

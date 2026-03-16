@@ -4,12 +4,12 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import MainLayout from '../../components/layout/MainLayout';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { supabase } from '../../lib/supabaseClient';
-import SubirDocumento from '../../components/Documentacion/SubirDocumento';
-import type { IncidenciaViaje, SeveridadIncidencia, TipoIncidenciaViaje, EstadoIncidencia } from '../../lib/types';
+import MainLayout from '@/components/layout/MainLayout';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import SubirDocumento from '@/components/Documentacion/SubirDocumento';
+import type { IncidenciaViaje, SeveridadIncidencia, TipoIncidenciaViaje, EstadoIncidencia } from '@/lib/types';
 
 const TIPO_LABELS: Record<TipoIncidenciaViaje, string> = {
   retraso: 'Retraso',

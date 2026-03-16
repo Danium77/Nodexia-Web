@@ -11,13 +11,13 @@ import {
   QrCodeIcon,
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
-import BottomNavBar from '../components/Transporte/BottomNavBar';
-import IncidenciasTab from '../components/Transporte/IncidenciasTab';
-import PerfilTab from '../components/Transporte/PerfilTab';
-import TripDetailsCard from '../components/Transporte/TripDetailsCard';
-import { QRModal, HamburgerMenu, IncidenciaModal } from '../components/Transporte/ChoferModals';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import useChoferMobile from '../lib/hooks/useChoferMobile';
+import BottomNavBar from '@/components/Transporte/BottomNavBar';
+import IncidenciasTab from '@/components/Transporte/IncidenciasTab';
+import PerfilTab from '@/components/Transporte/PerfilTab';
+import TripDetailsCard from '@/components/Transporte/TripDetailsCard';
+import { QRModal, HamburgerMenu, IncidenciaModal } from '@/components/Transporte/ChoferModals';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import useChoferMobile from '@/lib/hooks/useChoferMobile';
 
 export default function ChoferMobilePage() {
   const h = useChoferMobile();

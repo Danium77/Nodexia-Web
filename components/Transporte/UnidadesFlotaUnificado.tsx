@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import { useRouter } from 'next/router';
-import FormCard from '../ui/FormCard';
+import FormCard from '@/components/ui/FormCard';
 import CrearUnidadModal from './CrearUnidadModal';
 import {
   TruckIcon,

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import AdminLayout from '../components/layout/AdminLayout';
-import NetworkManager from '../components/Network/NetworkManager';
-import SuperAdminPanel from '../components/SuperAdmin/SuperAdminPanel';
-import { useSuperAdminAccess } from '../lib/hooks/useSuperAdminAccess';
-import { useUserRole } from '../lib/contexts/UserRoleContext';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import AdminLayout from '@/components/layout/AdminLayout';
+import NetworkManager from '@/components/Network/NetworkManager';
+import SuperAdminPanel from '@/components/SuperAdmin/SuperAdminPanel';
+import { useSuperAdminAccess } from '@/lib/hooks/useSuperAdminAccess';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 const ConfiguracionPage = () => {
   const router = useRouter();

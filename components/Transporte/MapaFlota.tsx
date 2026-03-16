@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 // import dynamic from 'next/dynamic';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 interface Camion {
   id: string;

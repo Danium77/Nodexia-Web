@@ -3,10 +3,10 @@ import 'leaflet/dist/leaflet.css';
 import type { AppProps } from "next/app";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { UserRoleProvider } from '../lib/contexts/UserRoleContext';
-import { useServiceWorker } from '../lib/hooks/usePWA';
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { UserRoleProvider } from '@/lib/contexts/UserRoleContext';
+import { useServiceWorker } from '@/lib/hooks/usePWA';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();

@@ -8,7 +8,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import type { EstadoViajeType } from '../estados';
+import type { EstadoViajeType } from '@/lib/estados';
 
 // ============================================================================
 // Tipos

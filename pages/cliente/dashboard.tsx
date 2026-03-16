@@ -1,7 +1,7 @@
 // pages/cliente/dashboard.tsx
 // Dashboard para rol visor/cliente
 import React from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function ClienteDashboard() {
   return (

@@ -1,8 +1,8 @@
 import React from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { MapPinIcon, ArrowRightOnRectangleIcon, DocumentTextIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { SubirDocumento, ListaDocumentos } from '../Documentacion';
+import { SubirDocumento, ListaDocumentos } from '@/components/Documentacion';
 
 interface PerfilTabProps {
   choferData: any;

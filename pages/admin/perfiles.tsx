@@ -1,7 +1,7 @@
 // pages/admin/perfiles.tsx
 import React, { useState, useEffect, FormEvent } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import AdminLayout from '../../components/layout/AdminLayout';
+import { supabase } from '@/lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 interface Profile {
     id: string;

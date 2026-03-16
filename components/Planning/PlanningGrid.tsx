@@ -1,8 +1,8 @@
 // components/Planning/PlanningGrid.tsx
 import React, { useState, useMemo, useReducer, useRef } from 'react';
 import { MapPinIcon, TruckIcon } from '@heroicons/react/24/outline';
-import { supabase } from '../../lib/supabaseClient';
-import { getColorEstadoOperativo, getIconoEstadoOperativo, getLabelEstadoOperativo } from '../../lib/estados';
+import { supabase } from '@/lib/supabaseClient';
+import { getColorEstadoOperativo, getIconoEstadoOperativo, getLabelEstadoOperativo } from '@/lib/estados';
 
 // Extend window for drag tracking
 declare global {

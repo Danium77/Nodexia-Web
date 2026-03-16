@@ -4,9 +4,9 @@
  * provee filtrados por tab, y lógica del scanner QR.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../supabaseClient';
-import { useUserRole } from '../contexts/UserRoleContext';
-import type { ViajeParaCarga } from '../../components/SuperAdmin/ViajeAcciones';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import type { ViajeParaCarga } from '@/components/SuperAdmin/ViajeAcciones';
 
 // =====================
 // Types

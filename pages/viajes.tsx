@@ -1,9 +1,9 @@
 // pages/viajes.tsx
 // Vista de viajes para rol administrativo
 import React, { useState, useEffect } from 'react';
-import AdminLayout from '../components/layout/AdminLayout';
-import { supabase } from '../lib/supabaseClient';
-import { useUserRole } from '../lib/contexts/UserRoleContext';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import { TruckIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface ViajeAdmin {

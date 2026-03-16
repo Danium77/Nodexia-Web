@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../../lib/supabaseClient';
-import Header from '../../../components/layout/Header';
-import Sidebar from '../../../components/layout/Sidebar';
-import LoadingSpinner from '../../../components/ui/LoadingSpinner';
+import { supabase } from '@/lib/supabaseClient';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { ArrowLeftIcon, DocumentTextIcon, TruckIcon, MapPinIcon, ClockIcon, CheckCircleIcon, PhotoIcon } from '@heroicons/react/24/outline';
 
 interface ViajeDetalle {

@@ -4,10 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { NodexiaLogoBadge } from '../ui/NodexiaLogo';
-import { useDocAlerts } from '../../lib/hooks/useDocAlerts';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { NodexiaLogoBadge } from '@/components/ui/NodexiaLogo';
+import { useDocAlerts } from '@/lib/hooks/useDocAlerts';
 
 interface SidebarProps {
   userEmail?: string;

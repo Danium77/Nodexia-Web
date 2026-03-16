@@ -2,7 +2,7 @@
 // Formulario para subir documentación con drag & drop
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import {
   CloudArrowUpIcon,
   DocumentTextIcon,

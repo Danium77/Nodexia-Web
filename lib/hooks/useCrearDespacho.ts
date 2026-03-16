@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../supabaseClient';
-import { fetchWithAuth } from '../api/fetchWithAuth';
-import { filterDespachosByTab } from '../../components/Despachos/DespachoTabs';
-import type { FormDispatchRow } from '../../components/Despachos/DespachoForm';
-import type { DespachoTab } from '../../components/Despachos/DespachoTabs';
-import { calcularEstadoOperativo, esEstadoEnMovimiento as estaEnMovimiento, esEstadoFinal as esFinal } from '../estados';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
+import { filterDespachosByTab } from '@/components/Despachos/DespachoTabs';
+import type { FormDispatchRow } from '@/components/Despachos/DespachoForm';
+import type { DespachoTab } from '@/components/Despachos/DespachoTabs';
+import { calcularEstadoOperativo, esEstadoEnMovimiento as estaEnMovimiento, esEstadoFinal as esFinal } from '@/lib/estados';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 

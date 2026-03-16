@@ -1,7 +1,7 @@
 // pages/cliente/cargas.tsx
 // Listado de cargas del cliente/visor
 import React from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function ClienteCargas() {
   return (

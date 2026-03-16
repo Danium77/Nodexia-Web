@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import AdminLayout from '../../../components/layout/AdminLayout';
-import { supabase } from '../../../lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { supabase } from '@/lib/supabaseClient';
 import { 
   ArrowLeftIcon,
   BuildingOfficeIcon,

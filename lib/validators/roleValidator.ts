@@ -1,5 +1,5 @@
-import { supabaseAdmin } from '../supabaseAdmin';
-import { ROLES_BY_TIPO, RolInterno, TipoEmpresa, getRolDisplayName } from '../types';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { ROLES_BY_TIPO, RolInterno, TipoEmpresa, getRolDisplayName } from '@/lib/types';
 
 /**
  * Resultado de la validación de un rol para una empresa

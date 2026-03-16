@@ -3,9 +3,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import { supabase } from '../../lib/supabaseClient';
-import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
 import {
   MapPinIcon,
   TruckIcon,

@@ -1,8 +1,8 @@
 // pages/api/viajes/[id]/estado-carga.ts
 // API para actualizar el estado de la carga (producto + documentación)
 
-import { withAuth } from '../../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {

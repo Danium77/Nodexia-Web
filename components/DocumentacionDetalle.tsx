@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { DocumentTextIcon, CheckCircleIcon, ExclamationTriangleIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 
 interface DocumentoReal {
   id: string;

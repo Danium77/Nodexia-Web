@@ -3,9 +3,9 @@
 // Permite vincular/desvincular empresas de transporte con empresas cliente
 
 import { useState, useEffect } from 'react';
-import { useUserRole } from '../lib/contexts/UserRoleContext';
-import { supabase } from '../lib/supabaseClient';
-import MainLayout from '../components/layout/MainLayout';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import MainLayout from '@/components/layout/MainLayout';
 import {
   LinkIcon,
   PlusIcon,

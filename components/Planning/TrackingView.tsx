@@ -1,10 +1,10 @@
 // components/Planning/TrackingView.tsx
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { ChevronRightIcon, ChevronDownIcon, TruckIcon } from '@heroicons/react/24/outline';
-import { EstadoDualBadge } from '../ui/EstadoDualBadge';
-import type { EstadoCargaViaje } from '../../lib/types';
+import { EstadoDualBadge } from '@/components/ui/EstadoDualBadge';
+import type { EstadoCargaViaje } from '@/lib/types';
 
 // Importar TrackingMap de forma dinámica para evitar problemas con SSR
 const TrackingMap = dynamic(() => import('./TrackingMap'), {

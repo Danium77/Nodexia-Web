@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { useUserRole } from '../lib/contexts/UserRoleContext';
-import MainLayout from '../components/layout/MainLayout';
-import PlanningGrid from '../components/Planning/PlanningGrid';
-import TrackingView from '../components/Planning/TrackingView';
-import PlanningFilters, { FilterState } from '../components/Planning/PlanningFilters';
-import ViewSelector, { ViewType } from '../components/Planning/ViewSelector';
-import ExportButton from '../components/Planning/ExportButton';
-import PlanningAlerts from '../components/Planning/PlanningAlerts';
-import DayView from '../components/Planning/DayView';
-import MonthView from '../components/Planning/MonthView';
-import ViajesExpiradosModal from '../components/Modals/ViajesExpiradosModal';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { calcularEstadoOperativo } from '../lib/estados';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import MainLayout from '@/components/layout/MainLayout';
+import PlanningGrid from '@/components/Planning/PlanningGrid';
+import TrackingView from '@/components/Planning/TrackingView';
+import PlanningFilters, { FilterState } from '@/components/Planning/PlanningFilters';
+import ViewSelector, { ViewType } from '@/components/Planning/ViewSelector';
+import ExportButton from '@/components/Planning/ExportButton';
+import PlanningAlerts from '@/components/Planning/PlanningAlerts';
+import DayView from '@/components/Planning/DayView';
+import MonthView from '@/components/Planning/MonthView';
+import ViajesExpiradosModal from '@/components/Modals/ViajesExpiradosModal';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { calcularEstadoOperativo } from '@/lib/estados';
 
 type TabType = 'planning' | 'tracking';
 

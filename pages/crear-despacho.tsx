@@ -1,12 +1,12 @@
 import React from 'react';
-import Header from '../components/layout/Header';
-import Sidebar from '../components/layout/Sidebar';
-import DespachoForm from '../components/Despachos/DespachoForm';
-import DespachoTableRow from '../components/Despachos/DespachoTableRow';
-import DespachoTabs, { filterDespachosByTab } from '../components/Despachos/DespachoTabs';
-import DespachoModals from '../components/Despachos/DespachoModals';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import useCrearDespacho from '../lib/hooks/useCrearDespacho';
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
+import DespachoForm from '@/components/Despachos/DespachoForm';
+import DespachoTableRow from '@/components/Despachos/DespachoTableRow';
+import DespachoTabs, { filterDespachosByTab } from '@/components/Despachos/DespachoTabs';
+import DespachoModals from '@/components/Despachos/DespachoModals';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import useCrearDespacho from '@/lib/hooks/useCrearDespacho';
 
 const CrearDespacho = () => {
   const h = useCrearDespacho();

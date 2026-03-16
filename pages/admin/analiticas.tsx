@@ -1,7 +1,7 @@
 // pages/admin/analiticas.tsx
 // Stub - Analíticas de la plataforma (pendiente de implementación)
 import React from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function AnaliticasAdmin() {
   return (

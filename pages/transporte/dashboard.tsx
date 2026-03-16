@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import AdminLayout from '../../components/layout/AdminLayout';
-import DashboardStats from '../../components/Transporte/DashboardStats';
-import ViajesAsignados from '../../components/Transporte/ViajesAsignados';
-import ViajeDetalleModal from '../../components/Transporte/ViajeDetalleModal';
+import { supabase } from '@/lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
+import DashboardStats from '@/components/Transporte/DashboardStats';
+import ViajesAsignados from '@/components/Transporte/ViajesAsignados';
+import ViajeDetalleModal from '@/components/Transporte/ViajeDetalleModal';
 import dynamic from 'next/dynamic';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import { useRouter } from 'next/router';
 import { TruckIcon } from '@heroicons/react/24/outline';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { useDocAlerts } from '../../lib/hooks/useDocAlerts';
-import DocAlertsBanner from '../../components/Documentacion/DocAlertsBanner';
-import DocComplianceCard from '../../components/Transporte/DocComplianceCard';
-import FlotaResumenCard from '../../components/Transporte/FlotaResumenCard';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useDocAlerts } from '@/lib/hooks/useDocAlerts';
+import DocAlertsBanner from '@/components/Documentacion/DocAlertsBanner';
+import DocComplianceCard from '@/components/Transporte/DocComplianceCard';
+import FlotaResumenCard from '@/components/Transporte/FlotaResumenCard';
 
 // Importar mapa dinámicamente para evitar SSR
 const MapaFlota = dynamic(() => import('../../components/Transporte/MapaFlota'), {

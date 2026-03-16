@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import type { 
   RolEmpresa,
   UsuarioEmpresa, 
   CreateUsuarioEmpresaData,
   UpdateUsuarioEmpresaData
-} from '../../types/network';
+} from '@/types/network';
 
 export function useRolesEmpresa(tipoEmpresa?: string) {
   const [roles, setRoles] = useState<RolEmpresa[]>([]);

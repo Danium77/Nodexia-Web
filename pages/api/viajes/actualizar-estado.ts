@@ -2,11 +2,11 @@
 // API para actualizar estado de viajes (chofer-mobile y otros)
 // Delega a ViajeEstadoService (con validación de transiciones)
 
-import { withAuth } from '../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-import { cambiarEstadoViaje, verificarChoferViaje } from '../../../lib/services/viajeEstado';
-import { notificarCambioEstado } from '../../../lib/services/notificaciones';
-import type { EstadoViajeType } from '../../../lib/estados';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { cambiarEstadoViaje, verificarChoferViaje } from '@/lib/services/viajeEstado';
+import { notificarCambioEstado } from '@/lib/services/notificaciones';
+import type { EstadoViajeType } from '@/lib/estados';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {

@@ -4,8 +4,8 @@
  * lógica de filtrado y conteo por estado para la página de monitor de vehículos.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../supabaseClient';
-import { useUserRole } from '../contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 
 // =====================
 // Types

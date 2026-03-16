@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import type { Ubicacion, EmpresaUbicacion } from '../../types/ubicaciones';
+import { supabase } from '@/lib/supabaseClient';
+import type { Ubicacion, EmpresaUbicacion } from '@/types/ubicaciones';
 
 interface VincularUbicacionModalProps {
   isOpen: boolean;

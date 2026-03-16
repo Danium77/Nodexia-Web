@@ -131,7 +131,7 @@ export type UserRole = RolInterno | 'admin' | 'super_admin';
 // =====================
 // User & Auth types
 // =====================
-import type { User } from '../types/common';
+import type { User } from '@/types/common';
 
 export interface ProfileUser {
   id: UUID;

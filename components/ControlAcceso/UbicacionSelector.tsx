@@ -4,7 +4,7 @@
 import { Fragment } from 'react';
 import { MapPinIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { Menu, Transition } from '@headlessui/react';
-import { useUbicacionActual } from '../../lib/hooks/useUbicacionActual';
+import { useUbicacionActual } from '@/lib/hooks/useUbicacionActual';
 
 export default function UbicacionSelector() {
   const {

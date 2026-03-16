@@ -1,8 +1,8 @@
  import React, { useState, useEffect } from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
-import FormCard from '../../components/ui/FormCard';
-import { useChoferes } from '../../lib/hooks/useChoferes';
-import { supabase } from '../../lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
+import FormCard from '@/components/ui/FormCard';
+import { useChoferes } from '@/lib/hooks/useChoferes';
+import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/router';
 
 interface UsuarioChofer {

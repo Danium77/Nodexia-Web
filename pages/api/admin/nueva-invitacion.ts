@@ -1,6 +1,6 @@
-import { withAuth } from '../../../lib/middleware/withAuth'
-import { supabaseAdmin } from '../../../lib/supabaseAdmin'
-import { validateRoleForCompany } from '../../../lib/validators/roleValidator'
+import { withAuth } from '@/lib/middleware/withAuth'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { validateRoleForCompany } from '@/lib/validators/roleValidator'
 
 interface NuevaInvitacionRequest {
   email: string;

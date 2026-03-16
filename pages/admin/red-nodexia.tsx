@@ -1,7 +1,7 @@
 // pages/admin/red-nodexia.tsx
 // Stub - Panel de la Red Nodexia (pendiente de implementación completa)
 import React from 'react';
-import AdminLayout from '../../components/layout/AdminLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 
 export default function RedNodxiaAdmin() {
   return (

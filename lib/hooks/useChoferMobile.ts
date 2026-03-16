@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../supabaseClient';
-import { fetchWithAuth } from '../api/fetchWithAuth';
-import { useUserRole } from '../contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 

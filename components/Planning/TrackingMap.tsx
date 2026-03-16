@@ -2,8 +2,8 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { supabase } from '../../lib/supabaseClient';
-import { geocodeLocation, type Coordinates } from '../../lib/services/geocoding';
+import { supabase } from '@/lib/supabaseClient';
+import { geocodeLocation, type Coordinates } from '@/lib/services/geocoding';
 
 // Función helper para obtener la última ubicación con múltiples fallbacks
 async function fetchUltimaUbicacion(viajeId: string, choferId?: string): Promise<Coordinates | null> {

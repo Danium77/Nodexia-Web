@@ -3,14 +3,14 @@
 // Lógica de datos extraída a lib/hooks/useEstadosCamiones.ts
 
 import { TruckIcon, ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import MainLayout from '../components/layout/MainLayout';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import MainLayout from '@/components/layout/MainLayout';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import useEstadosCamiones, {
   mapearEstadoUI,
   getEstadoColor,
   getEstadoTexto,
   type TabEstado,
-} from '../lib/hooks/useEstadosCamiones';
+} from '@/lib/hooks/useEstadosCamiones';
 
 const getEstadoIcon = (estado: string) => {
   switch (estado) {

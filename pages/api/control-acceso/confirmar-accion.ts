@@ -4,9 +4,9 @@
 
 import { withAuth } from '@/lib/middleware/withAuth';
 import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
-import { cambiarEstadoViaje } from '../../../lib/services/viajeEstado';
-import { notificarCambioEstado } from '../../../lib/services/notificaciones';
-import type { EstadoViajeType } from '../../../lib/estados';
+import { cambiarEstadoViaje } from '@/lib/services/viajeEstado';
+import { notificarCambioEstado } from '@/lib/services/notificaciones';
+import type { EstadoViajeType } from '@/lib/estados';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {

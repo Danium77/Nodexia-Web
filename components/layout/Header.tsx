@@ -2,8 +2,8 @@
 import React from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
 import NotificationBell from './NotificationBell';
-import UbicacionSelector from '../ControlAcceso/UbicacionSelector';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import UbicacionSelector from '@/components/ControlAcceso/UbicacionSelector';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 
 interface HeaderProps {
   userEmail: string;

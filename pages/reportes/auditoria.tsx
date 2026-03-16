@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import AdminLayout from '../../components/layout/AdminLayout';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
+import { supabase } from '@/lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import {
   DocumentTextIcon,
   FunnelIcon,

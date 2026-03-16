@@ -1,12 +1,12 @@
  import React, { useEffect, useState, useMemo } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { useUserRole } from '../../lib/contexts/UserRoleContext';
-import AdminLayout from '../../components/layout/AdminLayout';
-import { EstadoDualBadge, EstadosProgressBar } from '../../components/ui/EstadoDualBadge';
-import { GoogleMapViajes } from '../../components/Maps/GoogleMapViajes';
-import { TimelineEstados } from '../../components/Transporte/TimelineEstados';
-import type { EstadoUnidadViaje } from '../../lib/types';
-import { getEstadoDisplay } from '../../lib/helpers/estados-helpers';
+import { supabase } from '@/lib/supabaseClient';
+import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { EstadoDualBadge, EstadosProgressBar } from '@/components/ui/EstadoDualBadge';
+import { GoogleMapViajes } from '@/components/Maps/GoogleMapViajes';
+import { TimelineEstados } from '@/components/Transporte/TimelineEstados';
+import type { EstadoUnidadViaje } from '@/lib/types';
+import { getEstadoDisplay } from '@/lib/helpers/estados-helpers';
 import {
   TruckIcon,
   MapPinIcon,

@@ -24,7 +24,7 @@ import {
   getProximosEstados,
   esEstadoFinal,
   type EstadoViajeType,
-} from '../estados';
+} from '@/lib/estados';
 
 // ============================================================================
 // Tipos del servicio

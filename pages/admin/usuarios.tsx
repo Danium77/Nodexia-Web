@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { GetServerSideProps } from 'next';
-import AdminLayout from '../../components/layout/AdminLayout';
-import { supabase } from '../../lib/supabaseClient';
+import AdminLayout from '@/components/layout/AdminLayout';
+import { supabase } from '@/lib/supabaseClient';
 import { 
   UserIcon, 
   BuildingOfficeIcon, 
@@ -15,8 +15,8 @@ import {
   XMarkIcon,
   PlusCircleIcon
 } from '@heroicons/react/24/outline';
-import WizardUsuario from '../../components/Admin/WizardUsuario';
-import { TipoEmpresa, RolInterno, ROLES_BY_TIPO, ROL_INTERNO_LABELS } from '../../lib/types';
+import WizardUsuario from '@/components/Admin/WizardUsuario';
+import { TipoEmpresa, RolInterno, ROLES_BY_TIPO, ROL_INTERNO_LABELS } from '@/lib/types';
 
 // Usuario agrupado con múltiples roles
 interface UsuarioAgrupado {

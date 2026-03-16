@@ -1,13 +1,13 @@
 import React from 'react';
-import AssignTransportModal from '../Modals/AssignTransportModal';
-import ConfirmDeleteModal from '../Modals/ConfirmDeleteModal';
-import CancelarDespachoModal from '../Modals/CancelarDespachoModal';
-import ReprogramarModal from '../Modals/ReprogramarModal';
-import EditarDespachoModal from '../Modals/EditarDespachoModal';
-import AbrirRedNodexiaModal from '../Transporte/AbrirRedNodexiaModal';
-import VerEstadoRedNodexiaModal from '../Transporte/VerEstadoRedNodexiaModal';
+import AssignTransportModal from '@/components/Modals/AssignTransportModal';
+import ConfirmDeleteModal from '@/components/Modals/ConfirmDeleteModal';
+import CancelarDespachoModal from '@/components/Modals/CancelarDespachoModal';
+import ReprogramarModal from '@/components/Modals/ReprogramarModal';
+import EditarDespachoModal from '@/components/Modals/EditarDespachoModal';
+import AbrirRedNodexiaModal from '@/components/Transporte/AbrirRedNodexiaModal';
+import VerEstadoRedNodexiaModal from '@/components/Transporte/VerEstadoRedNodexiaModal';
 import TimelineDespachoModal from './TimelineDespachoModal';
-import type { GeneratedDispatch } from '../../lib/hooks/useCrearDespacho';
+import type { GeneratedDispatch } from '@/lib/hooks/useCrearDespacho';
 
 interface DespachoModalsProps {
   // Auth

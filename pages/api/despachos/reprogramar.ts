@@ -18,8 +18,8 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { withAuth } from '../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export default withAuth(
   async (req, res, { userId, empresaId }) => {

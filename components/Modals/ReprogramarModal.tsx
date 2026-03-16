@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
 
 interface Props {
   isOpen: boolean;

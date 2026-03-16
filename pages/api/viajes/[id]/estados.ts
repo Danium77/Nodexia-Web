@@ -1,8 +1,8 @@
 // pages/api/viajes/[id]/estados.ts
 // API para obtener estados completos de un viaje
 
-import { withAuth } from '../../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'GET') {

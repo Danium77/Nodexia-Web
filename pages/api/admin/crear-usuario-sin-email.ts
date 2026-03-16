@@ -1,6 +1,6 @@
 // pages/api/admin/crear-usuario-sin-email.ts
-import { withAuth } from '../../../lib/middleware/withAuth';
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 interface CrearUsuarioSinEmailRequest {
   email: string;

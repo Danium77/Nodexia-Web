@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../../lib/supabaseClient';
-import { fetchWithAuth } from '../../lib/api/fetchWithAuth';
-import { getRolDisplayName } from '../../lib/utils/roleHelpers';
-import { ROLES_BY_TIPO, RolInterno, TipoEmpresa, ROL_INTERNO_LABELS } from '../../lib/types';
+import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
+import { getRolDisplayName } from '@/lib/utils/roleHelpers';
+import { ROLES_BY_TIPO, RolInterno, TipoEmpresa, ROL_INTERNO_LABELS } from '@/lib/types';
 import {
   UserIcon,
   EnvelopeIcon,
