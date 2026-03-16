@@ -295,6 +295,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           )
         `)
         .eq('user_id', authUser.id)
+        .eq('activo', true)
         .single();
 
       if (relacionError || !relacionData) {
@@ -312,7 +313,8 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
                 cuit
               )
             `)
-            .eq('user_id', authUser.id);
+            .eq('user_id', authUser.id)
+            .eq('activo', true);
 
           if (multiError || !multiRelacionData || multiRelacionData.length === 0) {
             setRoles(['coordinador']);
@@ -324,9 +326,15 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             return;
           }
 
-          // Usuario con múltiples empresas - usar la primera como principal
-          setUserEmpresas(multiRelacionData);
-          const primeraRelacion = multiRelacionData[0];
+          // Usuario con múltiples empresas - priorizar admin_nodexia si existe
+          const rolPriority = ['admin_nodexia', 'super_admin', 'coordinador_integral', 'coordinador', 'supervisor', 'control_acceso', 'chofer', 'administrativo', 'vendedor', 'visor'];
+          const sorted = [...multiRelacionData].sort((a, b) => {
+            const ia = rolPriority.indexOf(a.rol_interno);
+            const ib = rolPriority.indexOf(b.rol_interno);
+            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+          });
+          setUserEmpresas(sorted);
+          const primeraRelacion = sorted[0];
           
           if (!primeraRelacion) {
             setLoading(false);
@@ -537,10 +545,39 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           setRoles([]);
           setEmpresaId(null);
           setCuitEmpresa(null);
+          setTipoEmpresa(null);
+          setUserEmpresas([]);
+          setLastFetch(0);
+          // Limpiar localStorage para evitar datos stale del usuario anterior
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('nodexia_user');
+            localStorage.removeItem('nodexia_roles');
+            localStorage.removeItem('nodexia_empresaId');
+            localStorage.removeItem('nodexia_cuitEmpresa');
+            localStorage.removeItem('nodexia_tipoEmpresa');
+            localStorage.removeItem('nodexia_userEmpresas');
+            localStorage.removeItem('nodexia_lastFetch');
+          }
           setLoading(false);
           router.push('/login');
         } else if (event === 'SIGNED_IN') {
-          // 🔥 NO recargar si ya se inicializó (prevenir loops infinitos)
+          // Detectar cambio de usuario: limpiar cache si el user ID cambió
+          const cachedUserId = typeof window !== 'undefined'
+            ? JSON.parse(localStorage.getItem('nodexia_user') || '{}')?.id
+            : null;
+          if (cachedUserId && session.user.id !== cachedUserId) {
+            // Nuevo usuario diferente al cacheado: limpiar todo
+            localStorage.removeItem('nodexia_user');
+            localStorage.removeItem('nodexia_roles');
+            localStorage.removeItem('nodexia_empresaId');
+            localStorage.removeItem('nodexia_cuitEmpresa');
+            localStorage.removeItem('nodexia_tipoEmpresa');
+            localStorage.removeItem('nodexia_userEmpresas');
+            localStorage.removeItem('nodexia_lastFetch');
+            setLastFetch(0);
+            setRoles([]);
+          }
+          // 🔥 NO recargar si ya se inicializó con el mismo usuario
           if (initializedRef.current && user?.id && session.user.id === user?.id) {
             setLoading(false);
             setIsFetching(false);

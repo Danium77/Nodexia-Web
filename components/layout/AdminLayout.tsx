@@ -45,17 +45,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle }) => {
         );
     }
 
-    const isAdmin = hasRole('admin_nodexia') || hasRole('super_admin' as any);
-
     return (
         <div className="min-h-screen bg-gray-900 flex">
-            {isAdmin ? (
-                <AdminSidebar />
-            ) : (
-                <Sidebar 
-                    userName={user.user_metadata?.name || user.email || ''}
-                />
-            )}
+            <Sidebar 
+                userName={user.user_metadata?.name || user.email || ''}
+            />
             <main className="flex-1 overflow-auto">
                 {/* Indicador de estado de conexión deshabilitado */}
                 {/* {process.env.NODE_ENV === 'development' && !isConnected && (
