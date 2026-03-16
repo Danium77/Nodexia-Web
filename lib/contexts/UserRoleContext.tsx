@@ -125,7 +125,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     if (userEmpresas?.length > 0 && userEmpresas[0]?.nombre_completo) {
       return userEmpresas[0].nombre_completo;
     }
-    return (user as any)?.user_metadata?.nombre_completo || user?.email?.split('@')[0] || 'Usuario';
+    return (user as any)?.user_metadata?.nombre_completo || user?.email || 'Usuario';
   }, [user, userEmpresas]);
   const role = useMemo(() => primaryRole || '', [primaryRole]);
 
@@ -275,6 +275,17 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       if (superAdminData && superAdminData.activo === true) {
         setRoles(['super_admin' as UserRole]);
         setEmpresaId(null);
+        // Cargar datos de empresa/nombre para super_admins (display)
+        const { data: saEmpresas } = await supabase
+          .from('usuarios_empresa')
+          .select('nombre_completo, empresa_id, rol_interno, empresas(id, nombre, tipo_empresa, cuit)')
+          .eq('user_id', authUser.id)
+          .eq('activo', true);
+        if (saEmpresas && saEmpresas.length > 0) {
+          setUserEmpresas(saEmpresas);
+        } else {
+          setUserEmpresas([]);
+        }
         finishFetch();
         return;
       }
