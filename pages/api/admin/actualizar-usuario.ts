@@ -1,5 +1,6 @@
 import { withAuth } from '@/lib/middleware/withAuth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { auditLog } from '@/lib/services/auditLog'
 
 interface ActualizarUsuarioRequest {
   user_id: string;
@@ -83,6 +84,13 @@ export default withAuth(async (req, res, authCtx) => {
     }
 
     console.log('✅ Usuario actualizado exitosamente');
+
+    await auditLog(req, authCtx, {
+      action: 'user.update',
+      targetType: 'user',
+      targetId: user_id,
+      metadata: { nombre_completo, telefono, dni, departamento },
+    });
 
     return res.status(200).json({
       success: true,

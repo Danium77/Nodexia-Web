@@ -44,13 +44,13 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [x] Fix `ofertas_red_nodexia` UPDATE policy (migración 075, 2 policies ✅)
 - [x] Supabase CLI linked a PROD
 
-### A6. Seguridad y auditoría [IN PROGRESS]
+### A6. Seguridad y auditoría [DONE]
 - [x] Auditoría RLS completa — 36 tablas, 6 sobre-permisivas identificadas
-- [x] Migración 076 creada: restrict WRITE en despachos, empresas, ubicaciones, usuarios_empresa, tracking_gps
+- [x] Migración 076 creada y ejecutada: restrict WRITE en despachos, empresas, ubicaciones, usuarios_empresa, tracking_gps
 - ~~[ ] Fix: `ofertas_red_nodexia` UPDATE policy~~ ✅ (movido a A5)
 - [x] IDOR audit: 7 vulnerables, 6 fixeadas (eliminar/crear/invitar/actualizar/editar usuario + asignar-unidad)
-- [ ] Ejecutar migración 076 en PROD (pendiente: copia/pega SQL Editor)
-- [ ] Logging de acciones sensibles
+- [x] Ejecutar migración 076 en PROD (aplicada exitosamente)
+- [x] Logging de acciones sensibles: tabla `audit_log` (mig 077) + helper + 13 rutas instrumentadas
 
 ### A7. Performance [NOT STARTED]
 - [ ] Índices adicionales donde necesarios

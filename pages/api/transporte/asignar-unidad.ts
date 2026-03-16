@@ -6,6 +6,7 @@
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { asignarUnidad } from '@/lib/services/viajeEstado';
+import { auditLog } from '@/lib/services/auditLog';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
@@ -48,6 +49,13 @@ export default withAuth(async (req, res, authCtx) => {
     if (!result.exitoso) {
       return res.status(400).json({ error: result.mensaje });
     }
+
+    await auditLog(req, authCtx, {
+      action: 'unit.assign',
+      targetType: 'viaje',
+      targetId: viajeId,
+      metadata: { despachoId, choferId, camionId, acopladoId },
+    });
 
     return res.status(200).json({
       success: true,

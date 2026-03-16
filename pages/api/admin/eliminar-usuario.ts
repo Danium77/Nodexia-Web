@@ -1,6 +1,7 @@
 // pages/api/admin/eliminar-usuario.ts
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { auditLog } from '@/lib/services/auditLog';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
@@ -87,6 +88,13 @@ export default withAuth(async (req, res, authCtx) => {
     const message = details.authUserDeleted
       ? `Usuario ${email || targetUserId} eliminado completamente del sistema`
       : `Usuario ${email || targetUserId} eliminado parcialmente (referencias limpiadas)`;
+
+    await auditLog(req, authCtx, {
+      action: 'user.delete',
+      targetType: 'user',
+      targetId: targetUserId,
+      metadata: { email, deleteAll, details },
+    });
 
     return res.status(200).json({ success: true, message, details });
   } catch (error: any) {

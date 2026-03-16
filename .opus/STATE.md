@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** pendiente push (16-Mar-2026)
+- **Último commit:** pendiente (16-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
@@ -63,7 +63,7 @@
 | Usos de `.single()` (SELECT/UPDATE) | ~~88~~ 0 ✅ | 0 |
 | Imports relativos `../../` | ~~114~~ 0 ✅ | 0 |
 | IDOR vulnerabilities fijados | 6 ✅ | — |
-| Migraciones SQL | 76 | — |
+| Migraciones SQL | 77 | — |
 | Tests | 56 | — |
 
 ---
@@ -83,7 +83,7 @@
 
 ### Completado — A6 Security Audit
 - **RLS audit**: 36 tablas analizadas, 6 con políticas sobre-permisivas (USING true)
-- **Migración 076**: `076_rls_audit_restrict_permissive.sql` creada
+- **Migración 076**: `076_rls_audit_restrict_permissive.sql` creada y ejecutada en PROD
   - Despachos: DELETE/INSERT/UPDATE restringidos por empresa
   - Empresas: INSERT solo admin_nodexia, UPDATE admin o coordinador de la empresa
   - Ubicaciones: WRITE restringido a coordinadores, SELECT abierto (legítimo)
@@ -96,7 +96,11 @@
   - `actualizar-usuario.ts` — HIGH: verificación de empresa del target user
   - `editar-usuario.ts` — HIGH: verificación de empresa del target user
   - `asignar-unidad.ts` — HIGH: chofer/camión verificados contra empresa caller
-- **Pendiente**: Ejecutar migración 076 en PROD (copia/pega en SQL Editor)
+- **Audit logging**: Tabla `audit_log` + helper `auditLog()` + 13 rutas P0/P1 instrumentadas
+  - Migración 077: tabla con índices + RLS (solo admin_nodexia lee)
+  - Helper `lib/services/auditLog.ts`: inserta via supabaseAdmin, never breaks main flow
+  - 13 rutas logueadas: eliminar/crear/editar/actualizar/invitar usuario, delete-despacho,
+    asignar-unidad, aprobar solicitud, validar/rechazar documento, soft-delete documento
 
 ### Sesión 39 — A5 Sync PROD
 - Supabase CLI instalado (via npx), logueado, linked a PROD

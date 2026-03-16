@@ -4,6 +4,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { auditLog } from '@/lib/services/auditLog';
 
 export default withAuth(async (req, res, authCtx) => {
   const { id } = req.query;
@@ -263,6 +264,13 @@ export default withAuth(async (req, res, authCtx) => {
       } catch (_auditError) {
         // No es crítico, continuar
       }
+
+      await auditLog(req, authCtx, {
+        action: 'document.soft_delete',
+        targetType: 'document',
+        targetId: id as string,
+        metadata: { tipo_documento: documentoExistente.tipo_documento, entidad_tipo: documentoExistente.entidad_tipo, motivo },
+      });
 
       return res.status(200).json({
         success: true,

@@ -1,6 +1,7 @@
 import { withAuth } from '@/lib/middleware/withAuth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { validateRoleForCompany } from '@/lib/validators/roleValidator'
+import { auditLog } from '@/lib/services/auditLog'
 
 interface NuevaInvitacionRequest {
   email: string;
@@ -178,6 +179,13 @@ export default withAuth(async (req, res, authCtx) => {
       nombre_completo: `${nombre} ${apellido}`,
       empresa: empresa.nombre, rol_interno
     };
+
+    await auditLog(req, authCtx, {
+      action: 'user.invite',
+      targetType: 'user',
+      targetId: newUser.user.id,
+      metadata: { email, nombre, apellido, rol_interno, empresa_id },
+    });
 
     if (smtpConfigured) {
       return res.status(200).json({

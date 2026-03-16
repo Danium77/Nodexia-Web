@@ -2,8 +2,9 @@
 import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { auditLog } from '@/lib/services/auditLog';
 
-export default withAuth(async (req, res) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -65,6 +66,13 @@ export default withAuth(async (req, res) => {
       await supabaseAdmin.auth.admin.deleteUser(newUser.id);
       throw new Error(`Error de base de datos al asociar el perfil: ${linkError.message}`);
     }
+
+    await auditLog(req, authCtx, {
+      action: 'user.invite',
+      targetType: 'user',
+      targetId: newUser.id,
+      metadata: { email, profileId, roleId },
+    });
 
     res.status(200).json({
       message: 'Invitación enviada y usuario asociado exitosamente.',

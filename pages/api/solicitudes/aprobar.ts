@@ -1,5 +1,6 @@
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { auditLog } from '@/lib/services/auditLog';
 
 interface AprobarSolicitudRequest {
   solicitud_id: string;
@@ -7,7 +8,7 @@ interface AprobarSolicitudRequest {
   password_temporal: string;
 }
 
-export default withAuth(async (req, res, _authCtx) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -122,6 +123,13 @@ export default withAuth(async (req, res, _authCtx) => {
     if (errorUpdate) {
       throw new Error(`Error actualizando solicitud: ${errorUpdate.message}`);
     }
+
+    await auditLog(req, authCtx, {
+      action: 'solicitud.approve',
+      targetType: 'solicitud',
+      targetId: solicitud_id,
+      metadata: { empresa_id: empresa.id, email: solicitud.email, rol_inicial },
+    });
 
     return res.status(200).json({
       success: true,

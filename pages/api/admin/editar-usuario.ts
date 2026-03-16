@@ -1,6 +1,7 @@
 import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { auditLog } from '@/lib/services/auditLog';
 
 export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'PUT') {
@@ -42,6 +43,13 @@ export default withAuth(async (req, res, authCtx) => {
       }
       throw updateError;
     }
+
+    await auditLog(req, authCtx, {
+      action: 'user.edit_role',
+      targetType: 'user',
+      targetId: userId,
+      metadata: { profileId, roleId },
+    });
 
     res.status(200).json({ message: 'Usuario actualizado exitosamente.', user: data });
   } catch (error: any) {

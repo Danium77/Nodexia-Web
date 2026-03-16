@@ -1,6 +1,7 @@
 // pages/api/admin/crear-usuario-sin-email.ts
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { auditLog } from '@/lib/services/auditLog';
 
 interface CrearUsuarioSinEmailRequest {
   email: string;
@@ -132,6 +133,13 @@ export default withAuth(async (req, res, authCtx) => {
       '3. Una vez configurada, podrá iniciar sesión normalmente',
       '4. Si el enlace expira, puedes generar uno nuevo desde el panel de usuarios'
     ];
+
+    await auditLog(req, authCtx, {
+      action: 'user.create_no_email',
+      targetType: 'user',
+      targetId: authUser.user.id,
+      metadata: { email, nombre, rol_interno, empresa_id },
+    });
 
     return res.status(200).json({
       success: true,

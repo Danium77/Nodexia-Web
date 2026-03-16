@@ -2,8 +2,9 @@
 import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { auditLog } from '@/lib/services/auditLog';
 
-export default withAuth(async (req, res) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -48,6 +49,13 @@ export default withAuth(async (req, res) => {
       await supabaseAdmin.auth.admin.deleteUser(newUserId);
       throw linkError;
     }
+
+    await auditLog(req, authCtx, {
+      action: 'user.create',
+      targetType: 'user',
+      targetId: newUserId,
+      metadata: { email, nombre, profile_id, role_id },
+    });
 
     res.status(200).json({ message: 'Usuario creado exitosamente', user: newUserData.user });
 

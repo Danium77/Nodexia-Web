@@ -6,6 +6,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { auditLog } from '@/lib/services/auditLog';
 
 type Accion = 'aprobar' | 'rechazar' | 'aprobar_provisorio';
 
@@ -162,6 +163,13 @@ export default withAuth(async (req, res, authCtx) => {
         return res.status(500).json({ error: 'Error al aprobar documento', details: updateError.message });
       }
 
+      await auditLog(req, authCtx, {
+        action: 'document.approve',
+        targetType: 'document',
+        targetId: documento_id,
+        metadata: { tipo_documento: documento.tipo_documento, entidad_tipo: documento.entidad_tipo, entidad_id: documento.entidad_id },
+      });
+
       return res.status(200).json({
         success: true,
         message: 'Documento aprobado definitivamente',
@@ -270,6 +278,13 @@ export default withAuth(async (req, res, authCtx) => {
     if (updateError) {
       return res.status(500).json({ error: 'Error al rechazar documento', details: updateError.message });
     }
+
+    await auditLog(req, authCtx, {
+      action: 'document.reject',
+      targetType: 'document',
+      targetId: documento_id,
+      metadata: { tipo_documento: documento.tipo_documento, motivo_rechazo, entidad_tipo: documento.entidad_tipo },
+    });
 
     return res.status(200).json({
       success: true,

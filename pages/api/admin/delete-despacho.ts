@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { auditLog } from '@/lib/services/auditLog';
 
 type Data = { success: boolean; error?: string; deleted?: any };
 
-async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
+async function handler(req: NextApiRequest, res: NextApiResponse<Data>, authCtx: any) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   const { id } = req.body || {};
@@ -14,6 +15,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<Data>) {
   if (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
+
+  await auditLog(req, authCtx, {
+    action: 'despacho.delete',
+    targetType: 'despacho',
+    targetId: id,
+  });
 
   return res.status(200).json({ success: true, deleted: data });
 }
