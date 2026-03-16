@@ -52,10 +52,16 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [x] Ejecutar migración 076 en PROD (aplicada exitosamente)
 - [x] Logging de acciones sensibles: tabla `audit_log` (mig 077) + helper + 13 rutas instrumentadas
 
-### A7. Performance [NOT STARTED]
-- [ ] Índices adicionales donde necesarios
-- [ ] Query optimization para vistas pesadas
-- [ ] Connection pooling revisión
+### A7. Performance [DONE]
+- [x] Auditoría de ~90 índices existentes, identificados 16 faltantes (P0/P1/P2)
+- [x] Migración 078: 7 índices creados (4 P0, 3 P1)
+  - P0: `idx_usuarios_empresa_user_empresa_activo` (compound para RLS)
+  - P0: `idx_relaciones_transporte` (empresa_transporte_id)
+  - P0: `idx_registros_acceso_usuario` (usuario_id)
+  - P1: `idx_viajes_despacho_created_at`, `idx_despachos_scheduled_date`, `idx_viajes_despacho_numero_viaje`, `idx_empresas_tipo`
+- [x] Ejecutada en PROD exitosamente
+- [ ] Query optimization para vistas pesadas (DEFERRED)
+- [ ] Connection pooling revisión (DEFERRED)
 
 ---
 

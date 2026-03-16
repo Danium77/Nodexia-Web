@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 16-Mar-2026 (sesión 40)
+**Última actualización:** 16-Mar-2026 (sesión 41)
 
 ---
 
@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** pendiente (16-Mar-2026)
+- **Último commit:** `d8d5a60` (16-Mar-2026) — pendiente commit A7
 - **Estado general:** Funcional con bugs menores
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
@@ -35,7 +35,8 @@
 - **7 pages con `supabase.from()` directo** — viola separación de capas
 
 ### Migraciones PROD
-- 075 migraciones tracked vía tabla `schema_migrations` (+ 017v vista manual)
+- 078 migraciones tracked vía tabla `schema_migrations` (+ 017v vista manual)
+- Migración 078: 7 índices de performance (P0+P1) aplicados
 - Vista `vista_disponibilidad_unidades` registrada en tracking ✅
 - Supabase CLI linked a PROD (`lkdcofsfjnltuzzzwoir`)
 
