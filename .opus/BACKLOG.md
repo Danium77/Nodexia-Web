@@ -27,9 +27,9 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [x] `crear-despacho.tsx` (1908 → ~190 líneas) — hook `useCrearDespacho` + `DespachoModals`
 - [x] `chofer-mobile.tsx` (1440 → ~380 líneas) — hook `useChoferMobile`
 - [x] `control-acceso.tsx` (1409 → ~350 líneas) — hook `useControlAcceso`
-- [ ] `despachos-ofrecidos.tsx` (1067 líneas) — bonus, único >1000 restante
+- [x] `despachos-ofrecidos.tsx` (984 → 530 líneas) — hook `useDespachosOfrecidos` (commit 3481f60)
 - [ ] `planificacion.tsx` (862) — bajo threshold
-- [ ] `lib/types.ts` (993) → dividir por dominio
+- [ ] `lib/types.ts` (993) → dividir por dominio (DEFERRED: cross-deps haría circular imports)
 - [ ] `lib/contexts/UserRoleContext.tsx` (602) → separar lógica
 
 ### A4. Configurar imports alias `@/` [DONE]
@@ -44,11 +44,13 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [x] Fix `ofertas_red_nodexia` UPDATE policy (migración 075, 2 policies ✅)
 - [x] Supabase CLI linked a PROD
 
-### A6. Seguridad y auditoría [NOT STARTED]
-- [ ] Auditoría RLS completa (todas las tablas)
+### A6. Seguridad y auditoría [IN PROGRESS]
+- [x] Auditoría RLS completa — 36 tablas, 6 sobre-permisivas identificadas
+- [x] Migración 076 creada: restrict WRITE en despachos, empresas, ubicaciones, usuarios_empresa, tracking_gps
 - ~~[ ] Fix: `ofertas_red_nodexia` UPDATE policy~~ ✅ (movido a A5)
+- [x] IDOR audit: 7 vulnerables, 6 fixeadas (eliminar/crear/invitar/actualizar/editar usuario + asignar-unidad)
+- [ ] Ejecutar migración 076 en PROD (pendiente: copia/pega SQL Editor)
 - [ ] Logging de acciones sensibles
-- [ ] Revisar IDOR en endpoints restantes
 
 ### A7. Performance [NOT STARTED]
 - [ ] Índices adicionales donde necesarios

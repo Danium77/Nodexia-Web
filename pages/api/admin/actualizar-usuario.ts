@@ -32,6 +32,20 @@ export default withAuth(async (req, res, authCtx) => {
       });
     }
 
+    // IDOR fix: verificar que el usuario objetivo pertenece a la empresa del caller
+    if (authCtx.rolInterno !== 'admin_nodexia') {
+      const { data: targetUe } = await supabaseAdmin
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', user_id)
+        .eq('empresa_id', authCtx.empresaId!)
+        .maybeSingle();
+
+      if (!targetUe) {
+        return res.status(403).json({ error: 'No tienes permiso para modificar este usuario' });
+      }
+    }
+
     // Actualizar en tabla usuarios (si existe el registro)
     // Esta tabla es opcional, algunos usuarios solo existen en usuarios_empresa
     const { error: usuariosError } = await supabaseAdmin

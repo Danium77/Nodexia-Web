@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `5d54da6` (16-Mar-2026)
+- **Último commit:** pendiente push (16-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
@@ -57,10 +57,13 @@
 | Páginas | 25+ | — |
 | Componentes | ~80 | — |
 | Archivos >400 líneas | ~42 (-6) | 0 |
+| Archivos >1000 líneas | 0 ✅ | 0 |
 | Pages con queries directas | ~~7~~ 4 (A3 pending) | 0 |
 | Refs a `roles_empresa` | ~~12~~ 0 ✅ | 0 |
 | Usos de `.single()` (SELECT/UPDATE) | ~~88~~ 0 ✅ | 0 |
 | Imports relativos `../../` | ~~114~~ 0 ✅ | 0 |
+| IDOR vulnerabilities fijados | 6 ✅ | — |
+| Migraciones SQL | 76 | — |
 | Tests | 56 | — |
 
 ---
@@ -72,6 +75,28 @@
 - tsconfig.json ya tenía `@/` configurado — solo faltaba migrar uso
 - Build verificado: 0 errores, 71 páginas generadas
 - Commit `5d54da6` pushed
+
+### Completado — A3 bonus: Split despachos-ofrecidos
+- `despachos-ofrecidos.tsx`: 984→530 líneas (-46%)
+- Nuevo hook `useDespachosOfrecidos` (398 líneas)
+- Commit `3481f60` pushed
+
+### Completado — A6 Security Audit
+- **RLS audit**: 36 tablas analizadas, 6 con políticas sobre-permisivas (USING true)
+- **Migración 076**: `076_rls_audit_restrict_permissive.sql` creada
+  - Despachos: DELETE/INSERT/UPDATE restringidos por empresa
+  - Empresas: INSERT solo admin_nodexia, UPDATE admin o coordinador de la empresa
+  - Ubicaciones: WRITE restringido a coordinadores, SELECT abierto (legítimo)
+  - Usuarios_empresa: INSERT/UPDATE solo admin o coordinador de esa empresa
+  - Tracking_gps: SELECT para viajes propios, INSERT solo choferes
+- **IDOR audit**: 7 rutas API vulnerables encontradas, 6 fixeadas:
+  - `eliminar-usuario.ts` — CRITICAL: empresa ownership check añadido
+  - `crear-usuario-sin-email.ts` — HIGH: empresa_id del caller forzado
+  - `nueva-invitacion.ts` — HIGH: empresa_id validado contra caller
+  - `actualizar-usuario.ts` — HIGH: verificación de empresa del target user
+  - `editar-usuario.ts` — HIGH: verificación de empresa del target user
+  - `asignar-unidad.ts` — HIGH: chofer/camión verificados contra empresa caller
+- **Pendiente**: Ejecutar migración 076 en PROD (copia/pega en SQL Editor)
 
 ### Sesión 39 — A5 Sync PROD
 - Supabase CLI instalado (via npx), logueado, linked a PROD

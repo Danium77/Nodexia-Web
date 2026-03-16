@@ -2,7 +2,7 @@
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export default withAuth(async (req, res) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Método no permitido. Usar POST.' });
   }
@@ -25,6 +25,20 @@ export default withAuth(async (req, res) => {
         return res.status(404).json({ success: false, message: `Usuario con email ${email} no encontrado` });
       }
       targetUserId = user.id;
+    }
+
+    // IDOR fix: verificar que el usuario objetivo pertenece a la empresa del caller
+    if (authCtx.rolInterno !== 'admin_nodexia') {
+      const { data: targetUe } = await supabaseAdmin
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', targetUserId)
+        .eq('empresa_id', authCtx.empresaId!)
+        .maybeSingle();
+
+      if (!targetUe) {
+        return res.status(403).json({ success: false, message: 'No tienes permiso para eliminar este usuario' });
+      }
     }
 
     const details = {

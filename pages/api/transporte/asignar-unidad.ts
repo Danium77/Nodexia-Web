@@ -18,6 +18,21 @@ export default withAuth(async (req, res, authCtx) => {
     return res.status(400).json({ error: 'Faltan parámetros requeridos: viajeId, choferId, camionId' });
   }
 
+  // IDOR fix: verificar que chofer y camión pertenecen a la empresa del caller
+  if (authCtx.rolInterno !== 'admin_nodexia') {
+    const [choferCheck, camionCheck] = await Promise.all([
+      supabaseAdmin.from('choferes').select('empresa_id').eq('id', choferId).maybeSingle(),
+      supabaseAdmin.from('camiones').select('empresa_id').eq('id', camionId).maybeSingle(),
+    ]);
+
+    if (choferCheck.data?.empresa_id !== authCtx.empresaId) {
+      return res.status(403).json({ error: 'El chofer no pertenece a tu empresa' });
+    }
+    if (camionCheck.data?.empresa_id !== authCtx.empresaId) {
+      return res.status(403).json({ error: 'El camión no pertenece a tu empresa' });
+    }
+  }
+
   try {
     const result = await asignarUnidad(supabaseAdmin, {
       viaje_id: viajeId,

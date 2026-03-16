@@ -2,7 +2,7 @@ import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
 
-export default withAuth(async (req, res) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'PUT') {
     res.setHeader('Allow', ['PUT']);
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -13,6 +13,20 @@ export default withAuth(async (req, res) => {
 
     if (!userId || !profileId || !roleId) {
       return res.status(400).json({ error: 'Faltan campos requeridos: userId, profileId, roleId.' });
+    }
+
+    // IDOR fix: verificar que el usuario objetivo pertenece a la empresa del caller
+    if (authCtx.rolInterno !== 'admin_nodexia') {
+      const { data: targetUe } = await supabaseAdmin
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', userId)
+        .eq('empresa_id', authCtx.empresaId!)
+        .maybeSingle();
+
+      if (!targetUe) {
+        return res.status(403).json({ error: 'No tienes permiso para editar este usuario' });
+      }
     }
 
     const { data, error: updateError } = await supabaseAdmin

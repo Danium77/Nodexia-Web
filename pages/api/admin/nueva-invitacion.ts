@@ -13,7 +13,7 @@ interface NuevaInvitacionRequest {
   departamento?: string;
 }
 
-export default withAuth(async (req, res) => {
+export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -21,14 +21,20 @@ export default withAuth(async (req, res) => {
   try {
     const { 
       email, nombre, apellido, telefono, dni,
-      empresa_id, rol_interno, departamento 
+      empresa_id: clientEmpresaId, rol_interno, departamento 
     }: NuevaInvitacionRequest = req.body;
 
-    if (!email || !nombre || !apellido || !empresa_id || !rol_interno) {
+    if (!email || !nombre || !apellido || !clientEmpresaId || !rol_interno) {
       return res.status(400).json({
         error: 'Missing required fields',
         required: ['email', 'nombre', 'apellido', 'empresa_id', 'rol_interno']
       });
+    }
+
+    // IDOR fix: solo admin_nodexia puede invitar a otra empresa
+    const empresa_id = authCtx.rolInterno === 'admin_nodexia' ? clientEmpresaId : authCtx.empresaId!;
+    if (clientEmpresaId !== empresa_id) {
+      return res.status(403).json({ error: 'No tienes permiso para invitar usuarios a otra empresa' });
     }
 
     // Verify company exists and get tipo_empresa

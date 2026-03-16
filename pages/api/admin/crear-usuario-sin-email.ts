@@ -32,13 +32,19 @@ export default withAuth(async (req, res, authCtx) => {
   }
 
   try {
-    const { email, nombre, telefono, empresa_id, rol_interno, departamento }: CrearUsuarioSinEmailRequest = req.body;
+    const { email, nombre, telefono, empresa_id: clientEmpresaId, rol_interno, departamento }: CrearUsuarioSinEmailRequest = req.body;
 
-    if (!email || !nombre || !empresa_id || !rol_interno) {
+    if (!email || !nombre || !clientEmpresaId || !rol_interno) {
       return res.status(400).json({
         success: false,
         message: 'Faltan campos requeridos: email, nombre, empresa_id, rol_interno'
       });
+    }
+
+    // IDOR fix: solo admin_nodexia puede crear usuarios en otra empresa
+    const empresa_id = authCtx.rolInterno === 'admin_nodexia' ? clientEmpresaId : authCtx.empresaId!;
+    if (clientEmpresaId !== empresa_id) {
+      console.warn(`⚠️ empresa_id del cliente (${clientEmpresaId}) reemplazado por ${empresa_id}`);
     }
 
     console.log(`👤 Creando usuario sin email: ${email}`);
