@@ -45,7 +45,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, pageTitle }) => {
         );
     }
 
-    const isAdmin = hasRole('admin');
+    const isAdmin = hasRole('admin_nodexia') || hasRole('super_admin' as any);
 
     return (
         <div className="min-h-screen bg-gray-900 flex">

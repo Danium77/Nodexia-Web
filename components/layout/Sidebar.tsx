@@ -115,6 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
       { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
       { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
+      { name: '⚙️ Funciones', icon: Cog6ToothIcon, href: '/admin/funciones' },
       { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
     ];
   } else if (userRole === 'admin_nodexia') {
@@ -129,6 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       { name: '💳 Suscripciones', icon: ChartBarIcon, href: '/admin/suscripciones' },
       { name: '📊 Analíticas', icon: ChartBarIcon, href: '/admin/analiticas' },
       { name: '🌐 Red Nodexia', icon: Cog6ToothIcon, href: '/admin/red-nodexia' },
+      { name: '⚙️ Funciones', icon: Cog6ToothIcon, href: '/admin/funciones' },
       { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
     ];
   } else if (userRole === 'control_acceso') {
