@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `8552848` (16-Mar-2026)
+- **Último commit:** `47d291d` (16-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
@@ -35,8 +35,9 @@
 - **7 pages con `supabase.from()` directo** — viola separación de capas
 
 ### Migraciones PROD
-- 078 migraciones tracked vía tabla `schema_migrations` (+ 017v vista manual)
+- 079 migraciones tracked vía tabla `schema_migrations` (+ 017v vista manual)
 - Migración 078: 7 índices de performance (P0+P1) aplicados
+- Migración 079: Feature flags (funciones_sistema, funciones_empresa, funciones_rol) + seed 14 features
 - Vista `vista_disponibilidad_unidades` registrada en tracking ✅
 - Supabase CLI linked a PROD (`lkdcofsfjnltuzzzwoir`)
 

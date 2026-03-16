@@ -69,11 +69,16 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 
 Cada feature se diseña conceptualmente ANTES de codificar.
 
-### B1. Admin Nodexia: Sistema dinámico [CONCEPT]
-- Tablas: `funciones_sistema`, `funciones_empresa`, `funciones_rol`
-- Panel: CRUD usuarios por empresa, toggle features por empresa/rol
-- Hook: `useFeatureFlag('feature_name')`
-- Componente: `<FeatureGate feature="...">`
+### B1. Admin Nodexia: Sistema dinámico [DONE]
+- [x] Tablas: `funciones_sistema`, `funciones_empresa`, `funciones_rol` (migración 079)
+- [x] 14 features seed (11 activas, 3 futuras: reportes, turnos, despachos_transporte)
+- [x] RLS: SELECT autenticado, ALL admin_nodexia
+- [x] API: `pages/api/admin/funciones.ts` (GET list, POST toggle_empresa/toggle_rol/toggle_global)
+- [x] Context: `FeatureFlagProvider` en _app.tsx + hook `useFeatureFlags()`
+- [x] Componente: `<FeatureGate feature="..." fallback={...}>`
+- [x] Panel admin: `pages/admin/funciones.tsx` + `GestionFunciones.tsx`
+- [x] Sidebar: entrada "Funciones" en AdminSidebar
+- [x] Audit logging en todas las acciones de toggle
 
 ### B2. Reportes gerenciales [CONCEPT]
 - Dashboards con métricas de despachos, tiempos, cumplimiento

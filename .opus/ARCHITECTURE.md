@@ -67,6 +67,10 @@ sql/migrations/         ← 54 migraciones (001-074, con gaps)
 | `registros_acceso` | Registro de ingreso/egreso en plantas |
 | `tracking_gps` | Posiciones GPS de choferes |
 | `notificaciones` | Sistema de notificaciones |
+| `funciones_sistema` | Catálogo de feature flags (clave, nombre, kill switch global) |
+| `funciones_empresa` | Features habilitadas por empresa (opt-in) |
+| `funciones_rol` | Visibilidad por rol dentro de empresa (opt-out) |
+| `audit_log` | Log de acciones sensibles (admin only) |
 
 ### Vistas
 | Vista | Propósito |
