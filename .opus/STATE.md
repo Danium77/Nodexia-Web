@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 15-Mar-2026 (sesión 39)
+**Última actualización:** 16-Mar-2026 (sesión 40)
 
 ---
 
@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `a8cff30` (15-Mar-2026)
+- **Último commit:** `5d54da6` (16-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
@@ -60,22 +60,22 @@
 | Pages con queries directas | ~~7~~ 4 (A3 pending) | 0 |
 | Refs a `roles_empresa` | ~~12~~ 0 ✅ | 0 |
 | Usos de `.single()` (SELECT/UPDATE) | ~~88~~ 0 ✅ | 0 |
-| Imports relativos `../../` | 114 | 0 (migrar a `@/`) |
+| Imports relativos `../../` | ~~114~~ 0 ✅ | 0 |
 | Tests | 56 | — |
 
 ---
 
-## ÚLTIMA SESIÓN (39 — 15-Mar-2026)
+## ÚLTIMA SESIÓN (40 — 16-Mar-2026)
 
-### Completado — A5 Sync PROD
+### Completado — A4 Import Alias Migration
+- 430 imports relativos (`../`) migrados a alias `@/` en 166 archivos
+- tsconfig.json ya tenía `@/` configurado — solo faltaba migrar uso
+- Build verificado: 0 errores, 71 páginas generadas
+- Commit `5d54da6` pushed
+
+### Sesión 39 — A5 Sync PROD
 - Supabase CLI instalado (via npx), logueado, linked a PROD
-- Auditía completa: 54 migraciones verificadas aplicadas (001-074)
-- Migración 063: verificada aplicada (policy existía)
-- Vista `vista_disponibilidad_unidades`: verificada existente, registrada en tracking (017v)
-- **Migración 075 ejecutada en PROD**: 2 UPDATE policies en `ofertas_red_nodexia`
-- Fix `config.toml`: removidos campos inválidos (`cron`, `timeout` int)
-- `.gitignore`: agregado `supabase/.temp/`
-- Scripts temporales creados y eliminados: `audit_prod.js`, `run_migration_075.js`
+- 54 migraciones verificadas, migración 075 ejecutada
 - Commit `a8cff30` pushed
 
 ### Sesión 38 — A3 Giant File Splits
@@ -92,7 +92,7 @@
 | `useSupervisorCarga` | ~270 | — | — | — |
 
 ### Próximos pasos sugeridos
-- **A4**: Configurar import aliases `@/` (114 imports relativos)
 - **A6**: Auditoría RLS completa
-- **A3 bonus**: `despachos-ofrecidos.tsx` (1067 líneas)
+- **A3 bonus**: `despachos-ofrecidos.tsx` (1067 líneas), `lib/types.ts` (993 líneas)
+- **A7**: Performance (índices, queries, connection pooling)
 - **Bloque B**: Features (admin dinámico, reportes, turnos)

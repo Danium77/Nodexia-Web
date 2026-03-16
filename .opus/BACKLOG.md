@@ -1,6 +1,6 @@
 # BACKLOG — NODEXIA-WEB
 
-**Última actualización:** 15-Mar-2026 (sesión 39)
+**Última actualización:** 16-Mar-2026 (sesión 40)
 
 ---
 
@@ -32,9 +32,10 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [ ] `lib/types.ts` (993) → dividir por dominio
 - [ ] `lib/contexts/UserRoleContext.tsx` (602) → separar lógica
 
-### A4. Configurar imports alias `@/` [NOT STARTED]
-- [ ] Configurar `tsconfig.json` paths
-- [ ] Migrar imports progresivamente (114 relativos)
+### A4. Configurar imports alias `@/` [DONE]
+- [x] tsconfig.json paths ya configurados (verificado)
+- [x] 430 imports migrados a `@/` en 166 archivos (commit `5d54da6`)
+- [x] 0 imports relativos restantes
 
 ### A5. Sync migraciones PROD [DONE]
 - [x] Auditar cuáles de las 54 migraciones están ejecutadas en PROD (todas 001-074 ✅)
