@@ -4,6 +4,7 @@ import type { AppProps } from "next/app";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { UserRoleProvider } from '@/lib/contexts/UserRoleContext';
+import { FeatureFlagProvider } from '@/lib/contexts/FeatureFlagContext';
 import { useServiceWorker } from '@/lib/hooks/usePWA';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -62,7 +63,9 @@ export default function App({ Component, pageProps }: AppProps) {
     <ErrorBoundary>
       {isNavigating && <LoadingSpinner fullScreen text="Cargando..." />}
       <UserRoleProvider>
-        <Component {...pageProps} />
+        <FeatureFlagProvider>
+          <Component {...pageProps} />
+        </FeatureFlagProvider>
       </UserRoleProvider>
     </ErrorBoundary>
   );

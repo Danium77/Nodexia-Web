@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `d8d5a60` (16-Mar-2026) — pendiente commit A7
+- **Último commit:** `8552848` (16-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 

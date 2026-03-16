@@ -11,7 +11,8 @@ import {
     CogIcon,
     BuildingOfficeIcon,
     CreditCardIcon,
-    InboxIcon
+    InboxIcon,
+    AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 
 const AdminSidebar = () => {
@@ -48,6 +49,12 @@ const AdminSidebar = () => {
             href: '/admin/solicitudes', 
             icon: InboxIcon,
             description: 'Centro de solicitudes y aprobaciones'
+        },
+        { 
+            name: 'Funciones', 
+            href: '/admin/funciones', 
+            icon: AdjustmentsHorizontalIcon,
+            description: 'Feature flags por empresa y rol'
         },
         { 
             name: 'Configuración', 
