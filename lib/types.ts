@@ -45,6 +45,7 @@ export type RolInterno =
   | 'control_acceso'     // Control de acceso (solo planta)
   | 'chofer'             // Chofer (solo transporte)
   | 'supervisor'         // Supervisor genérico (carga o flota)
+  | 'gerente'            // Gerente: solo lectura + reportes ejecutivos
   | 'administrativo'     // Administrativo (ambos)
   | 'vendedor'           // Vendedor: solo lectura de despachos de sus clientes
   | 'visor';             // Visor (clientes)
@@ -104,6 +105,7 @@ export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): st
       admin: 'Administrativo'
     },
     vendedor: { planta: 'Vendedor' },
+    gerente: { planta: 'Gerente de Operaciones', transporte: 'Gerente de Operaciones', cliente: 'Gerente', admin: 'Gerente' },
     visor: { cliente: 'Visor' },
   };
 
@@ -121,6 +123,7 @@ export const ROL_INTERNO_LABELS: Record<RolInterno, string> = {
   supervisor: 'Supervisor',
   chofer: 'Chofer',
   administrativo: 'Administrativo',
+  gerente: 'Gerente',
   vendedor: 'Vendedor',
   visor: 'Visor',
 };

@@ -17,6 +17,7 @@ function getPrimaryRole(roles: string[]): UserRole {
   if (roles.includes('coordinador')) return 'coordinador';
   if (roles.includes('control_acceso')) return 'control_acceso';
   if (roles.includes('supervisor')) return 'supervisor';
+  if (roles.includes('gerente')) return 'gerente' as UserRole;
   if (roles.includes('chofer')) return 'chofer';
   if (roles.includes('administrativo')) return 'administrativo';
   if (roles.includes('vendedor')) return 'vendedor' as UserRole;
@@ -402,6 +403,10 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             case 'Vendedor':
               mappedRole = 'vendedor' as UserRole;
               break;
+            case 'gerente':
+            case 'Gerente':
+              mappedRole = 'gerente' as UserRole;
+              break;
             case 'visor':
               mappedRole = 'visor';
               break;
@@ -465,6 +470,10 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
             case 'vendedor':
             case 'Vendedor':
               mappedRole = 'vendedor' as UserRole;
+              break;
+            case 'gerente':
+            case 'Gerente':
+              mappedRole = 'gerente' as UserRole;
               break;
             case 'visor':
               mappedRole = 'visor';

@@ -208,6 +208,15 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
         { name: 'Configuración', icon: Cog6ToothIcon, href: '/configuracion' },
       ];
     }
+  } else if (userRole === 'gerente') {
+    // Gerente: solo lectura + reportes ejecutivos
+    navItems = [
+      { name: '📊 Reportes', icon: ChartBarIcon, href: '/estadisticas' },
+      { name: '📋 Despachos', icon: TruckIcon, href: '/despachos' },
+      { name: '📄 Viajes', icon: CalendarDaysIcon, href: '/viajes' },
+      { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
+      { name: '📄 Documentación', icon: ChartBarIcon, href: '/documentos' },
+    ];
   } else if (userRole === 'administrativo') {
     // Administrativo (contextual)
     navItems = [
