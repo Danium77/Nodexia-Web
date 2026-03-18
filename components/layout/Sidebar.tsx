@@ -6,6 +6,7 @@ import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, Arr
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserRole } from '@/lib/contexts/UserRoleContext';
+import { useFeatureFlags } from '@/lib/contexts/FeatureFlagContext';
 import { NodexiaLogoBadge } from '@/components/ui/NodexiaLogo';
 import { useDocAlerts } from '@/lib/hooks/useDocAlerts';
 
@@ -43,6 +44,8 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
 
   // Alertas de documentación para roles de transporte
   const { badgeCount: docAlertBadge } = useDocAlerts(10 * 60 * 1000); // refresh cada 10 min
+  const { hasFeature, loading: featureLoading } = useFeatureFlags();
+  const turnosEnabled = !featureLoading && hasFeature('turnos_recepcion');
 
   // allow override via props (some pages pass them)
   const finalEmail = userEmail || email;
@@ -137,6 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     navItems = [
       { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
       { name: '🚪 Control de Acceso', icon: TruckIcon, href: '/control-acceso' },
+      ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
       { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
       { name: 'Planificación Hoy', icon: CalendarDaysIcon, href: '/planificacion' },      { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },    ];
   } else if (userRole === 'supervisor') {
@@ -145,6 +149,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       navItems = [
         { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
         { name: '👷 Supervisor de Flota', icon: TruckIcon, href: '/transporte/dashboard' },
+        ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
         { name: '📊 Viajes Activos', icon: ChartBarIcon, href: '/transporte/viajes-activos' },
         { name: 'Flota', icon: TruckIcon, href: '/transporte/flota' },
         { name: 'Estadísticas', icon: ChartBarIcon, href: '/estadisticas' },
@@ -153,6 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       navItems = [
         { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
         { name: '👷 Supervisor de Carga', icon: TruckIcon, href: '/supervisor-carga' },
+        ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
         { name: '📊 Estados de Camiones', icon: ChartBarIcon, href: '/estados-camiones' },
         { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
         { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },
@@ -164,6 +170,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     if (tipoEmpresa === 'transporte') {
       navItems = [
         { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
+        ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
         { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
         { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
         { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
@@ -174,6 +181,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     } else {
       navItems = [
         { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
+        ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
         { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
         { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
         { name: '🚪 Control de Acceso', icon: TruckIcon, href: '/control-acceso' },
@@ -191,6 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     if (tipoEmpresa === 'transporte') {
       navItems = [
         { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
+        ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
         { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
         { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
         { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
@@ -201,6 +210,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
     } else {
       navItems = [
         { name: '⚡ Panel de control', icon: HomeIcon, href: '/coordinator-dashboard' },
+        ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
         { name: 'Planificación', icon: CalendarDaysIcon, href: '/planificacion' },
         { name: 'Despachos', icon: TruckIcon, href: '/crear-despacho' },
         { name: '⚠️ Incidencias', icon: ExclamationTriangleIcon, href: '/incidencias' },

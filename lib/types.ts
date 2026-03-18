@@ -925,6 +925,48 @@ export interface ApiListResponse<T = any> extends ApiResponse<T[]> {
 }
 
 // =====================
+// Turnos de recepcion (B3)
+// =====================
+
+export interface VentanaRecepcion {
+  id: UUID;
+  empresa_planta_id: UUID;
+  nombre: string;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
+  capacidad: number;
+  duracion_turno_minutos: number;
+  activa: boolean;
+  created_at: Timestamp;
+  updated_at?: Timestamp;
+}
+
+export type EstadoTurnoReservado =
+  | 'reservado'
+  | 'confirmado'
+  | 'completado'
+  | 'cancelado'
+  | 'no_show';
+
+export interface TurnoReservado {
+  id: UUID;
+  ventana_id: UUID;
+  empresa_transporte_id: UUID;
+  despacho_id?: UUID | null;
+  fecha: string; // YYYY-MM-DD
+  hora_inicio: string;
+  hora_fin: string;
+  estado: EstadoTurnoReservado;
+  patente_camion?: string | null;
+  chofer_nombre?: string | null;
+  observaciones?: string | null;
+  reservado_por?: UUID | null;
+  created_at: Timestamp;
+  updated_at?: Timestamp;
+}
+
+// =====================
 // Utility types
 // =====================
 

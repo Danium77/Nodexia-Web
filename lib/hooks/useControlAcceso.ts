@@ -543,6 +543,41 @@ export default function useControlAcceso() {
 
     setLoading(true);
     try {
+      if (viaje.tipo_operacion === 'recepcion') {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setMessage('❌ No hay sesión activa para validar turno');
+          setLoading(false);
+          return;
+        }
+
+        const validarRes = await fetch('/api/turnos/validar-ingreso', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ despacho_id: viaje.despacho_id }),
+        });
+
+        const validarJson = await validarRes.json().catch(() => ({}));
+        if (!validarRes.ok) {
+          setMessage(`❌ Error validando turno: ${validarJson.error || 'desconocido'}`);
+          setLoading(false);
+          return;
+        }
+
+        if (validarJson.aplica && !validarJson.valido) {
+          setMessage(`❌ ${validarJson.mensaje || 'Turno no válido para ingreso'}`);
+          setLoading(false);
+          return;
+        }
+
+        if (validarJson.warning) {
+          setMessage(`⚠️ ${validarJson.warning}. Se registrará igualmente el ingreso.`);
+        }
+      }
+
       const { error: registroError } = await supabase
         .from('registros_acceso')
         .insert({
