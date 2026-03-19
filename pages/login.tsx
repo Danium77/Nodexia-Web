@@ -69,6 +69,10 @@ export default function Login() {
         localStorage.removeItem('nodexia_user');
         localStorage.removeItem('nodexia_roles');
         localStorage.removeItem('nodexia_lastFetch');
+        localStorage.removeItem('nodexia_empresaId');
+        localStorage.removeItem('nodexia_cuitEmpresa');
+        localStorage.removeItem('nodexia_tipoEmpresa');
+        localStorage.removeItem('nodexia_userEmpresas');
       }
 
       // Autenticar con Supabase

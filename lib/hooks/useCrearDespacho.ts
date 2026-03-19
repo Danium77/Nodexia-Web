@@ -1466,24 +1466,30 @@ export default function useCrearDespacho() {
     setErrorMsg('');
 
     const idsToDelete = Array.from(despachosPendingDelete);
-    const countToDelete = despachosPendingDelete.size;
 
     try {
-      const { data, error } = await supabase
-        .from('despachos')
-        .delete()
-        .in('id', idsToDelete)
-        .select();
+      const res = await fetchWithAuth('/api/despachos/eliminar', {
+        method: 'POST',
+        body: JSON.stringify({ ids: idsToDelete }),
+      });
 
-      if (error) {
-        console.error('❌ Error eliminando despachos:', error);
-        throw error;
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || 'Error al eliminar despachos');
       }
 
-      const deletedCount = data?.length || countToDelete;
+      const deletedCount = json.deleted || 0;
+
+      if (deletedCount === 0) {
+        setErrorMsg('No se pudieron eliminar los despachos. Verifique permisos.');
+        return;
+      }
 
       setSelectedDespachos(new Set());
       setSelectAll(false);
+      setShowDeleteConfirm(false);
+      setDespachosPendingDelete(new Set());
 
       if (user?.id) {
         try {
@@ -1493,14 +1499,11 @@ export default function useCrearDespacho() {
         }
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100));
       setForceRefresh(prev => prev + 1);
-
       setSuccessMsg(`✅ ${deletedCount} despacho(s) eliminado(s) exitosamente`);
     } catch (error: any) {
       console.error('💥 Error eliminando despachos:', error);
-      console.error('💥 Error details:', JSON.stringify(error, null, 2));
-      setErrorMsg('Error al eliminar despachos. Intente nuevamente.');
+      setErrorMsg(error.message || 'Error al eliminar despachos. Intente nuevamente.');
     } finally {
       setDeletingDespachos(false);
     }
