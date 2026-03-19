@@ -257,6 +257,7 @@ export default function GestionVentanas() {
         <table className="w-full text-sm">
           <thead className="bg-slate-800/90 text-slate-300">
             <tr>
+              <th className="px-3 py-2 text-left">N° Turno</th>
               <th className="px-3 py-2 text-left">Fecha</th>
               <th className="px-3 py-2 text-left">Horario</th>
               <th className="px-3 py-2 text-left">Estado</th>
@@ -267,10 +268,11 @@ export default function GestionVentanas() {
           </thead>
           <tbody>
             {reservas.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">No hay reservas para esta fecha.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-400">No hay reservas para esta fecha.</td></tr>
             )}
             {reservas.map((r) => (
               <tr key={r.id} className="border-t border-slate-800">
+                <td className="px-3 py-2 font-mono font-bold text-cyan-300">{(r as any).numero_turno || '-'}</td>
                 <td className="px-3 py-2 text-slate-300">{r.fecha}</td>
                 <td className="px-3 py-2 text-slate-300">{r.hora_inicio.slice(0, 5)} - {r.hora_fin.slice(0, 5)}</td>
                 <td className="px-3 py-2 text-slate-300">{r.estado}</td>

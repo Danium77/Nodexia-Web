@@ -954,6 +954,7 @@ export interface TurnoReservado {
   ventana_id: UUID;
   empresa_transporte_id: UUID;
   despacho_id?: UUID | null;
+  numero_turno?: string | null;
   fecha: string; // YYYY-MM-DD
   hora_inicio: string;
   hora_fin: string;

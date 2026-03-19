@@ -11,6 +11,7 @@ export interface FormDispatchRow {
   turno_requerido?: boolean;
   turno_empresa_planta_id?: string;
   turno_id?: string;
+  turno_numero?: string;
   turno_fecha?: string;
   turno_hora?: string;
   fecha_carga_sugerida?: string;
@@ -132,7 +133,7 @@ const DespachoForm: React.FC<DespachoFormProps> = ({
                       <p className="text-sm font-semibold text-cyan-300">Destino con turnos obligatorios</p>
                       {row.turno_id ? (
                         <p className="text-xs text-slate-300 mt-1">
-                          Turno reservado para {row.turno_fecha} {row.turno_hora ? `a las ${row.turno_hora}` : ''}
+                          Turno <span className="font-mono font-bold text-cyan-200">{row.turno_numero || '—'}</span> reservado para {row.turno_fecha} {row.turno_hora ? `a las ${row.turno_hora}` : ''}
                         </p>
                       ) : (
                         <p className="text-xs text-amber-300 mt-1">Debe reservar turno antes de guardar el despacho.</p>

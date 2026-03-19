@@ -813,6 +813,7 @@ export default function useCrearDespacho() {
             ? {
                 ...r,
                 turno_id: turno.id,
+                turno_numero: turno.numero_turno || '',
                 turno_fecha: turno.fecha,
                 turno_hora: (turno.hora_inicio || '').slice(0, 5),
                 fecha_despacho: suggestion?.fecha || r.fecha_despacho,
