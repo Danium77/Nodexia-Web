@@ -68,8 +68,7 @@ function constructConnectionString(supabaseUrl) {
 
 // Scripts de migración en orden
 const migrations = [
-  '055_historial_despachos.sql',
-  '056_fix_rls_viajes_red_rechazados.sql',
+  '086_fix_turno_contadores_rls.sql',
 ];
 
 /**
