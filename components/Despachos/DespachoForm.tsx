@@ -8,6 +8,14 @@ export interface FormDispatchRow {
   origen_id?: string;
   destino: string;
   destino_id?: string;
+  turno_requerido?: boolean;
+  turno_empresa_planta_id?: string;
+  turno_id?: string;
+  turno_fecha?: string;
+  turno_hora?: string;
+  fecha_carga_sugerida?: string;
+  distancia_km?: number;
+  horas_transito_estimadas?: number;
   fecha_despacho: string;
   hora_despacho: string;
   tipo_carga: string;
@@ -21,6 +29,9 @@ export interface FormDispatchRow {
 interface DespachoFormProps {
   formRows: FormDispatchRow[];
   onRowChange: (tempId: number, field: keyof FormDispatchRow, value: string | number) => void;
+  onOrigenSelect: (tempId: number, ubicacion: any) => void;
+  onDestinoSelect: (tempId: number, ubicacion: any) => void;
+  onOpenTurnoModal: (tempId: number) => void;
   onSaveRow: (row: FormDispatchRow, index: number) => void;
   onFormRowsChange: React.Dispatch<React.SetStateAction<FormDispatchRow[]>>;
   loading: boolean;
@@ -30,6 +41,9 @@ interface DespachoFormProps {
 const DespachoForm: React.FC<DespachoFormProps> = ({
   formRows,
   onRowChange,
+  onOrigenSelect,
+  onDestinoSelect,
+  onOpenTurnoModal,
   onSaveRow,
   onFormRowsChange,
   loading,
@@ -59,8 +73,24 @@ const DespachoForm: React.FC<DespachoFormProps> = ({
                 </div>
               </div>
 
-              {/* Fila 1: Origen, Destino, Tipo Carga */}
+              {/* Fila 1: Destino, Origen, Tipo Carga */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                {/* Destino (Paso 1) */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-100 mb-1.5">
+                    Destino <span className="text-red-400">*</span>
+                  </label>
+                  <UbicacionAutocompleteInput
+                    tipo="destino"
+                    value={row.destino}
+                    onSelect={(ubicacion) => {
+                      onDestinoSelect(row.tempId, ubicacion);
+                    }}
+                    placeholder="Paso 1: seleccionar destino..."
+                    required
+                  />
+                </div>
+
                 {/* Origen */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-100 mb-1.5">
@@ -70,39 +100,9 @@ const DespachoForm: React.FC<DespachoFormProps> = ({
                     tipo="origen"
                     value={row.origen}
                     onSelect={(ubicacion) => {
-                      onRowChange(row.tempId, 'origen', ubicacion.alias || ubicacion.nombre);
-                      onFormRowsChange(prevRows =>
-                        prevRows.map(r =>
-                          r.tempId === row.tempId
-                            ? { ...r, origen_id: ubicacion.id }
-                            : r
-                        )
-                      );
+                      onOrigenSelect(row.tempId, ubicacion);
                     }}
                     placeholder="Buscar origen..."
-                    required
-                  />
-                </div>
-
-                {/* Destino */}
-                <div>
-                  <label className="block text-sm font-semibold text-slate-100 mb-1.5">
-                    Destino <span className="text-red-400">*</span>
-                  </label>
-                  <UbicacionAutocompleteInput
-                    tipo="destino"
-                    value={row.destino}
-                    onSelect={(ubicacion) => {
-                      onRowChange(row.tempId, 'destino', ubicacion.alias || ubicacion.nombre);
-                      onFormRowsChange(prevRows =>
-                        prevRows.map(r =>
-                          r.tempId === row.tempId
-                            ? { ...r, destino_id: ubicacion.id }
-                            : r
-                        )
-                      );
-                    }}
-                    placeholder="Buscar destino..."
                     required
                   />
                 </div>
@@ -124,6 +124,38 @@ const DespachoForm: React.FC<DespachoFormProps> = ({
                   </select>
                 </div>
               </div>
+
+              {(row.turno_requerido || row.turno_id) && (
+                <div className="mb-2 rounded-lg border border-cyan-700/40 bg-cyan-900/10 p-3">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-cyan-300">Destino con turnos obligatorios</p>
+                      {row.turno_id ? (
+                        <p className="text-xs text-slate-300 mt-1">
+                          Turno reservado para {row.turno_fecha} {row.turno_hora ? `a las ${row.turno_hora}` : ''}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-300 mt-1">Debe reservar turno antes de guardar el despacho.</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onOpenTurnoModal(row.tempId)}
+                      className="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold"
+                    >
+                      {row.turno_id ? 'Cambiar turno' : 'Reservar turno'}
+                    </button>
+                  </div>
+                  {row.fecha_carga_sugerida && (
+                    <p className="text-xs text-emerald-300 mt-2">
+                      Sugerencia de carga: {new Date(row.fecha_carga_sugerida).toLocaleString('es-AR')} 
+                      {typeof row.distancia_km === 'number' && typeof row.horas_transito_estimadas === 'number'
+                        ? ` (distancia estimada ${row.distancia_km.toFixed(0)} km, transito ${row.horas_transito_estimadas.toFixed(1)} h)`
+                        : ''}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Fila 2: Fecha, Hora, Prioridad, Cant. Viajes, Tipo Unidad, Observaciones */}
               <div className="grid grid-cols-2 md:grid-cols-6 gap-2">

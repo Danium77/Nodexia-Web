@@ -53,6 +53,14 @@ const EMPTY_FORM_ROW: FormDispatchRow = {
   pedido_id: '',
   origen: '',
   destino: '',
+  turno_requerido: false,
+  turno_empresa_planta_id: undefined,
+  turno_id: undefined,
+  turno_fecha: undefined,
+  turno_hora: undefined,
+  fecha_carga_sugerida: undefined,
+  distancia_km: undefined,
+  horas_transito_estimadas: undefined,
   fecha_despacho: '',
   hora_despacho: '',
   tipo_carga: '',
@@ -141,6 +149,62 @@ export default function useCrearDespacho() {
   const [timelineDespachoId, setTimelineDespachoId] = useState('');
   const [timelinePedidoId, setTimelinePedidoId] = useState('');
   const [timelineRefreshTrigger, setTimelineRefreshTrigger] = useState(0);
+
+  // Turnos en flujo de creacion
+  const [isTurnoModalOpen, setIsTurnoModalOpen] = useState(false);
+  const [turnoRowTempId, setTurnoRowTempId] = useState<number | null>(null);
+  const [turnoFecha, setTurnoFecha] = useState<string>('');
+  const [turnoVentanas, setTurnoVentanas] = useState<any[]>([]);
+  const [turnoVentanaId, setTurnoVentanaId] = useState<string>('');
+  const [loadingTurnos, setLoadingTurnos] = useState(false);
+  const [savingTurno, setSavingTurno] = useState(false);
+
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371;
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const calcularSugerenciaCarga = async (row: FormDispatchRow, turnoFechaArg: string, turnoHoraArg: string) => {
+    if (!row.origen_id || !row.destino_id || !turnoFechaArg || !turnoHoraArg) return null;
+
+    const { data: ubicaciones, error } = await supabase
+      .from('ubicaciones')
+      .select('id, latitud, longitud')
+      .in('id', [row.origen_id, row.destino_id]);
+
+    if (error || !ubicaciones || ubicaciones.length < 2) return null;
+
+    const origen = ubicaciones.find((u: any) => u.id === row.origen_id);
+    const destino = ubicaciones.find((u: any) => u.id === row.destino_id);
+
+    if (!origen?.latitud || !origen?.longitud || !destino?.latitud || !destino?.longitud) return null;
+
+    const dRecta = haversineKm(origen.latitud, origen.longitud, destino.latitud, destino.longitud);
+    const factorRuta = 1.25;
+    const dRuta = dRecta * factorRuta;
+    const velocidadPromedio = 60;
+    const bufferOperativoHoras = 2;
+    const horasTransito = dRuta / velocidadPromedio + bufferOperativoHoras;
+
+    const turnoDateTime = new Date(`${turnoFechaArg}T${turnoHoraArg}:00`);
+    const cargaSugerida = new Date(turnoDateTime.getTime() - horasTransito * 60 * 60 * 1000);
+
+    return {
+      fechaISO: cargaSugerida.toISOString(),
+      fecha: cargaSugerida.toISOString().slice(0, 10),
+      hora: `${String(cargaSugerida.getHours()).padStart(2, '0')}:${String(cargaSugerida.getMinutes()).padStart(2, '0')}`,
+      distanciaKm: dRuta,
+      horasTransito,
+    };
+  };
 
   // ─── Effects ────────────────────────────────────────────────────────────
 
@@ -589,6 +653,187 @@ export default function useCrearDespacho() {
           }
         : row
     ));
+  };
+
+  const refreshVentanasTurno = async (empresaPlantaId: string, fecha: string) => {
+    if (!empresaPlantaId || !fecha) return;
+    setLoadingTurnos(true);
+    try {
+      const response = await fetchWithAuth(`/api/turnos/ventanas?empresa_planta_id=${empresaPlantaId}&fecha=${fecha}`);
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Error al cargar ventanas');
+      setTurnoVentanas((json.data || []).filter((v: any) => v.activa));
+    } catch (err: any) {
+      setErrorMsg(err.message || 'No se pudieron cargar ventanas de turno');
+      setTurnoVentanas([]);
+    } finally {
+      setLoadingTurnos(false);
+    }
+  };
+
+  const handleOrigenSelect = async (tempId: number, ubicacion: any) => {
+    setFormRows(prevRows =>
+      prevRows.map(r =>
+        r.tempId === tempId
+          ? {
+              ...r,
+              origen: ubicacion.alias || ubicacion.nombre,
+              origen_id: ubicacion.id,
+            }
+          : r
+      )
+    );
+
+    const row = formRows.find(r => r.tempId === tempId);
+    if (!row?.turno_id || !row.turno_fecha || !row.turno_hora) return;
+
+    const suggestion = await calcularSugerenciaCarga(
+      { ...row, origen_id: ubicacion.id },
+      row.turno_fecha,
+      row.turno_hora
+    );
+
+    if (suggestion) {
+      setFormRows(prevRows =>
+        prevRows.map(r =>
+          r.tempId === tempId
+            ? {
+                ...r,
+                fecha_despacho: suggestion.fecha,
+                hora_despacho: suggestion.hora,
+                fecha_carga_sugerida: suggestion.fechaISO,
+                distancia_km: suggestion.distanciaKm,
+                horas_transito_estimadas: suggestion.horasTransito,
+              }
+            : r
+        )
+      );
+    }
+  };
+
+  const handleDestinoSelect = async (tempId: number, ubicacion: any) => {
+    setErrorMsg('');
+    setFormRows(prevRows =>
+      prevRows.map(r =>
+        r.tempId === tempId
+          ? {
+              ...r,
+              destino: ubicacion.alias || ubicacion.nombre,
+              destino_id: ubicacion.id,
+              turno_requerido: false,
+              turno_empresa_planta_id: undefined,
+              turno_id: undefined,
+              turno_fecha: undefined,
+              turno_hora: undefined,
+            }
+          : r
+      )
+    );
+
+    try {
+      const response = await fetchWithAuth(`/api/turnos/destino-requiere?destino_id=${ubicacion.id}`);
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || 'No se pudo validar el destino');
+      }
+
+      if (json.requiere_turno) {
+        const fechaBase = new Date();
+        fechaBase.setDate(fechaBase.getDate() + 1);
+        const fechaDefault = fechaBase.toISOString().slice(0, 10);
+
+        setFormRows(prevRows =>
+          prevRows.map(r =>
+            r.tempId === tempId
+              ? {
+                  ...r,
+                  turno_requerido: true,
+                  turno_empresa_planta_id: json.empresa_planta_id,
+                }
+              : r
+          )
+        );
+
+        setTurnoRowTempId(tempId);
+        setTurnoFecha(fechaDefault);
+        setTurnoVentanaId('');
+        setIsTurnoModalOpen(true);
+        await refreshVentanasTurno(json.empresa_planta_id, fechaDefault);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error validando turno para destino');
+    }
+  };
+
+  const handleOpenTurnoModal = async (tempId: number) => {
+    const row = formRows.find(r => r.tempId === tempId);
+    if (!row?.turno_empresa_planta_id) {
+      setErrorMsg('Este destino no requiere turno o no tiene planta asociada');
+      return;
+    }
+
+    const fechaBase = row.turno_fecha || new Date().toISOString().slice(0, 10);
+    setTurnoRowTempId(tempId);
+    setTurnoFecha(fechaBase);
+    setTurnoVentanaId('');
+    setIsTurnoModalOpen(true);
+    await refreshVentanasTurno(row.turno_empresa_planta_id, fechaBase);
+  };
+
+  const handleConfirmarReservaTurno = async () => {
+    if (!turnoRowTempId || !turnoVentanaId || !turnoFecha) {
+      setErrorMsg('Debe seleccionar fecha y ventana para reservar turno');
+      return;
+    }
+
+    const row = formRows.find(r => r.tempId === turnoRowTempId);
+    if (!row) return;
+
+    setSavingTurno(true);
+    try {
+      const reserveResponse = await fetchWithAuth('/api/turnos/reservas', {
+        method: 'POST',
+        body: JSON.stringify({
+          ventana_id: turnoVentanaId,
+          fecha: turnoFecha,
+          observaciones: `Reserva desde Crear Despacho (${row.pedido_id || 'sin-codigo'})`,
+        }),
+      });
+      const reserveJson = await reserveResponse.json();
+      if (!reserveResponse.ok) {
+        throw new Error(reserveJson.error || 'No se pudo reservar el turno');
+      }
+
+      const turno = reserveJson.data;
+      const suggestion = await calcularSugerenciaCarga(row, turno.fecha, (turno.hora_inicio || '').slice(0, 5));
+
+      setFormRows(prevRows =>
+        prevRows.map(r =>
+          r.tempId === turnoRowTempId
+            ? {
+                ...r,
+                turno_id: turno.id,
+                turno_fecha: turno.fecha,
+                turno_hora: (turno.hora_inicio || '').slice(0, 5),
+                fecha_despacho: suggestion?.fecha || r.fecha_despacho,
+                hora_despacho: suggestion?.hora || r.hora_despacho,
+                fecha_carga_sugerida: suggestion?.fechaISO || r.fecha_carga_sugerida,
+                distancia_km: suggestion?.distanciaKm || r.distancia_km,
+                horas_transito_estimadas: suggestion?.horasTransito || r.horas_transito_estimadas,
+              }
+            : r
+        )
+      );
+
+      setIsTurnoModalOpen(false);
+      setTurnoRowTempId(null);
+      setTurnoVentanaId('');
+      setSuccessMsg('✅ Turno reservado y fecha/hora de carga sugerida aplicada.');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'No se pudo reservar turno');
+    } finally {
+      setSavingTurno(false);
+    }
   };
 
   // ─── Handlers ─────────────────────────────────────────────────────────
@@ -1271,6 +1516,12 @@ export default function useCrearDespacho() {
       return;
     }
 
+    if (rowToSave.turno_requerido && !rowToSave.turno_id) {
+      setErrorMsg('El destino seleccionado requiere turno. Debe reservar turno antes de guardar el despacho.');
+      setLoading(false);
+      return;
+    }
+
     if (!rowToSave.origen || !rowToSave.destino || !rowToSave.fecha_despacho || !rowToSave.hora_despacho) {
       const camposFaltantes = [];
       if (!rowToSave.origen) camposFaltantes.push('Origen');
@@ -1402,6 +1653,16 @@ export default function useCrearDespacho() {
           setSuccessMsg(`Despacho "${despachoCreado?.pedido_id || finalPedidoId}" generado (sin viajes creados - revisar consola).`);
         }
 
+        if (rowToSave.turno_id) {
+          const { error: turnoAttachError } = await supabase
+            .from('turnos_reservados')
+            .update({ despacho_id: despachoCreado.id, updated_at: new Date().toISOString() })
+            .eq('id', rowToSave.turno_id);
+          if (turnoAttachError) {
+            console.error('⚠️ Error vinculando turno al despacho:', turnoAttachError);
+          }
+        }
+
         await fetchGeneratedDispatches(user.id);
 
         setFormRows(prevRows => prevRows.filter(row => row.tempId !== rowToSave.tempId));
@@ -1440,8 +1701,25 @@ export default function useCrearDespacho() {
     formRows,
     setFormRows,
     handleRowChange,
+    handleOrigenSelect,
+    handleDestinoSelect,
+    handleOpenTurnoModal,
+    handleConfirmarReservaTurno,
     handleSaveRow,
     today,
+
+    // Turnos modal
+    isTurnoModalOpen,
+    setIsTurnoModalOpen,
+    turnoFecha,
+    setTurnoFecha,
+    turnoVentanas,
+    turnoVentanaId,
+    setTurnoVentanaId,
+    loadingTurnos,
+    savingTurno,
+    turnoRowTempId,
+    refreshVentanasTurno,
 
     // Dispatches
     generatedDispatches,

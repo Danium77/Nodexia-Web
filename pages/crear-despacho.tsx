@@ -34,11 +34,111 @@ const CrearDespacho = () => {
           <DespachoForm
             formRows={h.formRows}
             onRowChange={h.handleRowChange}
+            onOrigenSelect={h.handleOrigenSelect}
+            onDestinoSelect={h.handleDestinoSelect}
+            onOpenTurnoModal={h.handleOpenTurnoModal}
             onSaveRow={h.handleSaveRow}
             onFormRowsChange={h.setFormRows}
             loading={h.loading}
             today={h.today}
           />
+
+          {h.isTurnoModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-2xl rounded-xl border border-slate-700 bg-[#0e1a2d] p-5 shadow-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold text-cyan-300">Reservar turno de recepcion</h4>
+                  <button
+                    type="button"
+                    onClick={() => h.setIsTurnoModalOpen(false)}
+                    className="text-slate-300 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Fecha de turno</label>
+                    <input
+                      type="date"
+                      value={h.turnoFecha}
+                      min={h.today}
+                      onChange={async (e) => {
+                        const newDate = e.target.value;
+                        h.setTurnoFecha(newDate);
+                        const row = h.formRows.find((r: any) => r.tempId === h.turnoRowTempId);
+                        if (row?.turno_empresa_planta_id) {
+                          await h.refreshVentanasTurno(row.turno_empresa_planta_id, newDate);
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Ventana disponible</label>
+                    <select
+                      value={h.turnoVentanaId}
+                      onChange={(e) => h.setTurnoVentanaId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100"
+                    >
+                      <option value="">Seleccionar ventana...</option>
+                      {h.turnoVentanas.map((v: any) => (
+                        <option key={v.id} value={v.id} disabled={(v.disponibles || 0) <= 0}>
+                          {v.nombre} ({String(v.hora_inicio).slice(0, 5)}-{String(v.hora_fin).slice(0, 5)}) - cupo {v.disponibles}/{v.capacidad}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="max-h-56 overflow-auto rounded-lg border border-slate-700 mb-4">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-800 text-slate-300">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Ventana</th>
+                        <th className="px-3 py-2 text-left">Horario</th>
+                        <th className="px-3 py-2 text-left">Cupo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {h.loadingTurnos && (
+                        <tr><td colSpan={3} className="px-3 py-4 text-slate-400">Cargando disponibilidad...</td></tr>
+                      )}
+                      {!h.loadingTurnos && h.turnoVentanas.length === 0 && (
+                        <tr><td colSpan={3} className="px-3 py-4 text-slate-400">No hay ventanas activas para la fecha seleccionada.</td></tr>
+                      )}
+                      {!h.loadingTurnos && h.turnoVentanas.map((v: any) => (
+                        <tr key={v.id} className="border-t border-slate-800 text-slate-200">
+                          <td className="px-3 py-2">{v.nombre}</td>
+                          <td className="px-3 py-2">{String(v.hora_inicio).slice(0, 5)} - {String(v.hora_fin).slice(0, 5)}</td>
+                          <td className="px-3 py-2">{v.disponibles}/{v.capacidad}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => h.setIsTurnoModalOpen(false)}
+                    className="px-3 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={h.savingTurno || !h.turnoVentanaId}
+                    onClick={h.handleConfirmarReservaTurno}
+                    className="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50"
+                  >
+                    {h.savingTurno ? 'Reservando...' : 'Confirmar turno'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Selection toolbar */}
           <div className="flex justify-between items-center mt-8 mb-4">
