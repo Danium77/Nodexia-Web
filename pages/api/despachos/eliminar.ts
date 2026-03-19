@@ -18,17 +18,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse, authCtx: any) 
 
   const supabase = createUserSupabaseClient(authCtx.token);
 
-  // Diagnóstico: verificar qué ve el usuario con RLS
-  const { data: visibleDespachos, error: selectError } = await supabase
-    .from('despachos')
-    .select('id, empresa_id')
-    .in('id', ids);
-
-  console.log(`[eliminar] User: ${authCtx.userId}, Rol: ${authCtx.rolInterno}, Empresa: ${authCtx.empresaId}`);
-  console.log(`[eliminar] IDs solicitados: ${ids.join(', ')}`);
-  console.log(`[eliminar] Despachos visibles (SELECT RLS): ${JSON.stringify(visibleDespachos)}`);
-  if (selectError) console.error(`[eliminar] SELECT error: ${selectError.message}`);
-
   // Eliminar despachos — RLS policy "Solo coordinadores eliminan sus despachos"
   // viajes_despacho se eliminan automáticamente por ON DELETE CASCADE
   // filtra automáticamente por empresa_id + rol del usuario
@@ -46,15 +35,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse, authCtx: any) 
 
   if (deletedCount === 0) {
     return res.status(403).json({
-      error: 'No tiene permiso para eliminar estos despachos (RLS)',
-      debug: {
-        userId: authCtx.userId,
-        empresaId: authCtx.empresaId,
-        rolInterno: authCtx.rolInterno,
-        idsRequested: ids,
-        visibleCount: visibleDespachos?.length ?? 0,
-        visibleDespachos: visibleDespachos?.map((d: any) => ({ id: d.id, empresa_id: d.empresa_id })),
-      },
+      error: 'No tiene permiso para eliminar estos despachos',
     });
   }
 

@@ -1476,9 +1476,6 @@ export default function useCrearDespacho() {
       const json = await res.json();
 
       if (!res.ok) {
-        if (json.debug) {
-          console.error('🔍 Debug eliminación RLS:', JSON.stringify(json.debug, null, 2));
-        }
         throw new Error(json.error || 'Error al eliminar despachos');
       }
 
