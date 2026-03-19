@@ -4,16 +4,14 @@ import { useUserRole } from '@/lib/contexts/UserRoleContext';
 
 type Planta = { id: string; nombre: string };
 
-type Ventana = {
-  id: string;
-  nombre: string;
-  dia_semana: number;
+type Slot = {
+  ventana_id: string;
+  ventana_nombre: string;
   hora_inicio: string;
   hora_fin: string;
   capacidad: number;
-  ocupados?: number;
-  disponibles?: number;
-  activa: boolean;
+  ocupados: number;
+  disponibles: number;
 };
 
 type Reserva = {
@@ -49,10 +47,10 @@ export default function ReservaTurnos() {
   const [plantas, setPlantas] = useState<Planta[]>([]);
   const [plantId, setPlantId] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
-  const [ventanas, setVentanas] = useState<Ventana[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [despachos, setDespachos] = useState<Array<{ id: string; pedido_id: string }>>([]);
-  const [selectedVentana, setSelectedVentana] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [selectedDespacho, setSelectedDespacho] = useState('');
   const [patente, setPatente] = useState('');
   const [chofer, setChofer] = useState('');
@@ -93,11 +91,11 @@ export default function ReservaTurnos() {
     setReservas(res.data || []);
   }, []);
 
-  const loadVentanas = useCallback(async () => {
+  const loadSlots = useCallback(async () => {
     if (!plantId) return;
-    const res = await authFetch(`/api/turnos/ventanas?empresa_planta_id=${plantId}&fecha=${fecha}`);
-    const activas = (res.data || []).filter((v: Ventana) => v.activa);
-    setVentanas(activas);
+    const res = await authFetch(`/api/turnos/ventanas?empresa_planta_id=${plantId}&fecha=${fecha}&slots=true`);
+    setSlots(res.data || []);
+    setSelectedSlot(null);
   }, [plantId, fecha]);
 
   const loadAll = useCallback(async () => {
@@ -117,36 +115,37 @@ export default function ReservaTurnos() {
   }, [loadAll]);
 
   useEffect(() => {
-    loadVentanas().catch((e: any) => setError(e.message || 'No se pudieron cargar ventanas'));
-  }, [loadVentanas]);
+    loadSlots().catch((e: any) => setError(e.message || 'No se pudieron cargar slots'));
+  }, [loadSlots]);
 
   const canReserve = useMemo(() => {
-    const target = ventanas.find(v => v.id === selectedVentana);
-    return !!target && (target.disponibles || 0) > 0;
-  }, [ventanas, selectedVentana]);
+    return !!selectedSlot && selectedSlot.disponibles > 0;
+  }, [selectedSlot]);
 
   const reservar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
-      if (!selectedVentana) {
-        throw new Error('Selecciona una ventana');
+      if (!selectedSlot) {
+        throw new Error('Selecciona un slot horario');
       }
       await authFetch('/api/turnos/reservas', {
         method: 'POST',
         body: JSON.stringify({
-          ventana_id: selectedVentana,
+          ventana_id: selectedSlot.ventana_id,
           fecha,
+          slot_hora_inicio: selectedSlot.hora_inicio,
+          slot_hora_fin: selectedSlot.hora_fin,
           despacho_id: selectedDespacho || null,
           patente_camion: patente || null,
           chofer_nombre: chofer || null,
         }),
       });
-      setSelectedVentana('');
+      setSelectedSlot(null);
       setSelectedDespacho('');
       setPatente('');
       setChofer('');
-      await Promise.all([loadVentanas(), loadReservas()]);
+      await Promise.all([loadSlots(), loadReservas()]);
     } catch (e: any) {
       setError(e.message || 'No se pudo reservar turno');
     }
@@ -158,7 +157,7 @@ export default function ReservaTurnos() {
         method: 'PATCH',
         body: JSON.stringify({ id, estado: 'cancelado' }),
       });
-      await Promise.all([loadVentanas(), loadReservas()]);
+      await Promise.all([loadSlots(), loadReservas()]);
     } catch (e: any) {
       setError(e.message || 'No se pudo cancelar turno');
     }
@@ -177,32 +176,61 @@ export default function ReservaTurnos() {
 
       {error && <div className="rounded-lg border border-red-500/40 bg-red-500/10 text-red-200 px-4 py-3 text-sm">{error}</div>}
 
-      <form onSubmit={reservar} className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
-        <select value={plantId} onChange={(e) => setPlantId(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100">
-          {plantas.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-        </select>
+      <form onSubmit={reservar} className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <select value={plantId} onChange={(e) => setPlantId(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100">
+            {plantas.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          </select>
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100" />
+          <select value={selectedDespacho} onChange={(e) => setSelectedDespacho(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100">
+            <option value="">Despacho (opcional)</option>
+            {despachos.map((d) => <option key={d.id} value={d.id}>{d.pedido_id}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <input value={patente} onChange={(e) => setPatente(e.target.value)} placeholder="Patente" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100" />
+            <input value={chofer} onChange={(e) => setChofer(e.target.value)} placeholder="Chofer" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100" />
+          </div>
+        </div>
 
-        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100" />
+        {slots.length === 0 && (
+          <p className="text-sm text-slate-400">No hay slots disponibles para la fecha seleccionada.</p>
+        )}
 
-        <select value={selectedVentana} onChange={(e) => setSelectedVentana(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100">
-          <option value="">Ventana</option>
-          {ventanas.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.nombre} ({v.hora_inicio.slice(0, 5)}-{v.hora_fin.slice(0, 5)}) - cupo {v.disponibles}/{v.capacidad}
-            </option>
-          ))}
-        </select>
+        {slots.length > 0 && (
+          <div>
+            <p className="text-xs text-slate-400 mb-2">Selecciona un horario disponible:</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {slots.map((s, i) => {
+                const pct = s.capacidad > 0 ? s.ocupados / s.capacidad : 0;
+                const full = pct >= 1;
+                const isSelected = selectedSlot?.hora_inicio === s.hora_inicio && selectedSlot?.ventana_id === s.ventana_id;
+                const border = isSelected ? 'border-cyan-400 ring-1 ring-cyan-400' : full ? 'border-red-500/40' : pct >= 0.5 ? 'border-amber-500/40' : 'border-emerald-500/40';
+                const bgc = isSelected ? 'bg-cyan-500/20' : full ? 'bg-red-500/10' : pct >= 0.5 ? 'bg-amber-500/10' : 'bg-emerald-500/10';
+                const bar = full ? 'bg-red-500' : pct >= 0.5 ? 'bg-amber-500' : 'bg-emerald-500';
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={full}
+                    onClick={() => setSelectedSlot(s)}
+                    className={`rounded-lg border ${border} ${bgc} p-2 text-center transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110`}
+                  >
+                    <div className="text-sm font-mono font-bold text-slate-100">{s.hora_inicio}-{s.hora_fin}</div>
+                    <div className="text-[10px] text-slate-400 truncate">{s.ventana_nombre}</div>
+                    <div className="text-xs text-slate-300">{s.disponibles} disp.</div>
+                    <div className="mt-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                      <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(pct * 100, 100)}%` }} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-        <select value={selectedDespacho} onChange={(e) => setSelectedDespacho(e.target.value)} className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100">
-          <option value="">Despacho (opcional)</option>
-          {despachos.map((d) => <option key={d.id} value={d.id}>{d.pedido_id}</option>)}
-        </select>
-
-        <input value={patente} onChange={(e) => setPatente(e.target.value)} placeholder="Patente" className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100" />
-        <div className="flex gap-2">
-          <input value={chofer} onChange={(e) => setChofer(e.target.value)} placeholder="Chofer" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100" />
+        <div className="flex justify-end">
           <button type="submit" disabled={!canReserve} className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold disabled:opacity-50">
-            Reservar
+            Reservar {selectedSlot ? `${selectedSlot.hora_inicio}-${selectedSlot.hora_fin}` : ''}
           </button>
         </div>
       </form>

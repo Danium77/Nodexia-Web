@@ -154,8 +154,8 @@ export default function useCrearDespacho() {
   const [isTurnoModalOpen, setIsTurnoModalOpen] = useState(false);
   const [turnoRowTempId, setTurnoRowTempId] = useState<number | null>(null);
   const [turnoFecha, setTurnoFecha] = useState<string>('');
-  const [turnoVentanas, setTurnoVentanas] = useState<any[]>([]);
-  const [turnoVentanaId, setTurnoVentanaId] = useState<string>('');
+  const [turnoSlots, setTurnoSlots] = useState<any[]>([]);
+  const [turnoSelectedSlot, setTurnoSelectedSlot] = useState<any>(null);
   const [loadingTurnos, setLoadingTurnos] = useState(false);
   const [savingTurno, setSavingTurno] = useState(false);
 
@@ -659,13 +659,14 @@ export default function useCrearDespacho() {
     if (!empresaPlantaId || !fecha) return;
     setLoadingTurnos(true);
     try {
-      const response = await fetchWithAuth(`/api/turnos/ventanas?empresa_planta_id=${empresaPlantaId}&fecha=${fecha}`);
+      const response = await fetchWithAuth(`/api/turnos/ventanas?empresa_planta_id=${empresaPlantaId}&fecha=${fecha}&slots=true`);
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Error al cargar ventanas');
-      setTurnoVentanas((json.data || []).filter((v: any) => v.activa));
+      if (!response.ok) throw new Error(json.error || 'Error al cargar slots de turno');
+      setTurnoSlots(json.data || []);
+      setTurnoSelectedSlot(null);
     } catch (err: any) {
-      setErrorMsg(err.message || 'No se pudieron cargar ventanas de turno');
-      setTurnoVentanas([]);
+      setErrorMsg(err.message || 'No se pudieron cargar slots de turno');
+      setTurnoSlots([]);
     } finally {
       setLoadingTurnos(false);
     }
@@ -756,7 +757,7 @@ export default function useCrearDespacho() {
 
         setTurnoRowTempId(tempId);
         setTurnoFecha(fechaDefault);
-        setTurnoVentanaId('');
+        setTurnoSelectedSlot(null);
         setIsTurnoModalOpen(true);
         await refreshVentanasTurno(json.empresa_planta_id, fechaDefault);
       }
@@ -775,14 +776,14 @@ export default function useCrearDespacho() {
     const fechaBase = row.turno_fecha || new Date().toISOString().slice(0, 10);
     setTurnoRowTempId(tempId);
     setTurnoFecha(fechaBase);
-    setTurnoVentanaId('');
+    setTurnoSelectedSlot(null);
     setIsTurnoModalOpen(true);
     await refreshVentanasTurno(row.turno_empresa_planta_id, fechaBase);
   };
 
   const handleConfirmarReservaTurno = async () => {
-    if (!turnoRowTempId || !turnoVentanaId || !turnoFecha) {
-      setErrorMsg('Debe seleccionar fecha y ventana para reservar turno');
+    if (!turnoRowTempId || !turnoSelectedSlot || !turnoFecha) {
+      setErrorMsg('Debe seleccionar fecha y horario para reservar turno');
       return;
     }
 
@@ -794,8 +795,10 @@ export default function useCrearDespacho() {
       const reserveResponse = await fetchWithAuth('/api/turnos/reservas', {
         method: 'POST',
         body: JSON.stringify({
-          ventana_id: turnoVentanaId,
+          ventana_id: turnoSelectedSlot.ventana_id,
           fecha: turnoFecha,
+          slot_hora_inicio: turnoSelectedSlot.hora_inicio,
+          slot_hora_fin: turnoSelectedSlot.hora_fin,
           observaciones: `Reserva desde Crear Despacho (${row.pedido_id || 'sin-codigo'})`,
         }),
       });
@@ -828,7 +831,7 @@ export default function useCrearDespacho() {
 
       setIsTurnoModalOpen(false);
       setTurnoRowTempId(null);
-      setTurnoVentanaId('');
+      setTurnoSelectedSlot(null);
       setSuccessMsg('✅ Turno reservado y fecha/hora de carga sugerida aplicada.');
     } catch (err: any) {
       setErrorMsg(err.message || 'No se pudo reservar turno');
@@ -1717,9 +1720,9 @@ export default function useCrearDespacho() {
     setIsTurnoModalOpen,
     turnoFecha,
     setTurnoFecha,
-    turnoVentanas,
-    turnoVentanaId,
-    setTurnoVentanaId,
+    turnoSlots,
+    turnoSelectedSlot,
+    setTurnoSelectedSlot,
     loadingTurnos,
     savingTurno,
     turnoRowTempId,

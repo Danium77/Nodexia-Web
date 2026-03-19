@@ -63,6 +63,8 @@ export default withAuth(async (req, res, authCtx) => {
     const {
       ventana_id,
       fecha,
+      slot_hora_inicio,
+      slot_hora_fin,
       despacho_id,
       patente_camion,
       chofer_nombre,
@@ -79,7 +81,7 @@ export default withAuth(async (req, res, authCtx) => {
 
     const { data: ventana, error: ventanaError } = await supabase
       .from('ventanas_recepcion')
-      .select('id, hora_inicio, hora_fin, capacidad, activa')
+      .select('id, hora_inicio, hora_fin, capacidad, duracion_turno_minutos, activa')
       .eq('id', ventana_id)
       .maybeSingle();
 
@@ -91,11 +93,28 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(400).json({ error: 'La ventana esta inactiva' });
     }
 
-    const { data: existentes, error: capError } = await supabase
+    // Determine slot hours: use explicit slot if provided, fallback to full ventana range
+    const slotStart = slot_hora_inicio || ventana.hora_inicio;
+    const slotEnd = slot_hora_fin || ventana.hora_fin;
+
+    // Validate slot is within ventana range
+    if (slotStart < ventana.hora_inicio.slice(0, 5) || slotEnd > ventana.hora_fin.slice(0, 5)) {
+      return res.status(400).json({ error: 'El slot no esta dentro del rango de la ventana' });
+    }
+
+    // Check capacity for this specific slot (not whole ventana)
+    let capQuery = supabase
       .from('turnos_reservados')
       .select('id, estado')
       .eq('ventana_id', ventana_id)
       .eq('fecha', fecha);
+
+    if (slot_hora_inicio) {
+      // Slot-level capacity check
+      capQuery = capQuery.eq('hora_inicio', slotStart + ':00');
+    }
+
+    const { data: existentes, error: capError } = await capQuery;
 
     if (capError) {
       return res.status(500).json({ error: capError.message });
@@ -104,7 +123,7 @@ export default withAuth(async (req, res, authCtx) => {
     const ocupados = (existentes || []).filter((t: any) => t.estado !== 'cancelado').length;
     if (ocupados >= (ventana.capacidad || 0)) {
       return res.status(409).json({
-        error: 'No hay cupo disponible para la ventana seleccionada',
+        error: 'No hay cupo disponible para el turno seleccionado',
         capacidad: ventana.capacidad,
         ocupados,
       });
@@ -125,8 +144,8 @@ export default withAuth(async (req, res, authCtx) => {
         empresa_transporte_id: targetTransporteId,
         despacho_id: despacho_id || null,
         fecha,
-        hora_inicio: ventana.hora_inicio,
-        hora_fin: ventana.hora_fin,
+        hora_inicio: slotStart.length === 5 ? slotStart + ':00' : slotStart,
+        hora_fin: slotEnd.length === 5 ? slotEnd + ':00' : slotEnd,
         estado: 'reservado',
         patente_camion: patente_camion || null,
         chofer_nombre: chofer_nombre || null,

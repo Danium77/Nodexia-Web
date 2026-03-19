@@ -75,48 +75,53 @@ const CrearDespacho = () => {
                       className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Ventana disponible</label>
-                    <select
-                      value={h.turnoVentanaId}
-                      onChange={(e) => h.setTurnoVentanaId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100"
-                    >
-                      <option value="">Seleccionar ventana...</option>
-                      {h.turnoVentanas.map((v: any) => (
-                        <option key={v.id} value={v.id} disabled={(v.disponibles || 0) <= 0}>
-                          {v.nombre} ({String(v.hora_inicio).slice(0, 5)}-{String(v.hora_fin).slice(0, 5)}) - cupo {v.disponibles}/{v.capacidad}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex items-end">
+                    {h.turnoSelectedSlot && (
+                      <div className="text-sm text-cyan-300 font-mono font-bold">
+                        Seleccionado: {h.turnoSelectedSlot.hora_inicio}-{h.turnoSelectedSlot.hora_fin}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="max-h-56 overflow-auto rounded-lg border border-slate-700 mb-4">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-800 text-slate-300">
-                      <tr>
-                        <th className="px-3 py-2 text-left">Ventana</th>
-                        <th className="px-3 py-2 text-left">Horario</th>
-                        <th className="px-3 py-2 text-left">Cupo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {h.loadingTurnos && (
-                        <tr><td colSpan={3} className="px-3 py-4 text-slate-400">Cargando disponibilidad...</td></tr>
-                      )}
-                      {!h.loadingTurnos && h.turnoVentanas.length === 0 && (
-                        <tr><td colSpan={3} className="px-3 py-4 text-slate-400">No hay ventanas activas para la fecha seleccionada.</td></tr>
-                      )}
-                      {!h.loadingTurnos && h.turnoVentanas.map((v: any) => (
-                        <tr key={v.id} className="border-t border-slate-800 text-slate-200">
-                          <td className="px-3 py-2">{v.nombre}</td>
-                          <td className="px-3 py-2">{String(v.hora_inicio).slice(0, 5)} - {String(v.hora_fin).slice(0, 5)}</td>
-                          <td className="px-3 py-2">{v.disponibles}/{v.capacidad}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="mb-4">
+                  {h.loadingTurnos && (
+                    <p className="text-slate-400 text-sm">Cargando disponibilidad...</p>
+                  )}
+                  {!h.loadingTurnos && h.turnoSlots.length === 0 && (
+                    <p className="text-slate-400 text-sm">No hay slots activos para la fecha seleccionada.</p>
+                  )}
+                  {!h.loadingTurnos && h.turnoSlots.length > 0 && (
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Selecciona un horario:</p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-56 overflow-auto">
+                        {h.turnoSlots.map((s: any, i: number) => {
+                          const pct = s.capacidad > 0 ? s.ocupados / s.capacidad : 0;
+                          const full = pct >= 1;
+                          const isSelected = h.turnoSelectedSlot?.hora_inicio === s.hora_inicio && h.turnoSelectedSlot?.ventana_id === s.ventana_id;
+                          const border = isSelected ? 'border-cyan-400 ring-1 ring-cyan-400' : full ? 'border-red-500/40' : pct >= 0.5 ? 'border-amber-500/40' : 'border-emerald-500/40';
+                          const bgc = isSelected ? 'bg-cyan-500/20' : full ? 'bg-red-500/10' : pct >= 0.5 ? 'bg-amber-500/10' : 'bg-emerald-500/10';
+                          const bar = full ? 'bg-red-500' : pct >= 0.5 ? 'bg-amber-500' : 'bg-emerald-500';
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              disabled={full}
+                              onClick={() => h.setTurnoSelectedSlot(s)}
+                              className={`rounded-lg border ${border} ${bgc} p-2 text-center transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110`}
+                            >
+                              <div className="text-sm font-mono font-bold text-slate-100">{s.hora_inicio}-{s.hora_fin}</div>
+                              <div className="text-[10px] text-slate-400 truncate">{s.ventana_nombre}</div>
+                              <div className="text-xs text-slate-300">{s.disponibles} disp.</div>
+                              <div className="mt-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(pct * 100, 100)}%` }} />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2">
@@ -129,7 +134,7 @@ const CrearDespacho = () => {
                   </button>
                   <button
                     type="button"
-                    disabled={h.savingTurno || !h.turnoVentanaId}
+                    disabled={h.savingTurno || !h.turnoSelectedSlot}
                     onClick={h.handleConfirmarReservaTurno}
                     className="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50"
                   >

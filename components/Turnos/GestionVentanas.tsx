@@ -26,7 +26,26 @@ type Reserva = {
   despacho_id?: string | null;
 };
 
+type Slot = {
+  ventana_id: string;
+  ventana_nombre: string;
+  hora_inicio: string;
+  hora_fin: string;
+  capacidad: number;
+  ocupados: number;
+  disponibles: number;
+};
+
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+const GRID_DIAS: Array<{ label: string; dow: number }> = [
+  { label: 'Lun', dow: 1 },
+  { label: 'Mar', dow: 2 },
+  { label: 'Mie', dow: 3 },
+  { label: 'Jue', dow: 4 },
+  { label: 'Vie', dow: 5 },
+  { label: 'Sab', dow: 6 },
+  { label: 'Dom', dow: 0 },
+];
 
 async function authFetch(url: string, init?: RequestInit) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -53,6 +72,7 @@ export default function GestionVentanas() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [slots, setSlots] = useState<Slot[]>([]);
 
   const [form, setForm] = useState({
     nombre: 'Turno Manana',
@@ -67,12 +87,14 @@ export default function GestionVentanas() {
     setLoading(true);
     setError(null);
     try {
-      const [vRes, rRes] = await Promise.all([
+      const [vRes, rRes, sRes] = await Promise.all([
         authFetch(`/api/turnos/ventanas?fecha=${fechaFiltro}`),
         authFetch(`/api/turnos/reservas?fecha=${fechaFiltro}`),
+        authFetch(`/api/turnos/ventanas?fecha=${fechaFiltro}&slots=true`),
       ]);
       setVentanas(vRes.data || []);
       setReservas(rRes.data || []);
+      setSlots(sRes.data || []);
     } catch (e: any) {
       setError(e.message || 'Error al cargar turnos');
     } finally {
@@ -90,6 +112,40 @@ export default function GestionVentanas() {
     const totalOcupados = ventanas.reduce((acc, v) => acc + (v.ocupados || 0), 0);
     return { totalVentanas, totalCapacidad, totalOcupados };
   }, [ventanas]);
+
+  const fechaDow = useMemo(() => new Date(fechaFiltro + 'T00:00:00').getUTCDay(), [fechaFiltro]);
+
+  const weeklyGrid = useMemo(() => {
+    let minHour = 23, maxHour = 0;
+    ventanas.forEach(v => {
+      if (!v.activa) return;
+      const sH = parseInt(v.hora_inicio.split(':')[0]);
+      const eH = parseInt(v.hora_fin.split(':')[0]) + (parseInt(v.hora_fin.split(':')[1]) > 0 ? 1 : 0);
+      if (sH < minHour) minHour = sH;
+      if (eH > maxHour) maxHour = eH;
+    });
+    if (minHour > maxHour) { minHour = 6; maxHour = 20; }
+    const hours = Array.from({ length: maxHour - minHour }, (_, i) => minHour + i);
+    const cells: Record<string, { nombre: string; cap: number }> = {};
+    ventanas.forEach(v => {
+      if (!v.activa) return;
+      const sH = parseInt(v.hora_inicio.split(':')[0]);
+      const eH = parseInt(v.hora_fin.split(':')[0]);
+      for (let h = sH; h < eH; h++) cells[`${v.dia_semana}-${h}`] = { nombre: v.nombre, cap: v.capacidad };
+    });
+    return { hours, cells };
+  }, [ventanas]);
+
+  const slotsByHour = useMemo(() => {
+    const m: Record<string, { ocupados: number; capacidad: number }> = {};
+    slots.forEach(s => {
+      const hk = s.hora_inicio.slice(0, 2) + ':00';
+      if (!m[hk]) m[hk] = { ocupados: 0, capacidad: 0 };
+      m[hk].ocupados += s.ocupados;
+      m[hk].capacidad += s.capacidad;
+    });
+    return m;
+  }, [slots]);
 
   const handleCrearVentana = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,6 +218,95 @@ export default function GestionVentanas() {
           <p className="text-2xl font-bold text-amber-300">{resumen.totalOcupados}</p>
         </div>
       </div>
+
+      {ventanas.some(v => v.activa) && (
+        <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 space-y-4">
+          <h3 className="text-sm font-semibold text-slate-200">Grilla semanal de turnos</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  <th className="px-2 py-1 text-left text-slate-400 w-16">Hora</th>
+                  {GRID_DIAS.map(d => (
+                    <th key={d.dow} className={`px-2 py-1 text-center ${d.dow === fechaDow ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400'}`}>
+                      {d.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {weeklyGrid.hours.map(hour => {
+                  const hourStr = `${String(hour).padStart(2, '0')}:00`;
+                  return (
+                    <tr key={hour}>
+                      <td className="px-2 py-1 text-slate-400 font-mono">{hourStr}</td>
+                      {GRID_DIAS.map(d => {
+                        const cell = weeklyGrid.cells[`${d.dow}-${hour}`];
+                        const agg = d.dow === fechaDow ? slotsByHour[hourStr] : null;
+                        let bg = 'bg-slate-800/30';
+                        let label = '';
+                        let title = 'Sin ventana';
+
+                        if (cell) {
+                          if (agg) {
+                            const pct = agg.capacidad > 0 ? agg.ocupados / agg.capacidad : 0;
+                            if (pct >= 1) bg = 'bg-red-500/60';
+                            else if (pct >= 0.5) bg = 'bg-amber-500/50';
+                            else bg = 'bg-emerald-500/50';
+                            label = `${agg.ocupados}/${agg.capacidad}`;
+                            title = `${cell.nombre} — ${agg.ocupados}/${agg.capacidad} ocupados`;
+                          } else {
+                            bg = 'bg-slate-600/30';
+                            label = String(cell.cap);
+                            title = `${cell.nombre} (cap: ${cell.cap})`;
+                          }
+                        }
+
+                        return (
+                          <td key={d.dow} className="px-0.5 py-0.5">
+                            <div className={`rounded h-8 ${bg} flex items-center justify-center`} title={title}>
+                              <span className={`text-[10px] font-semibold ${cell ? (agg ? 'text-white' : 'text-slate-400') : ''}`}>{label}</span>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-wrap gap-4 text-[10px] text-slate-400">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500/50 inline-block" /> Disponible</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-500/50 inline-block" /> Parcial</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500/60 inline-block" /> Lleno</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-600/30 inline-block" /> Configurado</span>
+          </div>
+          {slots.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-slate-300 mb-2">Detalle slots — {DIAS[fechaDow]} {fechaFiltro}</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {slots.map((s, i) => {
+                  const pct = s.capacidad > 0 ? s.ocupados / s.capacidad : 0;
+                  const border = pct >= 1 ? 'border-red-500/40' : pct >= 0.5 ? 'border-amber-500/40' : 'border-emerald-500/40';
+                  const bgc = pct >= 1 ? 'bg-red-500/10' : pct >= 0.5 ? 'bg-amber-500/10' : 'bg-emerald-500/10';
+                  const bar = pct >= 1 ? 'bg-red-500' : pct >= 0.5 ? 'bg-amber-500' : 'bg-emerald-500';
+                  return (
+                    <div key={i} className={`rounded-lg border ${border} ${bgc} p-2 text-center`}>
+                      <div className="text-sm font-mono font-bold text-slate-100">{s.hora_inicio}-{s.hora_fin}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{s.ventana_nombre}</div>
+                      <div className="text-xs text-slate-300">{s.ocupados}/{s.capacidad}</div>
+                      <div className="mt-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                        <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(pct * 100, 100)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleCrearVentana} className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 grid grid-cols-1 md:grid-cols-7 gap-3">
         <input

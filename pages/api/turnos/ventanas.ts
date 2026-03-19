@@ -7,12 +7,36 @@ function canWrite(rolInterno: string | null) {
   return !!rolInterno && WRITE_ROLES.includes(rolInterno);
 }
 
+/** Generate time slots from a ventana based on duracion_turno_minutos */
+function generateSlots(ventana: any) {
+  const slots: Array<{ hora_inicio: string; hora_fin: string }> = [];
+  const [startH, startM] = ventana.hora_inicio.split(':').map(Number);
+  const [endH, endM] = ventana.hora_fin.split(':').map(Number);
+  const startMin = startH * 60 + startM;
+  const endMin = endH * 60 + endM;
+  const duracion = ventana.duracion_turno_minutos || 60;
+
+  for (let t = startMin; t + duracion <= endMin; t += duracion) {
+    const slotStartH = String(Math.floor(t / 60)).padStart(2, '0');
+    const slotStartM = String(t % 60).padStart(2, '0');
+    const slotEnd = t + duracion;
+    const slotEndH = String(Math.floor(slotEnd / 60)).padStart(2, '0');
+    const slotEndM = String(slotEnd % 60).padStart(2, '0');
+    slots.push({
+      hora_inicio: `${slotStartH}:${slotStartM}`,
+      hora_fin: `${slotEndH}:${slotEndM}`,
+    });
+  }
+  return slots;
+}
+
 export default withAuth(async (req, res, authCtx) => {
   const supabase = createUserSupabaseClient(authCtx.token);
 
   if (req.method === 'GET') {
     const empresaPlantaId = (req.query.empresa_planta_id as string) || authCtx.empresaId;
     const fecha = req.query.fecha as string | undefined;
+    const withSlots = req.query.slots === 'true';
 
     if (!empresaPlantaId) {
       return res.status(400).json({ error: 'empresa_planta_id requerido' });
@@ -36,7 +60,7 @@ export default withAuth(async (req, res, authCtx) => {
     const ventanaIds = ventanas.map((v: any) => v.id);
     const { data: reservas, error: reservasError } = await supabase
       .from('turnos_reservados')
-      .select('id, ventana_id, estado')
+      .select('id, ventana_id, hora_inicio, hora_fin, estado')
       .in('ventana_id', ventanaIds)
       .eq('fecha', fecha);
 
@@ -44,6 +68,39 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(500).json({ error: reservasError.message });
     }
 
+    if (withSlots) {
+      // Slot-level response: each ventana generates hourly slots with per-slot occupancy
+      const fechaDate = new Date(fecha + 'T00:00:00');
+      const fechaDow = fechaDate.getUTCDay(); // 0=Sun
+
+      const allSlots: any[] = [];
+      ventanas.forEach((v: any) => {
+        if (!v.activa) return;
+        if (v.dia_semana !== fechaDow) return;
+
+        const slots = generateSlots(v);
+        slots.forEach((slot) => {
+          const slotReservas = (reservas || []).filter((r: any) =>
+            r.ventana_id === v.id &&
+            r.hora_inicio?.slice(0, 5) === slot.hora_inicio &&
+            r.estado !== 'cancelado'
+          );
+          allSlots.push({
+            ventana_id: v.id,
+            ventana_nombre: v.nombre,
+            hora_inicio: slot.hora_inicio,
+            hora_fin: slot.hora_fin,
+            capacidad: v.capacidad,
+            ocupados: slotReservas.length,
+            disponibles: Math.max((v.capacidad || 0) - slotReservas.length, 0),
+          });
+        });
+      });
+
+      return res.status(200).json({ data: allSlots });
+    }
+
+    // Legacy ventana-level response (backwards compatible)
     const ocupacion = new Map<string, number>();
     (reservas || []).forEach((r: any) => {
       if (r.estado === 'cancelado') return;
