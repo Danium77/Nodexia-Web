@@ -9,6 +9,8 @@ function isPlanta(tipoEmpresa: string | null) {
   return String(tipoEmpresa || '').toLowerCase() === 'planta';
 }
 
+const RESERVE_ROLES = ['coordinador', 'coordinador_integral', 'supervisor', 'admin_nodexia'];
+
 export default withAuth(async (req, res, authCtx) => {
   const supabase = createUserSupabaseClient(authCtx.token);
 
@@ -56,8 +58,10 @@ export default withAuth(async (req, res, authCtx) => {
   }
 
   if (req.method === 'POST') {
-    if (!isTransporte(authCtx.tipoEmpresa) && authCtx.rolInterno !== 'admin_nodexia') {
-      return res.status(403).json({ error: 'Solo transporte puede reservar turnos' });
+    const canReserve = isTransporte(authCtx.tipoEmpresa)
+      || (!!authCtx.rolInterno && RESERVE_ROLES.includes(authCtx.rolInterno));
+    if (!canReserve) {
+      return res.status(403).json({ error: 'No tiene permisos para reservar turnos' });
     }
 
     const {
@@ -129,9 +133,7 @@ export default withAuth(async (req, res, authCtx) => {
       });
     }
 
-    const targetTransporteId = authCtx.rolInterno === 'admin_nodexia'
-      ? (empresa_transporte_id || authCtx.empresaId)
-      : authCtx.empresaId;
+    const targetTransporteId = empresa_transporte_id || authCtx.empresaId;
 
     if (!targetTransporteId) {
       return res.status(400).json({ error: 'empresa_transporte_id no disponible' });
