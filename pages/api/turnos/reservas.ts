@@ -18,7 +18,7 @@ export default withAuth(async (req, res, authCtx) => {
   if (req.method === 'GET') {
     const fecha = req.query.fecha as string | undefined;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('turnos_reservados')
       .select('*')
       .order('fecha', { ascending: true })
@@ -32,7 +32,7 @@ export default withAuth(async (req, res, authCtx) => {
     if (isTransporte(authCtx.tipoEmpresa)) {
       query = query.eq('empresa_transporte_id', authCtx.empresaId || '');
     } else if (isPlanta(authCtx.tipoEmpresa)) {
-      const { data: ventanas, error: ventanasError } = await supabase
+      const { data: ventanas, error: ventanasError } = await supabaseAdmin
         .from('ventanas_recepcion')
         .select('id')
         .eq('empresa_planta_id', authCtx.empresaId || '');
@@ -179,7 +179,7 @@ export default withAuth(async (req, res, authCtx) => {
     if (observaciones !== undefined) payload.observaciones = observaciones;
     if (despacho_id !== undefined) payload.despacho_id = despacho_id;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('turnos_reservados')
       .update(payload)
       .eq('id', id)

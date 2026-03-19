@@ -1,5 +1,5 @@
 import { withAuth } from '@/lib/middleware/withAuth';
-import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const WRITE_ROLES = ['coordinador', 'coordinador_integral', 'control_acceso', 'supervisor', 'admin_nodexia'];
 
@@ -31,7 +31,7 @@ function generateSlots(ventana: any) {
 }
 
 export default withAuth(async (req, res, authCtx) => {
-  const supabase = createUserSupabaseClient(authCtx.token);
+  const supabase = supabaseAdmin;
 
   if (req.method === 'GET') {
     const empresaPlantaId = (req.query.empresa_planta_id as string) || authCtx.empresaId;

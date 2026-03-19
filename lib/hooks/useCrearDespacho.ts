@@ -835,7 +835,8 @@ export default function useCrearDespacho() {
       }
 
       const turno = reserveJson.data;
-      const suggestion = await calcularSugerenciaCarga(row, turno.fecha, (turno.hora_inicio || '').slice(0, 5));
+      const turnoHora = (turno.hora_inicio || '').slice(0, 5);
+      const suggestion = await calcularSugerenciaCarga(row, turno.fecha, turnoHora);
 
       setFormRows(prevRows =>
         prevRows.map(r =>
@@ -845,9 +846,9 @@ export default function useCrearDespacho() {
                 turno_id: turno.id,
                 turno_numero: turno.numero_turno || '',
                 turno_fecha: turno.fecha,
-                turno_hora: (turno.hora_inicio || '').slice(0, 5),
-                fecha_despacho: suggestion?.fecha || r.fecha_despacho,
-                hora_despacho: suggestion?.hora || r.hora_despacho,
+                turno_hora: turnoHora,
+                fecha_despacho: suggestion?.fecha || turno.fecha || r.fecha_despacho,
+                hora_despacho: suggestion?.hora || turnoHora || r.hora_despacho,
                 fecha_carga_sugerida: suggestion?.fechaISO || r.fecha_carga_sugerida,
                 distancia_km: suggestion?.distanciaKm || r.distancia_km,
                 horas_transito_estimadas: suggestion?.horasTransito || r.horas_transito_estimadas,
@@ -1660,12 +1661,16 @@ export default function useCrearDespacho() {
           } else {
             viajesCreados = viajesInsertados?.length || 0;
 
+            const turnoInfo = rowToSave.turno_id
+              ? ` | Turno ${rowToSave.turno_numero || ''} para ${rowToSave.turno_fecha} ${rowToSave.turno_hora || ''}`
+              : '';
+
             await supabase
               .from('historial_despachos')
               .insert({
                 despacho_id: despachoCreado.id,
                 accion: 'despacho_creado',
-                descripcion: `Despacho ${despachoCreado.pedido_id} creado con ${viajesCreados} viaje(s) - ${rowToSave.origen} → ${rowToSave.destino}`,
+                descripcion: `Despacho ${despachoCreado.pedido_id} creado con ${viajesCreados} viaje(s) - ${rowToSave.origen} → ${rowToSave.destino}${turnoInfo}`,
                 usuario_id: user.id,
                 metadata: {
                   pedido_id: despachoCreado.pedido_id,
@@ -1675,7 +1680,11 @@ export default function useCrearDespacho() {
                   hora: rowToSave.hora_despacho,
                   cantidad_viajes: viajesCreados,
                   tipo_carga: rowToSave.tipo_carga,
-                  prioridad: rowToSave.prioridad
+                  prioridad: rowToSave.prioridad,
+                  turno_id: rowToSave.turno_id || null,
+                  turno_numero: rowToSave.turno_numero || null,
+                  turno_fecha: rowToSave.turno_fecha || null,
+                  turno_hora: rowToSave.turno_hora || null,
                 }
               });
           }
@@ -1688,12 +1697,20 @@ export default function useCrearDespacho() {
         }
 
         if (rowToSave.turno_id) {
-          const { error: turnoAttachError } = await supabase
-            .from('turnos_reservados')
-            .update({ despacho_id: despachoCreado.id, updated_at: new Date().toISOString() })
-            .eq('id', rowToSave.turno_id);
-          if (turnoAttachError) {
-            console.error('⚠️ Error vinculando turno al despacho:', turnoAttachError);
+          try {
+            const linkRes = await fetchWithAuth('/api/turnos/reservas', {
+              method: 'PATCH',
+              body: JSON.stringify({
+                id: rowToSave.turno_id,
+                despacho_id: despachoCreado.id,
+              }),
+            });
+            if (!linkRes.ok) {
+              const linkErr = await linkRes.json().catch(() => ({}));
+              console.error('⚠️ Error vinculando turno al despacho:', linkErr.error);
+            }
+          } catch (linkErr) {
+            console.error('⚠️ Error vinculando turno al despacho:', linkErr);
           }
         }
 
