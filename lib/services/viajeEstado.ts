@@ -366,6 +366,32 @@ export async function asignarUnidad(
   const despachoIdFinal = despacho_id || viaje.despacho_id;
   await sincronizarDespacho(supabase, despachoIdFinal, nuevoEstado);
 
+  // 5b. Actualizar turno reservado con patente y chofer
+  if (despachoIdFinal && chofer_id && camion_id) {
+    try {
+      const [camionRes, choferRes] = await Promise.all([
+        supabase.from('camiones').select('patente').eq('id', camion_id).single(),
+        supabase.from('choferes').select('nombre, apellido').eq('id', chofer_id).single(),
+      ]);
+      const patente = camionRes.data?.patente || null;
+      const choferNombre = choferRes.data
+        ? `${choferRes.data.nombre || ''} ${choferRes.data.apellido || ''}`.trim()
+        : null;
+
+      if (patente || choferNombre) {
+        await supabase
+          .from('turnos_reservados')
+          .update({
+            patente_camion: patente,
+            chofer_nombre: choferNombre,
+          })
+          .eq('despacho_id', despachoIdFinal);
+      }
+    } catch (err) {
+      console.error('⚠️ Error actualizando turno con patente/chofer:', err);
+    }
+  }
+
   // 6. Registrar historial
   if (despachoIdFinal) {
     await supabase

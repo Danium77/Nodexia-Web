@@ -20,7 +20,7 @@ export default withAuth(async (req, res, authCtx) => {
 
     let query = supabaseAdmin
       .from('turnos_reservados')
-      .select('*')
+      .select('*, despachos(pedido_id)')
       .order('fecha', { ascending: true })
       .order('hora_inicio', { ascending: true })
       .limit(200);
@@ -55,7 +55,13 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(500).json({ error: error.message });
     }
 
-    return res.status(200).json({ data: data || [] });
+    const flattened = (data || []).map((r: any) => ({
+      ...r,
+      despacho_pedido_id: r.despachos?.pedido_id || null,
+      despachos: undefined,
+    }));
+
+    return res.status(200).json({ data: flattened });
   }
 
   if (req.method === 'POST') {

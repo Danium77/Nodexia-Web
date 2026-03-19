@@ -16,6 +16,7 @@ type Ventana = {
 
 type Reserva = {
   id: string;
+  numero_turno?: string;
   fecha: string;
   hora_inicio: string;
   hora_fin: string;
@@ -24,6 +25,7 @@ type Reserva = {
   chofer_nombre?: string | null;
   observaciones?: string | null;
   despacho_id?: string | null;
+  despacho_pedido_id?: string | null;
 };
 
 type Slot = {
@@ -417,13 +419,13 @@ export default function GestionVentanas() {
             )}
             {reservas.map((r) => (
               <tr key={r.id} className="border-t border-slate-800">
-                <td className="px-3 py-2 font-mono font-bold text-cyan-300">{(r as any).numero_turno || '-'}</td>
+                <td className="px-3 py-2 font-mono font-bold text-cyan-300">{r.numero_turno || '-'}</td>
                 <td className="px-3 py-2 text-slate-300">{r.fecha}</td>
                 <td className="px-3 py-2 text-slate-300">{r.hora_inicio.slice(0, 5)} - {r.hora_fin.slice(0, 5)}</td>
                 <td className="px-3 py-2 text-slate-300">{r.estado}</td>
                 <td className="px-3 py-2 text-slate-300">{r.patente_camion || '-'}</td>
                 <td className="px-3 py-2 text-slate-300">{r.chofer_nombre || '-'}</td>
-                <td className="px-3 py-2 text-slate-300">{r.despacho_id || '-'}</td>
+                <td className="px-3 py-2 text-slate-300">{r.despacho_pedido_id || '-'}</td>
               </tr>
             ))}
           </tbody>

@@ -178,7 +178,7 @@ export default function useCrearDespacho() {
 
     const { data: ubicaciones, error } = await supabase
       .from('ubicaciones')
-      .select('id, latitud, longitud')
+      .select('id, latitud, longitud, provincia, ciudad')
       .in('id', [row.origen_id, row.destino_id]);
 
     if (error || !ubicaciones || ubicaciones.length < 2) return null;
@@ -186,14 +186,22 @@ export default function useCrearDespacho() {
     const origen = ubicaciones.find((u: any) => u.id === row.origen_id);
     const destino = ubicaciones.find((u: any) => u.id === row.destino_id);
 
-    if (!origen?.latitud || !origen?.longitud || !destino?.latitud || !destino?.longitud) return null;
+    let horasTransito: number;
+    let dRuta: number;
 
-    const dRecta = haversineKm(origen.latitud, origen.longitud, destino.latitud, destino.longitud);
-    const factorRuta = 1.25;
-    const dRuta = dRecta * factorRuta;
-    const velocidadPromedio = 60;
-    const bufferOperativoHoras = 2;
-    const horasTransito = dRuta / velocidadPromedio + bufferOperativoHoras;
+    if (origen?.latitud && origen?.longitud && destino?.latitud && destino?.longitud) {
+      const dRecta = haversineKm(origen.latitud, origen.longitud, destino.latitud, destino.longitud);
+      const factorRuta = 1.25;
+      dRuta = dRecta * factorRuta;
+      const velocidadPromedio = 60;
+      const bufferOperativoHoras = 2;
+      horasTransito = dRuta / velocidadPromedio + bufferOperativoHoras;
+    } else {
+      // Fallback: estimate based on whether same/different province
+      const mismaProvincia = origen?.provincia && destino?.provincia && origen.provincia === destino.provincia;
+      horasTransito = mismaProvincia ? 4 : 8;
+      dRuta = mismaProvincia ? 200 : 500;
+    }
 
     const turnoDateTime = new Date(`${turnoFechaArg}T${turnoHoraArg}:00`);
     const cargaSugerida = new Date(turnoDateTime.getTime() - horasTransito * 60 * 60 * 1000);
