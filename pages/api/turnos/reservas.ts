@@ -1,5 +1,6 @@
 import { withAuth } from '@/lib/middleware/withAuth';
 import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 function isTransporte(tipoEmpresa: string | null) {
   return String(tipoEmpresa || '').toLowerCase() === 'transporte';
@@ -139,7 +140,10 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(400).json({ error: 'empresa_transporte_id no disponible' });
     }
 
-    const { data, error } = await supabase
+    // Use admin client for insert to avoid PostgREST RLS cache issues
+    // with the turno_contadores trigger. All authorization is already
+    // validated above (canReserve, capacity, ventana active, etc.)
+    const { data, error } = await supabaseAdmin
       .from('turnos_reservados')
       .insert({
         ventana_id,
