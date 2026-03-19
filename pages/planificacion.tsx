@@ -432,7 +432,36 @@ const PlanificacionPage = () => {
 
         // 6. Separar por tipo para las diferentes vistas
         setDispatches(todosLosItems.filter(v => v.type !== 'recepcion'));
-        setRecepciones(todosLosItems.filter(v => v.type === 'recepcion'));
+
+        // 6b. Enriquecer recepciones con datos de turno reservado
+        const recepcionItems = todosLosItems.filter(v => v.type === 'recepcion');
+        const recepcionDespachoIds = recepcionItems
+          .map(r => r.despacho_id)
+          .filter(Boolean);
+
+        let turnosMap: Record<string, { numero_turno: string; hora_inicio: string; hora_fin: string; estado: string }> = {};
+        if (recepcionDespachoIds.length > 0) {
+          const { data: turnosData } = await supabase
+            .from('turnos_reservados')
+            .select('despacho_id, numero_turno, hora_inicio, hora_fin, estado')
+            .in('despacho_id', recepcionDespachoIds)
+            .in('estado', ['reservado', 'confirmado', 'completado']);
+
+          if (turnosData) {
+            turnosMap = Object.fromEntries(
+              turnosData.map((t: any) => [t.despacho_id, t])
+            );
+          }
+        }
+
+        const recepcionesEnriquecidas = recepcionItems.map(r => {
+          const turno = r.despacho_id ? turnosMap[r.despacho_id] : null;
+          return turno
+            ? { ...r, turno_numero: turno.numero_turno, turno_hora: `${turno.hora_inicio?.slice(0, 5)}-${turno.hora_fin?.slice(0, 5)}`, turno_estado: turno.estado }
+            : r;
+        });
+
+        setRecepciones(recepcionesEnriquecidas);
         
         // 7. Guardar despachos originales para el TrackingView (con provincia)
         const despachosConProvincia = todosLosDespachos.map(d => {

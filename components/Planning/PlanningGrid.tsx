@@ -698,6 +698,17 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
                                 >
                                   {/* Destino u Origen según el tipo de vista */}
                                   <div className="flex flex-col gap-0.5">
+                                    {/* Turno badge para recepciones con turno */}
+                                    {type === 'recepciones' && (dispatch as any).turno_numero && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[8px] px-1 py-0.5 rounded bg-cyan-700/60 text-cyan-200 font-mono font-bold">
+                                          🕒 {(dispatch as any).turno_numero}
+                                        </span>
+                                        {(dispatch as any).turno_hora && (
+                                          <span className="text-[8px] text-cyan-400">{(dispatch as any).turno_hora}</span>
+                                        )}
+                                      </div>
+                                    )}
                                     {/* Provincia ARRIBA - más prominente */}
                                     {((type === 'recepciones' && (dispatch as any).origen_provincia) || 
                                       (type === 'despachos' && (dispatch as any).destino_provincia)) && (

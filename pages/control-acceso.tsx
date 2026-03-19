@@ -507,6 +507,55 @@ export default function ControlAcceso() {
           </div>
         </div>
       )}
+
+      {/* Modal de Acceso Excepcional (sin turno) */}
+      {h.showAccesoExcepcionalModal && h.viaje && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-amber-600/50 rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-amber-300 flex items-center gap-2">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-amber-400" />
+                  Acceso Excepcional
+                </h3>
+                <button onClick={() => h.setShowAccesoExcepcionalModal(false)} className="text-slate-400 hover:text-white text-xl">✕</button>
+              </div>
+
+              <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-300 font-medium">{h.accesoExcepcionalMensajeTurno}</p>
+              </div>
+
+              <p className="text-sm text-slate-300 mb-3">
+                Puede permitir el ingreso de forma excepcional. Esto quedará registrado como auditoría. Ingrese el motivo obligatorio:
+              </p>
+
+              <textarea
+                value={h.accesoExcepcionalMotivo}
+                onChange={e => h.setAccesoExcepcionalMotivo(e.target.value)}
+                placeholder="Motivo del acceso excepcional (obligatorio)..."
+                className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm placeholder-slate-500 resize-none mb-4"
+                rows={3}
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => h.setShowAccesoExcepcionalModal(false)}
+                  className="flex-1 bg-slate-700 text-slate-300 px-4 py-3 rounded-xl hover:bg-slate-600 font-medium transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={h.confirmarIngresoExcepcional}
+                  disabled={h.accesoExcepcionalLoading || !h.accesoExcepcionalMotivo.trim()}
+                  className="flex-1 bg-amber-600 text-white px-4 py-3 rounded-xl hover:bg-amber-700 disabled:opacity-50 font-medium transition-all"
+                >
+                  {h.accesoExcepcionalLoading ? 'Registrando...' : '⚠️ Confirmar Ingreso Excepcional'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 }

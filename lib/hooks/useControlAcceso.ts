@@ -174,6 +174,12 @@ export default function useControlAcceso() {
   const [incidenciaSeveridad, setIncidenciaSeveridad] = useState('media');
   const [incidenciaLoading, setIncidenciaLoading] = useState(false);
 
+  // Acceso excepcional sin turno
+  const [showAccesoExcepcionalModal, setShowAccesoExcepcionalModal] = useState(false);
+  const [accesoExcepcionalMotivo, setAccesoExcepcionalMotivo] = useState('');
+  const [accesoExcepcionalMensajeTurno, setAccesoExcepcionalMensajeTurno] = useState('');
+  const [accesoExcepcionalLoading, setAccesoExcepcionalLoading] = useState(false);
+
   // Docs provisorios
   const [docsProvisorioBanner, setDocsProvisorioBanner] = useState<any[]>([]);
 
@@ -568,7 +574,9 @@ export default function useControlAcceso() {
         }
 
         if (validarJson.aplica && !validarJson.valido) {
-          setMessage(`❌ ${validarJson.mensaje || 'Turno no válido para ingreso'}`);
+          setAccesoExcepcionalMensajeTurno(validarJson.mensaje || 'Turno no válido para ingreso');
+          setShowAccesoExcepcionalModal(true);
+          setAccesoExcepcionalMotivo('');
           setLoading(false);
           return;
         }
@@ -578,13 +586,49 @@ export default function useControlAcceso() {
         }
       }
 
+      await registrarIngresoConEstado(viaje, false, null);
+    } catch (error: any) {
+      console.error('❌ [control-acceso] Error en confirmarIngreso:', error);
+      setMessage('❌ Error al confirmar ingreso. Intente nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmarIngresoExcepcional = async () => {
+    if (!viaje) return;
+    if (!accesoExcepcionalMotivo.trim()) {
+      setMessage('❌ Debe ingresar un motivo para el acceso excepcional');
+      return;
+    }
+
+    setAccesoExcepcionalLoading(true);
+    try {
+      setShowAccesoExcepcionalModal(false);
+      await registrarIngresoConEstado(viaje, true, accesoExcepcionalMotivo.trim());
+    } catch (error: any) {
+      console.error('❌ [control-acceso] Error en ingreso excepcional:', error);
+      setMessage('❌ Error al confirmar ingreso excepcional. Intente nuevamente.');
+    } finally {
+      setAccesoExcepcionalLoading(false);
+      setAccesoExcepcionalMotivo('');
+    }
+  };
+
+  const registrarIngresoConEstado = async (viajeActual: ViajeQR, esExcepcional: boolean, motivo: string | null) => {
+    try {
+      const obsBase = `Ingreso registrado por Control de Acceso - ${viajeActual.tipo_operacion === 'envio' ? 'Planta Origen' : 'Destino'}`;
+      const observaciones = esExcepcional
+        ? `[ACCESO EXCEPCIONAL] ${obsBase} — Motivo: ${motivo}`
+        : obsBase;
+
       const { error: registroError } = await supabase
         .from('registros_acceso')
         .insert({
-          viaje_id: viaje.id,
+          viaje_id: viajeActual.id,
           tipo: 'ingreso',
           usuario_id: user?.id,
-          observaciones: `Ingreso registrado por Control de Acceso - ${viaje.tipo_operacion === 'envio' ? 'Planta Origen' : 'Destino'}`
+          observaciones,
         });
 
       if (registroError) {
@@ -592,18 +636,21 @@ export default function useControlAcceso() {
       }
 
       const nuevoEstado: EstadoUnidadViajeType =
-        viaje.tipo_operacion === 'envio' ? 'ingresado_origen' : 'ingresado_destino';
+        viajeActual.tipo_operacion === 'envio' ? 'ingresado_origen' : 'ingresado_destino';
 
       const result = await actualizarEstadoUnidad({
-        viaje_id: viaje.id,
+        viaje_id: viajeActual.id,
         nuevo_estado: nuevoEstado,
-        observaciones: `Ingreso confirmado por Control de Acceso`,
+        observaciones: esExcepcional
+          ? `[ACCESO EXCEPCIONAL] Ingreso confirmado — Motivo: ${motivo}`
+          : `Ingreso confirmado por Control de Acceso`,
       });
 
       if (result.success) {
         const ahora = new Date().toLocaleString('es-ES');
-        setMessage(`✅ Ingreso confirmado para ${viaje.numero_viaje} a las ${ahora}`);
-        setViaje({ ...viaje, estado_unidad: nuevoEstado });
+        const prefijo = esExcepcional ? '⚠️ Ingreso EXCEPCIONAL' : '✅ Ingreso confirmado';
+        setMessage(`${prefijo} para ${viajeActual.numero_viaje} a las ${ahora}`);
+        setViaje({ ...viajeActual, estado_unidad: nuevoEstado });
         cargarHistorial();
         setTimeout(() => { setViaje(null); setQrCode(''); setMessage(''); }, 3000);
       } else {
@@ -611,10 +658,8 @@ export default function useControlAcceso() {
         setMessage(`❌ ${result.error || 'Error al confirmar ingreso'}`);
       }
     } catch (error: any) {
-      console.error('❌ [control-acceso] Error en confirmarIngreso:', error);
-      setMessage('❌ Error al confirmar ingreso. Intente nuevamente.');
-    } finally {
-      setLoading(false);
+      console.error('❌ [control-acceso] Error en registrarIngresoConEstado:', error);
+      throw error;
     }
   };
 
@@ -865,6 +910,7 @@ export default function useControlAcceso() {
     // Actions
     escanearQR,
     confirmarIngreso,
+    confirmarIngresoExcepcional,
     confirmarEgreso,
     llamarADescarga,
     crearIncidencia,
@@ -874,5 +920,13 @@ export default function useControlAcceso() {
     resetForm,
     handleCloseDocumentacion,
     cargarHistorial,
+
+    // Acceso excepcional
+    showAccesoExcepcionalModal,
+    setShowAccesoExcepcionalModal,
+    accesoExcepcionalMotivo,
+    setAccesoExcepcionalMotivo,
+    accesoExcepcionalMensajeTurno,
+    accesoExcepcionalLoading,
   };
 }
