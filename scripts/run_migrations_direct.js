@@ -66,10 +66,14 @@ function constructConnectionString(supabaseUrl) {
   throw new Error('No se pudo construir connection string');
 }
 
-// Scripts de migración en orden
-const migrations = [
-  '086_fix_turno_contadores_rls.sql',
-];
+// Scripts de migración: auto-detectados desde sql/migrations/
+function discoverMigrations() {
+  const migrationsDir = path.join(__dirname, '..', 'sql', 'migrations');
+  if (!fs.existsSync(migrationsDir)) return [];
+  return fs.readdirSync(migrationsDir)
+    .filter(f => /^\d{3}_.*\.sql$/.test(f))
+    .sort();
+}
 
 /**
  * Lee un archivo SQL
@@ -142,26 +146,49 @@ async function runAllMigrations() {
   log('\n' + '='.repeat(60), 'bright');
   log('🚀 NODEXIA - EJECUTOR DE MIGRACIONES SQL (DIRECT)', 'bright');
   log('='.repeat(60) + '\n', 'bright');
-  
-  log(`📦 Total de migraciones: ${migrations.length}\n`, 'blue');
-  
-  log('⚠️  IMPORTANTE:', 'yellow');
-  log('   - Se van a ejecutar cambios en la base de datos', 'yellow');
-  log('   - Los scripts crean backups automáticos', 'yellow');
-  log('   - Cada script se ejecuta en una transacción', 'yellow');
-  log('   - Si falla, hace ROLLBACK automático', 'yellow');
-  log('', 'reset');
-  
+
+  const allMigrations = discoverMigrations();
+  log(`📂 Migraciones encontradas en sql/migrations/: ${allMigrations.length}`, 'blue');
+
   let client;
   const results = [];
-  
+
   try {
-    // Conectar a la base de datos
     log('🔌 Conectando a PostgreSQL...', 'cyan');
     client = await pool.connect();
     log('✅ Conexión establecida\n', 'green');
-    
-    // Ejecutar cada migración
+
+    // Query already-applied versions
+    let appliedVersions = new Set();
+    try {
+      const { rows } = await client.query('SELECT version FROM schema_migrations');
+      appliedVersions = new Set(rows.map(r => Number(r.version)));
+    } catch (_) {
+      log('⚠️  Tabla schema_migrations no encontrada, se ejecutarán todas las migraciones', 'yellow');
+    }
+
+    // Filter to pending migrations only
+    const migrations = allMigrations.filter(f => {
+      const ver = parseInt(f.split('_')[0], 10);
+      return !appliedVersions.has(ver);
+    });
+
+    if (migrations.length === 0) {
+      log('✅ No hay migraciones pendientes. Base de datos al día.\n', 'green');
+      return;
+    }
+
+    log(`📦 Migraciones pendientes: ${migrations.length}\n`, 'blue');
+    migrations.forEach(m => log(`   - ${m}`, 'cyan'));
+    log('', 'reset');
+
+    log('⚠️  IMPORTANTE:', 'yellow');
+    log('   - Se van a ejecutar cambios en la base de datos', 'yellow');
+    log('   - Cada script se ejecuta en una transacción', 'yellow');
+    log('   - Si falla, hace ROLLBACK automático', 'yellow');
+    log('', 'reset');
+
+    // Ejecutar cada migración pendiente
     for (const migration of migrations) {
       try {
         const sql = readMigrationFile(migration);
@@ -208,10 +235,10 @@ async function runAllMigrations() {
   log('📊 RESUMEN DE MIGRACIONES', 'bright');
   log('='.repeat(60), 'bright');
   
-  results.forEach((result, index) => {
+  results.forEach((result) => {
     const icon = result.success ? '✅' : '❌';
     const color = result.success ? 'green' : 'red';
-    log(`${icon} ${migrations[index]}`, color);
+    log(`${icon} ${result.migration}`, color);
     
     if (result.error) {
       log(`   Error: ${result.error}`, 'red');
