@@ -89,7 +89,14 @@ const CrearDespacho = () => {
                     <p className="text-slate-400 text-sm">Cargando disponibilidad...</p>
                   )}
                   {!h.loadingTurnos && h.turnoSlots.length === 0 && (
-                    <p className="text-slate-400 text-sm">No hay slots activos para la fecha seleccionada.</p>
+                    <div className="text-sm">
+                      <p className="text-slate-400">No hay slots activos para la fecha seleccionada.</p>
+                      {h.turnoDiasDisponibles.length > 0 && (
+                        <p className="text-cyan-400/80 mt-1">
+                          Dias con ventanas: {h.turnoDiasDisponibles.map((d: number) => ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'][d]).join(', ')}
+                        </p>
+                      )}
+                    </div>
                   )}
                   {!h.loadingTurnos && h.turnoSlots.length > 0 && (
                     <div>

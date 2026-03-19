@@ -156,6 +156,7 @@ export default function useCrearDespacho() {
   const [turnoFecha, setTurnoFecha] = useState<string>('');
   const [turnoSlots, setTurnoSlots] = useState<any[]>([]);
   const [turnoSelectedSlot, setTurnoSelectedSlot] = useState<any>(null);
+  const [turnoDiasDisponibles, setTurnoDiasDisponibles] = useState<number[]>([]);
   const [loadingTurnos, setLoadingTurnos] = useState(false);
   const [savingTurno, setSavingTurno] = useState(false);
 
@@ -655,14 +656,40 @@ export default function useCrearDespacho() {
     ));
   };
 
+  const DIAS_NOMBRES = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+
   const refreshVentanasTurno = async (empresaPlantaId: string, fecha: string) => {
     if (!empresaPlantaId || !fecha) return;
     setLoadingTurnos(true);
     try {
-      const response = await fetchWithAuth(`/api/turnos/ventanas?empresa_planta_id=${empresaPlantaId}&fecha=${fecha}&slots=true`);
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Error al cargar slots de turno');
-      setTurnoSlots(json.data || []);
+      // Fetch ventanas to know which days have availability
+      const ventanasRes = await fetchWithAuth(`/api/turnos/ventanas?empresa_planta_id=${empresaPlantaId}`);
+      const ventanasJson = await ventanasRes.json();
+      if (!ventanasRes.ok) throw new Error(ventanasJson.error || 'Error al cargar ventanas');
+
+      const activas = (ventanasJson.data || []).filter((v: any) => v.activa);
+      const dias = Array.from(new Set<number>(activas.map((v: any) => v.dia_semana as number)));
+      setTurnoDiasDisponibles(dias);
+
+      // If selected date's day-of-week has no ventanas, auto-advance to next available day
+      let targetFecha = fecha;
+      const selectedDow = new Date(fecha + 'T12:00:00').getDay();
+      if (dias.length > 0 && !dias.includes(selectedDow)) {
+        for (let i = 1; i <= 7; i++) {
+          const nextDate = new Date(fecha + 'T12:00:00');
+          nextDate.setDate(nextDate.getDate() + i);
+          if (dias.includes(nextDate.getDay())) {
+            targetFecha = nextDate.toISOString().slice(0, 10);
+            setTurnoFecha(targetFecha);
+            break;
+          }
+        }
+      }
+
+      const slotsRes = await fetchWithAuth(`/api/turnos/ventanas?empresa_planta_id=${empresaPlantaId}&fecha=${targetFecha}&slots=true`);
+      const slotsJson = await slotsRes.json();
+      if (!slotsRes.ok) throw new Error(slotsJson.error || 'Error al cargar slots de turno');
+      setTurnoSlots(slotsJson.data || []);
       setTurnoSelectedSlot(null);
     } catch (err: any) {
       setErrorMsg(err.message || 'No se pudieron cargar slots de turno');
@@ -1723,6 +1750,7 @@ export default function useCrearDespacho() {
     turnoSlots,
     turnoSelectedSlot,
     setTurnoSelectedSlot,
+    turnoDiasDisponibles,
     loadingTurnos,
     savingTurno,
     turnoRowTempId,
