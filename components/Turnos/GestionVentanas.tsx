@@ -27,6 +27,7 @@ type Reserva = {
   observaciones?: string | null;
   despacho_id?: string | null;
   despacho_pedido_id?: string | null;
+  empresa_origen?: string | null;
 };
 
 type Slot = {
@@ -476,12 +477,13 @@ export default function GestionVentanas() {
               <th className="px-3 py-2 text-left">Estado</th>
               <th className="px-3 py-2 text-left">Patente</th>
               <th className="px-3 py-2 text-left">Chofer</th>
+              <th className="px-3 py-2 text-left">Origen</th>
               <th className="px-3 py-2 text-left">Despacho</th>
             </tr>
           </thead>
           <tbody>
             {reservas.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-400">No hay reservas para esta fecha.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-slate-400">No hay reservas para esta fecha.</td></tr>
             )}
             {reservas.map((r) => (
               <tr key={r.id} className="border-t border-slate-800">
@@ -491,6 +493,7 @@ export default function GestionVentanas() {
                 <td className="px-3 py-2 text-slate-300">{r.estado}</td>
                 <td className="px-3 py-2 text-slate-300">{r.patente_camion || '-'}</td>
                 <td className="px-3 py-2 text-slate-300">{r.chofer_nombre || '-'}</td>
+                <td className="px-3 py-2 text-slate-300">{r.empresa_origen || '-'}</td>
                 <td className="px-3 py-2 text-slate-300">{r.despacho_pedido_id || '-'}</td>
               </tr>
             ))}

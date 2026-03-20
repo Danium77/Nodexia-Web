@@ -20,7 +20,7 @@ export default withAuth(async (req, res, authCtx) => {
 
     let query = supabaseAdmin
       .from('turnos_reservados')
-      .select('*, despachos(pedido_id)')
+      .select('*, despachos(pedido_id), empresas!turnos_reservados_empresa_transporte_id_fkey(nombre)')
       .order('fecha', { ascending: true })
       .order('hora_inicio', { ascending: true })
       .limit(200);
@@ -58,7 +58,9 @@ export default withAuth(async (req, res, authCtx) => {
     const flattened = (data || []).map((r: any) => ({
       ...r,
       despacho_pedido_id: r.despachos?.pedido_id || null,
+      empresa_origen: r.empresas?.nombre || null,
       despachos: undefined,
+      empresas: undefined,
     }));
 
     return res.status(200).json({ data: flattened });
