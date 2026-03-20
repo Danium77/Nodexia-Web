@@ -16,6 +16,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse<Data>, authCtx:
     return res.status(500).json({ success: false, error: error.message });
   }
 
+  // Cancel linked turno reservations (cascade)
+  await supabaseAdmin
+    .from('turnos_reservados')
+    .update({ estado: 'cancelado', updated_at: new Date().toISOString() })
+    .eq('despacho_id', id)
+    .in('estado', ['reservado', 'confirmado']);
+
   await auditLog(req, authCtx, {
     action: 'despacho.delete',
     targetType: 'despacho',

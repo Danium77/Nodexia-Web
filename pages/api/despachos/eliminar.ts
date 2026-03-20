@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
 
 async function handler(req: NextApiRequest, res: NextApiResponse, authCtx: any) {
@@ -39,9 +40,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse, authCtx: any) 
     });
   }
 
+  // Cancel linked turno reservations (cascade)
+  const deletedIds = data.map((d: any) => d.id);
+  await supabaseAdmin
+    .from('turnos_reservados')
+    .update({ estado: 'cancelado', updated_at: new Date().toISOString() })
+    .in('despacho_id', deletedIds)
+    .in('estado', ['reservado', 'confirmado']);
+
   return res.status(200).json({
     deleted: deletedCount,
-    ids: data.map((d: any) => d.id),
+    ids: deletedIds,
   });
 }
 
