@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { fetchWithAuth } from '@/lib/api/fetchWithAuth';
 import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import MainLayout from '@/components/layout/MainLayout';
 import PlanningGrid from '@/components/Planning/PlanningGrid';
@@ -143,7 +144,7 @@ const PlanificacionPage = () => {
           ? `empresa_id.eq.${miEmpresaId},cuit.eq.${cuitEmpresa}`
           : `empresa_id.eq.${miEmpresaId}`;
 
-        const [companyUsersResult, myUbicacionesResult, transportesFiltroResult, metricasResult, ventanasResult] = await Promise.all([
+        const [companyUsersResult, myUbicacionesResult, transportesFiltroResult, metricasResult] = await Promise.all([
           supabase
             .from('usuarios_empresa')
             .select('user_id')
@@ -158,10 +159,6 @@ const PlanificacionPage = () => {
             .eq('tipo_empresa', 'Transporte')
             .order('nombre'),
           supabase.rpc('get_metricas_expiracion'),
-          // Consultar ventanas de recepción (para saber si la planta maneja turnos)
-          miEmpresaId
-            ? supabase.from('ventanas_recepcion').select('id').eq('empresa_planta_id', miEmpresaId)
-            : Promise.resolve({ data: [] as any[], error: null }),
         ]);
 
         // Process Phase 2 results
@@ -171,10 +168,8 @@ const PlanificacionPage = () => {
         }
 
         const ubicacionIds = (myUbicacionesResult.data || []).map((u: any) => u.id);
-        const ventanaIds = (ventanasResult.data || []).map((v: any) => v.id);
-        const esTurnoPlanta = ventanaIds.length > 0;
 
-        console.log('🔍 Phase 2: companyUsers=' + allCompanyUserIds.length + ' ubicaciones=' + ubicacionIds.length + ' ventanas=' + ventanaIds.length + ' esTurnoPlanta=' + esTurnoPlanta + ' ubiErr=' + (myUbicacionesResult.error?.message || 'none') + ' ventErr=' + (ventanasResult.error?.message || 'none'));
+        console.log('🔍 Phase 2: companyUsers=' + allCompanyUserIds.length + ' ubicaciones=' + ubicacionIds.length + ' ubiErr=' + (myUbicacionesResult.error?.message || 'none'));
 
         if (transportesFiltroResult.data) {
           setTransportes(transportesFiltroResult.data);
@@ -186,91 +181,26 @@ const PlanificacionPage = () => {
           setMetricasExpiracion(metricasResult.data?.[0] || null);
         }
 
-        // ═══ Phase 3: Despachos + Recepciones (depend on Phase 2 results) ═══
-        // Recepciones tienen dos caminos:
-        //   A) Por turno: planta con ventanas → consulta turnos_reservados → obtiene despachos vinculados
-        //   B) Por destino: planta sin turnos → consulta despachos donde destino_id es de la planta
-
-        // 3a. Despachos propios (siempre)
-        const despachosResult = await supabase
-          .from('despachos')
-          .select('*')
-          .in('created_by', allCompanyUserIds)
-          .order('created_at', { ascending: true });
+        // ═══ Phase 3: Despachos propios + Recepciones (via API server-side) ═══
+        const [despachosResult, recepcionesApiResult] = await Promise.all([
+          supabase
+            .from('despachos')
+            .select('*')
+            .in('created_by', allCompanyUserIds)
+            .order('created_at', { ascending: true }),
+          fetchWithAuth('/api/planificacion/recepciones').then(r => r.json()),
+        ]);
 
         if (despachosResult.error) console.error('❌ Error al cargar despachos:', despachosResult.error);
 
-        // 3b. Recepciones por TURNO (plantas con ventanas de recepción)
-        let turnoRecepcionesDespachos: any[] = [];
-        if (esTurnoPlanta && ventanaIds.length > 0) {
-          const { data: turnosData, error: turnosError } = await supabase
-            .from('turnos_reservados')
-            .select('despacho_id, fecha, hora_inicio, hora_fin, numero_turno, estado')
-            .in('ventana_id', ventanaIds)
-            .in('estado', ['reservado', 'confirmado', 'completado']);
+        const recepcionesData = recepcionesApiResult.data || [];
+        const recepcionesMeta = recepcionesApiResult.meta || {};
 
-          if (turnosError) {
-            console.error('❌ Error al cargar turnos para recepciones:', turnosError);
-          }
-
-          const turnoDespachoIds = (turnosData || [])
-            .map((t: any) => t.despacho_id)
-            .filter(Boolean);
-
-          console.log('🔍 Phase 3a (turnos): turnos=' + (turnosData?.length || 0) + ' conDespacho=' + turnoDespachoIds.length + ' err=' + (turnosError?.message || 'none'));
-
-          if (turnoDespachoIds.length > 0) {
-            const { data: turnoDespachos, error: tdError } = await supabase
-              .from('despachos')
-              .select('*')
-              .in('id', turnoDespachoIds);
-
-            if (tdError) console.error('❌ Error al cargar despachos de turno:', tdError);
-
-            // Mapear fecha/hora del turno sobre el despacho para que la grilla lo muestre en la fecha del turno
-            const turnosLookup = Object.fromEntries(
-              (turnosData || []).map((t: any) => [t.despacho_id, t])
-            );
-
-            turnoRecepcionesDespachos = (turnoDespachos || []).map((d: any) => {
-              const turno = turnosLookup[d.id];
-              return {
-                ...d,
-                // Sobreescribir fecha/hora con valores del turno para la grilla
-                scheduled_local_date: turno?.fecha || d.scheduled_local_date,
-                scheduled_local_time: turno?.hora_inicio || d.scheduled_local_time,
-                _turno_data: turno, // guardar referencia al turno
-              };
-            });
-
-            console.log('🔍 Phase 3a (turnos): despachos vinculados=' + turnoRecepcionesDespachos.length);
-          }
-        }
-
-        // 3c. Recepciones por DESTINO (despachos donde destino es ubicación de la planta, no creados por la planta)
-        let recepcionesDestinoData: any[] = [];
-        if (ubicacionIds.length > 0) {
-          const { data, error } = await supabase
-            .from('despachos')
-            .select('*')
-            .in('destino_id', ubicacionIds)
-            .not('created_by', 'in', `(${allCompanyUserIds.join(',')})`)
-            .order('created_at', { ascending: true });
-
-          if (error) console.error('❌ Error al cargar recepciones por destino:', error);
-          recepcionesDestinoData = data || [];
-        }
-
-        // Deduplicar: si un despacho ya se obtuvo por turno, no duplicarlo del camino por destino
-        const turnoDespachoIdSet = new Set(turnoRecepcionesDespachos.map((d: any) => d.id));
-        const recepcionesDestinoSinDuplicados = recepcionesDestinoData.filter((d: any) => !turnoDespachoIdSet.has(d.id));
-
-        console.log('🔍 Phase 3: despachosOwn=' + (despachosResult.data?.length || 0) + ' recepcionesTurno=' + turnoRecepcionesDespachos.length + ' recepcionesDestino=' + recepcionesDestinoSinDuplicados.length);
+        console.log('🔍 Phase 3: despachosOwn=' + (despachosResult.data?.length || 0) + ' recepciones=' + recepcionesData.length + ' meta=' + JSON.stringify(recepcionesMeta));
 
         const todosLosDespachos = [
           ...(despachosResult.data || []),
-          ...turnoRecepcionesDespachos,
-          ...recepcionesDestinoSinDuplicados,
+          ...recepcionesData,
         ];
 
         // ═══ Phase 4: Viajes + Ubicaciones (depend on Phase 3 results) ═══
@@ -506,29 +436,13 @@ const PlanificacionPage = () => {
         // 6. Separar por tipo para las diferentes vistas
         setDispatches(todosLosItems.filter(v => v.type !== 'recepcion'));
 
-        // 6b. Enriquecer recepciones con datos de turno reservado
+        // 6b. Enriquecer recepciones con datos de turno (ya vienen del API server-side)
         const recepcionItems = todosLosItems.filter(v => v.type === 'recepcion');
-        const recepcionDespachoIds = recepcionItems
-          .map(r => r.despacho_id)
-          .filter(Boolean);
-
-        let turnosMap: Record<string, { numero_turno: string; hora_inicio: string; hora_fin: string; estado: string }> = {};
-        if (recepcionDespachoIds.length > 0) {
-          const { data: turnosData } = await supabase
-            .from('turnos_reservados')
-            .select('despacho_id, numero_turno, hora_inicio, hora_fin, estado')
-            .in('despacho_id', recepcionDespachoIds)
-            .in('estado', ['reservado', 'confirmado', 'completado']);
-
-          if (turnosData) {
-            turnosMap = Object.fromEntries(
-              turnosData.map((t: any) => [t.despacho_id, t])
-            );
-          }
-        }
 
         const recepcionesEnriquecidas = recepcionItems.map(r => {
-          const turno = r.despacho_id ? turnosMap[r.despacho_id] : null;
+          // Los despachos que vinieron del path de turno tienen _turno_data
+          const despachoOriginal = todosLosDespachos.find((d: any) => d.id === r.despacho_id);
+          const turno = despachoOriginal?._turno_data;
           return turno
             ? { ...r, turno_numero: turno.numero_turno, turno_hora: `${turno.hora_inicio?.slice(0, 5)}-${turno.hora_fin?.slice(0, 5)}`, turno_estado: turno.estado }
             : r;
