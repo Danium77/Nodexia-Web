@@ -149,9 +149,9 @@ const DespachoForm: React.FC<DespachoFormProps> = ({
                   </div>
                   {row.fecha_carga_sugerida && (
                     <p className="text-xs text-emerald-300 mt-2">
-                      Sugerencia de carga: {new Date(row.fecha_carga_sugerida).toLocaleString('es-AR')} 
+                      Sugerencia de carga: {row.fecha_despacho} a las {row.hora_despacho} 
                       {typeof row.distancia_km === 'number' && typeof row.horas_transito_estimadas === 'number'
-                        ? ` (distancia estimada ${row.distancia_km.toFixed(0)} km, transito ${row.horas_transito_estimadas.toFixed(1)} h)`
+                        ? ` (distancia estimada ${row.distancia_km.toFixed(0)} km, tránsito ${row.horas_transito_estimadas.toFixed(1)} h)`
                         : ''}
                     </p>
                   )}

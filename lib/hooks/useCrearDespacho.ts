@@ -203,13 +203,17 @@ export default function useCrearDespacho() {
       dRuta = mismaProvincia ? 200 : 500;
     }
 
-    const turnoDateTime = new Date(`${turnoFechaArg}T${turnoHoraArg}:00`);
+    const turnoDateTime = new Date(`${turnoFechaArg.slice(0, 10)}T${turnoHoraArg}:00`);
     const cargaSugerida = new Date(turnoDateTime.getTime() - horasTransito * 60 * 60 * 1000);
+
+    // Usar componentes locales para evitar problemas de timezone
+    const fechaLocal = `${cargaSugerida.getFullYear()}-${String(cargaSugerida.getMonth() + 1).padStart(2, '0')}-${String(cargaSugerida.getDate()).padStart(2, '0')}`;
+    const horaLocal = `${String(cargaSugerida.getHours()).padStart(2, '0')}:${String(cargaSugerida.getMinutes()).padStart(2, '0')}`;
 
     return {
       fechaISO: cargaSugerida.toISOString(),
-      fecha: cargaSugerida.toISOString().slice(0, 10),
-      hora: `${String(cargaSugerida.getHours()).padStart(2, '0')}:${String(cargaSugerida.getMinutes()).padStart(2, '0')}`,
+      fecha: fechaLocal,
+      hora: horaLocal,
       distanciaKm: dRuta,
       horasTransito,
     };
