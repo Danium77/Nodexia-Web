@@ -12,6 +12,7 @@ type Ventana = {
   activa: boolean;
   ocupados?: number;
   disponibles?: number;
+  turnos_activos?: number;
 };
 
 type Reserva = {
@@ -75,6 +76,7 @@ export default function GestionVentanas() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     nombre: 'Turno Manana',
@@ -153,16 +155,53 @@ export default function GestionVentanas() {
     e.preventDefault();
     setSaving(true);
     try {
-      await authFetch('/api/turnos/ventanas', {
-        method: 'POST',
-        body: JSON.stringify(form),
-      });
+      if (editingId) {
+        await authFetch('/api/turnos/ventanas', {
+          method: 'PUT',
+          body: JSON.stringify({ id: editingId, ...form }),
+        });
+        setEditingId(null);
+      } else {
+        await authFetch('/api/turnos/ventanas', {
+          method: 'POST',
+          body: JSON.stringify(form),
+        });
+      }
       await fetchData();
-      setForm((prev) => ({ ...prev, nombre: 'Turno Tarde' }));
+      setForm({ nombre: 'Turno Manana', dia_semana: 1, hora_inicio: '08:00', hora_fin: '10:00', capacidad: 2, duracion_turno_minutos: 60 });
     } catch (e: any) {
-      setError(e.message || 'No se pudo crear la ventana');
+      setError(e.message || 'No se pudo guardar la ventana');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const startEdit = (v: Ventana) => {
+    setEditingId(v.id);
+    setForm({
+      nombre: v.nombre,
+      dia_semana: v.dia_semana,
+      hora_inicio: v.hora_inicio.slice(0, 5),
+      hora_fin: v.hora_fin.slice(0, 5),
+      capacidad: v.capacidad,
+      duracion_turno_minutos: v.duracion_turno_minutos,
+    });
+    setError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm({ nombre: 'Turno Manana', dia_semana: 1, hora_inicio: '08:00', hora_fin: '10:00', capacidad: 2, duracion_turno_minutos: 60 });
+    setError(null);
+  };
+
+  const handleDeleteVentana = async (v: Ventana) => {
+    if (!confirm(`¿Eliminar la ventana "${v.nombre}" (${DIAS[v.dia_semana]})? Esta accion no se puede deshacer.`)) return;
+    try {
+      await authFetch(`/api/turnos/ventanas?id=${v.id}`, { method: 'DELETE' });
+      await fetchData();
+    } catch (e: any) {
+      setError(e.message || 'No se pudo eliminar la ventana');
     }
   };
 
@@ -311,6 +350,12 @@ export default function GestionVentanas() {
       )}
 
       <form onSubmit={handleCrearVentana} className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 grid grid-cols-1 md:grid-cols-7 gap-3">
+        {editingId && (
+          <div className="col-span-full flex items-center justify-between">
+            <span className="text-sm text-amber-300 font-semibold">Editando ventana</span>
+            <button type="button" onClick={cancelEdit} className="text-xs text-slate-400 hover:text-slate-200 underline">Cancelar edicion</button>
+          </div>
+        )}
         <input
           value={form.nombre}
           onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
@@ -358,7 +403,7 @@ export default function GestionVentanas() {
           disabled={saving}
           className="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold disabled:opacity-60"
         >
-          {saving ? 'Guardando...' : 'Crear ventana'}
+          {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear ventana'}
         </button>
       </form>
 
@@ -372,11 +417,12 @@ export default function GestionVentanas() {
               <th className="px-3 py-2 text-left">Capacidad</th>
               <th className="px-3 py-2 text-left">Ocupacion</th>
               <th className="px-3 py-2 text-left">Estado</th>
+              <th className="px-3 py-2 text-left">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {ventanas.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">No hay ventanas configuradas.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-400">No hay ventanas configuradas.</td></tr>
             )}
             {ventanas.map((v) => (
               <tr key={v.id} className="border-t border-slate-800">
@@ -392,6 +438,26 @@ export default function GestionVentanas() {
                   >
                     {v.activa ? 'Activa' : 'Inactiva'}
                   </button>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => startEdit(v)}
+                      disabled={(v.turnos_activos || 0) > 0}
+                      title={(v.turnos_activos || 0) > 0 ? `Tiene ${v.turnos_activos} turno(s) activo(s)` : 'Editar ventana'}
+                      className="px-2 py-1 rounded text-xs font-semibold bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVentana(v)}
+                      disabled={(v.turnos_activos || 0) > 0}
+                      title={(v.turnos_activos || 0) > 0 ? `Tiene ${v.turnos_activos} turno(s) activo(s)` : 'Eliminar ventana'}
+                      className="px-2 py-1 rounded text-xs font-semibold bg-red-500/20 text-red-300 hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -7,6 +7,17 @@ function canWrite(rolInterno: string | null) {
   return !!rolInterno && WRITE_ROLES.includes(rolInterno);
 }
 
+/** Count active (reservado/confirmado) turnos for a ventana */
+async function countActiveTurnos(supabase: any, ventanaId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('turnos_reservados')
+    .select('id', { count: 'exact', head: true })
+    .eq('ventana_id', ventanaId)
+    .in('estado', ['reservado', 'confirmado']);
+  if (error) return -1;
+  return count || 0;
+}
+
 /** Generate time slots from a ventana based on duracion_turno_minutos */
 function generateSlots(ventana: any) {
   const slots: Array<{ hora_inicio: string; hora_fin: string }> = [];
@@ -107,12 +118,24 @@ export default withAuth(async (req, res, authCtx) => {
       ocupacion.set(r.ventana_id, (ocupacion.get(r.ventana_id) || 0) + 1);
     });
 
+    // Count ALL active turnos per ventana (date-independent) for edit/delete validation
+    const { data: activeTurnos } = await supabase
+      .from('turnos_reservados')
+      .select('ventana_id')
+      .in('ventana_id', ventanaIds)
+      .in('estado', ['reservado', 'confirmado']);
+    const activeCountMap = new Map<string, number>();
+    (activeTurnos || []).forEach((t: any) => {
+      activeCountMap.set(t.ventana_id, (activeCountMap.get(t.ventana_id) || 0) + 1);
+    });
+
     const enriched = ventanas.map((v: any) => {
       const ocupados = ocupacion.get(v.id) || 0;
       return {
         ...v,
         ocupados,
         disponibles: Math.max((v.capacidad || 0) - ocupados, 0),
+        turnos_activos: activeCountMap.get(v.id) || 0,
       };
     });
 
@@ -181,6 +204,20 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(400).json({ error: 'id requerido' });
     }
 
+    // Check if this is a structural edit (not just an activa toggle)
+    const bodyKeys = Object.keys(req.body || {}).filter(k => k !== 'id');
+    const isOnlyActivaToggle = bodyKeys.length === 1 && bodyKeys[0] === 'activa';
+
+    if (!isOnlyActivaToggle) {
+      const activeTurnos = await countActiveTurnos(supabase, id);
+      if (activeTurnos > 0) {
+        return res.status(409).json({
+          error: `No se puede editar: tiene ${activeTurnos} turno(s) activo(s) (reservado/confirmado)`,
+          turnos_activos: activeTurnos,
+        });
+      }
+    }
+
     const payload: Record<string, any> = { updated_at: new Date().toISOString() };
     if (nombre !== undefined) payload.nombre = nombre;
     if (dia_semana !== undefined) payload.dia_semana = dia_semana;
@@ -214,18 +251,24 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(400).json({ error: 'id requerido' });
     }
 
-    const { data, error } = await supabase
+    const activeTurnos = await countActiveTurnos(supabase, id);
+    if (activeTurnos > 0) {
+      return res.status(409).json({
+        error: `No se puede eliminar: tiene ${activeTurnos} turno(s) activo(s) (reservado/confirmado)`,
+        turnos_activos: activeTurnos,
+      });
+    }
+
+    const { error } = await supabase
       .from('ventanas_recepcion')
-      .update({ activa: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select('*')
-      .single();
+      .delete()
+      .eq('id', id);
 
     if (error) {
       return res.status(500).json({ error: error.message });
     }
 
-    return res.status(200).json({ data });
+    return res.status(200).json({ ok: true });
   }
 
   return res.status(405).json({ error: 'Metodo no permitido' });
