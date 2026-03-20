@@ -116,7 +116,7 @@ const PlanificacionPage = () => {
           .from('usuarios_empresa')
           .select(`
             empresa_id,
-            empresa:empresas!inner(
+            empresa:empresas(
               id,
               nombre,
               cuit,
@@ -135,7 +135,7 @@ const PlanificacionPage = () => {
         const cuitEmpresa = empresaActual?.cuit as string;
         const miEmpresaId = empresaActual?.id;
 
-        console.log('🔍 Phase 1:', { miEmpresaId, cuitEmpresa, empresaActual: empresaActual?.nombre, empresaError: empresaError?.message });
+        console.log('🔍 Phase 1: miEmpresaId=' + miEmpresaId + ' cuit=' + cuitEmpresa + ' empresa=' + empresaActual?.nombre + ' err=' + (empresaError?.message || 'none'));
 
         // ═══ Phase 2: Parallel queries that depend only on Phase 1 ═══
         const ubicacionFilter = cuitEmpresa
@@ -167,13 +167,8 @@ const PlanificacionPage = () => {
 
         const ubicacionIds = (myUbicacionesResult.data || []).map((u: any) => u.id);
 
-        console.log('🔍 Phase 2:', { 
-          companyUsers: allCompanyUserIds.length, 
-          ubicacionIds: ubicacionIds.length, 
-          ubicacionFilter,
-          myUbicacionesError: myUbicacionesResult.error?.message,
-          companyUsersError: companyUsersResult.error?.message,
-        });
+        console.log('🔍 Phase 2: companyUsers=' + allCompanyUserIds.length + ' ubicaciones=' + ubicacionIds.length + ' filter=' + ubicacionFilter + ' ubiErr=' + (myUbicacionesResult.error?.message || 'none') + ' usersErr=' + (companyUsersResult.error?.message || 'none') + ' metricasErr=' + (metricasResult.error?.message || 'none'));
+        console.log('🔍 Phase 2 ubicacionIds:', JSON.stringify(ubicacionIds));
 
         if (transportesFiltroResult.data) {
           setTransportes(transportesFiltroResult.data);
@@ -205,11 +200,7 @@ const PlanificacionPage = () => {
         if (despachosResult.error) console.error('❌ Error al cargar despachos:', despachosResult.error);
         if (recepcionesResult.error) console.error('❌ Error al cargar recepciones:', recepcionesResult.error);
 
-        console.log('🔍 Phase 3:', { 
-          despachos: despachosResult.data?.length || 0, 
-          recepciones: recepcionesResult.data?.length || 0,
-          ubicacionIdsUsed: ubicacionIds.length,
-        });
+        console.log('🔍 Phase 3: despachos=' + (despachosResult.data?.length || 0) + ' recepciones=' + (recepcionesResult.data?.length || 0) + ' ubicacionIdsUsed=' + ubicacionIds.length + ' despErr=' + (despachosResult.error?.message || 'none') + ' recErr=' + (recepcionesResult.error?.message || 'none'));
 
         const todosLosDespachos = [
           ...(despachosResult.data || []),
