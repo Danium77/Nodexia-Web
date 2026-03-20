@@ -135,6 +135,8 @@ const PlanificacionPage = () => {
         const cuitEmpresa = empresaActual?.cuit as string;
         const miEmpresaId = empresaActual?.id;
 
+        console.log('🔍 Phase 1:', { miEmpresaId, cuitEmpresa, empresaActual: empresaActual?.nombre, empresaError: empresaError?.message });
+
         // ═══ Phase 2: Parallel queries that depend only on Phase 1 ═══
         const ubicacionFilter = cuitEmpresa
           ? `empresa_id.eq.${miEmpresaId},cuit.eq.${cuitEmpresa}`
@@ -165,6 +167,14 @@ const PlanificacionPage = () => {
 
         const ubicacionIds = (myUbicacionesResult.data || []).map((u: any) => u.id);
 
+        console.log('🔍 Phase 2:', { 
+          companyUsers: allCompanyUserIds.length, 
+          ubicacionIds: ubicacionIds.length, 
+          ubicacionFilter,
+          myUbicacionesError: myUbicacionesResult.error?.message,
+          companyUsersError: companyUsersResult.error?.message,
+        });
+
         if (transportesFiltroResult.data) {
           setTransportes(transportesFiltroResult.data);
         }
@@ -194,6 +204,12 @@ const PlanificacionPage = () => {
 
         if (despachosResult.error) console.error('❌ Error al cargar despachos:', despachosResult.error);
         if (recepcionesResult.error) console.error('❌ Error al cargar recepciones:', recepcionesResult.error);
+
+        console.log('🔍 Phase 3:', { 
+          despachos: despachosResult.data?.length || 0, 
+          recepciones: recepcionesResult.data?.length || 0,
+          ubicacionIdsUsed: ubicacionIds.length,
+        });
 
         const todosLosDespachos = [
           ...(despachosResult.data || []),
