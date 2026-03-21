@@ -27,7 +27,7 @@ const PlanificacionPage = () => {
   const [viewType, setViewType] = useState<ViewType>('week');
   const [transportes, setTransportes] = useState<Array<{ id: string; nombre: string }>>([]);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
-  const [weekOffset] = useState(0); // 0 = semana actual, 1 = próxima, -1 = anterior
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = semana actual, 1 = próxima, -1 = anterior
   
   // Estados de filtros
   const [filters, setFilters] = useState<FilterState>({
@@ -507,11 +507,11 @@ const PlanificacionPage = () => {
       endDate = new Date(today);
       endDate.setHours(23, 59, 59, 999);
     } else if (viewType === 'week') {
-      // Esta semana (lunes a domingo)
+      // Semana con offset
       const dayOfWeek = today.getDay();
       const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       startDate = new Date(today);
-      startDate.setDate(today.getDate() + diffToMonday);
+      startDate.setDate(today.getDate() + diffToMonday + (weekOffset * 7));
       startDate.setHours(0, 0, 0, 0);
       
       endDate = new Date(startDate);
@@ -591,7 +591,35 @@ const PlanificacionPage = () => {
       {/* Barra de herramientas superior */}
       {!loading && (
         <div className="flex items-center justify-between mb-2 flex-wrap gap-1.5">
-          <ViewSelector currentView={viewType} onViewChange={setViewType} />
+          <div className="flex items-center gap-2">
+            <ViewSelector currentView={viewType} onViewChange={(v) => { setViewType(v); setWeekOffset(0); }} />
+            {viewType === 'week' && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setWeekOffset(w => w - 1)}
+                  className="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 text-sm font-bold"
+                  title="Semana anterior"
+                >
+                  ←
+                </button>
+                {weekOffset !== 0 && (
+                  <button
+                    onClick={() => setWeekOffset(0)}
+                    className="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-600/30 text-xs font-semibold"
+                  >
+                    Hoy
+                  </button>
+                )}
+                <button
+                  onClick={() => setWeekOffset(w => w + 1)}
+                  className="px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 text-sm font-bold"
+                  title="Semana siguiente"
+                >
+                  →
+                </button>
+              </div>
+            )}
+          </div>
           <ExportButton 
             dispatches={applyFilters(dispatches)} 
             title="Planificación" 
