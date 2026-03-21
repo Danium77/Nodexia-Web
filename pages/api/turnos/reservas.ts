@@ -21,6 +21,7 @@ export default withAuth(async (req, res, authCtx) => {
     let query = supabaseAdmin
       .from('turnos_reservados')
       .select('*, despachos(pedido_id), empresas!turnos_reservados_empresa_transporte_id_fkey(nombre)')
+      .neq('estado', 'cancelado')
       .order('fecha', { ascending: true })
       .order('hora_inicio', { ascending: true })
       .limit(200);
