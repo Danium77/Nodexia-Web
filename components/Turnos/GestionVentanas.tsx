@@ -206,6 +206,19 @@ export default function GestionVentanas() {
     }
   };
 
+  const handleCancelarReserva = async (r: Reserva) => {
+    if (!confirm(`¿Cancelar turno ${r.numero_turno || r.id}?`)) return;
+    try {
+      await authFetch('/api/turnos/reservas', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: r.id, estado: 'cancelado' }),
+      });
+      await fetchData();
+    } catch (e: any) {
+      setError(e.message || 'No se pudo cancelar la reserva');
+    }
+  };
+
   const toggleActiva = async (v: Ventana) => {
     try {
       await authFetch('/api/turnos/ventanas', {
@@ -479,11 +492,12 @@ export default function GestionVentanas() {
               <th className="px-3 py-2 text-left">Chofer</th>
               <th className="px-3 py-2 text-left">Origen</th>
               <th className="px-3 py-2 text-left">Despacho</th>
+              <th className="px-3 py-2 text-left">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {reservas.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-6 text-center text-slate-400">No hay reservas para esta fecha.</td></tr>
+              <tr><td colSpan={9} className="px-3 py-6 text-center text-slate-400">No hay reservas para esta fecha.</td></tr>
             )}
             {reservas.map((r) => (
               <tr key={r.id} className="border-t border-slate-800">
@@ -495,6 +509,16 @@ export default function GestionVentanas() {
                 <td className="px-3 py-2 text-slate-300">{r.chofer_nombre || '-'}</td>
                 <td className="px-3 py-2 text-slate-300">{r.empresa_origen || '-'}</td>
                 <td className="px-3 py-2 text-slate-300">{r.despacho_pedido_id || '-'}</td>
+                <td className="px-3 py-2">
+                  {r.estado !== 'cancelado' && (
+                    <button
+                      onClick={() => handleCancelarReserva(r)}
+                      className="px-2 py-1 rounded text-xs font-semibold bg-red-500/20 text-red-300 hover:bg-red-500/30"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
