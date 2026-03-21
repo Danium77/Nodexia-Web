@@ -99,11 +99,12 @@ export default withAuth(async (req, res, authCtx) => {
       return res.status(500).json({ error: 'Error al asignar transporte al viaje: ' + updateViajeError.message });
     }
 
-    // 7. Actualizar despacho
+    // 7. Actualizar despacho (including transport_id for RLS visibility)
     const { error: updateDespachoError } = await supabaseAdmin
       .from('despachos')
       .update({
         estado: 'asignado',
+        transport_id: transporteId,
         origen_asignacion: 'red_nodexia'
       })
       .eq('id', viajeDespacho.despacho_id);

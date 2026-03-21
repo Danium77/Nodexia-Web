@@ -327,139 +327,36 @@ export default function useControlAcceso() {
     setMessage('');
 
     try {
-      const codigoBusqueda = qrCode.trim().replace(/^(QR-|DSP-)/, '');
-
-      const { data: despacho, error: despachoError } = await supabase
-        .from('despachos')
-        .select('id, pedido_id, origen, destino, origen_id, destino_id, created_by, estado')
-        .ilike('pedido_id', `%${codigoBusqueda}%`)
-        .maybeSingle();
-
-      if (despachoError) {
-        console.error('❌ [control-acceso] Error buscando despacho:', despachoError);
-        setMessage('❌ Código QR no válido o viaje no encontrado');
+      // Use server-side API to bypass RLS — control acceso needs to see
+      // despachos created by OTHER empresas (incoming shipments)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setMessage('❌ No hay sesión activa');
         setViaje(null);
         setLoading(false);
         return;
       }
 
-      if (!despacho) {
-        console.error('❌ [control-acceso] Despacho no encontrado');
-        setMessage('❌ Despacho no encontrado');
+      const buscarRes = await fetch('/api/control-acceso/buscar-despacho', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ codigo: qrCode.trim() }),
+      });
+
+      const buscarJson = await buscarRes.json().catch(() => ({}));
+
+      if (!buscarRes.ok) {
+        console.error('❌ [control-acceso]', buscarJson.error);
+        setMessage(`❌ ${buscarJson.error || 'Error al buscar despacho'}`);
         setViaje(null);
         setLoading(false);
         return;
       }
 
-      // Get ubicaciones
-      const origenRef = despacho.origen_id || despacho.origen;
-      const destinoRef = despacho.destino_id || despacho.destino;
-      const ubicacionIds = [origenRef, destinoRef].filter(Boolean);
-
-      const { data: ubicaciones, error: ubicacionesError } = ubicacionIds.length > 0
-        ? await supabase
-            .from('ubicaciones')
-            .select('id, nombre, tipo')
-            .in('id', ubicacionIds)
-        : { data: [], error: null };
-
-      if (ubicacionesError) {
-        console.warn('⚠️ [control-acceso] Error cargando ubicaciones:', ubicacionesError);
-      }
-
-      // Verify despacho belongs to user's company
-      let esOrigen = false;
-      let esDestino = false;
-
-      if (ubicacionIds.length > 0) {
-        const filtro = cuitEmpresa
-          ? `empresa_id.eq.${empresaId},cuit.eq.${cuitEmpresa}`
-          : `empresa_id.eq.${empresaId}`;
-
-        const { data: misUbics } = await supabase
-          .from('ubicaciones')
-          .select('id')
-          .in('id', ubicacionIds)
-          .or(filtro);
-
-        const misUbicIds = new Set((misUbics || []).map((u: any) => u.id));
-        esOrigen = misUbicIds.has(origenRef);
-        esDestino = misUbicIds.has(destinoRef);
-      }
-
-      if (!esOrigen && !esDestino) {
-        const { data: usuarioDespacho } = await supabase
-          .from('usuarios_empresa')
-          .select('empresa_id')
-          .eq('user_id', despacho.created_by)
-          .maybeSingle();
-
-        if (!usuarioDespacho || usuarioDespacho.empresa_id !== empresaId) {
-          console.error('❌ [control-acceso] Despacho no pertenece a esta empresa (ni origen ni destino)');
-          setMessage('❌ Este despacho no pertenece a su empresa');
-          setViaje(null);
-          setLoading(false);
-          return;
-        }
-      }
-
-      const origenUbicacion = ubicaciones?.find(u => u.id === origenRef);
-      const destinoUbicacion = ubicaciones?.find(u => u.id === destinoRef);
-
-      // Get viaje
-      const { data: viajesData, error: viajeError } = await supabase
-        .from('viajes_despacho')
-        .select('*')
-        .eq('despacho_id', despacho.id)
-        .limit(1);
-
-      if (viajeError) {
-        console.error('❌ [control-acceso] Error buscando viaje:', viajeError);
-        setMessage('❌ Error al buscar viaje. Intente nuevamente.');
-        setViaje(null);
-        setLoading(false);
-        return;
-      }
-
-      if (!viajesData || viajesData.length === 0) {
-        console.error('❌ [control-acceso] No se encontró viaje para despacho:', despacho.id);
-        setMessage(`❌ No hay viajes asignados para el despacho ${despacho.pedido_id}`);
-        setViaje(null);
-        setLoading(false);
-        return;
-      }
-
-      const viajeData = viajesData[0];
-
-      // Get chofer and camion
-      let choferData = null;
-      let camionData = null;
-
-      if (viajeData.chofer_id) {
-        const { data: chofer, error: choferError } = await supabase
-          .from('choferes')
-          .select('nombre, apellido, dni, telefono')
-          .eq('id', viajeData.chofer_id)
-          .maybeSingle();
-
-        if (choferError) {
-          console.error('❌ [control-acceso] Error al buscar chofer:', choferError);
-        }
-        choferData = chofer;
-      }
-
-      if (viajeData.camion_id) {
-        const { data: camion, error: camionError } = await supabase
-          .from('camiones')
-          .select('patente, marca, modelo, anio')
-          .eq('id', viajeData.camion_id)
-          .maybeSingle();
-
-        if (camionError) {
-          console.error('❌ [control-acceso] Error al buscar camión:', camionError);
-        }
-        camionData = camion;
-      }
+      const { despacho, viaje: viajeData, origen_nombre, destino_nombre, esOrigen, esDestino, chofer: choferData, camion: camionData } = buscarJson;
 
       const chofer = choferData ? {
         nombre: choferData.nombre,
@@ -472,7 +369,7 @@ export default function useControlAcceso() {
         patente: camionData.patente,
         marca: camionData.marca,
         modelo: camionData.modelo,
-        año: camionData.anio
+        año: camionData.año
       } : null;
 
       const tipoOp: 'envio' | 'recepcion' = esDestino && !esOrigen ? 'recepcion' : 'envio';
@@ -497,12 +394,12 @@ export default function useControlAcceso() {
         chofer_id: viajeData.chofer_id || undefined,
         camion_id: viajeData.camion_id || undefined,
         acoplado_id: viajeData.acoplado_id || undefined,
-        origen_nombre: origenUbicacion?.nombre || 'Origen desconocido',
-        destino_nombre: destinoUbicacion?.nombre || 'Destino desconocido',
+        origen_nombre: origen_nombre,
+        destino_nombre: destino_nombre,
         estado_unidad: estadoUnidad as EstadoUnidadViajeType,
         estado_carga: viajeData.estado,
         tipo_operacion: tipoOp,
-        producto: `${origenUbicacion?.nombre || 'Origen'} → ${destinoUbicacion?.nombre || 'Destino'}`,
+        producto: `${origen_nombre} → ${destino_nombre}`,
         chofer: chofer ? {
           nombre: `${chofer.nombre} ${chofer.apellido || ''}`.trim(),
           dni: chofer.dni || 'N/A',

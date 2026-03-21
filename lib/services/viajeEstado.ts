@@ -205,7 +205,7 @@ export async function cambiarEstadoViaje(
   console.log(`✅ Viaje ${viaje_id}: ${estadoAnterior} → ${nuevo_estado} (por ${user_id})`);
 
   // 4. Sincronizar despacho (1:1)
-  await sincronizarDespacho(supabase, viaje.despacho_id, nuevo_estado);
+  await sincronizarDespacho(supabase, viaje.despacho_id, nuevo_estado, viaje_id);
 
   // 5. Registrar timestamp en estado_unidad_viaje
   await registrarTimestampEstado(supabase, viaje_id, nuevo_estado, now);
@@ -252,7 +252,7 @@ export async function cambiarEstadoViaje(
       viaje_auto_completado = true;
 
       // Sincronizar despacho a completado
-      await sincronizarDespacho(supabase, viaje.despacho_id, 'completado' as EstadoViajeType);
+      await sincronizarDespacho(supabase, viaje.despacho_id, 'completado' as EstadoViajeType, viaje_id);
 
       // Registrar timestamp de completado en estado_unidad_viaje
       await registrarTimestampEstado(supabase, viaje_id, 'completado' as EstadoViajeType, nowComplete);
@@ -364,7 +364,7 @@ export async function asignarUnidad(
 
   // 5. Sincronizar despacho
   const despachoIdFinal = despacho_id || viaje.despacho_id;
-  await sincronizarDespacho(supabase, despachoIdFinal, nuevoEstado);
+  await sincronizarDespacho(supabase, despachoIdFinal, nuevoEstado, viaje_id);
 
   // 5b. Actualizar turno reservado con patente y chofer
   if (despachoIdFinal && chofer_id && camion_id) {
@@ -541,17 +541,32 @@ async function sincronizarEstadoCarga(
 async function sincronizarDespacho(
   supabase: SupabaseClient,
   despacho_id: string | null | undefined,
-  nuevo_estado: EstadoViajeType
+  nuevo_estado: EstadoViajeType,
+  viaje_id?: string
 ): Promise<void> {
   if (!despacho_id) return;
 
   try {
+    const updateData: Record<string, unknown> = {
+      estado: nuevo_estado,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Sync transport_id from viaje to despacho (for RLS visibility)
+    if (viaje_id) {
+      const { data: viaje } = await supabase
+        .from('viajes_despacho')
+        .select('id_transporte')
+        .eq('id', viaje_id)
+        .maybeSingle();
+      if (viaje?.id_transporte) {
+        updateData.transport_id = viaje.id_transporte;
+      }
+    }
+
     const { error } = await supabase
       .from('despachos')
-      .update({
-        estado: nuevo_estado,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', despacho_id);
 
     if (error) {
