@@ -560,7 +560,7 @@ const PlanningGrid: React.FC<PlanningGridProps> = ({ title, dispatches, type, on
           <h3 className="text-sm font-bold text-cyan-400">{title}</h3>
           <div className="flex gap-1 items-center">
             <span className="text-xs text-gray-400">
-              {dispatches.length} {type === 'despachos' ? 'despachos' : 'recepciones'} esta semana
+              {Object.values(groupedDispatches).reduce((sum, day) => sum + Object.values(day).reduce((s, arr) => s + arr.length, 0), 0)} {type === 'despachos' ? 'despachos' : 'recepciones'} esta semana
             </span>
           </div>
         </div>

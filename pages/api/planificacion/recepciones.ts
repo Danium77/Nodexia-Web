@@ -90,8 +90,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse, auth: AuthCont
           const turno = turnosLookup[d.id];
           return {
             ...d,
-            scheduled_local_date: turno?.fecha || d.scheduled_local_date,
-            scheduled_local_time: turno?.hora_inicio || d.scheduled_local_time,
             _turno_data: turno,
           };
         });
