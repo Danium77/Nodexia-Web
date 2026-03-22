@@ -38,7 +38,7 @@ export default withAuth(async (req, res, authCtx) => {
     if (authCtx.empresaId && authCtx.rolInterno !== 'admin_nodexia') {
       const { data: viaje } = await supabaseAdmin
         .from('viajes_despacho')
-        .select('id, id_transporte, despachos!inner(empresa_planta_id)')
+        .select('id, id_transporte, despachos!inner(empresa_id)')
         .eq('id', viaje_id)
         .maybeSingle();
 
@@ -46,9 +46,9 @@ export default withAuth(async (req, res, authCtx) => {
         return res.status(404).json({ error: 'Viaje no encontrado' });
       }
 
-      const empresaPlanta = (viaje.despachos as any)?.empresa_planta_id;
+      const empresaDespacho = (viaje.despachos as any)?.empresa_id;
       const empresaTransporte = viaje.id_transporte;
-      if (empresaPlanta !== authCtx.empresaId && empresaTransporte !== authCtx.empresaId) {
+      if (empresaDespacho !== authCtx.empresaId && empresaTransporte !== authCtx.empresaId) {
         return res.status(403).json({ error: 'No tiene acceso a este viaje' });
       }
     }
