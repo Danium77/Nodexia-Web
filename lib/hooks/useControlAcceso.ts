@@ -329,9 +329,19 @@ export default function useControlAcceso() {
     try {
       // Use server-side API to bypass RLS — control acceso needs to see
       // despachos created by OTHER empresas (incoming shipments)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setMessage('❌ No hay sesión activa');
+      // Force session refresh to avoid stale tokens after network changes
+      let accessToken: string | undefined;
+      const { data: refreshData, error: sessionError } = await supabase.auth.refreshSession();
+      if (!sessionError && refreshData.session) {
+        accessToken = refreshData.session.access_token;
+      } else {
+        // Fallback: try cached session
+        const { data: cached } = await supabase.auth.getSession();
+        accessToken = cached.session?.access_token;
+      }
+
+      if (!accessToken) {
+        setMessage('❌ No hay sesión activa. Recargue la página.');
         setViaje(null);
         setLoading(false);
         return;
@@ -340,7 +350,7 @@ export default function useControlAcceso() {
       const buscarRes = await fetch('/api/control-acceso/buscar-despacho', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ codigo: qrCode.trim() }),
@@ -349,8 +359,9 @@ export default function useControlAcceso() {
       const buscarJson = await buscarRes.json().catch(() => ({}));
 
       if (!buscarRes.ok) {
-        console.error('❌ [control-acceso]', buscarJson.error);
-        setMessage(`❌ ${buscarJson.error || 'Error al buscar despacho'}`);
+        const errorMsg = buscarJson.error || 'Error al buscar despacho';
+        console.error(`❌ [control-acceso] ${errorMsg} (HTTP ${buscarRes.status})`);
+        setMessage(`❌ ${errorMsg}`);
         setViaje(null);
         setLoading(false);
         return;
@@ -434,7 +445,10 @@ export default function useControlAcceso() {
 
     } catch (error: any) {
       console.error('❌ [control-acceso] Error en escanearQR:', error);
-      setMessage('❌ Error al procesar QR. Intente nuevamente.');
+      const isNetworkError = error?.message?.includes('fetch') || error?.message?.includes('network');
+      setMessage(isNetworkError
+        ? '❌ Error de conexión. Verifique su internet y reintente.'
+        : '❌ Error al procesar QR. Intente nuevamente.');
       setViaje(null);
     } finally {
       setLoading(false);
