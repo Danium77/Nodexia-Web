@@ -149,7 +149,7 @@ interface EstadisticasViaje {
 }
 
 interface ViajeEnMapa {
-  id: number;
+  id: string;
   patente_camion: string;
   chofer_nombre: string;
   origen: string;
@@ -163,8 +163,8 @@ interface ViajeEnMapa {
 
 interface GoogleMapViajesProps {
   viajes: ViajeEnMapa[];
-  viajeSeleccionado?: number | null;
-  onViajeClick?: (viajeId: number) => void;
+  viajeSeleccionado?: string | null;
+  onViajeClick?: (viajeId: string) => void;
   autoRefresh?: boolean;
   refreshInterval?: number; // en milisegundos
   showHistorico?: boolean; // Mostrar ruta histórica
@@ -186,8 +186,8 @@ export function GoogleMapViajes({
 }: GoogleMapViajesProps) {
   const [center, setCenter] = useState<[number, number]>([-34.6037, -58.3816]);
   const [mounted, setMounted] = useState(false);
-  const [ubicacionesHistoricas, setUbicacionesHistoricas] = useState<Record<number, UbicacionHistorica[]>>({});
-  const [estadisticas, setEstadisticas] = useState<Record<number, EstadisticasViaje>>({});
+  const [ubicacionesHistoricas, setUbicacionesHistoricas] = useState<Record<string, UbicacionHistorica[]>>({});
+  const [estadisticas, setEstadisticas] = useState<Record<string, EstadisticasViaje>>({});
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -225,7 +225,7 @@ export function GoogleMapViajes({
 
   const cargarHistoricoUbicaciones = async () => {
     try {
-      const historico: Record<number, UbicacionHistorica[]> = {};
+      const historico: Record<string, UbicacionHistorica[]> = {};
       
       for (const viaje of viajes) {
         const response = await fetchWithAuth(`/api/gps/ubicaciones-historicas?viaje_id=${viaje.id}`);
@@ -245,7 +245,7 @@ export function GoogleMapViajes({
 
   const cargarEstadisticas = async () => {
     try {
-      const stats: Record<number, EstadisticasViaje> = {};
+      const stats: Record<string, EstadisticasViaje> = {};
       
       for (const viaje of viajes) {
         const response = await fetchWithAuth(`/api/gps/estadisticas-viaje?viaje_id=${viaje.id}`);

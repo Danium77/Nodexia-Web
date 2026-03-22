@@ -22,7 +22,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse, auth: AuthCont
     return res.status(400).json({ error: 'codigo requerido' });
   }
 
-  const codigoBusqueda = codigo.trim().replace(/^(QR-|DSP-)/, '');
+  const codigoLimpio = codigo.trim();
   const empresaId = auth.empresaId;
 
   if (!empresaId) {
@@ -30,19 +30,60 @@ async function handler(req: NextApiRequest, res: NextApiResponse, auth: AuthCont
   }
 
   // 1. Find despacho by pedido_id (using admin to bypass RLS)
-  const { data: despacho, error: despachoError } = await supabaseAdmin
+  // Try exact match first, then fallback to partial match
+  let despacho: any = null;
+
+  // Try exact match with the code as-is (e.g. "DSP-20260321-002")
+  const { data: exactMatch, error: exactError } = await supabaseAdmin
     .from('despachos')
     .select('id, pedido_id, origen, destino, origen_id, destino_id, created_by, estado, empresa_id, transport_id')
-    .ilike('pedido_id', `%${codigoBusqueda}%`)
+    .eq('pedido_id', codigoLimpio)
     .maybeSingle();
 
-  if (despachoError) {
-    return res.status(500).json({ error: despachoError.message });
+  if (exactError) {
+    console.error('[buscar-despacho] Error exact match:', exactError.message);
+  }
+  despacho = exactMatch;
+
+  // Fallback: try with/without DSP- prefix
+  if (!despacho) {
+    const conPrefijo = codigoLimpio.startsWith('DSP-') ? codigoLimpio : `DSP-${codigoLimpio}`;
+    const sinPrefijo = codigoLimpio.replace(/^(QR-|DSP-)/, '');
+
+    const { data: fallbackMatch, error: fallbackError } = await supabaseAdmin
+      .from('despachos')
+      .select('id, pedido_id, origen, destino, origen_id, destino_id, created_by, estado, empresa_id, transport_id')
+      .or(`pedido_id.eq.${conPrefijo},pedido_id.eq.${sinPrefijo}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (fallbackError) {
+      console.error('[buscar-despacho] Error fallback match:', fallbackError.message);
+    }
+    despacho = fallbackMatch;
+  }
+
+  // Last resort: partial match (limit 1 to avoid maybeSingle error with multiple results)
+  if (!despacho) {
+    const sinPrefijo = codigoLimpio.replace(/^(QR-|DSP-)/, '');
+    const { data: partialMatches, error: partialError } = await supabaseAdmin
+      .from('despachos')
+      .select('id, pedido_id, origen, destino, origen_id, destino_id, created_by, estado, empresa_id, transport_id')
+      .ilike('pedido_id', `%${sinPrefijo}%`)
+      .limit(1);
+
+    if (partialError) {
+      console.error('[buscar-despacho] Error partial match:', partialError.message);
+    }
+    despacho = partialMatches?.[0] || null;
   }
 
   if (!despacho) {
+    console.error(`[buscar-despacho] No encontrado. codigo="${codigoLimpio}", empresaId=${empresaId}`);
     return res.status(404).json({ error: 'Despacho no encontrado' });
   }
+
+  console.log(`[buscar-despacho] Encontrado: ${despacho.pedido_id} (id=${despacho.id})`);
 
   // 2. Verify the scanner's empresa is related to this despacho
   //    (origen, destino, or created by someone in the empresa)

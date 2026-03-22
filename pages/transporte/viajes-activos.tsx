@@ -255,7 +255,7 @@ const ViajesActivos = () => {
     return viajes
       .filter(v => selectedViajes.has(v.id))
       .map(v => ({
-        id: parseInt(v.id),
+        id: v.id,
         patente_camion: v.camion_patente || 'Sin patente',
         chofer_nombre: `${v.chofer_nombre || ''} ${v.chofer_apellido || ''}`.trim() || 'Sin asignar',
         origen: v.origen || 'Sin origen',
@@ -478,9 +478,9 @@ const ViajesActivos = () => {
 
                   <GoogleMapViajes
                     viajes={viajesParaMapa}
-                    viajeSeleccionado={viajeDetalle?.id ? parseInt(viajeDetalle.id) : null}
+                    viajeSeleccionado={viajeDetalle?.id || null}
                     onViajeClick={(viajeId) => {
-                      const viaje = viajes.find(v => v.id === viajeId.toString());
+                      const viaje = viajes.find(v => v.id === viajeId);
                       if (viaje) handleVerDetalle(viaje);
                     }}
                     autoRefresh={true}
