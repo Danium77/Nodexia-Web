@@ -1,8 +1,8 @@
 // Service Worker para Nodexia Chofer PWA
-// Versión: 1.0.0
+// Versión: 2.0.0 — Force cache invalidation
 
-const CACHE_NAME = 'nodexia-chofer-v1';
-const RUNTIME_CACHE = 'nodexia-runtime-v1';
+const CACHE_NAME = 'nodexia-chofer-v2';
+const RUNTIME_CACHE = 'nodexia-runtime-v2';
 
 // Recursos para cachear durante la instalación
 const PRECACHE_URLS = [
@@ -49,9 +49,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Para API y datos dinámicos: Network First
+  // Para API, Supabase y bundles Next.js: Network First
   if (event.request.url.includes('/api/') || 
-      event.request.url.includes('supabase.co')) {
+      event.request.url.includes('supabase.co') ||
+      event.request.url.includes('/_next/')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
