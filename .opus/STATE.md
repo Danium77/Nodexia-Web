@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `7418a9d` (25-Mar-2026)
+- **Último commit:** `e14b889` (25-Mar-2026)
 - **Estado general:** Funcional con bugs menores
 - **Monitoring:** Sentry integrado (pendiente configurar DSN en Vercel)
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
@@ -131,4 +131,20 @@
   - Columnas con ancho auto-ajustado
 - **Paquetes instalados:** jspdf 4.2.1, jspdf-autotable 5.0.7, xlsx 0.18.5
 - **Build verificado:** 0 errores
-- **PENDIENTE USUARIO:** Aplicar migración 080 en PROD (SQL Editor Supabase)
+- Migración 080 aplicada en PROD ✅
+- Commit: `fe0885f` + `e14b889` (deploy trigger)
+
+### Completado — B3: Turnos de Recepción (activación)
+- **Código ya existente** (4 APIs, 2 componentes, 4 migraciones, hooks integrados)
+- **Migración 086 aplicada:** `fn_generar_numero_turno` con SECURITY DEFINER ✅
+- **Migración 087 registrada:** `turno_contadores` RLS disabled (ya estaba aplicado) ✅
+- **NOTIFY pgrst** ejecutado para refresh de schema PostgREST ✅
+- **Feature flags activados:**
+  - `funciones_sistema.turnos_recepcion` = true (ya estaba)
+  - `funciones_empresa`: Tecnopack Zayas (planta) ✅ + Transportes Nodexia Demo (transporte) ✅
+- **Verificación de componentes:**
+  - `GestionVentanas.tsx` (536 líneas): CRUD ventanas, grid semanal, slots, cancelar reservas
+  - `ReservaTurnos.tsx` (268 líneas): selección planta, date picker, grid slots, crear/cancelar reservas
+  - `useCrearDespacho.ts`: integración turno modal (destino-requiere → slots → reservar)
+  - `useControlAcceso.ts`: validar-ingreso al escanear QR
+- **No se requirió deploy** — código ya estaba en main, activación por DB flags

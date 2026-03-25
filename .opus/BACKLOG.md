@@ -102,13 +102,23 @@ Cada feature se diseña conceptualmente ANTES de codificar.
 - [x] Export PDF (jspdf + jspdf-autotable): KPIs + tendencias + detalle diario
 - [x] Export Excel (xlsx): 4 hojas (KPIs, Tendencias, Despachos por Día, Cancelaciones)
 - [x] Build verificado
-- [ ] **PENDIENTE USUARIO:** Aplicar migración 080 en PROD (SQL Editor Supabase)
+- [x] **Migración 080 aplicada en PROD** (25-Mar-2026)
 
-### B3. Turnos de recepción [CONCEPT]
-- Plantas definen ventanas horarias
-- Transportes reservan turno
-- Control de acceso valida turno
-- Feature flag por empresa planta
+### B3. Turnos de recepción [DONE]
+- [x] DB tables: ventanas_recepcion, turnos_reservados, turno_contadores (migraciones 081, 082)
+- [x] Trigger fn_generar_numero_turno con SECURITY DEFINER (migración 086 aplicada PROD)
+- [x] turno_contadores RLS disabled (migración 087 registrada PROD)
+- [x] Feature flag turnos_recepcion activado (sistema + Tecnopack Zayas planta + Transportes Nodexia Demo)
+- [x] API ventanas.ts: GET (with slots), POST, PUT, DELETE — roles planta/admin
+- [x] API reservas.ts: GET, POST (capacity check + auto-number), PATCH (cancel/update)
+- [x] API validar-ingreso.ts: POST — validación en control de acceso con tolerancia temporal
+- [x] API destino-requiere.ts: GET — check si destino es planta con turnos
+- [x] GestionVentanas.tsx (536 líneas): CRUD ventanas, grid semanal, slots, ocupación, cancelar reservas
+- [x] ReservaTurnos.tsx (268 líneas): selección planta, date picker, grid slots, crear/cancelar reservas
+- [x] Integración useCrearDespacho: modal turno al seleccionar destino planta con turnos
+- [x] Integración useControlAcceso: validar-ingreso al escanear QR
+- [x] NOTIFY pgrst ejecutado
+- [x] No requirió deploy — código ya en main, activación por DB flags
 
 ### B4. Despachos desde transporte [CONCEPT]
 - Transportes grandes cargan sus propios despachos
@@ -124,6 +134,6 @@ Cada feature se diseña conceptualmente ANTES de codificar.
 
 ## PENDIENTES MENORES
 
-- [ ] `NOTIFY pgrst, 'reload schema'` en PROD
+- [x] `NOTIFY pgrst, 'reload schema'` en PROD ✅
 - [ ] Perfil PyME: UI toggle `tiene_flota_propia`
 - [ ] Perfil PyME: UI gestión `vendedor_clientes`
