@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 25-Mar-2026 (sesión 42)
+**Última actualización:** 25-Mar-2026 (sesión 43)
 
 ---
 
@@ -36,9 +36,10 @@
 - **7 pages con `supabase.from()` directo** — viola separación de capas
 
 ### Migraciones PROD
-- 079 migraciones tracked vía tabla `schema_migrations` (+ 017v vista manual)
+- 080 migraciones tracked vía tabla `schema_migrations` (+ 017v vista manual)
 - Migración 078: 7 índices de performance (P0+P1) aplicados
 - Migración 079: Feature flags (funciones_sistema, funciones_empresa, funciones_rol) + seed 14 features
+- Migración 080: Vistas KPIs reportes + feature flag reportes + rol gerente + índices (aplicada 25-Mar-2026)
 - Vista `vista_disponibilidad_unidades` registrada en tracking ✅
 - Supabase CLI linked a PROD (`lkdcofsfjnltuzzzwoir`)
 
@@ -107,7 +108,27 @@
 | `useSupervisorCarga` | ~270 | — | — | — |
 
 ### Próximos pasos sugeridos
-- **A6**: Auditoría RLS completa
-- **A3 bonus**: `despachos-ofrecidos.tsx` (1067 líneas), `lib/types.ts` (993 líneas)
-- **A7**: Performance (índices, queries, connection pooling)
-- **Bloque B**: Features (admin dinámico, reportes, turnos)
+- **B3**: Turnos de recepción (ventanas horarias, reservas, validación)
+- **B4**: Despachos desde transporte
+- **A3 bonus**: `lib/types.ts` (993 líneas)
+- **Pendientes menores**: NOTIFY pgrst, perfil PyME
+
+## ÚLTIMA SESIÓN (43 — 25-Mar-2026)
+
+### Completado — B2: Reportes Gerenciales
+- **API `reportes/kpis.ts` refactorizada:**
+  - Migrada de auth manual + supabaseAdmin → `withAuth` + `createUserSupabaseClient`
+  - Eliminada dependencia de tabla `super_admins` para admin check
+  - Roles: admin_nodexia, coordinador, coordinador_integral, gerente, supervisor
+  - admin_nodexia puede consultar cualquier empresa via query param
+- **Cálculo de cumplimiento corregido:** era stub (siempre 100%), ahora calcula % completados/total 7d
+- **Rol `gerente` agregado** a `normalizeRole()` en withAuth.ts
+- **Export PDF implementado:** jspdf + jspdf-autotable
+  - 3 secciones: Indicadores del Día, Tendencias (7d/30d), Detalle Diario
+  - Tabla profesional con headers coloreados
+- **Export Excel implementado:** xlsx
+  - 4 hojas: KPIs, Tendencias, Despachos por Día, Cancelaciones
+  - Columnas con ancho auto-ajustado
+- **Paquetes instalados:** jspdf 4.2.1, jspdf-autotable 5.0.7, xlsx 0.18.5
+- **Build verificado:** 0 errores
+- **PENDIENTE USUARIO:** Aplicar migración 080 en PROD (SQL Editor Supabase)

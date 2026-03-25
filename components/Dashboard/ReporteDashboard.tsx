@@ -4,6 +4,9 @@ import { supabase } from '@/lib/supabaseClient';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface KPIs {
   ejecutivo: {
@@ -166,6 +169,130 @@ export default function ReporteDashboard() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = () => {
+    if (!kpis) return;
+    const doc = new jsPDF();
+    const fecha = new Date().toLocaleDateString('es-AR');
+
+    // Título
+    doc.setFontSize(18);
+    doc.text('Reporte Operacional', 14, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generado: ${fecha}`, 14, 30);
+
+    // KPIs ejecutivos
+    doc.setFontSize(13);
+    doc.setTextColor(0);
+    doc.text('Indicadores del Día', 14, 42);
+    autoTable(doc, {
+      startY: 46,
+      head: [['Indicador', 'Valor']],
+      body: [
+        ['Despachos Hoy', String(kpis.ejecutivo.despachos_hoy)],
+        ['Completados', String(kpis.ejecutivo.completados_hoy)],
+        ['Cancelados', String(kpis.ejecutivo.cancelados_hoy)],
+        ['En Tránsito', String(kpis.ejecutivo.en_transito)],
+        ['Incidencias Abiertas', String(kpis.ejecutivo.incidencias_abiertas)],
+        ['Dwell Time (min)', kpis.ejecutivo.dwell_avg_minutos != null ? String(kpis.ejecutivo.dwell_avg_minutos) : 'N/A'],
+        ['Cumplimiento (%)', kpis.ejecutivo.cumplimiento_pct != null ? `${kpis.ejecutivo.cumplimiento_pct}%` : 'N/A'],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [6, 182, 212] },
+    });
+
+    // Tendencias
+    const y1 = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(13);
+    doc.text('Tendencias', 14, y1);
+    autoTable(doc, {
+      startY: y1 + 4,
+      head: [['Período', 'Despachos', 'Completado %', 'Cancelación %', 'Incidencias']],
+      body: [
+        ['7 días', String(kpis.tendencia_7d.despachos), `${kpis.tendencia_7d.tasa_completado}%`, `${kpis.tendencia_7d.tasa_cancelacion}%`, String(kpis.tendencia_7d.incidencias)],
+        ['30 días', String(kpis.tendencia_30d.despachos), `${kpis.tendencia_30d.tasa_completado}%`, `${kpis.tendencia_30d.tasa_cancelacion}%`, String(kpis.tendencia_30d.incidencias)],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [6, 182, 212] },
+    });
+
+    // Despachos por día
+    if (kpis.despachos_por_dia.length > 0) {
+      const y2 = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(13);
+      doc.text('Despachos por Día (14 días)', 14, y2);
+      autoTable(doc, {
+        startY: y2 + 4,
+        head: [['Fecha', 'Total', 'Completados', 'Cancelados', '% Éxito']],
+        body: kpis.despachos_por_dia.map(d => [
+          d.fecha,
+          String(d.total),
+          String(d.completados),
+          String(d.cancelados),
+          d.total > 0 ? `${Math.round((d.completados / d.total) * 100)}%` : '—',
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [6, 182, 212] },
+      });
+    }
+
+    doc.save(`reporte-operacional-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const handleExportExcel = () => {
+    if (!kpis) return;
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: KPIs
+    const kpiData = [
+      ['Indicador', 'Valor'],
+      ['Despachos Hoy', kpis.ejecutivo.despachos_hoy],
+      ['Completados Hoy', kpis.ejecutivo.completados_hoy],
+      ['Cancelados Hoy', kpis.ejecutivo.cancelados_hoy],
+      ['En Tránsito', kpis.ejecutivo.en_transito],
+      ['Incidencias Abiertas', kpis.ejecutivo.incidencias_abiertas],
+      ['Dwell Time (min)', kpis.ejecutivo.dwell_avg_minutos ?? 'N/A'],
+      ['Cumplimiento (%)', kpis.ejecutivo.cumplimiento_pct ?? 'N/A'],
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(kpiData);
+    ws1['!cols'] = [{ wch: 25 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, ws1, 'KPIs');
+
+    // Hoja 2: Tendencias
+    const tendData = [
+      ['Período', 'Despachos', 'Completados', 'Cancelados', 'Incidencias', '% Completado', '% Cancelación'],
+      ['7 días', kpis.tendencia_7d.despachos, kpis.tendencia_7d.completados, kpis.tendencia_7d.cancelados, kpis.tendencia_7d.incidencias, kpis.tendencia_7d.tasa_completado, kpis.tendencia_7d.tasa_cancelacion],
+      ['30 días', kpis.tendencia_30d.despachos, kpis.tendencia_30d.completados, kpis.tendencia_30d.cancelados, kpis.tendencia_30d.incidencias, kpis.tendencia_30d.tasa_completado, kpis.tendencia_30d.tasa_cancelacion],
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(tendData);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Tendencias');
+
+    // Hoja 3: Despachos por día
+    if (kpis.despachos_por_dia.length > 0) {
+      const diaData = [
+        ['Fecha', 'Total', 'Completados', 'Cancelados', '% Éxito'],
+        ...kpis.despachos_por_dia.map(d => [
+          d.fecha, d.total, d.completados, d.cancelados,
+          d.total > 0 ? Math.round((d.completados / d.total) * 100) : 0,
+        ]),
+      ];
+      const ws3 = XLSX.utils.aoa_to_sheet(diaData);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Despachos por Día');
+    }
+
+    // Hoja 4: Cancelaciones Top
+    if (kpis.cancelaciones_top.length > 0) {
+      const cancData = [
+        ['Motivo', 'Cantidad'],
+        ...kpis.cancelaciones_top.map(c => [c.motivo, c.cantidad]),
+      ];
+      const ws4 = XLSX.utils.aoa_to_sheet(cancData);
+      XLSX.utils.book_append_sheet(wb, ws4, 'Cancelaciones');
+    }
+
+    XLSX.writeFile(wb, `reporte-operacional-${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -207,10 +334,22 @@ export default function ReporteDashboard() {
             🔄 Actualizar
           </button>
           <button
+            onClick={handleExportPDF}
+            className="px-3 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-white flex items-center gap-1"
+          >
+            📄 PDF
+          </button>
+          <button
+            onClick={handleExportExcel}
+            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm text-white flex items-center gap-1"
+          >
+            📊 Excel
+          </button>
+          <button
             onClick={handleExportCSV}
             className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm text-white flex items-center gap-1"
           >
-            📥 Exportar CSV
+            📥 CSV
           </button>
         </div>
       </div>

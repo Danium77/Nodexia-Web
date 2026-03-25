@@ -1,118 +1,53 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { withAuth } from '@/lib/middleware/withAuth';
+import { createUserSupabaseClient } from '@/lib/supabaseServerClient';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const ROLES_REPORTES = ['admin_nodexia', 'coordinador', 'coordinador_integral', 'gerente', 'supervisor'];
 
-interface KPIsResponse {
-  ejecutivo: {
-    despachos_hoy: number;
-    completados_hoy: number;
-    cancelados_hoy: number;
-    en_transito: number;
-    incidencias_abiertas: number;
-    dwell_avg_minutos: number | null;
-    cumplimiento_pct: number | null;
-  };
-  tendencia_7d: {
-    despachos: number;
-    completados: number;
-    cancelados: number;
-    incidencias: number;
-    tasa_completado: number;
-    tasa_cancelacion: number;
-  };
-  tendencia_30d: {
-    despachos: number;
-    completados: number;
-    cancelados: number;
-    incidencias: number;
-    tasa_completado: number;
-    tasa_cancelacion: number;
-  };
-  cancelaciones_top: Array<{ motivo: string; cantidad: number }>;
-  despachos_por_dia: Array<{ fecha: string; total: number; completados: number; cancelados: number }>;
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req, res, auth) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Auth: verificar token
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ error: 'No autorizado' });
+  // admin_nodexia puede consultar cualquier empresa via query param
+  const { empresa_id } = req.query;
+  const targetEmpresaId = (auth.rolInterno === 'admin_nodexia' && empresa_id)
+    ? empresa_id as string
+    : auth.empresaId;
+
+  if (!targetEmpresaId) {
+    return res.status(400).json({ error: 'Sin empresa para consultar' });
   }
 
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !user) {
-    return res.status(401).json({ error: 'Token inválido' });
-  }
-
-  // Determinar empresa del usuario
-  const { empresa_id, periodo } = req.query;
-  
-  // Verificar que el usuario tiene acceso (super_admin, admin_nodexia, gerente, coordinador)
-  const { data: superAdmin } = await supabaseAdmin
-    .from('super_admins')
-    .select('activo')
-    .eq('user_id', user.id)
-    .eq('activo', true)
-    .maybeSingle();
-
-  let targetEmpresaId = empresa_id as string | undefined;
-
-  if (!superAdmin) {
-    // Usuario normal: verificar pertenencia a empresa
-    const { data: relacion } = await supabaseAdmin
-      .from('usuarios_empresa')
-      .select('empresa_id, rol_interno')
-      .eq('user_id', user.id)
-      .eq('activo', true)
-      .maybeSingle();
-
-    if (!relacion) {
-      return res.status(403).json({ error: 'Sin empresa asignada' });
-    }
-
-    const rolesPermitidos = ['admin_nodexia', 'coordinador', 'coordinador_integral', 'gerente', 'supervisor'];
-    if (!rolesPermitidos.includes(relacion.rol_interno)) {
-      return res.status(403).json({ error: 'Rol no autorizado para reportes' });
-    }
-
-    targetEmpresaId = relacion.empresa_id;
-  }
+  const supabase = createUserSupabaseClient(auth.token);
 
   try {
     // 1. KPIs operacionales
-    const { data: kpisOp } = await supabaseAdmin
+    const { data: kpisOp } = await supabase
       .from('vista_kpis_operacionales')
       .select('*')
-      .eq('empresa_id', targetEmpresaId || '')
+      .eq('empresa_id', targetEmpresaId)
       .maybeSingle();
 
     // 2. Incidencias
-    const { data: kpisInc } = await supabaseAdmin
+    const { data: kpisInc } = await supabase
       .from('vista_incidencias_agregadas')
       .select('*')
-      .eq('empresa_id', targetEmpresaId || '')
+      .eq('empresa_id', targetEmpresaId)
       .maybeSingle();
 
     // 3. Dwell time
-    const { data: kpisDwell } = await supabaseAdmin
+    const { data: kpisDwell } = await supabase
       .from('vista_dwell_time')
       .select('*')
-      .eq('empresa_id', targetEmpresaId || '')
+      .eq('empresa_id', targetEmpresaId)
       .maybeSingle();
 
     // 4. Top motivos de cancelación (últimos 30 días)
-    const { data: cancelaciones } = await supabaseAdmin
+    const { data: cancelaciones } = await supabase
       .from('cancelaciones_despachos')
       .select('motivo_cancelacion')
-      .eq('empresa_id', targetEmpresaId || '')
+      .eq('empresa_id', targetEmpresaId)
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
     const motivoCount: Record<string, number> = {};
@@ -126,10 +61,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .slice(0, 5);
 
     // 5. Despachos por día (últimos 14 días)
-    const { data: despachosDiarios } = await supabaseAdmin
+    const { data: despachosDiarios } = await supabase
       .from('despachos')
       .select('scheduled_local_date, estado')
-      .eq('empresa_id', targetEmpresaId || '')
+      .eq('empresa_id', targetEmpresaId)
       .gte('scheduled_local_date', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
     const porDia: Record<string, { total: number; completados: number; cancelados: number }> = {};
@@ -145,23 +80,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .map(([fecha, data]) => ({ fecha, ...data }))
       .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-    // 6. Cumplimiento horario (slot adherence) - viajes que llegaron ±15min del horario
-    const { data: viajesRecientes } = await supabaseAdmin
-      .from('viajes_despacho')
-      .select('fecha_llegada_origen, despacho_id')
-      .eq('estado', 'completado')
-      .not('fecha_llegada_origen', 'is', null)
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .limit(200);
+    // 6. Cumplimiento horario: % de despachos completados sobre total (últimos 7 días)
+    const { data: viajesCumplimiento } = await supabase
+      .from('despachos')
+      .select('estado')
+      .eq('empresa_id', targetEmpresaId)
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
     let cumplimiento: number | null = null;
-    if (viajesRecientes && viajesRecientes.length > 0) {
-      // Simplificado: % de viajes completados sobre programados
-      const totalViajes = viajesRecientes.length;
-      cumplimiento = totalViajes > 0 ? Math.round((totalViajes / Math.max(totalViajes, 1)) * 100) : null;
+    if (viajesCumplimiento && viajesCumplimiento.length > 0) {
+      const total = viajesCumplimiento.length;
+      const completados = viajesCumplimiento.filter((v: any) => v.estado === 'completado').length;
+      cumplimiento = Math.round((completados / total) * 100);
     }
 
-    const response: KPIsResponse = {
+    const response = {
       ejecutivo: {
         despachos_hoy: kpisOp?.despachos_hoy || 0,
         completados_hoy: kpisOp?.completados_hoy || 0,
@@ -196,4 +129,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('[reportes/kpis] Error:', error);
     return res.status(500).json({ error: 'Error al obtener KPIs' });
   }
-}
+}, { roles: ROLES_REPORTES });

@@ -1,6 +1,6 @@
 # BACKLOG — NODEXIA-WEB
 
-**Última actualización:** 25-Mar-2026 (sesión 42)
+**Última actualización:** 25-Mar-2026 (sesión 43)
 
 ---
 
@@ -91,10 +91,18 @@ Cada feature se diseña conceptualmente ANTES de codificar.
 - [x] Sidebar: entrada "Funciones" en AdminSidebar
 - [x] Audit logging en todas las acciones de toggle
 
-### B2. Reportes gerenciales [CONCEPT]
-- Dashboards con métricas de despachos, tiempos, cumplimiento
-- Exportable PDF/Excel
-- Habilitado vía feature flag
+### B2. Reportes gerenciales [DONE]
+- [x] DB views: vista_kpis_operacionales, vista_incidencias_agregadas, vista_dwell_time (migración 080)
+- [x] Feature flag "reportes" activado (migración 080)
+- [x] Rol "gerente" agregado a normalizeRole (withAuth) + UserRoleContext
+- [x] API `reportes/kpis.ts` refactorizada: withAuth + createUserSupabaseClient (sin supabaseAdmin)
+- [x] Cálculo de cumplimiento corregido (era stub siempre 100%)
+- [x] ReporteDashboard: 7 KPI cards, tendencias 7d/30d, gráficos, tabla diaria
+- [x] Export CSV existente
+- [x] Export PDF (jspdf + jspdf-autotable): KPIs + tendencias + detalle diario
+- [x] Export Excel (xlsx): 4 hojas (KPIs, Tendencias, Despachos por Día, Cancelaciones)
+- [x] Build verificado
+- [ ] **PENDIENTE USUARIO:** Aplicar migración 080 en PROD (SQL Editor Supabase)
 
 ### B3. Turnos de recepción [CONCEPT]
 - Plantas definen ventanas horarias

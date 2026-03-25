@@ -84,6 +84,9 @@ function normalizeRole(raw: string | null): string | null {
       return 'vendedor';
     case 'visor':
       return 'visor';
+    case 'gerente':
+    case 'Gerente':
+      return 'gerente';
     default:
       console.warn(`[withAuth] Rol desconocido: ${raw} - sin normalizar`);
       return raw;
