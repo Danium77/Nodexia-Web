@@ -1,6 +1,6 @@
 # BACKLOG — NODEXIA-WEB
 
-**Última actualización:** 16-Mar-2026 (sesión 40)
+**Última actualización:** 25-Mar-2026 (sesión 42)
 
 ---
 
@@ -62,6 +62,17 @@ Objetivo: Base limpia, arquitectura para equipos, seguridad auditada.
 - [x] Ejecutada en PROD exitosamente
 - [ ] Query optimization para vistas pesadas (DEFERRED)
 - [ ] Connection pooling revisión (DEFERRED)
+
+### A8. Monitoring — Sentry [DONE]
+- [x] Instalado `@sentry/nextjs` v10.45.0
+- [x] Configs: client (replay + browser tracing), server, edge
+- [x] `next.config.ts` wrapeado con `withSentryConfig` (source maps ocultos del browser)
+- [x] CSP actualizado para dominios Sentry
+- [x] `pages/_error.tsx` para captura server-side
+- [x] `ErrorBoundary` + `withAuth` integrados con `Sentry.captureException()`
+- [x] User context (userId, email) via `Sentry.setUser()` en `_app.tsx`
+- [x] Build verificado, commit `7418a9d` pushed
+- [ ] **PENDIENTE USUARIO:** Crear proyecto sentry.io + env vars en Vercel
 
 ---
 

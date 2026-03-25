@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 16-Mar-2026 (sesión 41)
+**Última actualización:** 25-Mar-2026 (sesión 42)
 
 ---
 
@@ -9,8 +9,9 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `47d291d` (16-Mar-2026)
+- **Último commit:** `7418a9d` (25-Mar-2026)
 - **Estado general:** Funcional con bugs menores
+- **Monitoring:** Sentry integrado (pendiente configurar DSN en Vercel)
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
 ### Qué funciona en PROD
@@ -70,54 +71,37 @@
 
 ---
 
-## ÚLTIMA SESIÓN (40 — 16-Mar-2026)
+## ÚLTIMA SESIÓN (42 — 25-Mar-2026)
 
-### Completado — A4 Import Alias Migration
-- 430 imports relativos (`../`) migrados a alias `@/` en 166 archivos
-- tsconfig.json ya tenía `@/` configurado — solo faltaba migrar uso
-- Build verificado: 0 errores, 71 páginas generadas
-- Commit `5d54da6` pushed
+### Completado — Sentry Integration (pre-piloto)
+- Instalado `@sentry/nextjs` v10.45.0
+- Creados: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`
+- `next.config.ts` wrapeado con `withSentryConfig` (source maps ocultos)
+- CSP actualizado: dominios `*.sentry.io`, `*.ingest.sentry.io`, `*.sentry-cdn.com`
+- `pages/_error.tsx` creado para captura server-side
+- `ErrorBoundary.tsx`: `Sentry.captureException()` integrado en `componentDidCatch`
+- `withAuth.ts`: `Sentry.captureException()` en catch de API routes con contexto (url, method)
+- `_app.tsx`: `Sentry.setUser()` con userId + email via `onAuthStateChange`
+- Build verificado: 0 errores
+- Commit `7418a9d` pushed
+- **PENDIENTE USUARIO:** Crear proyecto en sentry.io + configurar 4 env vars en Vercel
+  - `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
 
-### Completado — A3 bonus: Split despachos-ofrecidos
-- `despachos-ofrecidos.tsx`: 984→530 líneas (-46%)
-- Nuevo hook `useDespachosOfrecidos` (398 líneas)
-- Commit `3481f60` pushed
-
-### Completado — A6 Security Audit
-- **RLS audit**: 36 tablas analizadas, 6 con políticas sobre-permisivas (USING true)
-- **Migración 076**: `076_rls_audit_restrict_permissive.sql` creada y ejecutada en PROD
-  - Despachos: DELETE/INSERT/UPDATE restringidos por empresa
-  - Empresas: INSERT solo admin_nodexia, UPDATE admin o coordinador de la empresa
-  - Ubicaciones: WRITE restringido a coordinadores, SELECT abierto (legítimo)
-  - Usuarios_empresa: INSERT/UPDATE solo admin o coordinador de esa empresa
-  - Tracking_gps: SELECT para viajes propios, INSERT solo choferes
-- **IDOR audit**: 7 rutas API vulnerables encontradas, 6 fixeadas:
-  - `eliminar-usuario.ts` — CRITICAL: empresa ownership check añadido
-  - `crear-usuario-sin-email.ts` — HIGH: empresa_id del caller forzado
-  - `nueva-invitacion.ts` — HIGH: empresa_id validado contra caller
-  - `actualizar-usuario.ts` — HIGH: verificación de empresa del target user
-  - `editar-usuario.ts` — HIGH: verificación de empresa del target user
-  - `asignar-unidad.ts` — HIGH: chofer/camión verificados contra empresa caller
-- **Audit logging**: Tabla `audit_log` + helper `auditLog()` + 13 rutas P0/P1 instrumentadas
-  - Migración 077: tabla con índices + RLS (solo admin_nodexia lee)
-  - Helper `lib/services/auditLog.ts`: inserta via supabaseAdmin, never breaks main flow
-  - 13 rutas logueadas: eliminar/crear/editar/actualizar/invitar usuario, delete-despacho,
-    asignar-unidad, aprobar solicitud, validar/rechazar documento, soft-delete documento
-
-### Sesión 39 — A5 Sync PROD
-- Supabase CLI instalado (via npx), logueado, linked a PROD
-- 54 migraciones verificadas, migración 075 ejecutada
-- Commit `a8cff30` pushed
-
-### Sesión 38 — A3 Giant File Splits
-- 3 pages gigantes partidos (crear-despacho, chofer-mobile, control-acceso)
-- 3 hooks creados, 3 builds verified, zero regressions
+### También en esta sesión (commits previos entre sesiones)
+- `28065d7` — fix: force SW cache invalidation v2 + network-first for Next.js bundles
+- `b2d23ab` — fix: GPS endpoints use empresa_id instead of non-existent empresa_planta_id
+- `6c1c156` — chore: remove temp db-check diagnostic endpoint
+- `ee30b68` — fix: session refresh before scan + better error messages
 
 ### Hooks en el proyecto
 | Hook | Líneas | State | Effects | Handlers |
 |------|--------|-------|---------|----------|
 | `useCrearDespacho` | 1536 | 41 useState | 2 | 17 |
 | `useChoferMobile` | 580 | 25 useState | 9 | 12 |
+| `useControlAcceso` | 610 | 16 useState | 2 | 9 |
+| `useDespachosOfrecidos` | 398 | — | — | — |
+| `useEstadosCamiones` | ~140 | — | — | — |
+| `useSupervisorCarga` | ~270 | — | — | — |
 | `useControlAcceso` | 610 | 16 useState | 2 | 9 |
 | `useEstadosCamiones` | ~140 | — | — | — |
 | `useSupervisorCarga` | ~270 | — | — | — |

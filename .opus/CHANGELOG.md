@@ -4,6 +4,29 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 25-Mar-2026 — Sesión 42: Sentry Integration (pre-piloto)
+
+### Commit `7418a9d`
+- Instalado `@sentry/nextjs` v10.45.0
+- Creados: `sentry.client.config.ts` (replay + browser tracing + filtro extensiones), `sentry.server.config.ts`, `sentry.edge.config.ts`
+- `next.config.ts` wrapeado con `withSentryConfig` (source maps ocultos del browser)
+- CSP actualizado: `*.sentry.io`, `*.ingest.sentry.io`, `*.sentry-cdn.com`
+- `pages/_error.tsx` creado para captura server-side (captureUnderscoreErrorException)
+- `ErrorBoundary.tsx`: `Sentry.captureException()` en `componentDidCatch` con componentStack
+- `withAuth.ts`: `Sentry.captureException()` en catch con url + method
+- `_app.tsx`: `Sentry.setUser({ id, email })` via `onAuthStateChange`
+- Rate limiter middleware (`lib/middleware/rateLimit.ts`)
+- `docs/ARQUITECTURA-TECNICA.md` añadido
+- Pendiente usuario: crear proyecto sentry.io + 4 env vars en Vercel
+
+### Commits entre sesiones (41→42)
+- `28065d7` — fix: force SW cache invalidation v2 + network-first for Next.js bundles
+- `b2d23ab` — fix: GPS endpoints use empresa_id instead of empresa_planta_id
+- `6c1c156` — chore: remove temp db-check diagnostic endpoint
+- `ee30b68` — fix: session refresh before scan + better error messages
+
+---
+
 ## 16-Mar-2026 — Sesión 39: A5 Sync PROD
 
 ### Migración 075 (aplicada en PROD)
