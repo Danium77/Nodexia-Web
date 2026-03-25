@@ -4,6 +4,10 @@
 import type { NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { withAuth } from '@/lib/middleware/withAuth';
+import { createRateLimiter, applyRateLimit } from '@/lib/middleware/rateLimit';
+
+// 4 requests / 10 segundos por usuario (chofer envía 1 cada 30s, margen para retries)
+const limiter = createRateLimiter('gps-registrar', { windowMs: 10_000, maxRequests: 4 });
 
 interface UbicacionRequest {
   viaje_id: string;
@@ -21,6 +25,9 @@ export default withAuth(async (req, res, { userId }) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
+
+  // Rate limit por userId (cada chofer tiene su propio límite)
+  if (applyRateLimit(req, res, limiter, userId)) return;
 
   try {
     // Extraer datos del body

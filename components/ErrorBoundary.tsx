@@ -3,6 +3,7 @@
 // Evita que la app completa se caiga por un error en un componente
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 interface Props {
   children: ReactNode;
@@ -27,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo });
-    // Log para monitoreo (se puede conectar a Sentry, LogRocket, etc.)
+    Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
     console.error('[ErrorBoundary] Error capturado:', {
       error: error.message,
       stack: error.stack,

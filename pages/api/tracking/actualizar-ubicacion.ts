@@ -1,5 +1,9 @@
 import { withAuth } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createRateLimiter, applyRateLimit } from '@/lib/middleware/rateLimit';
+
+// 4 requests / 10 segundos por usuario (mismo límite que registrar-ubicacion)
+const limiter = createRateLimiter('tracking-actualizar', { windowMs: 10_000, maxRequests: 4 });
 
 interface TrackingData {
   chofer_id?: string; // Ahora opcional — se verifica contra el token
@@ -18,6 +22,9 @@ export default withAuth(async (req, res, authCtx) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
+
+  // Rate limit por userId
+  if (applyRateLimit(req, res, limiter, authCtx.userId)) return;
 
   try {
     const data: TrackingData = req.body;

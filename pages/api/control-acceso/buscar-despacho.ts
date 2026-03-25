@@ -1,6 +1,10 @@
 import { withAuth, type AuthContext } from '@/lib/middleware/withAuth';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createRateLimiter, applyRateLimit } from '@/lib/middleware/rateLimit';
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+// 10 requests / 60 segundos por IP (escaneo QR es infrecuente)
+const limiter = createRateLimiter('control-acceso-buscar', { windowMs: 60_000, maxRequests: 10 });
 
 /**
  * POST /api/control-acceso/buscar-despacho
@@ -16,6 +20,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse, auth: AuthCont
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
+
+  // Rate limit por IP (usuarios de control acceso pueden compartir dispositivo)
+  if (applyRateLimit(req, res, limiter)) return;
 
   const { codigo } = req.body || {};
   if (!codigo || typeof codigo !== 'string') {

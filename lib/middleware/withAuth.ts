@@ -21,6 +21,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import type { User } from '@supabase/supabase-js';
+import * as Sentry from '@sentry/nextjs';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export interface AuthContext {
@@ -150,6 +151,12 @@ export function withAuth(handler: AuthenticatedHandler, options?: WithAuthOption
 
       return handler(req, res, authContext);
     } catch (error: any) {
+      Sentry.captureException(error, {
+        extra: {
+          url: req.url,
+          method: req.method,
+        },
+      });
       console.error('[withAuth] Error:', error);
       return res.status(500).json({ error: 'Error interno de autenticación' });
     }
