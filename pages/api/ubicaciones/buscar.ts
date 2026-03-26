@@ -46,7 +46,11 @@ export default withAuth(async (
         .eq('activo', true);
 
       if (termino && termino.length >= 2) {
-        query = query.or(`nombre.ilike.%${termino}%,ciudad.ilike.%${termino}%,direccion.ilike.%${termino}%`);
+        // Sanitize termino to prevent PostgREST filter injection
+        const safe = termino.replace(/[%_(),.*]/g, '');
+        if (safe.length >= 2) {
+          query = query.or(`nombre.ilike.%${safe}%,ciudad.ilike.%${safe}%,direccion.ilike.%${safe}%`);
+        }
       }
 
       const { data, error } = await query.limit(50);
