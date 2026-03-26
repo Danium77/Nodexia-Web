@@ -320,7 +320,7 @@ export async function asignarUnidad(
   // 1. Verificar viaje
   const { data: viaje, error: viajeError } = await supabase
     .from('viajes_despacho')
-    .select('id, estado, despacho_id')
+    .select('id, estado, despacho_id, id_transporte')
     .eq('id', viaje_id)
     .single();
 
@@ -340,7 +340,20 @@ export async function asignarUnidad(
   const nuevoEstado: EstadoViajeType =
     chofer_id && camion_id ? 'camion_asignado' : 'transporte_asignado';
 
-  // 4. Actualizar viaje
+  // 4. Resolver id_transporte desde el chofer si no está seteado
+  let idTransporte = viaje.id_transporte;
+  if (!idTransporte) {
+    const { data: choferData } = await supabase
+      .from('choferes')
+      .select('empresa_id')
+      .eq('id', chofer_id)
+      .maybeSingle();
+    if (choferData?.empresa_id) {
+      idTransporte = choferData.empresa_id;
+    }
+  }
+
+  // 5. Actualizar viaje
   const now = new Date().toISOString();
   const updateData: Record<string, unknown> = {
     chofer_id,
@@ -349,6 +362,7 @@ export async function asignarUnidad(
     estado_unidad: nuevoEstado,
     updated_at: now,
   };
+  if (idTransporte) updateData.id_transporte = idTransporte;
   if (acoplado_id) updateData.acoplado_id = acoplado_id;
 
   const { error: updateError } = await supabase
@@ -362,11 +376,11 @@ export async function asignarUnidad(
 
   console.log(`✅ Viaje ${viaje_id}: unidad asignada → ${nuevoEstado}`);
 
-  // 5. Sincronizar despacho
+  // 6. Sincronizar despacho
   const despachoIdFinal = despacho_id || viaje.despacho_id;
   await sincronizarDespacho(supabase, despachoIdFinal, nuevoEstado, viaje_id);
 
-  // 5b. Actualizar turno reservado con patente y chofer
+  // 6b. Actualizar turno reservado con patente y chofer
   if (despachoIdFinal && chofer_id && camion_id) {
     try {
       const [camionRes, choferRes] = await Promise.all([
