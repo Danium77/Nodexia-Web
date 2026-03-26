@@ -4,6 +4,30 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 26-Mar-2026 — Sesión 44: B4 Despachos desde Transporte — Bugs & Polish
+
+### Commit `6b2fb27` — Security fix
+- Sanitizado PostgREST filter injection en `pages/api/ubicaciones/buscar.ts` (rama transporte)
+- `termino` se limpia con regex antes de interpolarse en `.or()` query
+
+### Migración 088 — Sync auth.users → public.usuarios (aplicada PROD vía CLI)
+- Trigger `on_auth_user_created` AFTER INSERT on auth.users → `handle_new_user()` (SECURITY DEFINER)
+- Fix FK violation: Gonzalo y admin@nodexia.com no existían en `public.usuarios` (solo en `auth.users` + `usuarios_empresa`)
+- Insert manual de ambos usuarios + trigger para futuros
+
+### Commit `72d89e3` — Transport UX improvements
+- `DespachoTableRow.tsx`: prop `esTransporte`, oculta botón RED, texto "🚛 Asignar Unidad"
+- `DespachoModals.tsx`: renderiza `AsignarUnidadModal` (flota propia) para transporte, `AssignTransportModal` para planta
+- `crear-despacho.tsx`: pasa `esTransporte` a modals y table rows
+- `useCrearDespacho.ts`: `origen_id`/`destino_id` en `GeneratedDispatch` interface + SELECT + mapped object
+
+### Commit `2f8ceb3` — Fix id_transporte NULL
+- `lib/services/viajeEstado.ts`: `asignarUnidad()` ahora resuelve `id_transporte` desde `choferes.empresa_id` cuando no está seteado
+- Root cause: viajes creados por transporte tenían `id_transporte = NULL` → invisibles en Despachos Ofrecidos y Viajes Activos
+- Data fix PROD: viaje 501a351a actualizado con `id_transporte` correcto
+
+---
+
 ## 25-Mar-2026 — Sesión 42: Sentry Integration (pre-piloto)
 
 ### Commit `7418a9d`

@@ -1,6 +1,6 @@
 # BACKLOG — NODEXIA-WEB
 
-**Última actualización:** 25-Mar-2026 (sesión 43)
+**Última actualización:** 26-Mar-2026 (sesión 44)
 
 ---
 
@@ -120,9 +120,19 @@ Cada feature se diseña conceptualmente ANTES de codificar.
 - [x] NOTIFY pgrst ejecutado
 - [x] No requirió deploy — código ya en main, activación por DB flags
 
-### B4. Despachos desde transporte [CONCEPT]
-- Transportes grandes cargan sus propios despachos
-- Feature flag por empresa transporte
+### B4. Despachos desde transporte [DONE]
+- [x] Sidebar: "Crear Despacho" para coordinador + coordinador_integral transporte (feature-flagged)
+- [x] useCrearDespacho: empresaActiva + esTransporte, auto-asigna transport_id, estado 'pendiente'
+- [x] crear-despacho.tsx: usa empresaActiva para Header y DespachoModals
+- [x] API ubicaciones/buscar: transporte busca en TODAS las ubicaciones del sistema
+- [x] Feature flag despachos_transporte habilitado (Transportes Falbi, Transportes Nodexia Demo, Logística Express SRL)
+- [x] Security fix: sanitizado PostgREST filter injection en ubicaciones/buscar.ts (commit `6b2fb27`)
+- [x] FK fix: trigger `on_auth_user_created` (migración 088) — sync auth.users → public.usuarios
+- [x] UX: transporte ve AsignarUnidadModal (flota propia) en vez de AssignTransportModal (commit `72d89e3`)
+- [x] UX: botón RED oculto para transporte (tienen flota propia)
+- [x] Fix: asignarUnidad() ahora setea id_transporte desde chofer.empresa_id (commit `2f8ceb3`)
+- [x] Verificado: despachos aparecen en Despachos Ofrecidos y Viajes Activos
+- [x] Build verificado (0 errores)
 
 ### B5. Integraciones externas [CONCEPT]
 - API pública (OpenAPI/Swagger)

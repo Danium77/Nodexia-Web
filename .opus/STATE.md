@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 25-Mar-2026 (sesión 43)
+**Última actualización:** 26-Mar-2026 (sesión 44)
 
 ---
 
@@ -9,8 +9,8 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `e14b889` (25-Mar-2026)
-- **Estado general:** Funcional con bugs menores
+- **Último commit:** `2f8ceb3` (26-Mar-2026)
+- **Estado general:** Funcional — B4 Despachos desde Transporte operativo
 - **Monitoring:** Sentry integrado (pendiente configurar DSN en Vercel)
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
 
@@ -26,6 +26,8 @@
 - Chofer mobile: vista viajes, GPS tracking, cambio de estados
 - Incidencias: CRUD básico
 - Coordinador integral PyME: hereda 4 roles
+- Despachos desde transporte: crear despacho, asignar unidad propia, visible en Despachos Ofrecidos y Viajes Activos
+- Trigger `on_auth_user_created`: auto-sync auth.users → public.usuarios
 
 ### Qué está roto o incompleto en PROD
 - **FK `usuarios_empresa.rol_empresa_id` roto** — migración 070 destruyó FK (DROP CASCADE). Campo dead. No restaurar.
@@ -40,6 +42,7 @@
 - Migración 078: 7 índices de performance (P0+P1) aplicados
 - Migración 079: Feature flags (funciones_sistema, funciones_empresa, funciones_rol) + seed 14 features
 - Migración 080: Vistas KPIs reportes + feature flag reportes + rol gerente + índices (aplicada 25-Mar-2026)
+- Migración 088: Trigger `on_auth_user_created` → `handle_new_user()` (sync auth.users → public.usuarios) (aplicada 26-Mar-2026)
 - Vista `vista_disponibilidad_unidades` registrada en tracking ✅
 - Supabase CLI linked a PROD (`lkdcofsfjnltuzzzwoir`)
 
@@ -72,32 +75,23 @@
 
 ---
 
-## ÚLTIMA SESIÓN (42 — 25-Mar-2026)
+## ÚLTIMA SESIÓN (44 — 26-Mar-2026)
 
-### Completado — Sentry Integration (pre-piloto)
-- Instalado `@sentry/nextjs` v10.45.0
-- Creados: `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`
-- `next.config.ts` wrapeado con `withSentryConfig` (source maps ocultos)
-- CSP actualizado: dominios `*.sentry.io`, `*.ingest.sentry.io`, `*.sentry-cdn.com`
-- `pages/_error.tsx` creado para captura server-side
-- `ErrorBoundary.tsx`: `Sentry.captureException()` integrado en `componentDidCatch`
-- `withAuth.ts`: `Sentry.captureException()` en catch de API routes con contexto (url, method)
-- `_app.tsx`: `Sentry.setUser()` con userId + email via `onAuthStateChange`
-- Build verificado: 0 errores
-- Commit `7418a9d` pushed
-- **PENDIENTE USUARIO:** Crear proyecto en sentry.io + configurar 4 env vars en Vercel
-  - `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
+### B4 Despachos desde Transporte — Bugs & Polish
+- **FK violation fix**: Gonzalo (auth.users) no existía en `public.usuarios` → INSERT fallaba con 409. Insertado manualmente + trigger `on_auth_user_created` creado (migración 088)
+- **Security fix**: PostgREST filter injection en `ubicaciones/buscar.ts` — sanitizado `termino` (commit `6b2fb27`)
+- **UX Transporte**: Botón "Asignar" ahora abre `AsignarUnidadModal` (flota propia) en vez de `AssignTransportModal` (selección de transporte). Botón "RED" oculto para transporte (commit `72d89e3`)
+- **id_transporte NULL fix**: `asignarUnidad()` en `viajeEstado.ts` no seteaba `id_transporte` en `viajes_despacho` → despachos no aparecían en Despachos Ofrecidos ni Viajes Activos. Ahora resuelve `id_transporte` desde el `empresa_id` del chofer (commit `2f8ceb3`)
+- **Data fix PROD**: Actualizado viaje existente (501a351a) con `id_transporte` correcto
+- Feature flag `despachos_transporte` habilitado para: Transportes Falbi SRL, Transportes Nodexia Demo, Logística Express SRL
 
-### También en esta sesión (commits previos entre sesiones)
-- `28065d7` — fix: force SW cache invalidation v2 + network-first for Next.js bundles
-- `b2d23ab` — fix: GPS endpoints use empresa_id instead of non-existent empresa_planta_id
-- `6c1c156` — chore: remove temp db-check diagnostic endpoint
-- `ee30b68` — fix: session refresh before scan + better error messages
+### Datos de test en PROD
+- Gonzalo Lamas (coordinador, Logística Express SRL): Despacho DSP-20260326-002, viaje asignado con chofer + camión, estado `en_transito_origen`
 
 ### Hooks en el proyecto
 | Hook | Líneas | State | Effects | Handlers |
 |------|--------|-------|---------|----------|
-| `useCrearDespacho` | 1536 | 41 useState | 2 | 17 |
+| `useCrearDespacho` | ~1550 | 41 useState | 2 | 17 |
 | `useChoferMobile` | 580 | 25 useState | 9 | 12 |
 | `useControlAcceso` | 610 | 16 useState | 2 | 9 |
 | `useDespachosOfrecidos` | 398 | — | — | — |
@@ -148,3 +142,14 @@
   - `useCrearDespacho.ts`: integración turno modal (destino-requiere → slots → reservar)
   - `useControlAcceso.ts`: validar-ingreso al escanear QR
 - **No se requirió deploy** — código ya estaba en main, activación por DB flags
+
+### Completado — B4: Despachos desde Transporte
+- **Sidebar:** "Crear Despacho" agregado para coordinador y coordinador_integral transporte, gated por feature flag
+- **useCrearDespacho:** nuevas variables `empresaActiva`, `esTransporte`, `empresaTransporte`
+  - Transporte auto-asigna `transport_id` a su propia empresa
+  - Estado inicial `pendiente` (vs `pendiente_transporte` para plantas)
+  - `empresaActiva` reemplaza `empresaPlanta` en cancelación y Red Nodexia
+- **crear-despacho.tsx:** usa `empresaActiva` para Header y DespachoModals
+- **API `ubicaciones/buscar`:** rama transporte busca en todas las ubicaciones del sistema (no solo vinculadas)
+- **Feature flag:** `despachos_transporte` habilitado para Transportes Nodexia Demo
+- **Commit:** `a9d82cb`
