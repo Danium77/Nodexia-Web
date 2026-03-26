@@ -264,6 +264,7 @@ const CrearDespacho = () => {
                         onVerEstadoRed={h.handleVerEstadoRed}
                         onReasignarViaje={h.handleReasignarViaje}
                         onCancelarViaje={h.handleCancelarViajeCoordinador}
+                        esTransporte={h.esTransporte}
                       />
                     ));
                   })()}
@@ -278,6 +279,7 @@ const CrearDespacho = () => {
       <DespachoModals
         user={h.user}
         empresaPlanta={h.empresaActiva}
+        esTransporte={h.esTransporte}
         isAssignModalOpen={h.isAssignModalOpen}
         selectedDispatchForAssign={h.selectedDispatchForAssign}
         onCloseAssignModal={h.handleCloseAssignModal}

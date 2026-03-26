@@ -37,6 +37,8 @@ export interface GeneratedDispatch {
   tiene_viajes_en_proceso?: boolean;
   todos_viajes_completados?: boolean;
   origen_asignacion?: 'directo' | 'red_nodexia';
+  origen_id?: string;
+  destino_id?: string;
   transporte_data?: {
     nombre: string;
     cuit?: string;
@@ -298,7 +300,9 @@ export default function useCrearDespacho() {
           cantidad_viajes_solicitados,
           referencia_cliente,
           origen_asignacion,
-          created_by
+          created_by,
+          origen_id,
+          destino_id
         `)
         .eq('created_by', userId)
         .order('scheduled_local_date', { ascending: false })
@@ -481,6 +485,8 @@ export default function useCrearDespacho() {
           viajes_sin_asignar: viajesSinAsignar,
           viajes_cancelados_por_transporte: viajesCanceladosPorTransporte,
           origen_asignacion: d.origen_asignacion,
+          origen_id: (d as any).origen_id || undefined,
+          destino_id: (d as any).destino_id || undefined,
           transporte_data: transporteAsignado,
         };
       }));

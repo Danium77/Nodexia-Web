@@ -1,5 +1,6 @@
 import React from 'react';
 import AssignTransportModal from '@/components/Modals/AssignTransportModal';
+import AsignarUnidadModal from '@/components/Transporte/AsignarUnidadModal';
 import ConfirmDeleteModal from '@/components/Modals/ConfirmDeleteModal';
 import CancelarDespachoModal from '@/components/Modals/CancelarDespachoModal';
 import ReprogramarModal from '@/components/Modals/ReprogramarModal';
@@ -13,6 +14,7 @@ interface DespachoModalsProps {
   // Auth
   user: any;
   empresaPlanta: any;
+  esTransporte?: boolean;
 
   // Assign
   isAssignModalOpen: boolean;
@@ -71,6 +73,7 @@ interface DespachoModalsProps {
 const DespachoModals: React.FC<DespachoModalsProps> = ({
   user,
   empresaPlanta,
+  esTransporte = false,
   // Assign
   isAssignModalOpen,
   selectedDispatchForAssign,
@@ -119,14 +122,32 @@ const DespachoModals: React.FC<DespachoModalsProps> = ({
 }) => {
   return (
     <>
-      {/* Modal de Asignación de Transporte */}
+      {/* Modal de Asignación de Transporte / Unidad */}
       {selectedDispatchForAssign && (
-        <AssignTransportModal
-          isOpen={isAssignModalOpen}
-          onClose={onCloseAssignModal}
-          dispatch={selectedDispatchForAssign}
-          onAssignSuccess={onAssignSuccess}
-        />
+        esTransporte ? (
+          <AsignarUnidadModal
+            isOpen={isAssignModalOpen}
+            onClose={onCloseAssignModal}
+            despacho={{
+              id: selectedDispatchForAssign.id,
+              pedido_id: selectedDispatchForAssign.pedido_id,
+              origen: selectedDispatchForAssign.origen,
+              origen_id: (selectedDispatchForAssign as any).origen_id,
+              destino: selectedDispatchForAssign.destino,
+              destino_id: (selectedDispatchForAssign as any).destino_id,
+              scheduled_local_date: selectedDispatchForAssign.fecha_despacho || '',
+              scheduled_local_time: selectedDispatchForAssign.hora_despacho || '',
+            }}
+            onSuccess={onAssignSuccess}
+          />
+        ) : (
+          <AssignTransportModal
+            isOpen={isAssignModalOpen}
+            onClose={onCloseAssignModal}
+            dispatch={selectedDispatchForAssign}
+            onAssignSuccess={onAssignSuccess}
+          />
+        )
       )}
 
       {/* Modal de Red Nodexia */}

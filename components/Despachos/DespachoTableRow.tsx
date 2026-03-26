@@ -21,6 +21,7 @@ interface DespachoTableRowProps {
   onVerEstadoRed: (viaje: any) => void;
   onReasignarViaje: (despacho: any, viaje: any) => void;
   onCancelarViaje: (viajeId: string, despachoId: string, motivo: string) => void;
+  esTransporte?: boolean;
 }
 
 const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
@@ -40,6 +41,7 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
   onVerEstadoRed,
   onReasignarViaje,
   onCancelarViaje,
+  esTransporte = false,
 }) => {
   const router = useRouter();
 
@@ -241,10 +243,11 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
                   type="button"
                   onClick={() => onAssignTransport(dispatch)}
                   className="px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105"
-                  title={`Asignar transporte a ${dispatch.pedido_id}`}
+                  title={esTransporte ? `Asignar unidad a ${dispatch.pedido_id}` : `Asignar transporte a ${dispatch.pedido_id}`}
                 >
-                  🚛 Asignar
+                  {esTransporte ? '🚛 Asignar Unidad' : '🚛 Asignar'}
                 </button>
+                {!esTransporte && (
                 <button
                   type="button"
                   onClick={() => onOpenRedNodexia(dispatch)}
@@ -263,6 +266,7 @@ const DespachoTableRow: React.FC<DespachoTableRowProps> = ({
                   </svg>
                   <span className="relative z-10 font-extrabold tracking-wide">RED</span>
                 </button>
+                )}
               </>
             )}
 
