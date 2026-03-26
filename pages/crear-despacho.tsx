@@ -23,7 +23,7 @@ const CrearDespacho = () => {
           userEmail={h.user.email}
           userName={h.userName}
           pageTitle="Crear Despachos"
-          empresaNombre={h.empresaPlanta?.empresas?.nombre}
+          empresaNombre={h.empresaActiva?.empresas?.nombre}
         />
         <main className="flex-1 p-2 max-w-full overflow-hidden">
           <h3 className="text-xl font-semibold mb-4 text-cyan-400">Crear nuevo despacho</h3>
@@ -277,7 +277,7 @@ const CrearDespacho = () => {
       {/* All modals */}
       <DespachoModals
         user={h.user}
-        empresaPlanta={h.empresaPlanta}
+        empresaPlanta={h.empresaActiva}
         isAssignModalOpen={h.isAssignModalOpen}
         selectedDispatchForAssign={h.selectedDispatchForAssign}
         onCloseAssignModal={h.handleCloseAssignModal}

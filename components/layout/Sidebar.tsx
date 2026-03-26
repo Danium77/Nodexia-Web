@@ -46,6 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
   const { badgeCount: docAlertBadge } = useDocAlerts(10 * 60 * 1000); // refresh cada 10 min
   const { hasFeature, loading: featureLoading } = useFeatureFlags();
   const turnosEnabled = !featureLoading && hasFeature('turnos_recepcion');
+  const despachosTransporteEnabled = !featureLoading && hasFeature('despachos_transporte');
 
   // allow override via props (some pages pass them)
   const finalEmail = userEmail || email;
@@ -171,6 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       navItems = [
         { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
         ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
+        ...(despachosTransporteEnabled ? [{ name: '📦 Crear Despacho', icon: TruckIcon, href: '/crear-despacho' }] : []),
         { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
         { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
         { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },
@@ -200,6 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       navItems = [
         { name: '🚚 Dashboard Transporte', icon: HomeIcon, href: '/transporte/dashboard' },
         ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
+        ...(despachosTransporteEnabled ? [{ name: '📦 Crear Despacho', icon: TruckIcon, href: '/crear-despacho' }] : []),
         { name: '📦 Despachos Ofrecidos', icon: TruckIcon, href: '/transporte/despachos-ofrecidos' },
         { name: '🌐 Cargas en Red', icon: BuildingOfficeIcon, href: '/transporte/cargas-en-red' },
         { name: '🚛 Viajes Activos', icon: CalendarDaysIcon, href: '/transporte/viajes-activos' },

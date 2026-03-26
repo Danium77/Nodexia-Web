@@ -13,7 +13,7 @@ import type { UbicacionAutocomplete } from '@/types/ubicaciones';
 export default withAuth(async (
   req,
   res: NextApiResponse<UbicacionAutocomplete[] | { error: string }>,
-  { empresaId, token }
+  { empresaId, tipoEmpresa, token }
 ) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
@@ -33,55 +33,70 @@ export default withAuth(async (
       return res.status(404).json({ error: 'Usuario sin empresa asignada' });
     }
 
-    // Buscar ubicaciones VINCULADAS a la empresa del usuario
-    // Usar supabaseAdmin ya que empresa_ubicaciones ya está scoped por empresaId del auth context
-    let query = supabaseAdmin
-      .from('empresa_ubicaciones')
-      .select(`
-        ubicaciones (
-          id,
-          nombre,
-          direccion,
-          ciudad,
-          provincia,
-          tipo,
-          cuit
-        )
-      `)
-      .eq('empresa_id', empresaId)
-      .eq('activo', true);
+    const esTransporte = String(tipoEmpresa || '').toLowerCase() === 'transporte';
 
-    // Filtrar por tipo de ubicación si es necesario
-    if (tipo === 'origen') {
-      query = query.eq('es_origen', true);
-    } else if (tipo === 'destino') {
-      query = query.eq('es_destino', true);
+    let ubicaciones: any[] = [];
+
+    if (esTransporte) {
+      // Transport companies can see all ubicaciones in the system
+      // They pick up / deliver to multiple plants and clients
+      let query = supabaseAdmin
+        .from('ubicaciones')
+        .select('id, nombre, direccion, ciudad, provincia, tipo, cuit')
+        .eq('activo', true);
+
+      if (termino && termino.length >= 2) {
+        query = query.or(`nombre.ilike.%${termino}%,ciudad.ilike.%${termino}%,direccion.ilike.%${termino}%`);
+      }
+
+      const { data, error } = await query.limit(50);
+      if (error) {
+        return res.status(500).json({ error: 'Error al buscar ubicaciones' });
+      }
+      ubicaciones = data || [];
+    } else {
+      // Plant/other companies: only ubicaciones linked via empresa_ubicaciones
+      let query = supabaseAdmin
+        .from('empresa_ubicaciones')
+        .select(`
+          ubicaciones (
+            id,
+            nombre,
+            direccion,
+            ciudad,
+            provincia,
+            tipo,
+            cuit
+          )
+        `)
+        .eq('empresa_id', empresaId)
+        .eq('activo', true);
+
+      if (tipo === 'origen') {
+        query = query.eq('es_origen', true);
+      } else if (tipo === 'destino') {
+        query = query.eq('es_destino', true);
+      }
+
+      const { data: vinculos, error } = await query.limit(50);
+      if (error) {
+        return res.status(500).json({ error: 'Error al buscar ubicaciones' });
+      }
+      ubicaciones = vinculos?.map((v: any) => v.ubicaciones).filter((u: any) => u !== null) || [];
+
+      // Filter by search term for non-transport
+      if (termino && termino.length >= 2) {
+        const terminoLower = termino.toLowerCase();
+        ubicaciones = ubicaciones.filter((u: any) =>
+          u.nombre?.toLowerCase().includes(terminoLower) ||
+          u.ciudad?.toLowerCase().includes(terminoLower) ||
+          u.direccion?.toLowerCase().includes(terminoLower) ||
+          u.cuit?.includes(termino)
+        );
+      }
     }
-
-    const { data: vinculos, error } = await query.limit(50);
     
-    if (error) {
-      return res.status(500).json({ error: 'Error al buscar ubicaciones' });
-    }
-
-    // Extraer ubicaciones de los vínculos
-    const ubicaciones = vinculos
-      ?.map((v: any) => v.ubicaciones)
-      .filter((u: any) => u !== null) || [];
-
-    // Filtrar por término de búsqueda si existe
-    let resultados = ubicaciones;
-    if (termino && termino.length >= 2) {
-      const terminoLower = termino.toLowerCase();
-      resultados = ubicaciones.filter((u: any) => 
-        u.nombre?.toLowerCase().includes(terminoLower) ||
-        u.ciudad?.toLowerCase().includes(terminoLower) ||
-        u.direccion?.toLowerCase().includes(terminoLower) ||
-        u.cuit?.includes(termino)
-      );
-    }
-    
-    return res.status(200).json(resultados);
+    return res.status(200).json(ubicaciones);
 
   } catch (error) {
     return res.status(500).json({ error: 'Error interno del servidor' });

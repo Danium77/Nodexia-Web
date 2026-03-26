@@ -85,6 +85,12 @@ export default function useCrearDespacho() {
   const empresaPlanta = userEmpresas?.find(
     (rel: any) => rel.empresas?.tipo_empresa !== 'transporte'
   );
+  // For transport companies creating despachos
+  const empresaTransporte = userEmpresas?.find(
+    (rel: any) => rel.empresas?.tipo_empresa === 'transporte'
+  );
+  const empresaActiva = empresaPlanta || empresaTransporte;
+  const esTransporte = !empresaPlanta && !!empresaTransporte;
 
   // UI feedback
   const [loading, setLoading] = useState(false);
@@ -900,8 +906,8 @@ export default function useCrearDespacho() {
       alert('Error: Sesión de usuario no disponible. Recargá la página.');
       return;
     }
-    if (!empresaPlanta) {
-      console.error('🌐 [RED] empresaPlanta es null/undefined. userEmpresas:', userEmpresas);
+    if (!empresaActiva) {
+      console.error('🌐 [RED] empresaActiva es null/undefined. userEmpresas:', userEmpresas);
       alert('Error: No se encontró la empresa asociada al usuario. Recargá la página.');
       return;
     }
@@ -1202,7 +1208,7 @@ export default function useCrearDespacho() {
         .from('cancelaciones_despachos')
         .insert({
           despacho_id: selectedDispatchForCancel.id,
-          empresa_id: empresaPlanta?.empresa_id,
+          empresa_id: empresaActiva?.empresa_id,
           cancelado_por_user_id: user.id,
           pedido_id: selectedDispatchForCancel.pedido_id,
           origen_nombre: selectedDispatchForCancel.origen,
@@ -1593,12 +1599,12 @@ export default function useCrearDespacho() {
         origen_id: rowToSave.origen_id || null,
         destino: rowToSave.destino,
         destino_id: rowToSave.destino_id || null,
-        estado: 'pendiente_transporte',
+        estado: esTransporte ? 'pendiente' : 'pendiente_transporte',
         scheduled_local_date: rowToSave.fecha_despacho,
         scheduled_local_time: `${rowToSave.hora_despacho}:00`,
-        empresa_id: empresaPlanta?.empresa_id || null,
+        empresa_id: empresaActiva?.empresa_id || null,
         created_by: user.id,
-        transport_id: null,
+        transport_id: esTransporte ? empresaTransporte?.empresa_id : null,
         driver_id: null,
         type: rowToSave.tipo_carga || 'despacho',
         comentarios: rowToSave.observaciones || '',
@@ -1753,6 +1759,8 @@ export default function useCrearDespacho() {
     user,
     userName,
     empresaPlanta,
+    empresaActiva,
+    esTransporte,
 
     // UI feedback
     loading,
