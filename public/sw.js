@@ -1,8 +1,8 @@
 // Service Worker para Nodexia Chofer PWA
-// Versión: 2.0.0 — Force cache invalidation
+// Versión: 3.0.0 — Fix: never cache /_next/ (Vercel CDN handles it)
 
-const CACHE_NAME = 'nodexia-chofer-v2';
-const RUNTIME_CACHE = 'nodexia-runtime-v2';
+const CACHE_NAME = 'nodexia-chofer-v3';
+const RUNTIME_CACHE = 'nodexia-runtime-v3';
 
 // Recursos para cachear durante la instalación
 const PRECACHE_URLS = [
@@ -51,23 +51,28 @@ self.addEventListener('fetch', (event) => {
 
   // Para API, Supabase y bundles Next.js: Network First
   if (event.request.url.includes('/api/') || 
-      event.request.url.includes('supabase.co') ||
-      event.request.url.includes('/_next/')) {
+      event.request.url.includes('supabase.co')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Clonar respuesta para guardar en cache
-          const responseToCache = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          if (response.ok) {
+            const responseToCache = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
           return response;
         })
         .catch(() => {
-          // Si falla, intentar desde cache
           return caches.match(event.request);
         })
     );
+    return;
+  }
+
+  // /_next/ static assets: NEVER cache — Vercel CDN serves these with immutable headers
+  // Caching them causes 404s on redeploy when chunk hashes change
+  if (event.request.url.includes('/_next/')) {
     return;
   }
 
