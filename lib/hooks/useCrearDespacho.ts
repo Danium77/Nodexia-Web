@@ -239,6 +239,13 @@ export default function useCrearDespacho() {
     }
   }, [user]);
 
+  // Refetch despachos cuando empresaActiva se resuelve (después de cargar empresas)
+  useEffect(() => {
+    if (user?.id && empresaActiva?.empresa_id) {
+      fetchGeneratedDispatches(user.id, true);
+    }
+  }, [empresaActiva?.empresa_id]);
+
   // ─── Data Loading ─────────────────────────────────────────────────────
 
   const checkUser = async () => {
@@ -267,6 +274,11 @@ export default function useCrearDespacho() {
   const fetchGeneratedDispatches = useCallback(async (userId: string, forceLoading = false) => {
     if (!userId) {
       console.error('❌ No userId proporcionado para fetchGeneratedDispatches');
+      return;
+    }
+
+    if (!empresaActiva?.empresa_id) {
+      // empresaActiva aún no cargada — se reintentará via useEffect
       return;
     }
 
