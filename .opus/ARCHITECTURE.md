@@ -1,6 +1,6 @@
 # ARQUITECTURA — NODEXIA-WEB
 
-**Última actualización:** 15-Mar-2026
+**Última actualización:** 29-Mar-2026
 
 ---
 
@@ -20,29 +20,32 @@
 
 ```
 pages/                  ← Páginas (1 archivo = 1 ruta)
-  api/                  ← 60 API routes (serverless)
-components/             ← ~80 componentes React
+  api/                  ← 70 API routes (serverless)
+components/             ← 94 componentes React
   Admin/                ← 41 archivos — panel administración
   Transporte/           ← 35 archivos — flota, unidades, despachos
   Documentacion/        ← 14 archivos
   Planning/             ← 10 archivos
   Despachos/            ← 8 archivos
   Modals/               ← 8 archivos
+  Turnos/               ← componentes de turnos de recepción
   ui/                   ← 10 primitivos
   layout/               ← 6 archivos (sidebar, headers)
 lib/
-  estados/config.ts     ← FUENTE VERDAD: 17+1 estados, transiciones
+  estados/config.ts     ← FUENTE VERDAD: 18 estados, transiciones
   types.ts              ← Tipos core (902 líneas — dividir)
-  services/             ← Lógica de negocio (viajeEstado, notificaciones)
-  hooks/                ← 17 hooks React
+  services/             ← 6 servicios (viajeEstado, notificaciones, auditLog, geocoding, estadosService)
+  hooks/                ← 23 hooks React
   middleware/withAuth.ts ← Auth + roles en API routes
-  contexts/             ← UserRoleContext (602 líneas — dividir)
+  middleware/rateLimit.ts ← Rate limiting (sliding window)
+  contexts/             ← UserRoleContext + FeatureFlagContext
   validators/           ← Validación Zod
+  validation/           ← Validación adicional
   supabaseClient.ts     ← Cliente anon (respeta RLS)
   supabaseAdmin.ts      ← Cliente admin (bypasa RLS — solo backend)
   supabaseServerClient.ts ← createUserSupabaseClient(token) para API routes
 types/                  ← Tipos por dominio (common, network, red-nodexia, ubicaciones)
-sql/migrations/         ← 54 migraciones (001-074, con gaps)
+sql/migrations/         ← 87 migraciones (001-088, con gaps)
 ```
 
 ---
@@ -71,6 +74,10 @@ sql/migrations/         ← 54 migraciones (001-074, con gaps)
 | `funciones_empresa` | Features habilitadas por empresa (opt-in) |
 | `funciones_rol` | Visibilidad por rol dentro de empresa (opt-out) |
 | `audit_log` | Log de acciones sensibles (admin only) |
+| `ventanas_recepcion` | Ventanas de tiempo para turnos de recepción |
+| `turnos_reservados` | Turnos agendados por empresa |
+| `turno_contadores` | Conteo de turnos por ventana |
+| `auditoria_roles` | Log de cambios de roles |
 
 ### Vistas
 | Vista | Propósito |

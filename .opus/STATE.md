@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 26-Mar-2026 (sesión 44)
+**Última actualización:** 29-Mar-2026 (sesión 45)
 
 ---
 
@@ -10,9 +10,10 @@
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
 - **Último commit:** `2f8ceb3` (26-Mar-2026)
-- **Estado general:** Funcional — B4 Despachos desde Transporte operativo
+- **Estado general:** Funcional — Bloques A + B1-B4 completados. App mobile en desarrollo.
 - **Monitoring:** Sentry integrado (pendiente configurar DSN en Vercel)
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
+- **App Mobile:** `nodexia-chofer` (Expo SDK 55, React Native 0.83) en desarrollo separado
 
 ### Qué funciona en PROD
 - Login/signup con roles multi-empresa
@@ -59,10 +60,12 @@
 
 | Métrica | Valor | Meta |
 |---------|-------|------|
-| Archivos TS/TSX | 286 | — |
-| API routes | 60 | — |
-| Páginas | 25+ | — |
-| Componentes | ~80 | — |
+| Archivos TS/TSX | 286+ | — |
+| API routes | 70 | — |
+| Páginas | 74 | — |
+| Componentes | 94 | — |
+| Hooks | 23 | — |
+| Services | 6 | — |
 | Archivos >400 líneas | ~42 (-6) | 0 |
 | Archivos >1000 líneas | 0 ✅ | 0 |
 | Pages con queries directas | ~~7~~ 4 (A3 pending) | 0 |
@@ -70,25 +73,30 @@
 | Usos de `.single()` (SELECT/UPDATE) | ~~88~~ 0 ✅ | 0 |
 | Imports relativos `../../` | ~~114~~ 0 ✅ | 0 |
 | IDOR vulnerabilities fijados | 6 ✅ | — |
-| Migraciones SQL | 77 | — |
-| Tests | 56 | — |
+| Migraciones SQL | 87 | — |
+| SQL files total | 106 | — |
+| Feature Flags | 14 (11 activas) | — |
+| Tablas BD | 50+ | — |
+| Tests | 6 archivos | — |
+| Contextos | 2 (UserRole + FeatureFlag) | — |
 
 ---
 
-## ÚLTIMA SESIÓN (44 — 26-Mar-2026)
+## ÚLTIMA SESIÓN (45 — 29-Mar-2026)
 
-### B4 Despachos desde Transporte — Bugs & Polish
-- **FK violation fix**: Gonzalo (auth.users) no existía en `public.usuarios` → INSERT fallaba con 409. Insertado manualmente + trigger `on_auth_user_created` creado (migración 088)
-- **Security fix**: PostgREST filter injection en `ubicaciones/buscar.ts` — sanitizado `termino` (commit `6b2fb27`)
-- **UX Transporte**: Botón "Asignar" ahora abre `AsignarUnidadModal` (flota propia) en vez de `AssignTransportModal` (selección de transporte). Botón "RED" oculto para transporte (commit `72d89e3`)
-- **id_transporte NULL fix**: `asignarUnidad()` en `viajeEstado.ts` no seteaba `id_transporte` en `viajes_despacho` → despachos no aparecían en Despachos Ofrecidos ni Viajes Activos. Ahora resuelve `id_transporte` desde el `empresa_id` del chofer (commit `2f8ceb3`)
-- **Data fix PROD**: Actualizado viaje existente (501a351a) con `id_transporte` correcto
-- Feature flag `despachos_transporte` habilitado para: Transportes Falbi SRL, Transportes Nodexia Demo, Logística Express SRL
+### Documentación y Auditoría
+- **Prompt para app mobile**: Generado prompt completo de 10 funcionalidades PWA chofer para replicar en nodexia-chofer (Expo SDK 55)
+- **GPS endpoint fix**: Corregido endpoint usado por mobile Opus (`/api/chofer/ubicacion` 404 → `/api/tracking/actualizar-ubicacion` que ya existe)
+- **RESUMEN-TECNICO-NODEXIA-2026-03.md**: Creado versión 2.0 actualizada del resumen técnico-comercial en `docs/auditorias/`
+- **AUDITORIA-COMPLETA-2026-03-29.md**: Creado versión 2.0 de la auditoría técnica integral en `docs/auditorias/`
+  - Notas actualizadas: promedio D+ → C+, Monitoreo F → C+, Seguridad C- → B-
+  - 8 secciones completas con comparación Feb-17 vs Mar-29
+  - Fase 0 del plan de acción marcada como COMPLETADA
 
-### Datos de test en PROD
-- Gonzalo Lamas (coordinador, Logística Express SRL): Despacho DSP-20260326-002, viaje asignado con chofer + camión, estado `en_transito_origen`
+### Sesión anterior (44 — 26-Mar-2026)
+- B4 Despachos desde Transporte — bugs & polish (ver CHANGELOG)
 
-### Hooks en el proyecto
+### Hooks en el proyecto (23 total)
 | Hook | Líneas | State | Effects | Handlers |
 |------|--------|-------|---------|----------|
 | `useCrearDespacho` | ~1550 | 41 useState | 2 | 17 |
@@ -97,7 +105,8 @@
 | `useDespachosOfrecidos` | 398 | — | — | — |
 | `useEstadosCamiones` | ~140 | — | — | — |
 | `useSupervisorCarga` | ~270 | — | — | — |
-| `useControlAcceso` | 610 | 16 useState | 2 | 9 |
+| `useGPSTracking` | — | — | — | — |
+| + 16 más (ver lib/hooks/) | — | — | — | — |
 | `useEstadosCamiones` | ~140 | — | — | — |
 | `useSupervisorCarga` | ~270 | — | — | — |
 

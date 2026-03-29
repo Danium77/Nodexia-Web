@@ -1,6 +1,6 @@
 # BACKLOG — NODEXIA-WEB
 
-**Última actualización:** 26-Mar-2026 (sesión 44)
+**Última actualización:** 29-Mar-2026 (sesión 45)
 
 ---
 
@@ -139,6 +139,16 @@ Cada feature se diseña conceptualmente ANTES de codificar.
 - API Keys para terceros
 - Webhooks salientes
 - Rate limiting
+
+### B6. App Mobile Nativa [EN PROGRESO]
+- Proyecto separado: `nodexia-chofer` (Expo SDK 55, React Native 0.83)
+- Prompt de 10 funcionalidades PWA chofer entregado a Opus mobile
+- GPS endpoint corregido: `/api/tracking/actualizar-ubicacion`
+- Features a replicar: GPS tracking, QR modal, incidencias, remito upload, perfil, realtime, Google Maps nav, viaje pausado, estados informativos, hamburger menu
+
+### Documentación y Auditoría [DONE]
+- [x] RESUMEN-TECNICO-NODEXIA-2026-03.md (v2.0) — actualizado con métricas Mar-2026
+- [x] AUDITORIA-COMPLETA-2026-03-29.md (v2.0) — 8 secciones, comparación Feb vs Mar, notas actualizadas
 
 ---
 

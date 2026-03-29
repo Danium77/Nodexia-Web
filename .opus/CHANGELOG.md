@@ -4,6 +4,30 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 29-Mar-2026 — Sesión 45: Documentación, Auditoría y Soporte Mobile
+
+### Soporte App Mobile (nodexia-chofer)
+- Generado prompt completo de 10 funcionalidades PWA chofer para el Opus del proyecto mobile (Expo SDK 55, React Native 0.83)
+  - GPS tracking, QR modal, incidencias, remito upload, perfil, realtime, Google Maps nav, viaje pausado, estados informativos, hamburger menu
+- Corregido GPS endpoint: mobile Opus usaba `/api/chofer/ubicacion` (404) → corregido a `/api/tracking/actualizar-ubicacion`
+
+### Documentación actualizada
+- Creado `docs/auditorias/RESUMEN-TECNICO-NODEXIA-2026-03.md` — v2.0 del resumen técnico-comercial
+  - Métricas actualizadas: 74 páginas, 70 APIs, 94 componentes, 23 hooks, 87 migraciones
+  - Nuevas secciones: feature flags, turnos recepción, mobile app, KPI reports
+- Creado `docs/auditorias/AUDITORIA-COMPLETA-2026-03-29.md` — v2.0 de la auditoría técnica integral
+  - 8 secciones completas con comparación Feb-17 vs Mar-29
+  - Notas actualizadas: promedio D+ → C+, Monitoreo F → C+, Seguridad C- → B-
+  - Fase 0 plan de acción marcada COMPLETADA (rate limiting, Sentry, RLS, refactoring, feature flags)
+  - CI/CD identificado como la deuda técnica más grande (sigue en F)
+
+### .opus/ actualizado
+- STATE.md: métricas corregidas, sesión 45 registrada
+- BACKLOG.md: documentación completada, B6 mobile app agregado
+- ARCHITECTURE.md: métricas actualizadas (70 APIs, 94 componentes, 23 hooks, 87 migraciones, tablas nuevas)
+
+---
+
 ## 26-Mar-2026 — Sesión 44: B4 Despachos desde Transporte — Bugs & Polish
 
 ### Commit `6b2fb27` — Security fix
