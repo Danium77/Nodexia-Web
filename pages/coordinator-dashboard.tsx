@@ -94,10 +94,23 @@ const CoordinatorDashboard = () => {
         setUserName(usuarioData.nombre_completo);
       }
 
+      // Obtener empresa del coordinador (necesaria para todas las queries)
+      const { data: usuarioEmpresa } = await supabase
+        .from('usuarios_empresa')
+        .select('empresa_id')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      const empresaId = usuarioEmpresa?.empresa_id;
+      if (!empresaId) {
+        console.error('No se encontró empresa para el usuario');
+        return;
+      }
+
       // Cargar datos en paralelo
       await Promise.all([
-        loadDashboardStats(authUser.id),
-        loadRecentDispatches(authUser.id),
+        loadDashboardStats(authUser.id, empresaId),
+        loadRecentDispatches(empresaId),
         loadActiveTransports()
       ]);
 
@@ -109,7 +122,7 @@ const CoordinatorDashboard = () => {
   };
 
   // 🆕 KPI 1: Calcular Slot Adherence (% de cumplimiento de ventanas horarias)
-  const calcularSlotAdherence = async (userId: string): Promise<number> => {
+  const calcularSlotAdherence = async (empresaId: string): Promise<number> => {
     try {
       // Obtener viajes de los últimos 7 días con hora programada
       const { data: viajes } = await supabase
@@ -119,7 +132,7 @@ const CoordinatorDashboard = () => {
           despacho_id,
           despachos!inner(scheduled_at, created_by)
         `)
-        .eq('despachos.created_by', userId)
+        .eq('despachos.empresa_id', empresaId)
         .gte('despachos.scheduled_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
       if (!viajes || viajes.length === 0) return 0;
@@ -156,7 +169,7 @@ const CoordinatorDashboard = () => {
   };
 
   // 🆕 KPI 2: Calcular Dwell Time Promedio (tiempo de permanencia en planta)
-  const calcularDwellTime = async (userId: string): Promise<number> => {
+  const calcularDwellTime = async (empresaId: string): Promise<number> => {
     try {
       // Obtener viajes con ingreso Y egreso en los últimos 7 días
       const { data: viajes } = await supabase
@@ -166,7 +179,7 @@ const CoordinatorDashboard = () => {
           despacho_id,
           despachos!inner(created_by)
         `)
-        .eq('despachos.created_by', userId);
+        .eq('despachos.empresa_id', empresaId);
 
       if (!viajes || viajes.length === 0) return 0;
 
@@ -265,16 +278,9 @@ const CoordinatorDashboard = () => {
     }
   };
 
-  const loadDashboardStats = async (userId: string) => {
+  const loadDashboardStats = async (userId: string, empresaId: string) => {
     try {
-      // Obtener empresa del usuario coordinador
-      const { data: usuarioEmpresa } = await supabase
-        .from('usuarios_empresa')
-        .select('empresa_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      const empresaCoordinadoraId = usuarioEmpresa?.empresa_id;
+      const empresaCoordinadoraId = empresaId;
 
       // Obtener transportes vinculados directamente a la empresa
       const { data: transportesVinculados } = await supabase
@@ -285,11 +291,11 @@ const CoordinatorDashboard = () => {
 
       const transportesVinculadosIds = transportesVinculados?.map(r => r.empresa_transporte_id) || [];
 
-      // Obtener estadísticas de despachos
+      // Obtener estadísticas de despachos (todos los de la empresa)
       const { data: despachos, error } = await supabase
         .from('despachos')
         .select('estado, transport_id')
-        .eq('created_by', userId);
+        .eq('empresa_id', empresaCoordinadoraId);
 
       if (error) throw error;
 
@@ -316,13 +322,13 @@ const CoordinatorDashboard = () => {
       const eficienciaRed = totalDespachos > 0 ? Math.round((despachosRedNodexia / totalDespachos) * 100) : 0;
 
       // 🆕 KPI 1: Slot Adherence (Cumplimiento de ventanas horarias)
-      const slotAdherence = await calcularSlotAdherence(userId);
+      const slotAdherence = await calcularSlotAdherence(empresaCoordinadoraId!);
 
       // 🆕 KPI 2: Dwell Time Promedio (Tiempo de permanencia en planta)
-      const dwellTimePromedio = await calcularDwellTime(userId);
+      const dwellTimePromedio = await calcularDwellTime(empresaCoordinadoraId!);
 
       // 🆕 KPI 3: Pendientes de Descarga (Unidades próximas a arribar)
-      const pendientesDescarga = await calcularPendientesDescarga(userId);
+      const pendientesDescarga = await calcularPendientesDescarga(empresaCoordinadoraId!);
 
       setStats({
         totalDespachos,
@@ -340,7 +346,7 @@ const CoordinatorDashboard = () => {
     }
   };
 
-  const loadRecentDispatches = async (userId: string) => {
+  const loadRecentDispatches = async (empresaId: string) => {
     try {
       const { data, error } = await supabase
         .from('despachos')
@@ -357,7 +363,7 @@ const CoordinatorDashboard = () => {
             nombre
           )
         `)
-        .eq('created_by', userId)
+        .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false })
         .limit(5);
 

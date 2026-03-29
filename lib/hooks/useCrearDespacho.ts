@@ -278,7 +278,7 @@ export default function useCrearDespacho() {
       const { data: allData } = await supabase
         .from('despachos')
         .select('id, pedido_id, estado, transport_id')
-        .eq('created_by', userId)
+        .eq('empresa_id', empresaActiva?.empresa_id)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -304,7 +304,7 @@ export default function useCrearDespacho() {
           origen_id,
           destino_id
         `)
-        .eq('created_by', userId)
+        .eq('empresa_id', empresaActiva?.empresa_id)
         .order('scheduled_local_date', { ascending: false })
         .order('scheduled_local_time', { ascending: false });
 
