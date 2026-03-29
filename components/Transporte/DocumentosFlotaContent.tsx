@@ -154,7 +154,24 @@ export default function DocumentosFlotaContent() {
       );
       if (!response.ok) throw new Error('Error al cargar documentos');
       const result = await response.json();
-      setDocumentos(result.data?.documentos || []);
+      // Recalcular estado_vigencia en tiempo real usando fecha_vencimiento
+      // (el campo de BD puede estar stale si el batch no corrió)
+      const docs = (result.data?.documentos || []).map((doc: DocumentoExistente) => {
+        if (!doc.fecha_vencimiento || ['pendiente_validacion', 'rechazado'].includes(doc.estado_vigencia)) {
+          return doc;
+        }
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const vto = new Date(doc.fecha_vencimiento);
+        vto.setHours(0, 0, 0, 0);
+        const diasRestantes = Math.floor((vto.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+        let estado_vigencia = doc.estado_vigencia;
+        if (diasRestantes < 0) estado_vigencia = 'vencido';
+        else if (diasRestantes <= 30) estado_vigencia = 'por_vencer';
+        else estado_vigencia = 'vigente';
+        return { ...doc, estado_vigencia };
+      });
+      setDocumentos(docs);
     } catch (err) {
       console.error('Error cargando documentos:', err);
       setDocumentos([]);
