@@ -242,7 +242,7 @@ export default function useCrearDespacho() {
   // Refetch despachos cuando empresaActiva se resuelve (después de cargar empresas)
   useEffect(() => {
     if (user?.id && empresaActiva?.empresa_id) {
-      fetchGeneratedDispatches(user.id, true);
+      fetchGeneratedDispatches(user.id, true, empresaActiva.empresa_id);
     }
   }, [empresaActiva?.empresa_id]);
 
@@ -271,14 +271,14 @@ export default function useCrearDespacho() {
     }
   };
 
-  const fetchGeneratedDispatches = useCallback(async (userId: string, forceLoading = false) => {
+  const fetchGeneratedDispatches = useCallback(async (userId: string, forceLoading = false, empresaId?: string) => {
     if (!userId) {
       console.error('❌ No userId proporcionado para fetchGeneratedDispatches');
       return;
     }
 
-    if (!empresaActiva?.empresa_id) {
-      // empresaActiva aún no cargada — se reintentará via useEffect
+    if (!empresaId) {
+      // empresaId no proporcionado — se reintentará via useEffect
       return;
     }
 
@@ -290,7 +290,7 @@ export default function useCrearDespacho() {
       const { data: allData } = await supabase
         .from('despachos')
         .select('id, pedido_id, estado, transport_id')
-        .eq('empresa_id', empresaActiva?.empresa_id)
+        .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -316,7 +316,7 @@ export default function useCrearDespacho() {
           origen_id,
           destino_id
         `)
-        .eq('empresa_id', empresaActiva?.empresa_id)
+        .eq('empresa_id', empresaId)
         .order('scheduled_local_date', { ascending: false })
         .order('scheduled_local_time', { ascending: false });
 
@@ -1050,7 +1050,7 @@ export default function useCrearDespacho() {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       if (user?.id) {
-        await fetchGeneratedDispatches(user.id);
+        await fetchGeneratedDispatches(user.id, false, empresaActiva?.empresa_id);
 
         const despachoActualizado = generatedDispatches.find(d => d.id === despachoId);
         if (despachoActualizado) {
@@ -1103,7 +1103,7 @@ export default function useCrearDespacho() {
       await new Promise(resolve => setTimeout(resolve, 800));
 
       if (user?.id) {
-        await fetchGeneratedDispatches(user.id);
+        await fetchGeneratedDispatches(user.id, false, empresaActiva?.empresa_id);
         setTimelineRefreshTrigger(prev => prev + 1);
 
         if (despachoId && expandedDespachos.has(despachoId)) {
@@ -1260,7 +1260,7 @@ export default function useCrearDespacho() {
       setMotivoCancelacion('');
 
       if (user?.id) {
-        await fetchGeneratedDispatches(user.id);
+        await fetchGeneratedDispatches(user.id, false, empresaActiva?.empresa_id);
       }
     } catch (error: any) {
       console.error('Error cancelando despacho:', error);
@@ -1478,7 +1478,7 @@ export default function useCrearDespacho() {
       });
 
       if (user?.id) {
-        await fetchGeneratedDispatches(user.id);
+        await fetchGeneratedDispatches(user.id, false, empresaActiva?.empresa_id);
       }
 
       if (expandedDespachos.has(despachoId)) {
@@ -1560,7 +1560,7 @@ export default function useCrearDespacho() {
 
       if (user?.id) {
         try {
-          await fetchGeneratedDispatches(user.id);
+          await fetchGeneratedDispatches(user.id, false, empresaActiva?.empresa_id);
         } catch (fetchError) {
           console.error('❌ Error en recarga:', fetchError);
         }
@@ -1750,7 +1750,7 @@ export default function useCrearDespacho() {
           }
         }
 
-        await fetchGeneratedDispatches(user.id);
+        await fetchGeneratedDispatches(user.id, false, empresaActiva?.empresa_id);
 
         setFormRows(prevRows => prevRows.filter(row => row.tempId !== rowToSave.tempId));
         if (formRows.length === 1 && formRows[0]?.tempId === rowToSave.tempId) {
