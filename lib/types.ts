@@ -92,7 +92,7 @@ export function getRolDisplayName(rol: RolInterno, tipoEmpresa: TipoEmpresa): st
     },
     supervisor: { 
       planta: 'Supervisor de Carga', 
-      transporte: 'Supervisor de Flota',
+      transporte: 'Supervisor',
       cliente: 'Supervisor',
       admin: 'Supervisor'
     },

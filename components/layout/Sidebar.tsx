@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, CalendarDaysIcon, TruckIcon, ChartBarIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserCircleIcon, BuildingOfficeIcon, ExclamationTriangleIcon, ScaleIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabaseClient';
 import { useUserRole } from '@/lib/contexts/UserRoleContext';
@@ -150,6 +150,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userEmail, userName }) => {
       navItems = [
         { name: 'Inicio', icon: HomeIcon, href: '/dashboard' },
         { name: '👷 Supervisor de Flota', icon: TruckIcon, href: '/transporte/dashboard' },
+        { name: '👷 Supervisor de Carga', icon: ScaleIcon, href: '/supervisor-carga' },
         ...(turnosEnabled ? [{ name: '🕒 Turnos Recepción', icon: CalendarDaysIcon, href: '/turnos' }] : []),
         { name: '📊 Viajes Activos', icon: ChartBarIcon, href: '/transporte/viajes-activos' },
         { name: 'Flota', icon: TruckIcon, href: '/transporte/flota' },

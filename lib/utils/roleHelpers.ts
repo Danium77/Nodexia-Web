@@ -51,7 +51,7 @@ export function getRolDisplayName(
         case 'planta':
           return 'Supervisor de Carga';
         case 'transporte':
-          return 'Supervisor de Flota';
+          return 'Supervisor';
         default:
           return 'Supervisor';
       }
