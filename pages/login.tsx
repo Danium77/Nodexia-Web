@@ -1,7 +1,7 @@
 ﻿import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
-import { AtSymbolIcon, KeyIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { AtSymbolIcon, KeyIcon, ExclamationCircleIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabaseClient';
 
 // Función para traducir errores de Supabase a mensajes profesionales
@@ -33,6 +33,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -143,7 +144,7 @@ export default function Login() {
           <label className="flex items-center gap-2 px-4 py-3 rounded-md bg-[#1b273b] focus-within:ring-2 ring-cyan-500/70">
             <KeyIcon className="h-5 w-5 text-cyan-400" />
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               name="password"
               required
               placeholder="Contraseña"
@@ -151,6 +152,18 @@ export default function Login() {
               onChange={handleChange}
               value={form.password}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-slate-400 hover:text-cyan-400 transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <EyeSlashIcon className="h-5 w-5" />
+              ) : (
+                <EyeIcon className="h-5 w-5" />
+              )}
+            </button>
           </label>
 
           {/* Mensaje de error profesional */}
