@@ -4,6 +4,40 @@ Registro cronológico de cambios significativos. Append-only.
 
 ---
 
+## 30-Mar-2026 — Sesión 46: Emergency Fixes (SW, Despachos, Vigencia)
+
+### Commit `de60cc0` — Service Worker v3
+- `public/sw.js`: `/_next/` requests now bypass SW completely (Vercel CDN handles with immutable headers)
+- Bumped cache names to force invalidation of old SW
+- Root cause: SW cached stale chunk URLs, returning 404/text-plain after Vercel redeploy
+
+### Commit `83f4bce` — Despacho visibility fix (empresa_id)
+- `pages/coordinator-dashboard.tsx`: 4 queries changed from `created_by=userId` to `empresa_id=empresaId`
+  - `loadDashboardStats`, `loadRecentDispatches`, `calcularSlotAdherence`, `calcularDwellTime`
+  - Restructured `loadAllData` to fetch empresaId from `usuarios_empresa` first
+- `lib/hooks/useCrearDespacho.ts`: 2 queries changed from `created_by` to `empresa_id`
+
+### Commit `2937ffd` — Document vigencia real-time calculation
+- `components/Transporte/DocumentosFlotaContent.tsx`: Added real-time recalculation on data load
+  - Normalizes dates to midnight, calculates days remaining, overrides stale `estado_vigencia` DB field
+  - Fixes: documents showing "Vencido" in control-acceso but "Vigente" in fleet view
+
+### Commit `d48fca2` — Timing guard for empresaActiva
+- `lib/hooks/useCrearDespacho.ts`: `fetchGeneratedDispatches` returns early if `empresaActiva` not loaded
+  - Added `useEffect` to refetch when `empresaActiva?.empresa_id` resolves
+
+### Commit `39e5664` — Stale closure fix (empresaId parameter)
+- `lib/hooks/useCrearDespacho.ts`: `fetchGeneratedDispatches` signature changed to accept `empresaId` as explicit 3rd parameter
+  - Eliminates dependency on `useCallback` closure (empty deps `[]` captured `empresaActiva` as `undefined`)
+  - All 8 call sites updated to pass `empresaActiva?.empresa_id`
+
+### Cross-contamination incident
+- Discovered 35 files (~8400 lines) overwritten by mobile Opus agent with OLD code versions
+- Production was safe (nothing committed). Reverted all via `git checkout -- .`
+- Added workspace isolation rules to memory
+
+---
+
 ## 29-Mar-2026 — Sesión 45: Documentación, Auditoría y Soporte Mobile
 
 ### Soporte App Mobile (nodexia-chofer)

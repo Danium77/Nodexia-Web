@@ -1,6 +1,6 @@
 # ESTADO DEL PROYECTO — NODEXIA-WEB
 
-**Última actualización:** 29-Mar-2026 (sesión 45)
+**Última actualización:** 30-Mar-2026 (sesión 46)
 
 ---
 
@@ -9,7 +9,7 @@
 - **URL:** www.nodexiaweb.com
 - **Deploy:** Vercel (proyecto `nodexia-web-j6wl`, región `gru1`)
 - **Supabase PROD:** `lkdcofsfjnltuzzzwoir`
-- **Último commit:** `2f8ceb3` (26-Mar-2026)
+- **Último commit:** `39e5664` (30-Mar-2026)
 - **Estado general:** Funcional — Bloques A + B1-B4 completados. App mobile en desarrollo.
 - **Monitoring:** Sentry integrado (pendiente configurar DSN en Vercel)
 - **Supabase CLI:** Instalado (npx), logueado, linked a PROD
@@ -81,6 +81,35 @@
 | Contextos | 2 (UserRole + FeatureFlag) | — |
 
 ---
+
+## ÚLTIMA SESIÓN (46 — 30-Mar-2026)
+
+### Platform Emergency — SW Cache + Cross-Contamination
+- **Service Worker v3** (`de60cc0`): `/_next/` requests now bypass SW completely — prevents 404 on Vercel redeploy
+- **Cross-contamination revert**: Another AI agent (Opus Mobile) overwrote 35 files (~8400 lines) with old code. Reverted via `git checkout -- .`
+- **Workspace isolation rules**: Saved to memory — each Opus instance must only edit its own repo
+
+### Bug Fixes — Despacho Visibility + Document Vigencia
+- **empresa_id filter** (`83f4bce`): Changed 6 queries across `coordinator-dashboard.tsx` and `useCrearDespacho.ts` from `created_by=userId` to `empresa_id`
+  - All coordinators in a company now see company despachos (not just the creator)
+- **Document vigencia real-time** (`2937ffd`): `DocumentosFlotaContent.tsx` recalculates vigencia from `fecha_vencimiento` vs current date
+  - Fixes inconsistency between control-acceso (correct) and fleet view (stale DB field)
+
+### Bug Fixes — Despachos Empty List for Transporte
+- **Timing guard** (`d48fca2`): `fetchGeneratedDispatches` returns early if `empresaActiva` not loaded yet + useEffect retries when it resolves
+- **Stale closure fix** (`39e5664`): `fetchGeneratedDispatches` now accepts `empresaId` as explicit 3rd parameter instead of relying on `useCallback` closure with empty deps `[]`
+  - All 8 call sites updated to pass `empresaActiva?.empresa_id`
+
+### Commits this session
+- `de60cc0` — fix(sw): never cache /_next/ static chunks
+- `83f4bce` — fix: filter despachos by empresa_id instead of created_by
+- `2937ffd` — fix: recalculate document vigencia in real-time on fleet view
+- `d48fca2` — fix: wait for empresaActiva before fetching despachos
+- `39e5664` — fix: pass empresaId explicitly to fetchGeneratedDispatches
+
+### Pre-existing issues noted
+- `relaciones_empresa` → 404 on coordinator-dashboard (table name mismatch)
+- `registro_control_acceso` → 404 on coordinator-dashboard (should be `registros_acceso`)
 
 ## ÚLTIMA SESIÓN (45 — 29-Mar-2026)
 
