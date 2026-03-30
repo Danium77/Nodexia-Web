@@ -56,7 +56,7 @@ export type RolInterno =
  */
 export const ROLES_BY_TIPO: Record<TipoEmpresa, RolInterno[]> = {
   planta: ['coordinador', 'coordinador_integral', 'control_acceso', 'supervisor', 'administrativo', 'vendedor'],
-  transporte: ['coordinador', 'chofer', 'supervisor', 'administrativo'],
+  transporte: ['coordinador', 'chofer', 'control_acceso', 'supervisor', 'administrativo'],
   cliente: ['visor'],
   admin: ['admin_nodexia'],
 };
