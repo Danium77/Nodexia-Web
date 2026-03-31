@@ -42,24 +42,32 @@ export default withAuth(async (req, res, authCtx) => {
       query = query.eq('ventanas_recepcion.empresa_planta_id', empresaPlantaId);
     }
 
+    const asReservante = req.query.as_reservante === 'true';
+
     if (isTransporte(authCtx.tipoEmpresa)) {
       query = query.eq('empresa_transporte_id', authCtx.empresaId || '');
     } else if (isPlanta(authCtx.tipoEmpresa)) {
-      const { data: ventanas, error: ventanasError } = await supabaseAdmin
-        .from('ventanas_recepcion')
-        .select('id')
-        .eq('empresa_planta_id', authCtx.empresaId || '');
+      if (asReservante) {
+        // Planta reservando en OTRAS plantas: ver reservas hechas por esta empresa
+        query = query.eq('empresa_transporte_id', authCtx.empresaId || '');
+      } else {
+        // Vista normal: ver reservas EN MIS ventanas (hechas por otros)
+        const { data: ventanas, error: ventanasError } = await supabaseAdmin
+          .from('ventanas_recepcion')
+          .select('id')
+          .eq('empresa_planta_id', authCtx.empresaId || '');
 
-      if (ventanasError) {
-        return res.status(500).json({ error: ventanasError.message });
+        if (ventanasError) {
+          return res.status(500).json({ error: ventanasError.message });
+        }
+
+        const ventanaIds = (ventanas || []).map((v: any) => v.id);
+        if (ventanaIds.length === 0) {
+          return res.status(200).json({ data: [] });
+        }
+
+        query = query.in('ventana_id', ventanaIds);
       }
-
-      const ventanaIds = (ventanas || []).map((v: any) => v.id);
-      if (ventanaIds.length === 0) {
-        return res.status(200).json({ data: [] });
-      }
-
-      query = query.in('ventana_id', ventanaIds);
     }
 
     const { data, error } = await query;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import GestionVentanas from '@/components/Turnos/GestionVentanas';
@@ -7,8 +7,9 @@ import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import { useFeatureFlags } from '@/lib/contexts/FeatureFlagContext';
 
 export default function TurnosPage() {
-  const { user, loading, tipoEmpresa } = useUserRole();
+  const { user, loading, tipoEmpresa, empresaId } = useUserRole();
   const { hasFeature, loading: featureLoading } = useFeatureFlags();
+  const [plantaTab, setPlantaTab] = useState<'ventanas' | 'reservar'>('ventanas');
 
   if (loading || featureLoading) {
     return <LoadingSpinner text="Cargando..." fullScreen />;
@@ -17,6 +18,9 @@ export default function TurnosPage() {
   if (!user) {
     return <LoadingSpinner text="Cargando..." fullScreen />;
   }
+
+  const isPlanta = String(tipoEmpresa || '').toLowerCase() === 'planta';
+  const isTransporte = String(tipoEmpresa || '').toLowerCase() === 'transporte';
 
   return (
     <MainLayout pageTitle="Turnos de Recepcion">
@@ -27,9 +31,37 @@ export default function TurnosPage() {
             La funcionalidad de turnos de recepcion no esta habilitada para tu empresa.
           </p>
         </div>
-      ) : String(tipoEmpresa || '').toLowerCase() === 'planta' ? (
-        <GestionVentanas />
-      ) : String(tipoEmpresa || '').toLowerCase() === 'transporte' ? (
+      ) : isPlanta ? (
+        <div className="space-y-4">
+          <div className="flex gap-2 border-b border-slate-700 pb-2">
+            <button
+              onClick={() => setPlantaTab('ventanas')}
+              className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
+                plantaTab === 'ventanas'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Mis Ventanas
+            </button>
+            <button
+              onClick={() => setPlantaTab('reservar')}
+              className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
+                plantaTab === 'reservar'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Reservar Turno en otra Planta
+            </button>
+          </div>
+          {plantaTab === 'ventanas' ? (
+            <GestionVentanas />
+          ) : (
+            <ReservaTurnos excludeEmpresaId={empresaId || undefined} asReservante />
+          )}
+        </div>
+      ) : isTransporte ? (
         <ReservaTurnos />
       ) : (
         <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-6">

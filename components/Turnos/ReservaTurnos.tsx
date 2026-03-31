@@ -42,7 +42,12 @@ async function authFetch(url: string, init?: RequestInit) {
   return json;
 }
 
-export default function ReservaTurnos() {
+interface ReservaTurnosProps {
+  excludeEmpresaId?: string;
+  asReservante?: boolean;
+}
+
+export default function ReservaTurnos({ excludeEmpresaId, asReservante }: ReservaTurnosProps = {}) {
   const { empresaId } = useUserRole();
   const [plantas, setPlantas] = useState<Planta[]>([]);
   const [plantId, setPlantId] = useState('');
@@ -58,12 +63,18 @@ export default function ReservaTurnos() {
   const [error, setError] = useState<string | null>(null);
 
   const loadPlantas = useCallback(async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from('empresas')
       .select('id, nombre')
       .eq('tipo_empresa', 'planta')
       .eq('activo', true)
       .order('nombre', { ascending: true });
+
+    if (excludeEmpresaId) {
+      query = query.neq('id', excludeEmpresaId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(error.message);
     const list = data || [];
@@ -71,7 +82,7 @@ export default function ReservaTurnos() {
     if (list.length > 0) {
       setPlantId((prev) => prev || list[0].id);
     }
-  }, []);
+  }, [excludeEmpresaId]);
 
   const loadDespachos = useCallback(async () => {
     if (!empresaId) return;
@@ -87,9 +98,10 @@ export default function ReservaTurnos() {
   }, [empresaId]);
 
   const loadReservas = useCallback(async () => {
-    const res = await authFetch('/api/turnos/reservas');
+    const url = asReservante ? '/api/turnos/reservas?as_reservante=true' : '/api/turnos/reservas';
+    const res = await authFetch(url);
     setReservas(res.data || []);
-  }, []);
+  }, [asReservante]);
 
   const loadSlots = useCallback(async () => {
     if (!plantId) return;
