@@ -167,6 +167,10 @@ export default function useCrearDespacho() {
   const [turnoDiasDisponibles, setTurnoDiasDisponibles] = useState<number[]>([]);
   const [loadingTurnos, setLoadingTurnos] = useState(false);
   const [savingTurno, setSavingTurno] = useState(false);
+  // Flujo B: turnos pendientes sin despacho vinculado
+  const [turnosPendientes, setTurnosPendientes] = useState<any[]>([]);
+  const [turnoSelectedPendiente, setTurnoSelectedPendiente] = useState<any>(null);
+  const [turnoModalTab, setTurnoModalTab] = useState<'nuevo' | 'pendientes'>('nuevo');
 
   const toRadians = (value: number) => (value * Math.PI) / 180;
   const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -735,6 +739,34 @@ export default function useCrearDespacho() {
     }
   };
 
+  // Flujo B: buscar turnos reservados sin despacho para una planta
+  const fetchTurnosPendientes = async (empresaPlantaId: string) => {
+    try {
+      const res = await fetchWithAuth(
+        `/api/turnos/reservas?sin_despacho=true&empresa_planta_id=${empresaPlantaId}`
+      );
+      const json = await res.json();
+      if (res.ok && json.data) {
+        // Solo turnos futuros o de hoy
+        const hoy = new Date().toISOString().slice(0, 10);
+        const pendientes = json.data.filter((t: any) => t.fecha >= hoy);
+        setTurnosPendientes(pendientes);
+        // Si hay pendientes, mostrar esa tab primero
+        if (pendientes.length > 0) {
+          setTurnoModalTab('pendientes');
+        } else {
+          setTurnoModalTab('nuevo');
+        }
+      } else {
+        setTurnosPendientes([]);
+        setTurnoModalTab('nuevo');
+      }
+    } catch {
+      setTurnosPendientes([]);
+      setTurnoModalTab('nuevo');
+    }
+  };
+
   const handleOrigenSelect = async (tempId: number, ubicacion: any) => {
     setFormRows(prevRows =>
       prevRows.map(r =>
@@ -821,8 +853,13 @@ export default function useCrearDespacho() {
         setTurnoRowTempId(tempId);
         setTurnoFecha(fechaDefault);
         setTurnoSelectedSlot(null);
+        setTurnoSelectedPendiente(null);
         setIsTurnoModalOpen(true);
-        await refreshVentanasTurno(json.empresa_planta_id, fechaDefault);
+        // Cargar slots nuevos Y turnos pendientes sin despacho en paralelo
+        await Promise.all([
+          refreshVentanasTurno(json.empresa_planta_id, fechaDefault),
+          fetchTurnosPendientes(json.empresa_planta_id),
+        ]);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error validando turno para destino');
@@ -840,11 +877,58 @@ export default function useCrearDespacho() {
     setTurnoRowTempId(tempId);
     setTurnoFecha(fechaBase);
     setTurnoSelectedSlot(null);
+    setTurnoSelectedPendiente(null);
     setIsTurnoModalOpen(true);
-    await refreshVentanasTurno(row.turno_empresa_planta_id, fechaBase);
+    await Promise.all([
+      refreshVentanasTurno(row.turno_empresa_planta_id, fechaBase),
+      fetchTurnosPendientes(row.turno_empresa_planta_id),
+    ]);
   };
 
   const handleConfirmarReservaTurno = async () => {
+    // Flujo B: vincular turno pendiente existente
+    if (turnoModalTab === 'pendientes' && turnoSelectedPendiente) {
+      const row = formRows.find(r => r.tempId === turnoRowTempId);
+      if (!row) return;
+
+      setSavingTurno(true);
+      try {
+        const turno = turnoSelectedPendiente;
+        const turnoHora = (turno.hora_inicio || '').slice(0, 5);
+        const suggestion = await calcularSugerenciaCarga(row, turno.fecha, turnoHora);
+
+        setFormRows(prevRows =>
+          prevRows.map(r =>
+            r.tempId === turnoRowTempId
+              ? {
+                  ...r,
+                  turno_id: turno.id,
+                  turno_numero: turno.numero_turno || '',
+                  turno_fecha: turno.fecha,
+                  turno_hora: turnoHora,
+                  fecha_despacho: suggestion?.fecha || turno.fecha || r.fecha_despacho,
+                  hora_despacho: suggestion?.hora || turnoHora || r.hora_despacho,
+                  fecha_carga_sugerida: suggestion?.fechaISO || r.fecha_carga_sugerida,
+                  distancia_km: suggestion?.distanciaKm || r.distancia_km,
+                  horas_transito_estimadas: suggestion?.horasTransito || r.horas_transito_estimadas,
+                }
+              : r
+          )
+        );
+
+        setIsTurnoModalOpen(false);
+        setTurnoRowTempId(null);
+        setTurnoSelectedPendiente(null);
+        setSuccessMsg(`✅ Turno ${turno.numero_turno || ''} vinculado. Fecha/hora de carga sugerida aplicada.`);
+      } catch (err: any) {
+        setErrorMsg(err.message || 'No se pudo vincular turno');
+      } finally {
+        setSavingTurno(false);
+      }
+      return;
+    }
+
+    // Flujo A: reservar nuevo turno
     if (!turnoRowTempId || !turnoSelectedSlot || !turnoFecha) {
       setErrorMsg('Debe seleccionar fecha y horario para reservar turno');
       return;
@@ -1810,6 +1894,12 @@ export default function useCrearDespacho() {
     savingTurno,
     turnoRowTempId,
     refreshVentanasTurno,
+    // Flujo B: turnos pendientes
+    turnosPendientes,
+    turnoSelectedPendiente,
+    setTurnoSelectedPendiente,
+    turnoModalTab,
+    setTurnoModalTab,
 
     // Dispatches
     generatedDispatches,

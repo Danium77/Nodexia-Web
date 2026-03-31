@@ -57,79 +57,177 @@ const CrearDespacho = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Fecha de turno</label>
-                    <input
-                      type="date"
-                      value={h.turnoFecha}
-                      min={h.today}
-                      onChange={async (e) => {
-                        const newDate = e.target.value;
-                        h.setTurnoFecha(newDate);
-                        const row = h.formRows.find((r: any) => r.tempId === h.turnoRowTempId);
-                        if (row?.turno_empresa_planta_id) {
-                          await h.refreshVentanasTurno(row.turno_empresa_planta_id, newDate);
-                        }
-                      }}
-                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    {h.turnoSelectedSlot && (
-                      <div className="text-sm text-cyan-300 font-mono font-bold">
-                        Seleccionado: {h.turnoSelectedSlot.hora_inicio}-{h.turnoSelectedSlot.hora_fin}
+                {/* Tabs: Nuevo turno / Turnos reservados */}
+                <div className="flex gap-1 mb-4 border-b border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => { h.setTurnoModalTab('nuevo'); h.setTurnoSelectedPendiente(null); }}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      h.turnoModalTab === 'nuevo'
+                        ? 'bg-slate-800 text-cyan-300 border-b-2 border-cyan-400'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Nuevo turno
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { h.setTurnoModalTab('pendientes'); h.setTurnoSelectedSlot(null); }}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      h.turnoModalTab === 'pendientes'
+                        ? 'bg-slate-800 text-cyan-300 border-b-2 border-cyan-400'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Turnos reservados
+                    {h.turnosPendientes.length > 0 && (
+                      <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-cyan-600 rounded-full">
+                        {h.turnosPendientes.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Tab: Nuevo turno (Flujo A) */}
+                {h.turnoModalTab === 'nuevo' && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Fecha de turno</label>
+                        <input
+                          type="date"
+                          value={h.turnoFecha}
+                          min={h.today}
+                          onChange={async (e) => {
+                            const newDate = e.target.value;
+                            h.setTurnoFecha(newDate);
+                            const row = h.formRows.find((r: any) => r.tempId === h.turnoRowTempId);
+                            if (row?.turno_empresa_planta_id) {
+                              await h.refreshVentanasTurno(row.turno_empresa_planta_id, newDate);
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        {h.turnoSelectedSlot && (
+                          <div className="text-sm text-cyan-300 font-mono font-bold">
+                            Seleccionado: {h.turnoSelectedSlot.hora_inicio}-{h.turnoSelectedSlot.hora_fin}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      {h.loadingTurnos && (
+                        <p className="text-slate-400 text-sm">Cargando disponibilidad...</p>
+                      )}
+                      {!h.loadingTurnos && h.turnoSlots.length === 0 && (
+                        <div className="text-sm">
+                          <p className="text-slate-400">No hay slots activos para la fecha seleccionada.</p>
+                          {h.turnoDiasDisponibles.length > 0 && (
+                            <p className="text-cyan-400/80 mt-1">
+                              Dias con ventanas: {h.turnoDiasDisponibles.map((d: number) => ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'][d]).join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {!h.loadingTurnos && h.turnoSlots.length > 0 && (
+                        <div>
+                          <p className="text-xs text-slate-400 mb-2">Selecciona un horario:</p>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-56 overflow-auto">
+                            {h.turnoSlots.map((s: any, i: number) => {
+                              const pct = s.capacidad > 0 ? s.ocupados / s.capacidad : 0;
+                              const full = pct >= 1;
+                              const isSelected = h.turnoSelectedSlot?.hora_inicio === s.hora_inicio && h.turnoSelectedSlot?.ventana_id === s.ventana_id;
+                              const border = isSelected ? 'border-cyan-400 ring-1 ring-cyan-400' : full ? 'border-red-500/40' : pct >= 0.5 ? 'border-amber-500/40' : 'border-emerald-500/40';
+                              const bgc = isSelected ? 'bg-cyan-500/20' : full ? 'bg-red-500/10' : pct >= 0.5 ? 'bg-amber-500/10' : 'bg-emerald-500/10';
+                              const bar = full ? 'bg-red-500' : pct >= 0.5 ? 'bg-amber-500' : 'bg-emerald-500';
+                              return (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  disabled={full}
+                                  onClick={() => h.setTurnoSelectedSlot(s)}
+                                  className={`rounded-lg border ${border} ${bgc} p-2 text-center transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110`}
+                                >
+                                  <div className="text-sm font-mono font-bold text-slate-100">{s.hora_inicio}-{s.hora_fin}</div>
+                                  <div className="text-[10px] text-slate-400 truncate">{s.ventana_nombre}</div>
+                                  <div className="text-xs text-slate-300">{s.disponibles} disp.</div>
+                                  <div className="mt-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                    <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(pct * 100, 100)}%` }} />
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Tab: Turnos reservados sin despacho (Flujo B) */}
+                {h.turnoModalTab === 'pendientes' && (
+                  <div className="mb-4">
+                    {h.turnosPendientes.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-slate-400 text-sm">No hay turnos reservados sin despacho vinculado.</p>
+                        <button
+                          type="button"
+                          onClick={() => h.setTurnoModalTab('nuevo')}
+                          className="mt-3 text-sm text-cyan-400 hover:text-cyan-300 underline"
+                        >
+                          Reservar nuevo turno
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs text-slate-400 mb-2">Turnos reservados disponibles para vincular:</p>
+                        <div className="space-y-2 max-h-64 overflow-auto">
+                          {h.turnosPendientes.map((t: any) => {
+                            const isSelected = h.turnoSelectedPendiente?.id === t.id;
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => h.setTurnoSelectedPendiente(t)}
+                                className={`w-full text-left rounded-lg border p-3 transition-all ${
+                                  isSelected
+                                    ? 'border-cyan-400 bg-cyan-500/20 ring-1 ring-cyan-400'
+                                    : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm font-mono font-bold text-cyan-300">
+                                      {t.numero_turno || 'S/N'}
+                                    </span>
+                                    <span className="text-sm text-slate-200">
+                                      {t.fecha} &middot; {(t.hora_inicio || '').slice(0, 5)}-{(t.hora_fin || '').slice(0, 5)}
+                                    </span>
+                                  </div>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    t.estado === 'confirmado' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                                  }`}>
+                                    {t.estado}
+                                  </span>
+                                </div>
+                                {(t.patente_camion || t.chofer_nombre) && (
+                                  <div className="mt-1 text-xs text-slate-400">
+                                    {t.patente_camion && <span>Patente: {t.patente_camion}</span>}
+                                    {t.patente_camion && t.chofer_nombre && <span> &middot; </span>}
+                                    {t.chofer_nombre && <span>Chofer: {t.chofer_nombre}</span>}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
-                </div>
-
-                <div className="mb-4">
-                  {h.loadingTurnos && (
-                    <p className="text-slate-400 text-sm">Cargando disponibilidad...</p>
-                  )}
-                  {!h.loadingTurnos && h.turnoSlots.length === 0 && (
-                    <div className="text-sm">
-                      <p className="text-slate-400">No hay slots activos para la fecha seleccionada.</p>
-                      {h.turnoDiasDisponibles.length > 0 && (
-                        <p className="text-cyan-400/80 mt-1">
-                          Dias con ventanas: {h.turnoDiasDisponibles.map((d: number) => ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'][d]).join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {!h.loadingTurnos && h.turnoSlots.length > 0 && (
-                    <div>
-                      <p className="text-xs text-slate-400 mb-2">Selecciona un horario:</p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-56 overflow-auto">
-                        {h.turnoSlots.map((s: any, i: number) => {
-                          const pct = s.capacidad > 0 ? s.ocupados / s.capacidad : 0;
-                          const full = pct >= 1;
-                          const isSelected = h.turnoSelectedSlot?.hora_inicio === s.hora_inicio && h.turnoSelectedSlot?.ventana_id === s.ventana_id;
-                          const border = isSelected ? 'border-cyan-400 ring-1 ring-cyan-400' : full ? 'border-red-500/40' : pct >= 0.5 ? 'border-amber-500/40' : 'border-emerald-500/40';
-                          const bgc = isSelected ? 'bg-cyan-500/20' : full ? 'bg-red-500/10' : pct >= 0.5 ? 'bg-amber-500/10' : 'bg-emerald-500/10';
-                          const bar = full ? 'bg-red-500' : pct >= 0.5 ? 'bg-amber-500' : 'bg-emerald-500';
-                          return (
-                            <button
-                              key={i}
-                              type="button"
-                              disabled={full}
-                              onClick={() => h.setTurnoSelectedSlot(s)}
-                              className={`rounded-lg border ${border} ${bgc} p-2 text-center transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110`}
-                            >
-                              <div className="text-sm font-mono font-bold text-slate-100">{s.hora_inicio}-{s.hora_fin}</div>
-                              <div className="text-[10px] text-slate-400 truncate">{s.ventana_nombre}</div>
-                              <div className="text-xs text-slate-300">{s.disponibles} disp.</div>
-                              <div className="mt-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
-                                <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.min(pct * 100, 100)}%` }} />
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
 
                 <div className="flex justify-end gap-2">
                   <button
@@ -141,11 +239,15 @@ const CrearDespacho = () => {
                   </button>
                   <button
                     type="button"
-                    disabled={h.savingTurno || !h.turnoSelectedSlot}
+                    disabled={h.savingTurno || (h.turnoModalTab === 'nuevo' ? !h.turnoSelectedSlot : !h.turnoSelectedPendiente)}
                     onClick={h.handleConfirmarReservaTurno}
                     className="px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50"
                   >
-                    {h.savingTurno ? 'Reservando...' : 'Confirmar turno'}
+                    {h.savingTurno
+                      ? 'Procesando...'
+                      : h.turnoModalTab === 'pendientes'
+                        ? 'Vincular turno'
+                        : 'Confirmar turno'}
                   </button>
                 </div>
               </div>

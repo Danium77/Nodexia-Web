@@ -17,10 +17,12 @@ export default withAuth(async (req, res, authCtx) => {
 
   if (req.method === 'GET') {
     const fecha = req.query.fecha as string | undefined;
+    const sinDespacho = req.query.sin_despacho === 'true';
+    const empresaPlantaId = req.query.empresa_planta_id as string | undefined;
 
     let query = supabaseAdmin
       .from('turnos_reservados')
-      .select('*, despachos(pedido_id), empresas!turnos_reservados_empresa_transporte_id_fkey(nombre)')
+      .select('*, despachos(pedido_id), empresas!turnos_reservados_empresa_transporte_id_fkey(nombre), ventanas_recepcion!inner(empresa_planta_id)')
       .neq('estado', 'cancelado')
       .order('fecha', { ascending: true })
       .order('hora_inicio', { ascending: true })
@@ -28,6 +30,16 @@ export default withAuth(async (req, res, authCtx) => {
 
     if (fecha) {
       query = query.eq('fecha', fecha);
+    }
+
+    // Filtro: solo turnos sin despacho vinculado (para flujo Turno → Despacho)
+    if (sinDespacho) {
+      query = query.is('despacho_id', null).in('estado', ['reservado', 'confirmado']);
+    }
+
+    // Filtro: por planta destino (via ventana)
+    if (empresaPlantaId) {
+      query = query.eq('ventanas_recepcion.empresa_planta_id', empresaPlantaId);
     }
 
     if (isTransporte(authCtx.tipoEmpresa)) {
@@ -60,8 +72,10 @@ export default withAuth(async (req, res, authCtx) => {
       ...r,
       despacho_pedido_id: r.despachos?.pedido_id || null,
       empresa_origen: r.empresas?.nombre || null,
+      empresa_planta_id: r.ventanas_recepcion?.empresa_planta_id || null,
       despachos: undefined,
       empresas: undefined,
+      ventanas_recepcion: undefined,
     }));
 
     return res.status(200).json({ data: flattened });
