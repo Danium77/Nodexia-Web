@@ -61,123 +61,61 @@ export default function useSupervisorCarga() {
   const [viajes, setViajes] = useState<ViajeParaCarga[]>([]);
   const [loadingViajes, setLoadingViajes] = useState(false);
 
-  // ─── Cargar viajes relevantes ──────────────────────────────────
+  // ─── Cargar viajes relevantes (via API server-side para bypass RLS) ───
   const cargarViajes = useCallback(async () => {
     if (!empresaId) return;
 
     setLoadingViajes(true);
     try {
-      // Paso 1: Obtener usuarios de la misma empresa para filtrar despachos origen
-      const { data: companyUsers } = await supabase
-        .from('usuarios_empresa')
-        .select('user_id')
-        .eq('empresa_id', empresaId)
-        .eq('activo', true);
-
-      const allUserIds = [...new Set((companyUsers || []).map(u => u.user_id).filter(Boolean))];
-
-      // Paso 2a: Obtener despachos ORIGEN (creados por mi empresa)
-      const despachosOriginPromise = allUserIds.length > 0
-        ? supabase
-            .from('despachos')
-            .select('id, origen, destino')
-            .in('created_by', allUserIds)
-        : Promise.resolve({ data: [], error: null });
-
-      // Paso 2b: Obtener despachos DESTINO (destino es una ubicación de mi empresa)
-      const { data: myUbicaciones } = await supabase
-        .from('ubicaciones')
-        .select('id')
-        .eq('empresa_id', empresaId);
-
-      const ubicacionIds = (myUbicaciones || []).map(u => u.id).filter(Boolean);
-
-      const despachosDestinoPromise = ubicacionIds.length > 0
-        ? supabase
-            .from('despachos')
-            .select('id, origen, destino')
-            .in('destino_id', ubicacionIds)
-        : Promise.resolve({ data: [], error: null });
-
-      const [despOrigen, despDestino] = await Promise.all([despachosOriginPromise, despachosDestinoPromise]);
-
-      if (despOrigen.error) console.error('❌ [supervisor] Error despachos origen:', despOrigen.error);
-      if (despDestino.error) console.error('❌ [supervisor] Error despachos destino:', despDestino.error);
-
-      // Merge despachos sin duplicados
-      const allDespachos = [...(despOrigen.data || []), ...(despDestino.data || [])];
-      const despachosMap = new Map(allDespachos.map(d => [d.id, d]));
-      const despachoIds = [...despachosMap.keys()];
-
-      if (despachoIds.length === 0) {
-        setViajes([]);
-        setLoadingViajes(false);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('❌ [supervisor-carga] No session');
         return;
       }
 
-      // Paso 3: Obtener viajes en estados relevantes
-      const { data, error } = await supabase
-        .from('viajes_despacho')
-        .select('id, numero_viaje, estado, chofer_id, camion_id, acoplado_id, despacho_id')
-        .in('despacho_id', despachoIds)
-        .in('estado', ESTADOS_SUPERVISOR)
-        .order('created_at', { ascending: true });
+      const res = await fetch('/api/supervisor/viajes', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
 
-      if (error) {
-        console.error('❌ [supervisor-carga] Error cargando viajes:', error);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('❌ [supervisor-carga] API error:', err.error);
         return;
       }
 
-      const viajesFiltrados = data || [];
-
-      // Traer choferes, camiones y acoplados por ID
-      const choferIds = [...new Set(viajesFiltrados.map((v: any) => v.chofer_id).filter(Boolean))];
-      const camionIds = [...new Set(viajesFiltrados.map((v: any) => v.camion_id).filter(Boolean))];
-      const acopladoIds = [...new Set(viajesFiltrados.map((v: any) => v.acoplado_id).filter(Boolean))];
-
-      const [choferesRes, camionesRes, acopladosRes] = await Promise.all([
-        choferIds.length > 0
-          ? supabase.from('choferes').select('id, nombre, apellido, dni').in('id', choferIds)
-          : Promise.resolve({ data: [] }),
-        camionIds.length > 0
-          ? supabase.from('camiones').select('id, patente, marca, modelo').in('id', camionIds)
-          : Promise.resolve({ data: [] }),
-        acopladoIds.length > 0
-          ? supabase.from('acoplados').select('id, patente, marca, modelo').in('id', acopladoIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const choferesMap: Record<string, any> = {};
-      const camionesMap: Record<string, any> = {};
-      const acopladosMap: Record<string, any> = {};
-      (choferesRes.data || []).forEach((c: any) => { choferesMap[c.id] = c; });
-      (camionesRes.data || []).forEach((c: any) => { camionesMap[c.id] = c; });
-      (acopladosRes.data || []).forEach((a: any) => { acopladosMap[a.id] = a; });
+      const json = await res.json();
+      const viajesFromApi = json.viajes || [];
 
       // Traer estado de documentación via API server-side
-      const allEntidades: { tipo: string; id: string }[] = [
-        ...choferIds.map(id => ({ tipo: 'chofer', id })),
-        ...camionIds.map(id => ({ tipo: 'camion', id })),
-        ...acopladoIds.map(id => ({ tipo: 'acoplado', id })),
-      ];
+      const allEntidades: { tipo: string; id: string }[] = [];
+      const choferIds = new Set<string>();
+      const camionIds = new Set<string>();
+      const acopladoIds = new Set<string>();
+
+      viajesFromApi.forEach((v: any) => {
+        if (v.chofer_id) choferIds.add(v.chofer_id);
+        if (v.camion_id) camionIds.add(v.camion_id);
+        if (v.acoplado_id) acopladoIds.add(v.acoplado_id);
+      });
+
+      choferIds.forEach(id => allEntidades.push({ tipo: 'chofer', id }));
+      camionIds.forEach(id => allEntidades.push({ tipo: 'camion', id }));
+      acopladoIds.forEach(id => allEntidades.push({ tipo: 'acoplado', id }));
 
       let docsStatusMap: Record<string, { estado: string; vigentes: number; vencidos: number; por_vencer: number; faltantes: string[] }> = {};
       if (allEntidades.length > 0) {
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            const docRes = await fetch('/api/documentacion/estado-batch', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({ entidades: allEntidades }),
-            });
-            if (docRes.ok) {
-              const docJson = await docRes.json();
-              docsStatusMap = docJson.data || {};
-            }
+          const docRes = await fetch('/api/documentacion/estado-batch', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ entidades: allEntidades }),
+          });
+          if (docRes.ok) {
+            const docJson = await docRes.json();
+            docsStatusMap = docJson.data || {};
           }
         } catch (err) {
           console.warn('⚠️ [supervisor-carga] Error cargando docs:', err);
@@ -196,37 +134,21 @@ export default function useSupervisorCarga() {
         };
       };
 
-      const formateados: ViajeParaCarga[] = viajesFiltrados.map((v: any) => {
-        const despacho = despachosMap.get(v.despacho_id);
-        const chofer = choferesMap[v.chofer_id];
-        const camion = camionesMap[v.camion_id];
-        const acoplado = v.acoplado_id ? acopladosMap[v.acoplado_id] : null;
-
-        const esCarga = ESTADOS_CARGA.includes(v.estado);
-        const tipo_operacion = esCarga ? 'carga' as const : 'descarga' as const;
-
-        return {
-          id: v.id,
-          numero_viaje: String(v.numero_viaje),
-          estado: v.estado || 'ingresado_origen',
-          estado_carga: 'pendiente',
-          origen: despacho?.origen || '-',
-          destino: despacho?.destino || '-',
-          chofer: chofer
-            ? { nombre: `${chofer.nombre} ${chofer.apellido}`, dni: chofer.dni }
-            : { nombre: 'Sin asignar', dni: '-' },
-          camion: camion
-            ? { patente: camion.patente, marca: `${camion.marca} ${camion.modelo || ''}`.trim() }
-            : { patente: 'Sin asignar', marca: '-' },
-          acoplado: acoplado
-            ? { patente: acoplado.patente, marca: `${acoplado.marca} ${acoplado.modelo || ''}`.trim() }
-            : null,
-          tipo_operacion,
-          docs_chofer: v.chofer_id ? getDocStatus('chofer', v.chofer_id) : EMPTY_DOCS,
-          docs_camion: v.camion_id ? getDocStatus('camion', v.camion_id) : EMPTY_DOCS,
-          docs_acoplado: v.acoplado_id ? getDocStatus('acoplado', v.acoplado_id) : null,
-        };
-      });
+      const formateados: ViajeParaCarga[] = viajesFromApi.map((v: any) => ({
+        id: v.id,
+        numero_viaje: v.numero_viaje,
+        estado: v.estado,
+        estado_carga: 'pendiente',
+        origen: v.origen,
+        destino: v.destino,
+        tipo_operacion: v.tipo_operacion as 'carga' | 'descarga',
+        chofer: v.chofer,
+        camion: v.camion,
+        acoplado: v.acoplado,
+        docs_chofer: v.chofer_id ? getDocStatus('chofer', v.chofer_id) : EMPTY_DOCS,
+        docs_camion: v.camion_id ? getDocStatus('camion', v.camion_id) : EMPTY_DOCS,
+        docs_acoplado: v.acoplado_id ? getDocStatus('acoplado', v.acoplado_id) : null,
+      }));
 
       setViajes(formateados);
     } catch (err) {
