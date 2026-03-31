@@ -69,13 +69,13 @@ export default withAuth(async (req, res, { user }) => {
             return res.status(500).json({ error: 'Error registrando token', details: retryError.message });
           }
 
-          return res.status(200).json({ success: true, push_token: retryData });
+          return res.status(200).json({ success: true, message: 'Token registrado', push_token: retryData });
         }
 
         return res.status(500).json({ error: 'Error registrando token', details: error.message });
       }
 
-      return res.status(200).json({ success: true, push_token: data });
+      return res.status(200).json({ success: true, message: 'Token registrado', push_token: data });
     } catch (err: unknown) {
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
