@@ -1,15 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import GestionVentanas from '@/components/Turnos/GestionVentanas';
 import ReservaTurnos from '@/components/Turnos/ReservaTurnos';
 import { useUserRole } from '@/lib/contexts/UserRoleContext';
 import { useFeatureFlags } from '@/lib/contexts/FeatureFlagContext';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function TurnosPage() {
   const { user, loading, tipoEmpresa, empresaId } = useUserRole();
   const { hasFeature, loading: featureLoading } = useFeatureFlags();
-  const [plantaTab, setPlantaTab] = useState<'ventanas' | 'reservar'>('ventanas');
+  const [plantaTab, setPlantaTab] = useState<'ventanas' | 'reservar'>('reservar');
+  const [hasVentanas, setHasVentanas] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!empresaId || String(tipoEmpresa || '').toLowerCase() !== 'planta') return;
+    supabase
+      .from('ventanas_recepcion')
+      .select('id', { count: 'exact', head: true })
+      .eq('empresa_planta_id', empresaId)
+      .then(({ count }) => {
+        const has = (count ?? 0) > 0;
+        setHasVentanas(has);
+        if (has) setPlantaTab('ventanas');
+      });
+  }, [empresaId, tipoEmpresa]);
 
   if (loading || featureLoading) {
     return <LoadingSpinner text="Cargando..." fullScreen />;
@@ -33,29 +48,31 @@ export default function TurnosPage() {
         </div>
       ) : isPlanta ? (
         <div className="space-y-4">
-          <div className="flex gap-2 border-b border-slate-700 pb-2">
-            <button
-              onClick={() => setPlantaTab('ventanas')}
-              className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
-                plantaTab === 'ventanas'
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Mis Ventanas
-            </button>
-            <button
-              onClick={() => setPlantaTab('reservar')}
-              className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
-                plantaTab === 'reservar'
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Reservar Turno en otra Planta
-            </button>
-          </div>
-          {plantaTab === 'ventanas' ? (
+          {hasVentanas && (
+            <div className="flex gap-2 border-b border-slate-700 pb-2">
+              <button
+                onClick={() => setPlantaTab('ventanas')}
+                className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
+                  plantaTab === 'ventanas'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Mis Ventanas
+              </button>
+              <button
+                onClick={() => setPlantaTab('reservar')}
+                className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
+                  plantaTab === 'reservar'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Reservar Turno en otra Planta
+              </button>
+            </div>
+          )}
+          {plantaTab === 'ventanas' && hasVentanas ? (
             <GestionVentanas />
           ) : (
             <ReservaTurnos excludeEmpresaId={empresaId || undefined} asReservante />
