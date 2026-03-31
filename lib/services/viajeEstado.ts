@@ -25,6 +25,7 @@ import {
   esEstadoFinal,
   type EstadoViajeType,
 } from '@/lib/estados';
+import { sendPushToUser } from '@/lib/services/expoPush';
 
 // ============================================================================
 // Tipos del servicio
@@ -422,6 +423,27 @@ export async function asignarUnidad(
       .then(({ error }) => {
         if (error) console.error('⚠️ Error registrando historial:', error);
       });
+  }
+
+  // 7. Push notification al chofer (viaje asignado)
+  try {
+    const { data: choferData } = await supabase
+      .from('choferes')
+      .select('usuario_id')
+      .eq('id', chofer_id)
+      .single();
+
+    if (choferData?.usuario_id) {
+      sendPushToUser(choferData.usuario_id, {
+        title: 'Nuevo viaje asignado',
+        body: pedido_id
+          ? `Se te asignó el viaje ${pedido_id}`
+          : 'Se te asignó un nuevo viaje',
+        data: { viaje_id, tipo: 'viaje_asignado' },
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.error('⚠️ Error enviando push viaje asignado:', err);
   }
 
   return {

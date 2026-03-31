@@ -9,6 +9,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { EstadoViajeType } from '@/lib/estados';
+import { sendPushToUser } from '@/lib/services/expoPush';
 
 // ============================================================================
 // Tipos
@@ -187,6 +188,13 @@ async function crearNotificacion(
   if (error) {
     console.error(`⚠️ Error inserting notification:`, error);
   }
+
+  // Send push notification (best-effort, non-blocking)
+  sendPushToUser(data.user_id, {
+    title: data.titulo,
+    body: data.mensaje,
+    data: { viaje_id: data.viaje_id, tipo: data.tipo, ...(data.datos_adicionales || {}) },
+  }).catch(() => {});
 }
 
 function mapearTipoNotificacion(estado: EstadoViajeType): TipoNotificacion {
